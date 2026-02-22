@@ -1,7 +1,7 @@
-package com.spt.learningmanage.common.exception;
+package com.spt.learningmanage.exception;
 
-import com.spt.learningmanage.common.api.ApiResponse;
-import com.spt.learningmanage.common.enums.ErrorCode;
+import com.spt.learningmanage.common.BaseResponse;
+import com.spt.learningmanage.common.ResultUtils;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,29 +14,29 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<Void> handleBusinessException(BusinessException ex) {
-        return ApiResponse.error(ex.getErrorCode(), ex.getMessage());
+    public BaseResponse<Void> handleBusinessException(BusinessException ex) {
+        return ResultUtils.error(ex.getErrorCode(), ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
+    public BaseResponse<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getAllErrors().stream()
                 .findFirst()
                 .map(error -> error.getDefaultMessage())
                 .orElse(ErrorCode.VALIDATION_ERROR.getMessage());
-        return ApiResponse.error(ErrorCode.VALIDATION_ERROR, message);
+        return ResultUtils.error(ErrorCode.VALIDATION_ERROR, message);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException ex) {
-        return ApiResponse.error(ErrorCode.VALIDATION_ERROR, ex.getMessage());
+    public BaseResponse<Void> handleConstraintViolation(ConstraintViolationException ex) {
+        return ResultUtils.error(ErrorCode.VALIDATION_ERROR, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiResponse<Void> handleException(Exception ex) {
-        return ApiResponse.error(ErrorCode.INTERNAL_ERROR);
+    public BaseResponse<Void> handleException(Exception ex) {
+        return ResultUtils.error(ErrorCode.INTERNAL_ERROR);
     }
 }

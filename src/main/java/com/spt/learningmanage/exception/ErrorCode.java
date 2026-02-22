@@ -1,4 +1,4 @@
-package com.spt.learningmanage.common.enums;
+package com.spt.learningmanage.exception;
 
 import lombok.Getter;
 

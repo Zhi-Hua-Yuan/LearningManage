@@ -1,6 +1,4 @@
-package com.spt.learningmanage.common.exception;
-
-import com.spt.learningmanage.common.enums.ErrorCode;
+package com.spt.learningmanage.exception;
 import lombok.Getter;
 
 @Getter

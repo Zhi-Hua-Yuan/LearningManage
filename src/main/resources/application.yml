@@ -1,3 +1,8 @@
+server:
+  port: 8123
+  servlet:
+    context-path: /api
+
 spring:
   application:
     name: LearningManage
