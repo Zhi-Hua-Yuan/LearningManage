@@ -4,13 +4,10 @@ server:
     context-path: /api
 
 spring:
+  profiles:
+    active: dev
   application:
     name: LearningManage
-  datasource:
-    url: jdbc:mysql://localhost:3306/learning_manage?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-    username: root
-    password: yunmo_Hua0209
-    driver-class-name: com.mysql.cj.jdbc.Driver
 
 mybatis-plus:
   configuration:
