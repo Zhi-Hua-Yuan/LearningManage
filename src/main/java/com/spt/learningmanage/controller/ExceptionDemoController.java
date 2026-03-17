@@ -14,16 +14,16 @@ public class ExceptionDemoController {
 
     @GetMapping("/demo/error/business")
     public void businessError() {
-        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Demo business exception");
+        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "演示业务异常");
     }
 
     @GetMapping("/demo/error/system")
     public void systemError() {
-        throw new RuntimeException("Demo system exception");
+        throw new RuntimeException("演示系统异常");
     }
 
     @GetMapping("/demo/error/validate")
-    public void validateError(@RequestParam @Min(value = 1, message = "value must be greater than or equal to 1") int value) {
+    public void validateError(@RequestParam @Min(value = 1, message = "参数 value 必须大于等于 1") int value) {
         // Empty implementation on purpose. Invalid input triggers global validation handling.
     }
 }

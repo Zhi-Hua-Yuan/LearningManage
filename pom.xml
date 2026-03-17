@@ -5,8 +5,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.10</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <version>3.3.6</version>
+        <relativePath/>
     </parent>
     <groupId>com.spt</groupId>
     <artifactId>LearningManage</artifactId>
@@ -65,6 +65,12 @@
             <version>3.5.7</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+            <version>4.5.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>

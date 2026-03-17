@@ -12,3 +12,17 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: isDelete
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+#logging:
+#  level:
+#    # 打印 SpringDoc 核心日志
+#    org.springdoc: DEBUG
+#    # 打印 Knife4j 日志
+#    com.github.xiaoymin.knife4j: DEBUG
+#    # 打印请求处理异常
+#    org.springframework.web.servlet.mvc.method.annotation: DEBUG
