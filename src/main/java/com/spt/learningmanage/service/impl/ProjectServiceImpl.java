@@ -11,8 +11,9 @@ import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
 import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.vo.project.ProjectVo;
+import com.spt.learningmanage.model.vo.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
+import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -33,8 +34,12 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
         if (projectCreateRequest == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "请求参数不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
         validateName(projectCreateRequest.getName());
         validateDateRange(projectCreateRequest.getStartDate(), projectCreateRequest.getEndDate());
@@ -46,10 +51,11 @@ public class ProjectServiceImpl implements ProjectService {
         project.setEndDate(projectCreateRequest.getEndDate());
         project.setStatus(ProjectConstant.STATUS_ACTIVE);
         project.setIsDelete(0);
+        project.setUserId(userId);
 
         int rows = projectMapper.insert(project);
         if (rows != 1 || project.getId() == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "创建项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建项目失败");
         }
         return project.getId();
     }
@@ -59,10 +65,16 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public ProjectVo getById(Long id) {
-        if (id == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不能为空");
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        Project project = projectMapper.selectById(id);
+        if (id == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+        }
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        Project project = projectMapper.selectOne(wrapper);
         if (project == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -74,6 +86,10 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public Page<ProjectVo> list(ProjectQueryRequest projectQueryRequest) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
         ProjectQueryRequest validProjectQueryRequest =
                 projectQueryRequest == null ? new ProjectQueryRequest() : projectQueryRequest;
         long pageNum = safePageNum(validProjectQueryRequest.getPageNum());
@@ -81,6 +97,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNull(Project::getDeletedAt);
+        wrapper.eq(Project::getUserId, userId);
         if (validProjectQueryRequest.getStatus() != null) {
             wrapper.eq(Project::getStatus, validProjectQueryRequest.getStatus());
         }
@@ -101,10 +118,16 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public void update(ProjectUpdateRequest projectUpdateRequest) {
-        if (projectUpdateRequest == null || projectUpdateRequest.getId() == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不能为空");
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        Project existing = projectMapper.selectById(projectUpdateRequest.getId());
+        if (projectUpdateRequest == null || projectUpdateRequest.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+        }
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getId, projectUpdateRequest.getId()).eq(Project::getUserId, userId);
+        Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -132,10 +155,11 @@ public class ProjectServiceImpl implements ProjectService {
         update.setStatus(newStatus);
         update.setStartDate(newStartDate);
         update.setEndDate(newEndDate);
+        update.setUserId(userId);
 
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "更新项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新项目失败");
         }
     }
 
@@ -144,17 +168,23 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public void archive(List<Long> ids) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
         if (ids == null || ids.isEmpty()) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 列表不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 列表不能为空");
         }
         for (Long id : ids) {
             if (id == null || id <= 0) {
-                throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不合法");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
             }
         }
 
         // 检查所有项目是否存在
-        List<Project> existingProjects = projectMapper.selectBatchIds(ids);
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Project::getId, ids).eq(Project::getUserId, userId);
+        List<Project> existingProjects = projectMapper.selectList(wrapper);
         if (existingProjects.size() != ids.size()) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -162,18 +192,19 @@ public class ProjectServiceImpl implements ProjectService {
         // 检查项目是否已经归档
         for (Project project : existingProjects) {
             if (Objects.equals(project.getStatus(), ProjectConstant.STATUS_ARCHIVED)) {
-                throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 " + project.getId() + " 已经归档，无法再次归档");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 " + project.getId() + " 已经归档，无法再次归档");
             }
         }
 
         // 批量更新状态为归档
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.in(Project::getId, ids)
+                .eq(Project::getUserId, userId)
                 .set(Project::getStatus, ProjectConstant.STATUS_ARCHIVED);
 
         int rows = projectMapper.update(null, updateWrapper);
         if (rows < ids.size()) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "归档项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "归档项目失败");
         }
     }
 
@@ -182,10 +213,16 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public void delete(Long id) {
-        if (id == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不能为空");
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        Project existing = projectMapper.selectById(id);
+        if (id == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+        }
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -194,10 +231,11 @@ public class ProjectServiceImpl implements ProjectService {
         Project update = new Project();
         update.setId(id);
         update.setDeletedAt(java.time.LocalDateTime.now());
+        update.setUserId(userId);
 
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "删除项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除项目失败");
         }
     }
 
@@ -206,28 +244,35 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     public void recover(Long id) {
-        if (id == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不能为空");
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        Project existing = projectMapper.selectById(id);
+        if (id == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+        }
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
         if (existing.getDeletedAt() == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目未被删除，无法恢复");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目未被删除，无法恢复");
         }
         if (existing.getDeletedAt().plusDays(30).isBefore(java.time.LocalDateTime.now())) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目删除超过30天，无法恢复");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目删除超过30天，无法恢复");
         }
 
         // 恢复：清空 deletedAt
         Project update = new Project();
         update.setId(id);
         update.setDeletedAt(null);
+        update.setUserId(userId);
 
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "恢复项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复项目失败");
         }
     }
 
@@ -248,7 +293,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.PROJECT_NAME_EMPTY);
         }
         if (name.length() > 100) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目名称长度不能超过100");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目名称长度不能超过100");
         }
     }
 
@@ -257,7 +302,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     private void validateDateRange(LocalDate startDate, LocalDate endDate) {
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "结束日期不能早于开始日期");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "结束日期不能早于开始日期");
         }
     }
 
@@ -267,7 +312,7 @@ public class ProjectServiceImpl implements ProjectService {
     private void validateStatus(Integer status) {
         if (!Objects.equals(status, ProjectConstant.STATUS_ACTIVE)
                 && !Objects.equals(status, ProjectConstant.STATUS_ARCHIVED)) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目状态不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目状态不合法");
         }
     }
 

@@ -1,4 +1,4 @@
-package com.spt.learningmanage.model.vo.task;
+package com.spt.learningmanage.model.vo;
 
 import lombok.Data;
 

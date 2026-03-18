@@ -1,4 +1,4 @@
-package com.spt.learningmanage.model.vo.project;
+package com.spt.learningmanage.model.vo;
 
 import lombok.Data;
 
@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Data
 public class ProjectVo {
     private Long id;
+    private Long userId;
     private String name;
     private String goal;
     private Integer status;

@@ -8,7 +8,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
-import com.spt.learningmanage.model.vo.task.TaskVo;
+import com.spt.learningmanage.model.vo.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -23,18 +23,16 @@ public class TaskController {
     // 创建任务，返回任务ID
     @PostMapping("/add")
     public BaseResponse<Long> addTask(@RequestBody TaskCreateRequest taskCreateRequest) {
-        Long userId = 1L; // 默认用户ID
-        return ResultUtils.ok(taskService.create(taskCreateRequest, userId));
+        return ResultUtils.ok(taskService.create(taskCreateRequest));
     }
 
     // 根据 id 获取任务详情（VO）
     @GetMapping("/get/{id}")
     public BaseResponse<TaskVo> getTaskById(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
         }
-        Long userId = 1L; // 默认用户ID
-        return ResultUtils.ok(taskService.getById(id, userId));
+        return ResultUtils.ok(taskService.getById(id));
     }
 
     // 分页获取任务列表（VO）
@@ -51,18 +49,16 @@ public class TaskController {
         queryRequest.setIsOverdue(isOverdue);
         queryRequest.setPageNum((long) current);
         queryRequest.setPageSize((long) size);
-        Long userId = 1L; // 默认用户ID
-        return ResultUtils.ok(taskService.list(queryRequest, userId));
+        return ResultUtils.ok(taskService.list(queryRequest));
     }
 
     // 更新任务
     @PostMapping("/update")
     public BaseResponse<Boolean> updateTask(@RequestBody TaskUpdateRequest taskUpdateRequest) {
         if (taskUpdateRequest == null || taskUpdateRequest.getId() == null || taskUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
         }
-        Long userId = 1L; // 默认用户ID
-        taskService.update(taskUpdateRequest, userId);
+        taskService.update(taskUpdateRequest);
         return ResultUtils.ok(true);
     }
 
@@ -70,10 +66,9 @@ public class TaskController {
     @PostMapping("/delete/{id}")
     public BaseResponse<Boolean> deleteTask(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
         }
-        Long userId = 1L; // 默认用户ID
-        taskService.delete(id, userId);
+        taskService.delete(id);
         return ResultUtils.ok(true);
     }
 
