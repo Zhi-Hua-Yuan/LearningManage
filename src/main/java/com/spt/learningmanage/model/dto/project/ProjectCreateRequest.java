@@ -11,9 +11,9 @@ public class ProjectCreateRequest {
 
     private String goal;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // 告诉后端：如果看到带时间的格式，自动帮我转成 LocalDate
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate startDate;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
 }
