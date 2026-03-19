@@ -11,7 +11,7 @@ public final class ResultUtils {
     }
 
     public static <T> BaseResponse<T> ok(T data) {
-        return new BaseResponse<>(ErrorCode.OK, data);
+        return new BaseResponse<>(ErrorCode.SUCCESS, data);
     }
 
     public static <T> BaseResponse<T> error(ErrorCode errorCode) {

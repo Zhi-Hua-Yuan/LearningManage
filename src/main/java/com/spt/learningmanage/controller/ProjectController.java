@@ -7,7 +7,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
-import com.spt.learningmanage.model.vo.project.ProjectVo;
+import com.spt.learningmanage.model.vo.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +37,7 @@ public class ProjectController {
     @GetMapping("/get/{id}")
     public BaseResponse<ProjectVo> getProjectById(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
         return ResultUtils.ok(projectService.getById(id));
     }
@@ -61,7 +61,7 @@ public class ProjectController {
     @PostMapping("/update")
     public BaseResponse<Boolean> updateProject(@RequestBody ProjectUpdateRequest projectUpdateRequest) {
         if (projectUpdateRequest == null || projectUpdateRequest.getId() == null || projectUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
         projectService.update(projectUpdateRequest);
         return ResultUtils.ok(true);
@@ -78,7 +78,7 @@ public class ProjectController {
     @PostMapping("/delete/{id}")
     public BaseResponse<Boolean> deleteProject(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
         projectService.delete(id);
         return ResultUtils.ok(true);
@@ -88,7 +88,7 @@ public class ProjectController {
     @PostMapping("/recover/{id}")
     public BaseResponse<Boolean> recoverProject(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "项目 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
         projectService.recover(id);
         return ResultUtils.ok(true);

@@ -14,7 +14,7 @@ public class ExceptionDemoController {
 
     @GetMapping("/demo/error/business")
     public void businessError() {
-        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "演示业务异常");
+        throw new BusinessException(ErrorCode.PARAMS_ERROR, "演示业务异常");
     }
 
     @GetMapping("/demo/error/system")

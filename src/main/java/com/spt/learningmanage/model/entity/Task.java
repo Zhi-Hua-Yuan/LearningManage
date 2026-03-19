@@ -10,20 +10,21 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("project")
-public class Project {
+@TableName("task")
+public class Task {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
+    private Long projectId;
     private Long userId;
-    private String name;
-    private String goal;
+    private String title;
+    private String description;
     private Integer status;
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private Integer priority;
+    private LocalDate dueDate;
+    private LocalDateTime completedAt;
     @TableLogic
     private Integer isDelete;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
-    private LocalDateTime deletedAt;
 }

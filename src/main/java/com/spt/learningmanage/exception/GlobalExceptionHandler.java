@@ -24,19 +24,19 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getAllErrors().stream()
                 .findFirst()
                 .map(error -> error.getDefaultMessage())
-                .orElse(ErrorCode.VALIDATION_ERROR.getMessage());
-        return ResultUtils.error(ErrorCode.VALIDATION_ERROR, message);
+                .orElse(ErrorCode.PARAMS_ERROR.getMessage());
+        return ResultUtils.error(ErrorCode.PARAMS_ERROR, message);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public BaseResponse<Void> handleConstraintViolation(ConstraintViolationException ex) {
-        return ResultUtils.error(ErrorCode.VALIDATION_ERROR, ex.getMessage());
+        return ResultUtils.error(ErrorCode.PARAMS_ERROR, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public BaseResponse<Void> handleException(Exception ex) {
-        return ResultUtils.error(ErrorCode.INTERNAL_ERROR);
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR);
     }
 }
