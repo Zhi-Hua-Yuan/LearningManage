@@ -1,7 +1,9 @@
 package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.utils.UserHolder;
@@ -138,6 +140,8 @@ public class TaskServiceImpl implements TaskService {
         if (request == null || request.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
         }
+
+        // 1. 查询任务
         LambdaQueryWrapper<Task> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Task::getId, request.getId()).eq(Task::getUserId, userId);
         Task existing = taskMapper.selectOne(queryWrapper);
@@ -145,34 +149,46 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
         }
 
+        // 2. 提取并校验新值
         String newTitle = request.getTitle() != null ? request.getTitle().trim() : existing.getTitle();
         validateTitle(newTitle);
+
         String newDescription = request.getDescription() != null ? request.getDescription() : existing.getDescription();
+
         Integer newStatus = request.getStatus() != null ? request.getStatus() : existing.getStatus();
-        validateStatus(newStatus);
+        validateStatus(newStatus); // ⚠️ 内部建议改用 TaskStatusEnum.fromValue(value) 校验
+
         Integer newPriority = request.getPriority() != null ? request.getPriority() : existing.getPriority();
         validatePriority(newPriority);
+
         LocalDate newDueDate = request.getDueDate() != null ? request.getDueDate() : existing.getDueDate();
 
-        Task update = new Task();
-        update.setId(request.getId());
-        update.setTitle(newTitle);
-        update.setDescription(newDescription);
-        update.setStatus(newStatus);
-        update.setPriority(newPriority);
-        update.setDueDate(newDueDate);
-        update.setUserId(userId);
+        // 3. 使用 UpdateWrapper 构造更新
+        LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Task::getId, request.getId())
+                .eq(Task::getUserId, userId)
+                .set(Task::getTitle, newTitle)
+                .set(Task::getDescription, newDescription)
+                .set(Task::getStatus, newStatus)
+                .set(Task::getPriority, newPriority)
+                .set(Task::getDueDate, newDueDate);
 
-        // 处理 completedAt
+        // 4. 处理 completedAt (使用枚举值对比)
+        int doneValue = TaskStatusEnum.DONE.getValue();
+
         if (!Objects.equals(existing.getStatus(), newStatus)) {
-            if (newStatus == 1 && existing.getStatus() != 1) { // 从未完成到完成
-                update.setCompletedAt(LocalDateTime.now());
-            } else if (newStatus == 0 && existing.getStatus() == 1) { // 从完成到未完成
-                update.setCompletedAt(null);
+            // 如果新状态是“完成”，且原状态不是“完成”，记录完成时间
+            if (newStatus == doneValue && existing.getStatus() != doneValue) {
+                updateWrapper.set(Task::getCompletedAt, LocalDateTime.now());
+            }
+            // 如果新状态不是“完成”，但原状态是“完成”，清空完成时间
+            else if (newStatus != doneValue && existing.getStatus() == doneValue) {
+                updateWrapper.set(Task::getCompletedAt, null);
             }
         }
 
-        int rows = taskMapper.updateById(update);
+        // 5. 执行更新
+        int rows = taskMapper.update(null, updateWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新任务失败");
         }
@@ -228,7 +244,13 @@ public class TaskServiceImpl implements TaskService {
      * 校验任务状态。
      */
     private void validateStatus(Integer status) {
-        if (status != 0 && status != 1) {
+        if (status == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态不能为空");
+        }
+        try {
+            // 如果值非法，fromValue 会抛出 IllegalArgumentException
+            TaskStatusEnum.fromValue(status);
+        } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务状态不合法");
         }
     }

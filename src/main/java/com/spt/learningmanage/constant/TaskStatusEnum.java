@@ -9,19 +9,19 @@ public enum TaskStatusEnum {
     DONE(2, "完成");
 
     private final int value;
-    private final String desc;
+    private final String text;
 
-    TaskStatusEnum(int value, String desc) {
+    TaskStatusEnum(int value, String text) {
         this.value = value;
-        this.desc = desc;
+        this.text = text;
     }
 
-    public static TaskStatusEnum fromValue(int value) {
+    public static void fromValue(int value) {
         for (TaskStatusEnum status : values()) {
             if (status.value == value) {
-                return status;
+                return;
             }
         }
-        throw new IllegalArgumentException("Invalid status value: " + value);
+        throw new IllegalArgumentException("任务状态不合法: " + value);
     }
 }
