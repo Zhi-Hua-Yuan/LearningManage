@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class TaskVo {
     private Long id;
     private Long projectId;
+    private Long milestoneId;
     private Long userId;
     private String title;
     private String description;

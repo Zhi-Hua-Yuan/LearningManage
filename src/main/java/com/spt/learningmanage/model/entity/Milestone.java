@@ -6,26 +6,25 @@ import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("task")
-public class Task {
+@TableName("milestone")
+public class Milestone {
+
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     private Long projectId;
-    private Long milestoneId;
     private Long userId;
-    private String title;
-    private String description;
-    private Integer status;
-    private Integer priority;
-    private LocalDate dueDate;
-    private LocalDateTime completedAt;
+    private String name;
+    private Integer orderNo;
+    private BigDecimal progress;
+
     @TableLogic
     private Integer isDelete;
+
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

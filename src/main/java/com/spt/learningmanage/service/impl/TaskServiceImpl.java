@@ -1,17 +1,21 @@
 package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.utils.UserHolder;
+import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
+import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.TaskVo;
@@ -21,6 +25,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -34,9 +40,12 @@ public class TaskServiceImpl implements TaskService {
     @Resource
     private ProjectMapper projectMapper;
 
+    @Resource
+    private MilestoneMapper milestoneMapper;
+
     /**
      * 创建任务，返回任务ID。
-     * 校验 projectId 是否存在（由于 Project 实体暂无 userId 字段，仅校验存在性）。
+     * 强制校验项目归属当前用户。
      */
     @Override
     public Long create(TaskCreateRequest request) {
@@ -47,12 +56,11 @@ public class TaskServiceImpl implements TaskService {
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
-        if (request.getProjectId() != null) {
-            Project project = projectMapper.selectById(request.getProjectId());
-            if (project == null || project.getDeletedAt() != null) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目不存在");
-            }
+        if (request.getProjectId() == null || request.getProjectId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
+        validateProjectOwnership(request.getProjectId(), userId);
+        validateMilestoneOwnership(request.getProjectId(), request.getMilestoneId(), userId);
         validateTitle(request.getTitle());
         validatePriority(request.getPriority());
 
@@ -60,6 +68,7 @@ public class TaskServiceImpl implements TaskService {
         task.setTitle(request.getTitle().trim());
         task.setDescription(request.getDescription());
         task.setProjectId(request.getProjectId());
+        task.setMilestoneId(request.getMilestoneId());
         task.setUserId(userId);
         task.setStatus(0); // 默认未完成
         task.setPriority(request.getPriority());
@@ -70,6 +79,8 @@ public class TaskServiceImpl implements TaskService {
         if (rows != 1 || task.getId() == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建任务失败");
         }
+
+        calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
         return task.getId();
     }
 
@@ -161,7 +172,7 @@ public class TaskServiceImpl implements TaskService {
         Integer newPriority = request.getPriority() != null ? request.getPriority() : existing.getPriority();
         validatePriority(newPriority);
 
-        LocalDate newDueDate = request.getDueDate() != null ? request.getDueDate() : existing.getDueDate();
+        LocalDate newDueDate = request.getDueDate();
 
         // 3. 使用 UpdateWrapper 构造更新
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
@@ -177,12 +188,10 @@ public class TaskServiceImpl implements TaskService {
         int doneValue = TaskStatusEnum.DONE.getValue();
 
         if (!Objects.equals(existing.getStatus(), newStatus)) {
-            // 如果新状态是“完成”，且原状态不是“完成”，记录完成时间
-            if (newStatus == doneValue && existing.getStatus() != doneValue) {
+            // 状态变化后：新状态为完成则记录时间，否则清空时间。
+            if (Objects.equals(newStatus, doneValue)) {
                 updateWrapper.set(Task::getCompletedAt, LocalDateTime.now());
-            }
-            // 如果新状态不是“完成”，但原状态是“完成”，清空完成时间
-            else if (newStatus != doneValue && existing.getStatus() == doneValue) {
+            } else {
                 updateWrapper.set(Task::getCompletedAt, null);
             }
         }
@@ -191,6 +200,10 @@ public class TaskServiceImpl implements TaskService {
         int rows = taskMapper.update(null, updateWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新任务失败");
+        }
+
+        if (!Objects.equals(existing.getStatus(), newStatus)) {
+            calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
         }
     }
 
@@ -216,6 +229,95 @@ public class TaskServiceImpl implements TaskService {
         int rows = taskMapper.delete(queryWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除任务失败");
+        }
+
+        calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
+    }
+
+    /**
+     * 计算并更新项目/里程碑进度。
+     */
+    private void calculateAndUpdateProgress(Long projectId, Long milestoneId) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+
+        if (projectId != null) {
+            BigDecimal projectProgress = calculateProgressByCondition(projectId, null, userId);
+            UpdateWrapper<Project> projectUpdateWrapper = new UpdateWrapper<>();
+            projectUpdateWrapper.eq("id", projectId)
+                    .eq("user_id", userId)
+                    .set("progress", projectProgress);
+            projectMapper.update(null, projectUpdateWrapper);
+        }
+
+        if (milestoneId != null) {
+            BigDecimal milestoneProgress = calculateProgressByCondition(projectId, milestoneId, userId);
+            UpdateWrapper<Milestone> milestoneUpdateWrapper = new UpdateWrapper<>();
+            milestoneUpdateWrapper.eq("id", milestoneId)
+                    .eq("user_id", userId)
+                    .set("progress", milestoneProgress);
+            milestoneMapper.update(null, milestoneUpdateWrapper);
+        }
+    }
+
+    private BigDecimal calculateProgressByCondition(Long projectId, Long milestoneId, Long userId) {
+        QueryWrapper<Task> totalWrapper = new QueryWrapper<>();
+        totalWrapper.eq("user_id", userId);
+        if (projectId != null) {
+            totalWrapper.eq("project_id", projectId);
+        }
+        if (milestoneId != null) {
+            totalWrapper.eq("milestone_id", milestoneId);
+        }
+        Long total = taskMapper.selectCount(totalWrapper);
+        if (total == null || total == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        QueryWrapper<Task> doneWrapper = new QueryWrapper<>();
+        doneWrapper.eq("user_id", userId)
+                .eq("status", TaskStatusEnum.DONE.getValue());
+        if (projectId != null) {
+            doneWrapper.eq("project_id", projectId);
+        }
+        if (milestoneId != null) {
+            doneWrapper.eq("milestone_id", milestoneId);
+        }
+        Long done = taskMapper.selectCount(doneWrapper);
+        long doneCount = done == null ? 0L : done;
+
+        return BigDecimal.valueOf(doneCount)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+    }
+
+    private void validateProjectOwnership(Long projectId, Long userId) {
+        LambdaQueryWrapper<Project> projectWrapper = new LambdaQueryWrapper<>();
+        projectWrapper.eq(Project::getId, projectId)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getDeletedAt);
+        Project project = projectMapper.selectOne(projectWrapper);
+        if (project == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+    }
+
+    private void validateMilestoneOwnership(Long projectId, Long milestoneId, Long userId) {
+        if (milestoneId == null) {
+            return;
+        }
+        if (milestoneId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "里程碑 ID 不合法");
+        }
+        LambdaQueryWrapper<Milestone> milestoneWrapper = new LambdaQueryWrapper<>();
+        milestoneWrapper.eq(Milestone::getId, milestoneId)
+                .eq(Milestone::getProjectId, projectId)
+                .eq(Milestone::getUserId, userId);
+        Milestone milestone = milestoneMapper.selectOne(milestoneWrapper);
+        if (milestone == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "里程碑不存在或不属于当前项目");
         }
     }
 
@@ -256,10 +358,10 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * 校验任务优先级（假设 1-低, 2-中, 3-高）。
+     * 校验任务优先级（0-无, 1-低, 2-中, 3-高）。
      */
     private void validatePriority(Integer priority) {
-        if (priority != null && (priority < 1 || priority > 3)) {
+        if (priority != null && (priority < 0 || priority > 3)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务优先级不合法");
         }
     }
