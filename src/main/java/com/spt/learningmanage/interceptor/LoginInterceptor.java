@@ -14,18 +14,35 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
+
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        String token = request.getHeader("Authorization");
-        Long userId = null;
-        if (token != null && !token.isEmpty()) {
-            userId = JwtUtils.parseToken(token);
-        }
-        if (userId == null) {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 1. 获取 Authorization Header
+        String authHeader = request.getHeader("Authorization");
+
+        // 2. 校验是否为空
+        if (authHeader == null || authHeader.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        UserHolder.set(userId);
-        return true;
+
+        // --- 核心修复：处理 "Bearer " 前缀 ---
+        String token = authHeader;
+        if (authHeader.startsWith("Bearer ")) {
+            // 如果是以 Bearer 开头，则截取第 7 位之后的内容（即真正的 Token）
+            token = authHeader.substring(7);
+        }
+        // ----------------------------------
+
+        // 3. 解析 Token
+        try {
+            Long userId = JwtUtils.parseToken(token);
+            // 4. 存储用户信息到 ThreadLocal
+            UserHolder.set(userId);
+            return true;
+        } catch (Exception e) {
+            // 解析失败（Token 伪造、过期、或格式依然不对）
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
     }
 
     @Override

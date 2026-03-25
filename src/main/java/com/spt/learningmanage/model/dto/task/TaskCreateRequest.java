@@ -9,6 +9,7 @@ public class TaskCreateRequest {
     private String title;
     private String description;
     private Long projectId;
-    private Integer priority;
+    private Long milestoneId;
+    private Integer priority = 0;
     private LocalDate dueDate;
 }

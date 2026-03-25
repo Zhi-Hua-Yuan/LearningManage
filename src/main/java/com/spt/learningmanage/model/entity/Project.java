@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -19,6 +20,7 @@ public class Project {
     private String name;
     private String goal;
     private Integer status;
+    private BigDecimal progress;
     private LocalDate startDate;
     private LocalDate endDate;
     @TableLogic
