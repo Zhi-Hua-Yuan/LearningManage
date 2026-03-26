@@ -174,6 +174,8 @@ public class TaskServiceImpl implements TaskService {
 
         LocalDate newDueDate = request.getDueDate();
 
+        Long milestoneId = request.getMilestoneId();
+
         // 3. 使用 UpdateWrapper 构造更新
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Task::getId, request.getId())
@@ -182,7 +184,8 @@ public class TaskServiceImpl implements TaskService {
                 .set(Task::getDescription, newDescription)
                 .set(Task::getStatus, newStatus)
                 .set(Task::getPriority, newPriority)
-                .set(Task::getDueDate, newDueDate);
+                .set(Task::getDueDate, newDueDate)
+                .set(Task::getMilestoneId, milestoneId);
 
         // 4. 处理 completedAt (使用枚举值对比)
         int doneValue = TaskStatusEnum.DONE.getValue();

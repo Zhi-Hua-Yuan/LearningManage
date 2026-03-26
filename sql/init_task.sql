@@ -21,3 +21,5 @@ CREATE TABLE `task`
 -- Indexes
 CREATE INDEX `idx_task_project_id` ON `task` (`project_id`);
 CREATE INDEX `idx_task_user_id` ON `task` (`user_id`);
+
+CREATE INDEX idx_task_stats ON task(project_id, status, due_date, completed_at);

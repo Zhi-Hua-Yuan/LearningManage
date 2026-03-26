@@ -12,4 +12,6 @@ public class TaskUpdateRequest {
     private Integer status;
     private Integer priority;
     private LocalDate dueDate;
+
+    private Long milestoneId;
 }
