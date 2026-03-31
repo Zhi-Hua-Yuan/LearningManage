@@ -18,6 +18,14 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# AI 大模型配置 (阿里云通义千问)
+ai:
+  # 使用 ${} 读取系统环境变量，冒号后面是默认值（如果没有配置环境变量就用默认值）
+  api-key: ${ALIYUN_API_KEY:please_set_your_api_key_in_env}
+  # 阿里云百炼平台的 OpenAI 兼容接口地址
+  base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  model: qwen-plus
+
 #logging:
 #  level:
 #    # 打印 SpringDoc 核心日志
