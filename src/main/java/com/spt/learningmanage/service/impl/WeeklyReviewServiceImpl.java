@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
@@ -28,9 +29,9 @@ import java.util.Map;
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     /**
-     * 按需求固定使用 status=1 作为“已完成”状态。
+     * 与任务主流程保持一致：DONE=2。
      */
-    private static final int COMPLETED_STATUS = 1;
+    private static final int COMPLETED_STATUS = TaskStatusEnum.DONE.getValue();
 
     @Resource
     private WeeklyReviewMapper weeklyReviewMapper;
