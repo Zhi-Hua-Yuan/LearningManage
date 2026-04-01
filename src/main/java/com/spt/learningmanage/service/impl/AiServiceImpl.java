@@ -10,7 +10,7 @@ import cn.hutool.json.JSONUtil;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
-import com.spt.learningmanage.model.vo.MilestoneDraftVO;
+import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.service.AiService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;

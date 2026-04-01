@@ -3,7 +3,7 @@ package com.spt.learningmanage.service;
 import com.spt.learningmanage.model.dto.milestone.MilestoneCreateRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneQueryRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneUpdateRequest;
-import com.spt.learningmanage.model.vo.MilestoneVo;
+import com.spt.learningmanage.model.vo.milestone.MilestoneVo;
 
 import java.util.List;
 

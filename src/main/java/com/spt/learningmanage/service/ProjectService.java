@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
-import com.spt.learningmanage.model.vo.ProjectVo;
+import com.spt.learningmanage.model.vo.project.ProjectVo;
 
 import java.util.List;
 
