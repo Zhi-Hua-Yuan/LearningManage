@@ -1,6 +1,6 @@
 package com.spt.learningmanage.service;
 
-import com.spt.learningmanage.model.vo.DashboardVO;
+import com.spt.learningmanage.model.vo.dashboard.DashboardVO;
 
 public interface StatsService {
     /**

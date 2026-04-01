@@ -3,7 +3,7 @@ package com.spt.learningmanage.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
-import com.spt.learningmanage.model.vo.TaskVo;
+import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 
 public interface TaskService {

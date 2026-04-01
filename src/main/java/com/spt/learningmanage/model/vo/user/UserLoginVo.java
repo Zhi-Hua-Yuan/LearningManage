@@ -1,4 +1,4 @@
-package com.spt.learningmanage.model.vo;
+package com.spt.learningmanage.model.vo.user;
 
 import lombok.Data;
 

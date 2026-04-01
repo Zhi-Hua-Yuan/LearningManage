@@ -7,7 +7,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
-import com.spt.learningmanage.model.vo.ProjectVo;
+import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;

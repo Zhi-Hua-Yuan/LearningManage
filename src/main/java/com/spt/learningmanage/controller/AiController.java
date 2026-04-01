@@ -7,7 +7,7 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
-import com.spt.learningmanage.model.vo.MilestoneDraftVO;
+import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.service.AiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

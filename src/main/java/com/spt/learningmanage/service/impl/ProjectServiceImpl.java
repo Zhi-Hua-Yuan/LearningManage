@@ -11,7 +11,7 @@ import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
 import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.vo.ProjectVo;
+import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;

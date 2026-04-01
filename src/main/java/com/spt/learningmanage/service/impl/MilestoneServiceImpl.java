@@ -11,7 +11,7 @@ import com.spt.learningmanage.model.dto.milestone.MilestoneQueryRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneUpdateRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.vo.MilestoneVo;
+import com.spt.learningmanage.model.vo.milestone.MilestoneVo;
 import com.spt.learningmanage.service.MilestoneService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;

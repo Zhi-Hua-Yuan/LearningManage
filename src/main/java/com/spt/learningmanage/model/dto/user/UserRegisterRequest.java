@@ -9,4 +9,3 @@ public class UserRegisterRequest {
     private String password;
     private String confirmPassword;
 }
-

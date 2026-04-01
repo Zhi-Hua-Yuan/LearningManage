@@ -8,7 +8,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
-import com.spt.learningmanage.model.vo.TaskVo;
+import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;

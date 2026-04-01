@@ -1,6 +1,6 @@
 package com.spt.learningmanage.service;
 
-import com.spt.learningmanage.model.vo.MilestoneDraftVO;
+import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 
 import java.util.List;
 
