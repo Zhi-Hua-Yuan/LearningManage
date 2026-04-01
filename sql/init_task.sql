@@ -3,6 +3,7 @@ CREATE TABLE `task`
 (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `project_id`   BIGINT       NOT NULL COMMENT '项目ID',
+    `milestone_id` BIGINT                DEFAULT NULL COMMENT '所属里程碑ID',
     `user_id`      BIGINT       NOT NULL COMMENT '用户ID',
     `title`        VARCHAR(100) NOT NULL COMMENT '任务标题',
     `description`  VARCHAR(500)          DEFAULT NULL COMMENT '任务描述',
@@ -20,6 +21,7 @@ CREATE TABLE `task`
 
 -- Indexes
 CREATE INDEX `idx_task_project_id` ON `task` (`project_id`);
+CREATE INDEX `idx_task_milestone_id` ON `task` (`milestone_id`);
 CREATE INDEX `idx_task_user_id` ON `task` (`user_id`);
 
-CREATE INDEX idx_task_stats ON task(project_id, status, due_date, completed_at);
+CREATE INDEX `idx_task_stats` ON `task` (`project_id`, `status`, `due_date`, `completed_at`);
