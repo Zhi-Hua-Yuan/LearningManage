@@ -106,6 +106,68 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     }
 
     @Override
+    public WeeklyReview getReviewById(Long id) {
+        if (id == null || id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的周总结ID");
+        }
+
+        WeeklyReview review = weeklyReviewMapper.selectById(id);
+        if (review == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
+        }
+
+        Long currentUserId = getCurrentUserId();
+        if (!currentUserId.equals(review.getUserId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权查看他人的周总结");
+        }
+
+        return review;
+    }
+
+    @Override
+    public void updateReview(WeeklyReview weeklyReview) {
+        if (weeklyReview == null || weeklyReview.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "周总结ID不能为空");
+        }
+
+        WeeklyReview oldReview = weeklyReviewMapper.selectById(weeklyReview.getId());
+        if (oldReview == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
+        }
+        if (!oldReview.getUserId().equals(getCurrentUserId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权修改他人的周总结");
+        }
+
+        oldReview.setReflection(weeklyReview.getReflection());
+        oldReview.setNextPlan(weeklyReview.getNextPlan());
+        int rows = weeklyReviewMapper.updateById(oldReview);
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新周总结失败");
+        }
+    }
+
+    @Override
+    public void deleteReview(Long id) {
+        if (id == null || id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的周总结ID");
+        }
+
+        WeeklyReview review = weeklyReviewMapper.selectById(id);
+        if (review == null) {
+            return;
+        }
+
+        if (!review.getUserId().equals(getCurrentUserId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权删除他人的周总结");
+        }
+
+        int rows = weeklyReviewMapper.deleteById(id);
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除周总结失败");
+        }
+    }
+
+    @Override
     public List<WeeklyReview> listHistory() {
         Long userId = getCurrentUserId();
         LambdaQueryWrapper<WeeklyReview> wrapper = new LambdaQueryWrapper<>();
