@@ -21,7 +21,11 @@ import java.util.List;
 public class AiServiceImpl implements AiService {
 
     private static final String TASK_BREAKDOWN_SYSTEM_PROMPT = "你是一个资深项目经理。请根据用户的目标、描述和周期，将项目拆解为2-4个里程碑，每个里程碑包含2-5个具体任务。你必须严格返回纯 JSON 数组格式，绝对不要包含任何 markdown 标记（如 ```json）或其他说明文字。JSON 结构必须是：[{\"name\":\"里程碑1\", \"tasks\":[{\"name\":\"任务1\"}]}]";
-    private static final String WEEKLY_POLISH_SYSTEM_PROMPT = "你是一个懂心理学和目标管理的导师。请根据用户本周完成的任务数、核心项目以及反思，写一段 100-200 字的结构化总结，并给出 3 条具体的下周行动建议。";
+    private static final String WEEKLY_POLISH_STRICT_PROMPT_PREFIX = "你是一个专业的职场与学业规划 AI 助手。请根据用户提供的草稿，润色并扩充'本周复盘'，并基于此推导出'下周计划'。"
+            + "【警告】：你必须严格只输出合法的 JSON 字符串，绝对不要输出任何 Markdown 标记（如 ```json），绝不要输出任何解释性的废话！"
+            + "JSON 格式必须严格如下："
+            + "{\"review\": \"这里是润色后且分段清晰的本周复盘内容...\", \"plan\": \"这里是推导出的下周计划...\"}\\n\\n"
+            + "用户的草稿如下：";
 
     @Resource
     private AiProperties aiProperties;
@@ -57,8 +61,21 @@ public class AiServiceImpl implements AiService {
         if (taskCount == null || StrUtil.hasBlank(focusProject, reflection)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务数、核心项目和反思不能为空");
         }
-        String userPrompt = String.format("本周完成任务数：%d，主要项目：%s，用户主观反思：%s。", taskCount, focusProject, reflection);
-        return callAi(WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
+        String userMessage = String.format("本周完成任务数：%d，主要项目：%s，用户主观反思：%s。", taskCount, focusProject, reflection);
+        String prompt = WEEKLY_POLISH_STRICT_PROMPT_PREFIX + userMessage;
+        String cleanedResult = callAi(prompt, "请严格按 JSON 格式输出结果。");
+
+        if (cleanedResult.contains("```json")) {
+            cleanedResult = cleanedResult.replace("```json", "");
+        }
+        if (cleanedResult.contains("```JSON")) {
+            cleanedResult = cleanedResult.replace("```JSON", "");
+        }
+        if (cleanedResult.contains("```")) {
+            cleanedResult = cleanedResult.replace("```", "");
+        }
+        cleanedResult = cleanedResult.trim();
+        return cleanedResult;
     }
 
     private String sanitizeJsonText(String content) {
@@ -143,5 +160,3 @@ public class AiServiceImpl implements AiService {
         }
     }
 }
-
-

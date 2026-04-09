@@ -9,11 +9,7 @@ import com.spt.learningmanage.service.WeeklyReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -38,6 +34,30 @@ public class WeeklyReviewController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
         weeklyReviewService.saveReview(weeklyReview);
+        return ResultUtils.ok(true);
+    }
+
+    @Operation(summary = "获取周总结详情", description = "根据ID获取特定周总结的详细信息")
+    @GetMapping("/{id}")
+    public BaseResponse<WeeklyReview> getReviewDetail(@PathVariable Long id) {
+        if (id == null || id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数错误");
+        }
+        WeeklyReview review = weeklyReviewService.getReviewById(id);
+        return ResultUtils.ok(review);
+    }
+
+    @Operation(summary = "更新周总结", description = "仅允许修改当前用户自己的周总结内容")
+    @PostMapping("/update")
+    public BaseResponse<Boolean> updateReview(@RequestBody WeeklyReview weeklyReview) {
+        weeklyReviewService.updateReview(weeklyReview);
+        return ResultUtils.ok(true);
+    }
+
+    @Operation(summary = "删除周总结", description = "仅允许删除当前用户自己的周总结")
+    @PostMapping("/delete/{id}")
+    public BaseResponse<Boolean> deleteReview(@PathVariable("id") Long id) {
+        weeklyReviewService.deleteReview(id);
         return ResultUtils.ok(true);
     }
 
