@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
@@ -27,11 +28,6 @@ import java.util.Map;
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
-    /**
-     * 按需求固定使用 status=1 作为“已完成”状态。
-     */
-    private static final int COMPLETED_STATUS = 1;
-
     @Resource
     private WeeklyReviewMapper weeklyReviewMapper;
 
@@ -49,11 +45,6 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         int year = DateUtil.year(now);
         int weekNo = DateUtil.weekOfYear(now);
 
-        WeeklyReview existing = findByUserYearWeek(userId, year, weekNo);
-        if (existing != null) {
-            return existing;
-        }
-
         LocalDate startDate = toLocalDate(DateUtil.beginOfWeek(now));
         LocalDate endDate = toLocalDate(DateUtil.endOfWeek(now));
         LocalDateTime startDateTime = startDate.atStartOfDay();
@@ -61,6 +52,16 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
         int completedTaskCount = countCompletedTasks(userId, startDateTime, endDateTimeExclusive);
         String focusProjectName = queryFocusProjectName(userId, startDateTime, endDateTimeExclusive);
+
+        WeeklyReview existing = findByUserYearWeek(userId, year, weekNo);
+        if (existing != null) {
+            // Keep subjective content from saved review, but refresh computed snapshot fields.
+            existing.setStartDate(startDate);
+            existing.setEndDate(endDate);
+            existing.setCompletedTaskCount(completedTaskCount);
+            existing.setFocusProjectName(focusProjectName);
+            return existing;
+        }
 
         WeeklyReview draft = new WeeklyReview();
         draft.setUserId(userId);
@@ -189,7 +190,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     private int countCompletedTasks(Long userId, LocalDateTime startDateTime, LocalDateTime endDateTimeExclusive) {
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Task::getUserId, userId)
-                .eq(Task::getStatus, COMPLETED_STATUS)
+                .eq(Task::getStatus, TaskStatusEnum.DONE.getValue())
                 .ge(Task::getCompletedAt, startDateTime)
                 .lt(Task::getCompletedAt, endDateTimeExclusive);
         Long count = taskMapper.selectCount(wrapper);
@@ -200,7 +201,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         QueryWrapper<Task> topProjectWrapper = new QueryWrapper<>();
         topProjectWrapper.select("project_id", "COUNT(*) AS completed_count")
                 .eq("user_id", userId)
-                .eq("status", COMPLETED_STATUS)
+                .eq("status", TaskStatusEnum.DONE.getValue())
                 .ge("completed_at", startDateTime)
                 .lt("completed_at", endDateTimeExclusive)
                 .groupBy("project_id")
