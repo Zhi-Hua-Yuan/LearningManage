@@ -28,6 +28,11 @@ import java.util.Map;
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
+    /**
+     * 与任务主流程保持一致：DONE=2。
+     */
+    private static final int COMPLETED_STATUS = TaskStatusEnum.DONE.getValue();
+
     @Resource
     private WeeklyReviewMapper weeklyReviewMapper;
 

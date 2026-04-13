@@ -41,3 +41,9 @@ Thumbs.db
 src/main/resources/application-prod.yml
 # 如果你在本地测试中有敏感配置，也可以忽略 dev 版本
 # application-dev.yml
+
+# Docker 数据卷 (极其重要，绝对不能把数据库文件推上去)
+deploy/mysql-data/
+
+# 前端构建产物 (如果你把 dist 放进来了，建议忽略它，只传前端源码)
+deploy/dist/

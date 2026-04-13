@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # ---------------- 1. 数据库集装箱 ----------------
+  mysql:
+    # 【修复1：加上国内镜像代理前缀，防止下载超时】
+    image: dockerpull.com/library/mysql:8.0
+    container_name: learning_mysql
+    restart: always
+    environment:
+      # 【安全警告：已将真实密码替换为占位符，服务器部署时请手动改回】
+      MYSQL_ROOT_PASSWORD: your_db_password_here
+      MYSQL_DATABASE: learning_manage
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+      - ../sql:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # ---------------- 2. 后端集装箱 ----------------
+  backend:
+    build:
+      context: ../
+    container_name: learning_backend
+    restart: always
+    ports:
+      - "8124:8123"
+    depends_on:
+      - mysql
+    environment:
+      # 【修复2：补上了 &allowPublicKeyRetrieval=true，解决 MySQL 8.0 连接卡死问题】
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/learning_manage?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true"
+      - SPRING_DATASOURCE_USERNAME=root
+      # 【安全警告：替换为占位符】
+      - SPRING_DATASOURCE_PASSWORD=your_db_password_here
+      - ALIYUN_API_KEY=your_aliyun_api_key_here
+
+  # ---------------- 3. 前端集装箱 ----------------
+  frontend:
+    # 【修复1：加上国内镜像代理前缀】
+    image: dockerpull.com/library/nginx:alpine
+    container_name: learning_frontend
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    volumes:
+      - ./dist:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
