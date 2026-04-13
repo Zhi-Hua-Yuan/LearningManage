@@ -27,11 +27,11 @@ public class AiController {
     @Resource
     private AiService aiService;
 
-    @Operation(summary = "任务拆解", description = "根据目标、描述和周期生成里程碑与任务草稿")
+    @Operation(summary = "任务拆解", description = "根据目标和周期（描述可选）生成里程碑与任务草稿")
     @PostMapping("/breakdown")
     public BaseResponse<List<MilestoneDraftVO>> breakdown(@RequestBody AiBreakdownRequest request) {
-        if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDescription(), request.getDuration())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "target、description、duration 不能为空");
+        if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDuration())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "target、duration 不能为空，description 可为空");
         }
         List<MilestoneDraftVO> result = aiService.generateTaskBreakdown(
                 request.getTarget(),

@@ -50,11 +50,6 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         int year = DateUtil.year(now);
         int weekNo = DateUtil.weekOfYear(now);
 
-        WeeklyReview existing = findByUserYearWeek(userId, year, weekNo);
-        if (existing != null) {
-            return existing;
-        }
-
         LocalDate startDate = toLocalDate(DateUtil.beginOfWeek(now));
         LocalDate endDate = toLocalDate(DateUtil.endOfWeek(now));
         LocalDateTime startDateTime = startDate.atStartOfDay();
@@ -62,6 +57,16 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
         int completedTaskCount = countCompletedTasks(userId, startDateTime, endDateTimeExclusive);
         String focusProjectName = queryFocusProjectName(userId, startDateTime, endDateTimeExclusive);
+
+        WeeklyReview existing = findByUserYearWeek(userId, year, weekNo);
+        if (existing != null) {
+            // Keep subjective content from saved review, but refresh computed snapshot fields.
+            existing.setStartDate(startDate);
+            existing.setEndDate(endDate);
+            existing.setCompletedTaskCount(completedTaskCount);
+            existing.setFocusProjectName(focusProjectName);
+            return existing;
+        }
 
         WeeklyReview draft = new WeeklyReview();
         draft.setUserId(userId);
@@ -190,7 +195,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     private int countCompletedTasks(Long userId, LocalDateTime startDateTime, LocalDateTime endDateTimeExclusive) {
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Task::getUserId, userId)
-                .eq(Task::getStatus, COMPLETED_STATUS)
+                .eq(Task::getStatus, TaskStatusEnum.DONE.getValue())
                 .ge(Task::getCompletedAt, startDateTime)
                 .lt(Task::getCompletedAt, endDateTimeExclusive);
         Long count = taskMapper.selectCount(wrapper);
@@ -201,7 +206,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         QueryWrapper<Task> topProjectWrapper = new QueryWrapper<>();
         topProjectWrapper.select("project_id", "COUNT(*) AS completed_count")
                 .eq("user_id", userId)
-                .eq("status", COMPLETED_STATUS)
+                .eq("status", TaskStatusEnum.DONE.getValue())
                 .ge("completed_at", startDateTime)
                 .lt("completed_at", endDateTimeExclusive)
                 .groupBy("project_id")

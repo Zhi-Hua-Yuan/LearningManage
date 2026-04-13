@@ -40,11 +40,14 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public List<MilestoneDraftVO> generateTaskBreakdown(String target, String description, String duration) {
-        if (StrUtil.hasBlank(target, description, duration)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标、描述和周期不能为空");
+        if (StrUtil.hasBlank(target, duration)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空，描述可为空");
         }
 
-        String userPrompt = String.format("目标：%s，描述：%s，周期：%s。", target, description, duration);
+        String userPrompt = String.format("目标：%s，周期：%s。", target, duration);
+        if (StrUtil.isNotBlank(description)) {
+            userPrompt = userPrompt + String.format("描述：%s。", description);
+        }
         String aiRawContent = callAi(TASK_BREAKDOWN_SYSTEM_PROMPT, userPrompt);
         String jsonText = sanitizeJsonText(aiRawContent);
 

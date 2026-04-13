@@ -5,7 +5,8 @@ CREATE TABLE `project`
     `name`        VARCHAR(100)  NOT NULL COMMENT '项目名称',
     `goal`        VARCHAR(500)           DEFAULT NULL COMMENT '项目目标',
     `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态: 0进行中, 1已归档',
-    `progress`    DECIMAL(5, 2) NOT NULL DEFAULT 0.00 COMMENT '项目进度(0-100)', -- 新增
+    `order_no`    INT           NOT NULL DEFAULT 0 COMMENT '排序号，从0开始，越小越靠前',
+    `progress`    DECIMAL(5, 2) NOT NULL DEFAULT 0.00 COMMENT '项目进度(0-100)',
     `start_date`  DATE                   DEFAULT NULL COMMENT '开始日期',
     `end_date`    DATE                   DEFAULT NULL COMMENT '结束日期',
     `is_delete`   TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0未删除, 1已删除',
@@ -14,6 +15,7 @@ CREATE TABLE `project`
     `deleted_at`  DATETIME               DEFAULT NULL COMMENT '软删除时间',
     PRIMARY KEY (`id`),
     INDEX `idx_project_user_id` (`user_id`),
+    INDEX `idx_project_user_order_no` (`user_id`, `order_no`),
     INDEX `idx_project_status` (`status`),
     INDEX `idx_project_create_time` (`create_time`)
 ) ENGINE = InnoDB

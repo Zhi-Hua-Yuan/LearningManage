@@ -3,6 +3,7 @@ package com.spt.learningmanage.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
+import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 
@@ -28,6 +29,11 @@ public interface ProjectService {
      * 更新项目信息。
      */
     void update(ProjectUpdateRequest projectUpdateRequest);
+
+    /**
+     * 调整项目排序。
+     */
+    void reorder(List<ProjectReorderRequest> reorderRequests);
 
     /**
      * 归档项目。

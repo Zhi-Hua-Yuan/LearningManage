@@ -12,6 +12,7 @@ public class ProjectVo {
     private String name;
     private String goal;
     private Integer status;
+    private Integer orderNo;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDateTime createTime;
