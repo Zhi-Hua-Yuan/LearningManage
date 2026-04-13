@@ -9,6 +9,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
+import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
@@ -18,10 +19,13 @@ import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
@@ -52,6 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(ProjectConstant.STATUS_ACTIVE);
         project.setIsDelete(0);
         project.setUserId(userId);
+        project.setOrderNo(getNextOrderNo(userId));
 
         int rows = projectMapper.insert(project);
         if (rows != 1 || project.getId() == null) {
@@ -104,7 +109,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (StringUtils.hasText(validProjectQueryRequest.getKeyword())) {
             wrapper.like(Project::getName, validProjectQueryRequest.getKeyword());
         }
-        wrapper.orderByDesc(Project::getCreateTime);
+        wrapper.orderByAsc(Project::getOrderNo).orderByDesc(Project::getCreateTime);
 
         Page<Project> page = new Page<>(pageNum, pageSize);
         Page<Project> resultPage = projectMapper.selectPage(page, wrapper);
@@ -160,6 +165,56 @@ public class ProjectServiceImpl implements ProjectService {
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新项目失败");
+        }
+    }
+
+    /**
+     * 调整项目排序。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void reorder(List<ProjectReorderRequest> reorderRequests) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        if (reorderRequests == null || reorderRequests.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序列表不能为空");
+        }
+
+        Set<Long> idSet = new HashSet<>();
+        Set<Integer> orderNoSet = new HashSet<>();
+        for (ProjectReorderRequest reorderRequest : reorderRequests) {
+            if (reorderRequest == null || reorderRequest.getId() == null || reorderRequest.getId() <= 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
+            }
+            if (reorderRequest.getOrderNo() == null || reorderRequest.getOrderNo() < 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序序号不合法");
+            }
+            if (!idSet.add(reorderRequest.getId())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目列表中存在重复 ID");
+            }
+            if (!orderNoSet.add(reorderRequest.getOrderNo())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序序号不能重复");
+            }
+        }
+
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Project::getId, idSet).eq(Project::getUserId, userId);
+        List<Project> existingProjects = projectMapper.selectList(wrapper);
+        if (existingProjects.size() != reorderRequests.size()) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "存在无权限或不存在的项目");
+        }
+
+        for (ProjectReorderRequest reorderRequest : reorderRequests) {
+            Project update = new Project();
+            update.setId(reorderRequest.getId());
+            update.setUserId(userId);
+            update.setOrderNo(reorderRequest.getOrderNo());
+            int rows = projectMapper.updateById(update);
+            if (rows != 1) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新项目排序失败");
+            }
         }
     }
 
@@ -334,5 +389,21 @@ public class ProjectServiceImpl implements ProjectService {
             return 10L;
         }
         return Math.min(pageSize, 100L);
+    }
+
+    /**
+     * 获取当前用户下新的排序号。
+     */
+    private Integer getNextOrderNo(Long userId) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getUserId, userId)
+                .isNull(Project::getDeletedAt)
+                .orderByDesc(Project::getOrderNo)
+                .last("LIMIT 1");
+        Project lastProject = projectMapper.selectOne(wrapper);
+        if (lastProject == null || lastProject.getOrderNo() == null) {
+            return 0;
+        }
+        return lastProject.getOrderNo() + 1;
     }
 }

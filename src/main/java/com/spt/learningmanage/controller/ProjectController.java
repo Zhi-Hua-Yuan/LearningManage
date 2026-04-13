@@ -6,6 +6,7 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
+import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
@@ -46,7 +47,7 @@ public class ProjectController {
     @GetMapping("/list")
     public BaseResponse<com.baomidou.mybatisplus.extension.plugins.pagination.Page<ProjectVo>> listProject(
             @RequestParam(value = "pageNum", defaultValue = "1") Long pageNum,
-            @RequestParam(value = "pageSize", defaultValue = "10") Long pageSize,
+            @RequestParam(value = "pageSize", defaultValue = "1000") Long pageSize,
             @RequestParam(value = "status", required = false) Integer status,
             @RequestParam(value = "keyword", required = false) String keyword) {
         ProjectQueryRequest request = new ProjectQueryRequest();
@@ -64,6 +65,13 @@ public class ProjectController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
         projectService.update(projectUpdateRequest);
+        return ResultUtils.ok(true);
+    }
+
+    // 调整项目排序
+    @PostMapping("/reorder")
+    public BaseResponse<Boolean> reorderProject(@RequestBody List<ProjectReorderRequest> reorderRequests) {
+        projectService.reorder(reorderRequests);
         return ResultUtils.ok(true);
     }
 

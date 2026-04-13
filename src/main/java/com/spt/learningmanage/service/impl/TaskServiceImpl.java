@@ -62,6 +62,7 @@ public class TaskServiceImpl implements TaskService {
         validateProjectOwnership(request.getProjectId(), userId);
         validateMilestoneOwnership(request.getProjectId(), request.getMilestoneId(), userId);
         validateTitle(request.getTitle());
+        validateDescription(request.getDescription());
         validatePriority(request.getPriority());
 
         Task task = new Task();
@@ -165,6 +166,7 @@ public class TaskServiceImpl implements TaskService {
         validateTitle(newTitle);
 
         String newDescription = request.getDescription() != null ? request.getDescription() : existing.getDescription();
+        validateDescription(newDescription);
 
         Integer newStatus = request.getStatus() != null ? request.getStatus() : existing.getStatus();
         validateStatus(newStatus); // ⚠️ 内部建议改用 TaskStatusEnum.fromValue(value) 校验
@@ -340,8 +342,17 @@ public class TaskServiceImpl implements TaskService {
         if (!StringUtils.hasText(title)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务标题不能为空");
         }
-        if (title.length() > 100) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务标题长度不能超过100");
+        if (title.length() > 60) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务标题长度不能超过60");
+        }
+    }
+
+    /**
+     * 校验任务描述。
+     */
+    private void validateDescription(String description) {
+        if (description != null && description.length() > 550) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务描述长度不能超过550");
         }
     }
 

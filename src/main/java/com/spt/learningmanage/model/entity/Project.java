@@ -21,6 +21,7 @@ public class Project {
     private String goal;
     private Integer status;
     private BigDecimal progress;
+    private Integer orderNo;
     private LocalDate startDate;
     private LocalDate endDate;
     @TableLogic
