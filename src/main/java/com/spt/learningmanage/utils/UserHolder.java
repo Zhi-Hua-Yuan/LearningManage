@@ -22,7 +22,6 @@ public class UserHolder {
 
     /**
      * 清除当前线程的用户ID
-     * <p>注意：在拦截器处理完请求后必须调用此方法，防止内存泄漏！</p>
      */
     public static void remove() {
         USER_ID_HOLDER.remove();
