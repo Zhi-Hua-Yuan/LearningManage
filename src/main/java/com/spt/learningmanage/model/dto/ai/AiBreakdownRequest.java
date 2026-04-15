@@ -15,5 +15,8 @@ public class AiBreakdownRequest {
 
     @Schema(description = "期望周期（必填）", example = "12周")
     private String duration;
+
+    @Schema(description = "颗粒度是否详细，true=详细拆解，false=默认拆解", example = "false")
+    private Boolean detailed;
 }
 

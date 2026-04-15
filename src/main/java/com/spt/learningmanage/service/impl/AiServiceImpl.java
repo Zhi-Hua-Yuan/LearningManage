@@ -7,28 +7,77 @@ import cn.hutool.http.HttpResponse;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.service.AiService;
+import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class AiServiceImpl implements AiService {
 
-    private static final String TASK_BREAKDOWN_SYSTEM_PROMPT = "你是一个资深项目经理。请根据用户的目标、描述和周期，将项目拆解为2-4个里程碑，每个里程碑包含2-5个具体任务。你必须严格返回纯 JSON 数组格式，绝对不要包含任何 markdown 标记（如 ```json）或其他说明文字。JSON 结构必须是：[{\"name\":\"里程碑1\", \"tasks\":[{\"name\":\"任务1\"}]}]";
-    private static final String WEEKLY_POLISH_STRICT_PROMPT_PREFIX = "你是一个专业的职场与学业规划 AI 助手。请根据用户提供的草稿，润色并扩充'本周复盘'，并基于此推导出'下周计划'。"
-            + "【警告】：你必须严格只输出合法的 JSON 字符串，绝对不要输出任何 Markdown 标记（如 ```json），绝不要输出任何解释性的废话！"
-            + "JSON 格式必须严格如下："
-            + "{\"review\": \"这里是润色后且分段清晰的本周复盘内容...\", \"plan\": \"这里是推导出的下周计划...\"}\\n\\n"
-            + "用户的草稿如下：";
+    private static final int MAX_POLISH_TASK_COUNT = 50;
+    private static final String EMPTY_REFLECTION_PLACEHOLDER = "（用户未填写反思）";
+
+    private static final String TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT = "你是一名资深项目经理与学习规划顾问。"
+            + "请根据用户目标、周期和补充描述，输出可执行的项目拆解。"
+            + "要求："
+            + "1) 仅输出纯 JSON 数组，不允许 Markdown 或解释文本；"
+            + "2) 里程碑 2-4 个，按推进顺序；"
+            + "3) 每个里程碑 2-5 个任务；"
+            + "4) 任务名称要具体可执行，避免空泛表述；"
+            + "5) 里程碑与任务避免重复。"
+            + "严格输出结构："
+            + "[{\"name\":\"里程碑1\",\"tasks\":[{\"name\":\"任务1\"}]}]";
+
+    private static final String TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED = "你是一名资深项目经理与学习规划顾问。"
+            + "现在需要你输出更细颗粒度、更可落地的执行计划。"
+            + "要求："
+            + "1) 仅输出纯 JSON 数组，不允许 Markdown 或任何说明文字；"
+            + "2) 里程碑 3-4 个，必须体现阶段递进关系（准备->执行->巩固/验收）；"
+            + "3) 每个里程碑 4-6 个任务；"
+            + "4) 每个任务必须具体、可操作、可检查，尽量动词开头；"
+            + "5) 优先输出有产出物的任务（如提交、完成、复盘、测试、演练）；"
+            + "6) 任务尽量避免重复，名称长度建议 8-24 字；"
+            + "7) 如果用户描述信息不足，也要基于目标与周期给出合理拆解。"
+            + "严格输出结构："
+            + "[{\"name\":\"里程碑1\",\"tasks\":[{\"name\":\"任务1\"}]}]";
+
+    private static final String WEEKLY_POLISH_SYSTEM_PROMPT = "你是一个专业的职场与学业规划 AI 助手，擅长复盘与行动计划制定。"
+            + "请基于用户的任务上下文与主观反思，生成高质量周总结。"
+            + "硬性要求："
+            + "1) 只输出合法 JSON 字符串；"
+            + "2) 绝对不要输出 Markdown、代码块标记（如 ```json）或解释文字；"
+            + "3) 输出结构必须严格为：{\"review\":\"...\",\"plan\":\"...\"}。"
+            + "内容要求："
+            + "A) review：100-220字，结构化描述（完成情况、关键进展、问题与原因）；"
+            + "B) plan：给出 3-5 条可执行建议，按序号呈现，每条可落地、可验证；"
+            + "C) 语气积极、具体，不空泛，不编造不存在的数据。";
 
     @Resource
     private AiProperties aiProperties;
+
+    @Resource
+    private TaskMapper taskMapper;
+
+    @Resource
+    private ProjectMapper projectMapper;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -39,7 +88,7 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    public List<MilestoneDraftVO> generateTaskBreakdown(String target, String description, String duration) {
+    public List<MilestoneDraftVO> generateTaskBreakdown(String target, String description, String duration, boolean detailed) {
         if (StrUtil.hasBlank(target, duration)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空，描述可为空");
         }
@@ -48,40 +97,109 @@ public class AiServiceImpl implements AiService {
         if (StrUtil.isNotBlank(description)) {
             userPrompt = userPrompt + String.format("描述：%s。", description);
         }
-        String aiRawContent = callAi(TASK_BREAKDOWN_SYSTEM_PROMPT, userPrompt);
-        String jsonText = sanitizeJsonText(aiRawContent);
+
+        String systemPrompt = detailed ? TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED : TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT;
+        String aiRawContent = callAi(systemPrompt, userPrompt);
+        String jsonText = sanitizeJsonArrayText(aiRawContent);
 
         try {
             JSONArray jsonArray = JSONUtil.parseArray(jsonText);
             return JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务拆解结果解析失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务拆解结果解析失败，请重试。原始异常: " + e.getMessage());
         }
     }
 
     @Override
-    public String polishWeeklyReview(Integer taskCount, String focusProject, String reflection) {
-        if (taskCount == null || StrUtil.hasBlank(focusProject, reflection)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务数、核心项目和反思不能为空");
+    public String polishWeeklyReview(Integer taskCount, List<Long> taskIds, String reflection) {
+        if (taskCount == null || taskCount < 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务数不能为空且不能为负数");
         }
-        String userMessage = String.format("本周完成任务数：%d，主要项目：%s，用户主观反思：%s。", taskCount, focusProject, reflection);
-        String prompt = WEEKLY_POLISH_STRICT_PROMPT_PREFIX + userMessage;
-        String cleanedResult = callAi(prompt, "请严格按 JSON 格式输出结果。");
 
-        if (cleanedResult.contains("```json")) {
-            cleanedResult = cleanedResult.replace("```json", "");
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "登录状态已失效，请重新登录");
         }
-        if (cleanedResult.contains("```JSON")) {
-            cleanedResult = cleanedResult.replace("```JSON", "");
+
+        List<Long> validTaskIds = taskIds == null
+                ? new ArrayList<>()
+                : taskIds.stream().filter(id -> id != null && id > 0).collect(Collectors.toCollection(ArrayList::new));
+
+        if (taskCount > 0 && validTaskIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当 taskCount 大于 0 时，taskIds 不能为空且需包含有效任务ID");
         }
-        if (cleanedResult.contains("```")) {
-            cleanedResult = cleanedResult.replace("```", "");
+
+        if (taskCount == 0 && validTaskIds.isEmpty()) {
+            return JSONUtil.createObj()
+                    .set("review", "本周暂无已完成任务记录。你可以先从最小可执行任务开始，逐步恢复节奏。")
+                    .set("plan", "1. 设定1个可在30分钟内完成的小目标；2. 每天固定一个执行时段；3. 周末复盘一次执行阻碍并调整。")
+                    .toString();
         }
-        cleanedResult = cleanedResult.trim();
-        return cleanedResult;
+
+        Set<Long> uniqueTaskIds = new LinkedHashSet<>(validTaskIds);
+        List<Task> taskList = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .in(Task::getId, uniqueTaskIds)
+                .eq(Task::getUserId, currentUserId)
+                .orderByDesc(Task::getCompletedAt, Task::getUpdateTime, Task::getId));
+
+        if (taskList.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                    "传入的任务均不存在或无访问权限，请确认任务ID是否属于当前登录账号");
+        }
+
+        Set<Long> foundIds = taskList.stream().map(Task::getId).collect(Collectors.toSet());
+        List<Long> missingIds = uniqueTaskIds.stream().filter(id -> !foundIds.contains(id)).toList();
+
+        List<Task> limitedTaskList = taskList.stream().limit(MAX_POLISH_TASK_COUNT).toList();
+
+        Set<Long> projectIds = limitedTaskList.stream()
+                .map(Task::getProjectId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+
+        Map<Long, Project> projectMap = projectIds.isEmpty()
+                ? Map.of()
+                : projectMapper.selectList(new LambdaQueryWrapper<Project>()
+                        .in(Project::getId, projectIds)
+                        .eq(Project::getUserId, currentUserId))
+                .stream()
+                .collect(Collectors.toMap(Project::getId, Function.identity(), (a, b) -> a));
+
+        JSONArray taskContext = JSONUtil.createArray();
+        for (Task task : limitedTaskList) {
+            Project project = projectMap.get(task.getProjectId());
+            taskContext.add(JSONUtil.createObj()
+                    .set("taskId", task.getId())
+                    .set("taskTitle", task.getTitle())
+                    .set("taskDescription", task.getDescription())
+                    .set("status", task.getStatus())
+                    .set("dueDate", task.getDueDate())
+                    .set("completedAt", task.getCompletedAt())
+                    .set("projectId", task.getProjectId())
+                    .set("projectName", project == null ? "未识别项目" : project.getName()));
+        }
+
+        String reflectionText = StrUtil.blankToDefault(reflection, EMPTY_REFLECTION_PLACEHOLDER);
+
+        String userPrompt = "本周完成任务数：" + taskCount
+                + "\n本周任务明细（JSON）：" + taskContext
+                + "\n任务ID缺失或无权限数量：" + missingIds.size()
+                + "\n缺失任务ID（仅供参考）：" + missingIds
+                + "\n用户主观反思：" + reflectionText;
+
+        String aiRawContent = callAi(WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
+        String cleanedResult = sanitizeJsonObjectText(aiRawContent);
+
+        try {
+            JSONUtil.parseObj(cleanedResult);
+            return cleanedResult;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());
+        }
     }
 
-    private String sanitizeJsonText(String content) {
+    private String sanitizeJsonArrayText(String content) {
         if (StrUtil.isBlank(content)) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 返回内容为空");
         }
@@ -94,6 +212,25 @@ public class AiServiceImpl implements AiService {
 
         int startIndex = cleaned.indexOf('[');
         int endIndex = cleaned.lastIndexOf(']');
+        if (startIndex >= 0 && endIndex > startIndex) {
+            cleaned = cleaned.substring(startIndex, endIndex + 1);
+        }
+        return cleaned;
+    }
+
+    private String sanitizeJsonObjectText(String content) {
+        if (StrUtil.isBlank(content)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 返回内容为空");
+        }
+
+        String cleaned = content.trim()
+                .replace("```json", "")
+                .replace("```JSON", "")
+                .replace("```", "")
+                .trim();
+
+        int startIndex = cleaned.indexOf('{');
+        int endIndex = cleaned.lastIndexOf('}');
         if (startIndex >= 0 && endIndex > startIndex) {
             cleaned = cleaned.substring(startIndex, endIndex + 1);
         }
