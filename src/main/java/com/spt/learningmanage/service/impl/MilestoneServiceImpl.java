@@ -2,21 +2,25 @@ package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.milestone.MilestoneCreateRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneQueryRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneUpdateRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.milestone.MilestoneVo;
 import com.spt.learningmanage.service.MilestoneService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -33,6 +37,9 @@ public class MilestoneServiceImpl implements MilestoneService {
 
     @Resource
     private ProjectMapper projectMapper;
+
+    @Resource
+    private TaskMapper taskMapper;
 
     @Override
     public Long create(MilestoneCreateRequest request) {
@@ -52,6 +59,8 @@ public class MilestoneServiceImpl implements MilestoneService {
         milestone.setOrderNo(nextOrderNo);
         milestone.setProgress(BigDecimal.ZERO);
         milestone.setIsDelete(0);
+        milestone.setDeleteSource(DeleteSourceConstant.NORMAL);
+        milestone.setDeletedAt(null);
 
         int rows = milestoneMapper.insert(milestone);
         if (rows != 1 || milestone.getId() == null) {
@@ -129,6 +138,7 @@ public class MilestoneServiceImpl implements MilestoneService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         Long userId = getCurrentUserId();
         if (id == null || id <= 0) {
@@ -142,7 +152,21 @@ public class MilestoneServiceImpl implements MilestoneService {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑不存在");
         }
 
-        int rows = milestoneMapper.delete(queryWrapper);
+        LambdaUpdateWrapper<Task> taskUpdateWrapper = new LambdaUpdateWrapper<>();
+        taskUpdateWrapper.eq(Task::getUserId, userId)
+                .eq(Task::getProjectId, existing.getProjectId())
+                .eq(Task::getMilestoneId, id)
+                .set(Task::getMilestoneId, null);
+        taskMapper.update(null, taskUpdateWrapper);
+
+        LambdaUpdateWrapper<Milestone> milestoneUpdateWrapper = new LambdaUpdateWrapper<>();
+        milestoneUpdateWrapper.eq(Milestone::getId, id)
+                .eq(Milestone::getUserId, userId)
+                .set(Milestone::getIsDelete, 1)
+                .set(Milestone::getDeleteSource, DeleteSourceConstant.MANUAL)
+                .set(Milestone::getDeletedAt, java.time.LocalDateTime.now());
+
+        int rows = milestoneMapper.update(null, milestoneUpdateWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除里程碑失败");
         }

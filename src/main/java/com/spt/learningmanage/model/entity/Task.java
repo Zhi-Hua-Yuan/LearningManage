@@ -24,6 +24,8 @@ public class Task {
     private Integer priority;
     private LocalDate dueDate;
     private LocalDateTime completedAt;
+    private LocalDateTime deletedAt;
+    private Integer deleteSource;
     @TableLogic
     private Integer isDelete;
     private LocalDateTime createTime;

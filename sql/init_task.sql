@@ -11,6 +11,8 @@ CREATE TABLE `task`
     `priority`     TINYINT      NOT NULL DEFAULT 0 COMMENT '优先级',
     `due_date`     DATE                  DEFAULT NULL COMMENT '截止时间',
     `completed_at` DATETIME              DEFAULT NULL COMMENT '完成时间',
+    `deleted_at`   DATETIME              DEFAULT NULL COMMENT '删除时间',
+    `delete_source` TINYINT     NOT NULL DEFAULT 0 COMMENT '删除来源: 0未删除, 1手动删除, 2项目级联删除',
     `is_delete`    TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0未删除, 1已删除',
     `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -23,5 +25,6 @@ CREATE TABLE `task`
 CREATE INDEX `idx_task_project_id` ON `task` (`project_id`);
 CREATE INDEX `idx_task_milestone_id` ON `task` (`milestone_id`);
 CREATE INDEX `idx_task_user_id` ON `task` (`user_id`);
+CREATE INDEX `idx_task_project_delete_source` ON `task` (`user_id`, `project_id`, `is_delete`, `delete_source`);
 
 CREATE INDEX `idx_task_stats` ON `task` (`project_id`, `status`, `due_date`, `completed_at`);

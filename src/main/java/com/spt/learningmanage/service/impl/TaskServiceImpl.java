@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -75,6 +76,8 @@ public class TaskServiceImpl implements TaskService {
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
         task.setIsDelete(0);
+        task.setDeleteSource(DeleteSourceConstant.NORMAL);
+        task.setDeletedAt(null);
 
         int rows = taskMapper.insert(task);
         if (rows != 1 || task.getId() == null) {
@@ -231,7 +234,14 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
         }
 
-        int rows = taskMapper.delete(queryWrapper);
+        LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Task::getId, id)
+                .eq(Task::getUserId, userId)
+                .set(Task::getIsDelete, 1)
+                .set(Task::getDeleteSource, DeleteSourceConstant.MANUAL)
+                .set(Task::getDeletedAt, LocalDateTime.now());
+
+        int rows = taskMapper.update(null, updateWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除任务失败");
         }

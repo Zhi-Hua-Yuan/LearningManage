@@ -3,15 +3,20 @@ package com.spt.learningmanage.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.ProjectConstant;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
+import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -22,6 +27,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +38,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Resource
     private ProjectMapper projectMapper;
+
+    @Resource
+    private TaskMapper taskMapper;
+
+    @Resource
+    private MilestoneMapper milestoneMapper;
 
     /**
      * 创建项目，返回项目ID。
@@ -78,7 +90,9 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
         }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        wrapper.eq(Project::getId, id)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getDeletedAt);
         Project project = projectMapper.selectOne(wrapper);
         if (project == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
@@ -267,6 +281,7 @@ public class ProjectServiceImpl implements ProjectService {
      * 删除项目。
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -281,11 +296,34 @@ public class ProjectServiceImpl implements ProjectService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
+        if (existing.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目已删除，请勿重复操作");
+        }
+
+        LocalDateTime deleteTime = LocalDateTime.now();
+
+        LambdaUpdateWrapper<Task> taskDeleteWrapper = new LambdaUpdateWrapper<>();
+        taskDeleteWrapper.eq(Task::getUserId, userId)
+                .eq(Task::getProjectId, id)
+                .eq(Task::getIsDelete, 0)
+                .set(Task::getIsDelete, 1)
+                .set(Task::getDeleteSource, DeleteSourceConstant.PROJECT_CASCADE)
+                .set(Task::getDeletedAt, deleteTime);
+        taskMapper.update(null, taskDeleteWrapper);
+
+        LambdaUpdateWrapper<Milestone> milestoneDeleteWrapper = new LambdaUpdateWrapper<>();
+        milestoneDeleteWrapper.eq(Milestone::getUserId, userId)
+                .eq(Milestone::getProjectId, id)
+                .eq(Milestone::getIsDelete, 0)
+                .set(Milestone::getIsDelete, 1)
+                .set(Milestone::getDeleteSource, DeleteSourceConstant.PROJECT_CASCADE)
+                .set(Milestone::getDeletedAt, deleteTime);
+        milestoneMapper.update(null, milestoneDeleteWrapper);
 
         // 软删除：设置 deletedAt
         Project update = new Project();
         update.setId(id);
-        update.setDeletedAt(java.time.LocalDateTime.now());
+        update.setDeletedAt(deleteTime);
         update.setUserId(userId);
 
         int rows = projectMapper.updateById(update);
@@ -298,6 +336,7 @@ public class ProjectServiceImpl implements ProjectService {
      * 恢复项目。
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void recover(Long id) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -315,20 +354,23 @@ public class ProjectServiceImpl implements ProjectService {
         if (existing.getDeletedAt() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目未被删除，无法恢复");
         }
-        if (existing.getDeletedAt().plusDays(30).isBefore(java.time.LocalDateTime.now())) {
+        if (existing.getDeletedAt().plusDays(30).isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目删除超过30天，无法恢复");
         }
 
         // 恢复：清空 deletedAt
-        Project update = new Project();
-        update.setId(id);
-        update.setDeletedAt(null);
-        update.setUserId(userId);
+        LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Project::getId, id)
+                .eq(Project::getUserId, userId)
+                .set(Project::getDeletedAt, null);
 
-        int rows = projectMapper.updateById(update);
+        int rows = projectMapper.update(null, updateWrapper);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复项目失败");
         }
+
+        taskMapper.recoverByProjectId(userId, id);
+        milestoneMapper.recoverByProjectId(userId, id);
     }
 
     /**
