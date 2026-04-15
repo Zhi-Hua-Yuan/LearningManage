@@ -18,11 +18,10 @@ public interface AiService {
     /**
      * 生成任务拆解草稿（仅返回结构化建议，不落库）。
      */
-    List<MilestoneDraftVO> generateTaskBreakdown(String target, String description, String duration);
+    List<MilestoneDraftVO> generateTaskBreakdown(String target, String description, String duration, boolean detailed);
 
     /**
      * 润色周总结内容。
      */
-    String polishWeeklyReview(Integer taskCount, String focusProject, String reflection);
+    String polishWeeklyReview(Integer taskCount, List<Long> taskIds, String reflection);
 }
-

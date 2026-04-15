@@ -33,27 +33,28 @@ public class AiController {
         if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDuration())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "target、duration 不能为空，description 可为空");
         }
+        boolean detailed = Boolean.TRUE.equals(request.getDetailed());
         List<MilestoneDraftVO> result = aiService.generateTaskBreakdown(
                 request.getTarget(),
                 request.getDescription(),
-                request.getDuration()
+                request.getDuration(),
+                detailed
         );
         return ResultUtils.ok(result);
     }
 
-    @Operation(summary = "周总结润色", description = "根据任务完成数、核心项目和反思生成润色文本")
+    @Operation(summary = "周总结润色", description = "根据任务完成数、任务列表和反思生成润色文本")
     @PostMapping("/polish")
     public BaseResponse<String> polish(@RequestBody AiPolishRequest request) {
-        if (request == null || request.getTaskCount() == null
-                || StrUtil.hasBlank(request.getFocusProject(), request.getReflection())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskCount、focusProject、reflection 不能为空");
+        if (request == null || request.getTaskCount() == null || request.getTaskCount() < 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskCount 不能为空且不能为负数");
         }
+
         String result = aiService.polishWeeklyReview(
                 request.getTaskCount(),
-                request.getFocusProject(),
+                request.getTaskIds(),
                 request.getReflection()
         );
         return ResultUtils.ok(result);
     }
 }
-
