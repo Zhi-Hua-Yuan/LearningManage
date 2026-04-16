@@ -23,5 +23,5 @@ public interface AiService {
     /**
      * 润色周总结内容。
      */
-    String polishWeeklyReview(Integer taskCount, List<Long> taskIds, String reflection);
+    String polishWeeklyReview(List<Long> taskIds, String reflection);
 }

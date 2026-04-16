@@ -58,10 +58,14 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
         validateName(projectCreateRequest.getName());
+        validateIcon(projectCreateRequest.getIcon());
+        validateColor(projectCreateRequest.getColor());
         validateDateRange(projectCreateRequest.getStartDate(), projectCreateRequest.getEndDate());
 
         Project project = new Project();
         project.setName(projectCreateRequest.getName().trim());
+        project.setIcon(projectCreateRequest.getIcon());
+        project.setColor(projectCreateRequest.getColor());
         project.setGoal(projectCreateRequest.getGoal());
         project.setStartDate(projectCreateRequest.getStartDate());
         project.setEndDate(projectCreateRequest.getEndDate());
@@ -155,6 +159,14 @@ public class ProjectServiceImpl implements ProjectService {
                 ? projectUpdateRequest.getName().trim() : existing.getName();
         validateName(newName);
 
+        String newIcon = projectUpdateRequest.getIcon() != null
+                ? projectUpdateRequest.getIcon() : existing.getIcon();
+        validateIcon(newIcon);
+
+        String newColor = projectUpdateRequest.getColor() != null
+                ? projectUpdateRequest.getColor() : existing.getColor();
+        validateColor(newColor);
+
         String newGoal = projectUpdateRequest.getGoal() != null
                 ? projectUpdateRequest.getGoal() : existing.getGoal();
         Integer newStatus = projectUpdateRequest.getStatus() != null
@@ -170,6 +182,8 @@ public class ProjectServiceImpl implements ProjectService {
         Project update = new Project();
         update.setId(projectUpdateRequest.getId());
         update.setName(newName);
+        update.setIcon(newIcon);
+        update.setColor(newColor);
         update.setGoal(newGoal);
         update.setStatus(newStatus);
         update.setStartDate(newStartDate);
@@ -410,6 +424,24 @@ public class ProjectServiceImpl implements ProjectService {
         if (!Objects.equals(status, ProjectConstant.STATUS_ACTIVE)
                 && !Objects.equals(status, ProjectConstant.STATUS_ARCHIVED)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目状态不合法");
+        }
+    }
+
+    /**
+     * 校验项目图标。
+     */
+    private void validateIcon(String icon) {
+        if (icon != null && icon.length() > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "图标长度不能超过50");
+        }
+    }
+
+    /**
+     * 校验项目颜色。
+     */
+    private void validateColor(String color) {
+        if (color != null && !color.matches("^#[0-9A-Fa-f]{6}$")) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "颜色格式必须为 #RRGGBB");
         }
     }
 

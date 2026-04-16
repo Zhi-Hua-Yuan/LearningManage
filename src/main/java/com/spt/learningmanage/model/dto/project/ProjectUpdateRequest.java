@@ -12,6 +12,10 @@ public class ProjectUpdateRequest {
 
     private String goal;
 
+    private String icon;
+
+    private String color;
+
     private Integer status;
     private LocalDate startDate;
     private LocalDate endDate;
