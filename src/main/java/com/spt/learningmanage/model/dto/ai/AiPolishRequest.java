@@ -9,10 +9,7 @@ import java.util.List;
 @Schema(description = "AI 周总结润色请求")
 public class AiPolishRequest {
 
-    @Schema(description = "本周完成任务数", example = "8")
-    private Integer taskCount;
-
-    @Schema(description = "本周已完成任务ID列表（可选，taskCount>0时建议传）", example = "[1001,1002,1003]")
+    @Schema(description = "本周已完成任务ID列表（可选）", example = "[1001,1002,1003]")
     private List<Long> taskIds;
 
     @Schema(description = "本周反思（可选）", example = "执行力有进步，但时间分配仍需优化")

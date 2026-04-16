@@ -13,6 +13,8 @@ public class ProjectVo {
     private String goal;
     private Integer status;
     private Integer orderNo;
+    private String icon;
+    private String color;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDateTime createTime;

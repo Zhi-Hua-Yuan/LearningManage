@@ -111,11 +111,7 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    public String polishWeeklyReview(Integer taskCount, List<Long> taskIds, String reflection) {
-        if (taskCount == null || taskCount < 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务数不能为空且不能为负数");
-        }
-
+    public String polishWeeklyReview(List<Long> taskIds, String reflection) {
         Long currentUserId = UserHolder.get();
         if (currentUserId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "登录状态已失效，请重新登录");
@@ -125,11 +121,11 @@ public class AiServiceImpl implements AiService {
                 ? new ArrayList<>()
                 : taskIds.stream().filter(id -> id != null && id > 0).collect(Collectors.toCollection(ArrayList::new));
 
-        if (taskCount > 0 && validTaskIds.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当 taskCount 大于 0 时，taskIds 不能为空且需包含有效任务ID");
+        if (taskIds != null && !taskIds.isEmpty() && validTaskIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 至少需要包含一个有效的正整数ID");
         }
 
-        if (taskCount == 0 && validTaskIds.isEmpty()) {
+        if (validTaskIds.isEmpty()) {
             return JSONUtil.createObj()
                     .set("review", "本周暂无已完成任务记录。你可以先从最小可执行任务开始，逐步恢复节奏。")
                     .set("plan", "1. 设定1个可在30分钟内完成的小目标；2. 每天固定一个执行时段；3. 周末复盘一次执行阻碍并调整。")
@@ -150,6 +146,7 @@ public class AiServiceImpl implements AiService {
         Set<Long> foundIds = taskList.stream().map(Task::getId).collect(Collectors.toSet());
         List<Long> missingIds = uniqueTaskIds.stream().filter(id -> !foundIds.contains(id)).toList();
 
+        int actualTaskCount = taskList.size();
         List<Task> limitedTaskList = taskList.stream().limit(MAX_POLISH_TASK_COUNT).toList();
 
         Set<Long> projectIds = limitedTaskList.stream()
@@ -181,7 +178,7 @@ public class AiServiceImpl implements AiService {
 
         String reflectionText = StrUtil.blankToDefault(reflection, EMPTY_REFLECTION_PLACEHOLDER);
 
-        String userPrompt = "本周完成任务数：" + taskCount
+        String userPrompt = "本周完成任务数（后端计算）：" + actualTaskCount
                 + "\n本周任务明细（JSON）：" + taskContext
                 + "\n任务ID缺失或无权限数量：" + missingIds.size()
                 + "\n缺失任务ID（仅供参考）：" + missingIds

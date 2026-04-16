@@ -7,6 +7,8 @@ CREATE TABLE `project`
     `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态: 0进行中, 1已归档',
     `order_no`    INT           NOT NULL DEFAULT 0 COMMENT '排序号，从0开始，越小越靠前',
     `progress`    DECIMAL(5, 2) NOT NULL DEFAULT 0.00 COMMENT '项目进度(0-100)',
+    `icon`        VARCHAR(50)   NULL COMMENT '清单图标（emoji或图标标识）',
+    `color`       VARCHAR(7)    NULL COMMENT '清单颜色，格式 #RRGGBB',
     `start_date`  DATE                   DEFAULT NULL COMMENT '开始日期',
     `end_date`    DATE                   DEFAULT NULL COMMENT '结束日期',
     `is_delete`   TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0未删除, 1已删除',
