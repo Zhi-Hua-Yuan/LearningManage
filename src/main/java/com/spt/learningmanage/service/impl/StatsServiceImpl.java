@@ -64,13 +64,13 @@ public class StatsServiceImpl implements StatsService {
         LambdaQueryWrapper<Task> overdueTaskWrapper = new LambdaQueryWrapper<>();
         overdueTaskWrapper.eq(Task::getUserId, userId)
                 .lt(Task::getDueDate, today)
-                .ne(Task::getStatus, TaskStatusEnum.DONE.getValue());
+                .eq(Task::getStatus, TaskStatusEnum.TODO.getValue());
         coreMetricsVO.setOverdueTaskCount(toInteger(taskMapper.selectCount(overdueTaskWrapper)));
 
         LambdaQueryWrapper<Task> dueTodayTaskWrapper = new LambdaQueryWrapper<>();
         dueTodayTaskWrapper.eq(Task::getUserId, userId)
                 .eq(Task::getDueDate, today)
-                .ne(Task::getStatus, TaskStatusEnum.DONE.getValue());
+                .eq(Task::getStatus, TaskStatusEnum.TODO.getValue());
         coreMetricsVO.setDueTodayTaskCount(toInteger(taskMapper.selectCount(dueTodayTaskWrapper)));
 
         return coreMetricsVO;
@@ -96,7 +96,10 @@ public class StatsServiceImpl implements StatsService {
 
         LambdaQueryWrapper<Task> completedTaskWrapper = new LambdaQueryWrapper<>();
         completedTaskWrapper.eq(Task::getUserId, userId)
-                .eq(Task::getStatus, TaskStatusEnum.DONE.getValue())
+                .in(Task::getStatus,
+                        TaskStatusEnum.DONE_BASIC.getValue(),
+                        TaskStatusEnum.DONE_STANDARD.getValue(),
+                        TaskStatusEnum.DONE_EXCELLENT.getValue())
                 .ge(Task::getCompletedAt, rangeStart)
                 .lt(Task::getCompletedAt, rangeEndExclusive);
         List<Task> completedTaskList = taskMapper.selectList(completedTaskWrapper);

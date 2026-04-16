@@ -28,11 +28,6 @@ import java.util.Map;
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
-    /**
-     * 与任务主流程保持一致：DONE=2。
-     */
-    private static final int COMPLETED_STATUS = TaskStatusEnum.DONE.getValue();
-
     @Resource
     private WeeklyReviewMapper weeklyReviewMapper;
 
@@ -195,7 +190,10 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     private int countCompletedTasks(Long userId, LocalDateTime startDateTime, LocalDateTime endDateTimeExclusive) {
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Task::getUserId, userId)
-                .eq(Task::getStatus, TaskStatusEnum.DONE.getValue())
+                .in(Task::getStatus,
+                        TaskStatusEnum.DONE_BASIC.getValue(),
+                        TaskStatusEnum.DONE_STANDARD.getValue(),
+                        TaskStatusEnum.DONE_EXCELLENT.getValue())
                 .ge(Task::getCompletedAt, startDateTime)
                 .lt(Task::getCompletedAt, endDateTimeExclusive);
         Long count = taskMapper.selectCount(wrapper);
@@ -206,7 +204,10 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         QueryWrapper<Task> topProjectWrapper = new QueryWrapper<>();
         topProjectWrapper.select("project_id", "COUNT(*) AS completed_count")
                 .eq("user_id", userId)
-                .eq("status", TaskStatusEnum.DONE.getValue())
+                .in("status",
+                        TaskStatusEnum.DONE_BASIC.getValue(),
+                        TaskStatusEnum.DONE_STANDARD.getValue(),
+                        TaskStatusEnum.DONE_EXCELLENT.getValue())
                 .ge("completed_at", startDateTime)
                 .lt("completed_at", endDateTimeExclusive)
                 .groupBy("project_id")
