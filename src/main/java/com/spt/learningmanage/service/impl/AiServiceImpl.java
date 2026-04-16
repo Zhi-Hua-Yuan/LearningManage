@@ -59,16 +59,16 @@ public class AiServiceImpl implements AiService {
             + "严格输出结构："
             + "[{\"name\":\"里程碑1\",\"tasks\":[{\"name\":\"任务1\"}]}]";
 
-    private static final String WEEKLY_POLISH_SYSTEM_PROMPT = "你是一个专业的职场与学业规划 AI 助手，擅长复盘与行动计划制定。"
-            + "请基于用户的任务上下文与主观反思，生成高质量周总结。"
+    private static final String WEEKLY_POLISH_SYSTEM_PROMPT = "你是一个专业的职场与学业规划 AI 助手，擅长周复盘总结。"
+            + "请基于用户的任务上下文与主观反思，生成高质量本周复盘。"
             + "硬性要求："
             + "1) 只输出合法 JSON 字符串；"
             + "2) 绝对不要输出 Markdown、代码块标记（如 ```json）或解释文字；"
-            + "3) 输出结构必须严格为：{\"review\":\"...\",\"plan\":\"...\"}。"
+            + "3) 输出结构必须严格为：{\"review\":\"...\"}。"
             + "内容要求："
             + "A) review：100-220字，结构化描述（完成情况、关键进展、问题与原因）；"
-            + "B) plan：给出 3-5 条可执行建议，按序号呈现，每条可落地、可验证；"
-            + "C) 语气积极、具体，不空泛，不编造不存在的数据。";
+            + "B) 语气积极、具体，不空泛，不编造不存在的数据；"
+            + "C) 若用户未填写反思，也需基于任务上下文给出客观复盘。";
 
     @Resource
     private AiProperties aiProperties;
@@ -128,7 +128,6 @@ public class AiServiceImpl implements AiService {
         if (validTaskIds.isEmpty()) {
             return JSONUtil.createObj()
                     .set("review", "本周暂无已完成任务记录。你可以先从最小可执行任务开始，逐步恢复节奏。")
-                    .set("plan", "1. 设定1个可在30分钟内完成的小目标；2. 每天固定一个执行时段；3. 周末复盘一次执行阻碍并调整。")
                     .toString();
         }
 
@@ -188,8 +187,15 @@ public class AiServiceImpl implements AiService {
         String cleanedResult = sanitizeJsonObjectText(aiRawContent);
 
         try {
-            JSONUtil.parseObj(cleanedResult);
-            return cleanedResult;
+            JSONObject resultObj = JSONUtil.parseObj(cleanedResult);
+            String review = resultObj.getStr("review");
+            if (StrUtil.isBlank(review)) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果缺少 review 字段，请重试");
+            }
+            // 只返回 review，确保前后端契约稳定且无多余字段。
+            return JSONUtil.createObj().set("review", review).toString();
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR,
                     "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());

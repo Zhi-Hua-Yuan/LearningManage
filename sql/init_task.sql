@@ -7,7 +7,7 @@ CREATE TABLE `task`
     `user_id`      BIGINT       NOT NULL COMMENT '用户ID',
     `title`        VARCHAR(60)  NOT NULL COMMENT '任务标题',
     `description`  VARCHAR(550)          DEFAULT NULL COMMENT '任务描述',
-    `status`       TINYINT      NOT NULL DEFAULT 0 COMMENT '状态: 0-待办, 1-进行中, 2-已完成',
+    `status`       TINYINT      NOT NULL DEFAULT 0 COMMENT '状态: 0-未完成, 1-一般完成, 2-正常完成, 3-超额完成',
     `priority`     TINYINT      NOT NULL DEFAULT 0 COMMENT '优先级',
     `due_date`     DATE                  DEFAULT NULL COMMENT '截止时间',
     `completed_at` DATETIME              DEFAULT NULL COMMENT '完成时间',

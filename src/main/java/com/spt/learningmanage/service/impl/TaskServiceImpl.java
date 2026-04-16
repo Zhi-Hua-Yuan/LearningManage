@@ -192,14 +192,13 @@ public class TaskServiceImpl implements TaskService {
                 .set(Task::getDueDate, newDueDate)
                 .set(Task::getMilestoneId, milestoneId);
 
-        // 4. 处理 completedAt (使用枚举值对比)
-        int doneValue = TaskStatusEnum.DONE.getValue();
-
+        // 4. 处理 completedAt（0为未完成，1/2/3均视为完成）
         if (!Objects.equals(existing.getStatus(), newStatus)) {
-            // 状态变化后：新状态为完成则记录时间，否则清空时间。
-            if (Objects.equals(newStatus, doneValue)) {
+            boolean oldCompleted = TaskStatusEnum.isCompleted(existing.getStatus());
+            boolean newCompleted = TaskStatusEnum.isCompleted(newStatus);
+            if (!oldCompleted && newCompleted) {
                 updateWrapper.set(Task::getCompletedAt, LocalDateTime.now());
-            } else {
+            } else if (oldCompleted && !newCompleted) {
                 updateWrapper.set(Task::getCompletedAt, null);
             }
         }
@@ -293,7 +292,10 @@ public class TaskServiceImpl implements TaskService {
 
         QueryWrapper<Task> doneWrapper = new QueryWrapper<>();
         doneWrapper.eq("user_id", userId)
-                .eq("status", TaskStatusEnum.DONE.getValue());
+                .in("status",
+                        TaskStatusEnum.DONE_BASIC.getValue(),
+                        TaskStatusEnum.DONE_STANDARD.getValue(),
+                        TaskStatusEnum.DONE_EXCELLENT.getValue());
         if (projectId != null) {
             doneWrapper.eq("project_id", projectId);
         }
