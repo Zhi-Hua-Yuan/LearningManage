@@ -16,9 +16,12 @@ import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
+import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -32,8 +35,13 @@ import java.util.stream.Collectors;
 @Service
 public class AiServiceImpl implements AiService {
 
+    private static final Logger log = LoggerFactory.getLogger(AiServiceImpl.class);
+
     private static final int MAX_POLISH_TASK_COUNT = 50;
     private static final String EMPTY_REFLECTION_PLACEHOLDER = "（用户未填写反思）";
+
+    private static final int PROJECT_NAME_MAX_LEN = 100;
+    private static final int TASK_TITLE_MAX_LEN = 60;
 
     private static final String TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT = "你是一名资深项目经理与学习规划顾问。"
             + "请根据用户目标、周期和补充描述，输出可执行的项目拆解。"
@@ -42,7 +50,9 @@ public class AiServiceImpl implements AiService {
             + "2) 里程碑 2-4 个，按推进顺序；"
             + "3) 每个里程碑 2-5 个任务；"
             + "4) 任务名称要具体可执行，避免空泛表述；"
-            + "5) 里程碑与任务避免重复。"
+            + "5) 里程碑与任务避免重复；"
+            + "6) 每个里程碑名称(name)长度不得超过100个字符；"
+            + "7) 每个任务名称(name)长度不得超过60个字符。"
             + "严格输出结构："
             + "[{\"name\":\"里程碑1\",\"tasks\":[{\"name\":\"任务1\"}]}]";
 
@@ -55,7 +65,9 @@ public class AiServiceImpl implements AiService {
             + "4) 每个任务必须具体、可操作、可检查，尽量动词开头；"
             + "5) 优先输出有产出物的任务（如提交、完成、复盘、测试、演练）；"
             + "6) 任务尽量避免重复，名称长度建议 8-24 字；"
-            + "7) 如果用户描述信息不足，也要基于目标与周期给出合理拆解。"
+            + "7) 如果用户描述信息不足，也要基于目标与周期给出合理拆解；"
+            + "8) 每个里程碑名称(name)长度不得超过100个字符；"
+            + "9) 每个任务名称(name)长度不得超过60个字符。"
             + "严格输出结构："
             + "[{\"name\":\"里程碑1\",\"tasks\":[{\"name\":\"任务1\"}]}]";
 
@@ -93,9 +105,14 @@ public class AiServiceImpl implements AiService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空，描述可为空");
         }
 
-        String userPrompt = String.format("目标：%s，周期：%s。", target, duration);
+        String normalizedTarget = target.trim();
+        if (normalizedTarget.length() > PROJECT_NAME_MAX_LEN) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标长度不能超过100个字符");
+        }
+
+        String userPrompt = String.format("目标：%s，周期：%s。", normalizedTarget, duration.trim());
         if (StrUtil.isNotBlank(description)) {
-            userPrompt = userPrompt + String.format("描述：%s。", description);
+            userPrompt = userPrompt + String.format("描述：%s。", description.trim());
         }
 
         String systemPrompt = detailed ? TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED : TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT;
@@ -104,7 +121,19 @@ public class AiServiceImpl implements AiService {
 
         try {
             JSONArray jsonArray = JSONUtil.parseArray(jsonText);
-            return JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
+            List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
+            // 轻量模式：生成阶段不做硬拦截，导入阶段再做最终校验并返回失败项。
+            // normalizeAndValidateDrafts(result);
+            logDraftLengthRisk(result, normalizedTarget, detailed);
+            if (result == null || result.isEmpty()) {
+                throw new BusinessException(
+                        ErrorCode.OPERATION_ERROR,
+                        "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）"
+                );
+            }
+            return result;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务拆解结果解析失败，请重试。原始异常: " + e.getMessage());
         }
@@ -197,9 +226,121 @@ public class AiServiceImpl implements AiService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR,
-                    "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());
         }
+    }
+
+    @SuppressWarnings("unused")
+    private void normalizeAndValidateDrafts(List<MilestoneDraftVO> drafts) {
+        if (drafts == null || drafts.isEmpty()) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 未生成有效里程碑，请重试");
+        }
+
+        for (int i = 0; i < drafts.size(); i++) {
+            MilestoneDraftVO milestone = drafts.get(i);
+            if (milestone == null) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 结果第" + (i + 1) + "个里程碑为空");
+            }
+
+            String milestoneName = safeTrim(milestone.getName());
+            if (StrUtil.isBlank(milestoneName)) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 结果第" + (i + 1) + "个里程碑名称为空");
+            }
+            if (milestoneName.length() > PROJECT_NAME_MAX_LEN) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                        "AI 结果第" + (i + 1) + "个里程碑名称超长，最多" + PROJECT_NAME_MAX_LEN + "字符");
+            }
+            milestone.setName(milestoneName);
+
+            List<TaskDraftVO> tasks = milestone.getTasks();
+            if (tasks == null || tasks.isEmpty()) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 结果第" + (i + 1) + "个里程碑缺少任务");
+            }
+
+            for (int j = 0; j < tasks.size(); j++) {
+                TaskDraftVO task = tasks.get(j);
+                if (task == null) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1) + "个任务为空");
+                }
+
+                String taskName = safeTrim(task.getName());
+                if (StrUtil.isBlank(taskName)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1) + "个任务名称为空");
+                }
+                if (taskName.length() > TASK_TITLE_MAX_LEN) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1) + "个任务标题超长，最多"
+                                    + TASK_TITLE_MAX_LEN + "字符");
+                }
+                task.setName(taskName);
+            }
+        }
+    }
+
+    private void logDraftLengthRisk(List<MilestoneDraftVO> drafts, String target, boolean detailed) {
+        if (drafts == null || drafts.isEmpty()) {
+            log.warn("AI任务拆解返回空草稿: target={}, detailed={}", target, detailed);
+            return;
+        }
+
+        int milestoneCount = 0;
+        int taskCount = 0;
+        int milestoneNameOverLimitCount = 0;
+        int taskNameOverLimitCount = 0;
+        int blankMilestoneNameCount = 0;
+        int blankTaskNameCount = 0;
+
+        for (MilestoneDraftVO milestone : drafts) {
+            milestoneCount++;
+            if (milestone == null) {
+                blankMilestoneNameCount++;
+                continue;
+            }
+
+            String milestoneName = safeTrim(milestone.getName());
+            if (StrUtil.isBlank(milestoneName)) {
+                blankMilestoneNameCount++;
+            } else if (milestoneName.length() > PROJECT_NAME_MAX_LEN) {
+                milestoneNameOverLimitCount++;
+            }
+
+            List<TaskDraftVO> tasks = milestone.getTasks();
+            if (tasks == null || tasks.isEmpty()) {
+                continue;
+            }
+            for (TaskDraftVO task : tasks) {
+                taskCount++;
+                if (task == null) {
+                    blankTaskNameCount++;
+                    continue;
+                }
+                String taskName = safeTrim(task.getName());
+                if (StrUtil.isBlank(taskName)) {
+                    blankTaskNameCount++;
+                } else if (taskName.length() > TASK_TITLE_MAX_LEN) {
+                    taskNameOverLimitCount++;
+                }
+            }
+        }
+
+        if (milestoneNameOverLimitCount > 0 || taskNameOverLimitCount > 0
+                || blankMilestoneNameCount > 0 || blankTaskNameCount > 0) {
+            log.warn("AI任务拆解草稿存在导入风险: target={}, detailed={}, milestones={}, tasks={}, overMilestoneNames={}, overTaskNames={}, blankMilestoneNames={}, blankTaskNames={}",
+                    target,
+                    detailed,
+                    milestoneCount,
+                    taskCount,
+                    milestoneNameOverLimitCount,
+                    taskNameOverLimitCount,
+                    blankMilestoneNameCount,
+                    blankTaskNameCount);
+        }
+    }
+
+    private String safeTrim(String text) {
+        return text == null ? null : text.trim();
     }
 
     private String sanitizeJsonArrayText(String content) {
