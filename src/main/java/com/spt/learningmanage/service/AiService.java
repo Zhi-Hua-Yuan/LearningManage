@@ -1,5 +1,7 @@
 package com.spt.learningmanage.service;
 
+import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 
 import java.util.List;
@@ -24,4 +26,6 @@ public interface AiService {
      * 润色周总结内容。
      */
     String polishWeeklyReview(List<Long> taskIds, String reflection);
+
+    AiTodayOrderVO recommendTodayOrder(AiTodayOrderRequest request);
 }
