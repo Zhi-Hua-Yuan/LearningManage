@@ -23,4 +23,10 @@ public class AiProperties {
      * 使用的模型名称
      */
     private String model;
+
+    private String breakdownModel;
+
+    private String polishModel;
+
+    private String fallbackModel;
 }

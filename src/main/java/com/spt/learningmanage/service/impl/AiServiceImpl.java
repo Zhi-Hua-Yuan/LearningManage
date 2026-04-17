@@ -96,7 +96,7 @@ public class AiServiceImpl implements AiService {
         if (StrUtil.isBlank(systemPrompt) || StrUtil.isBlank(userPrompt)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "提示词不能为空");
         }
-        return callAi(systemPrompt, userPrompt);
+        return callAiWithFallback(aiProperties.getModel(), systemPrompt, userPrompt);
     }
 
     @Override
@@ -116,7 +116,7 @@ public class AiServiceImpl implements AiService {
         }
 
         String systemPrompt = detailed ? TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED : TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT;
-        String aiRawContent = callAi(systemPrompt, userPrompt);
+        String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), systemPrompt, userPrompt);
         String jsonText = sanitizeJsonArrayText(aiRawContent);
 
         try {
@@ -212,7 +212,7 @@ public class AiServiceImpl implements AiService {
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
 
-        String aiRawContent = callAi(WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
+        String aiRawContent = callAiWithFallback(aiProperties.getPolishModel(), WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
         String cleanedResult = sanitizeJsonObjectText(aiRawContent);
 
         try {
@@ -381,10 +381,33 @@ public class AiServiceImpl implements AiService {
         return cleaned;
     }
 
-    private String callAi(String systemPrompt, String userPrompt) {
+    private String callAiWithFallback(String preferredModel, String systemPrompt, String userPrompt) {
+        String primaryModel = resolveModel(preferredModel);
+        String fallbackModel = safeTrim(aiProperties.getFallbackModel());
+
+        try {
+            return callAi(primaryModel, systemPrompt, userPrompt);
+        } catch (BusinessException primaryException) {
+            if (StrUtil.isBlank(fallbackModel) || StrUtil.equals(primaryModel, fallbackModel)) {
+                throw primaryException;
+            }
+            log.warn("AI call failed on primary model, retrying with fallback model. primaryModel={}, fallbackModel={}",
+                    primaryModel, fallbackModel, primaryException);
+            return callAi(fallbackModel, systemPrompt, userPrompt);
+        }
+    }
+
+    private String resolveModel(String preferredModel) {
+        String model = StrUtil.isNotBlank(preferredModel) ? preferredModel.trim() : safeTrim(aiProperties.getModel());
+        if (StrUtil.isBlank(model)) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI configuration is incomplete, please check ai.model");
+        }
+        return model;
+    }
+
+    private String callAi(String model, String systemPrompt, String userPrompt) {
         String baseUrl = aiProperties.getBaseUrl();
         String apiKey = aiProperties.getApiKey();
-        String model = aiProperties.getModel();
 
         if (StrUtil.hasBlank(baseUrl, apiKey, model)) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI 配置不完整，请检查 ai.base-url、ai.api-key、ai.model");
