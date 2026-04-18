@@ -1,10 +1,14 @@
 package com.spt.learningmanage.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
+import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
-import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
-import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
+import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
+import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
+import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskVo;
 
 public interface TaskService {
     /**
@@ -31,4 +35,8 @@ public interface TaskService {
      * 删除任务，强制过滤 userId。
      */
     void delete(Long id);
+
+    TaskBatchRenameVO batchRenameTitles(TaskBatchRenameRequest request);
+
+    TaskBatchRollbackVO rollbackBatchRename(TaskBatchRollbackRequest request);
 }

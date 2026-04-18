@@ -9,15 +9,21 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
 import com.spt.learningmanage.model.vo.ai.AiTaskOrderItemVO;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
+import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
+import com.spt.learningmanage.model.vo.ai.TitleRenameSuggestionItemVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
 import com.spt.learningmanage.service.AiService;
@@ -37,7 +43,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,6 +63,22 @@ public class AiServiceImpl implements AiService {
     private static final int TASK_PRIORITY_MAX = 3;
     private static final int TODAY_ORDER_LIMIT_MAX = 50;
     private static final int TODAY_ORDER_LIMIT_DEFAULT = 20;
+    private static final int DAILY_RENAME_MAX_EDITS_DEFAULT = 10;
+    private static final int DAILY_RENAME_MAX_EDITS_MAX = 50;
+    private static final int DAILY_RENAME_REASON_MAX_LEN = 120;
+
+    private static final String DAILY_REVIEW_RENAME_SYSTEM_PROMPT = "你是一名任务命名优化助手。"
+            + "请基于当天任务完成情况，仅对未完成任务给出更清晰、可执行的任务标题。"
+            + "只输出合法 JSON 对象，不要输出 Markdown，不要输出解释文本。"
+            + "严格输出结构为："
+            + "{\"items\":[{\"taskId\":1,\"newTitle\":\"...\",\"reason\":\"...\",\"confidence\":80}]}"
+            + "约束："
+            + "1）taskId 必须来自用户提示中的 pendingTasks；"
+            + "2）items 数量必须小于等于用户给定的 maxEdits；"
+            + "3）newTitle 必须简洁、动作化，长度不超过60个字符；"
+            + "4）保持原任务意图，不得扩大范围；"
+            + "5）confidence 必须是 0-100 的整数；"
+            + "6）如果不需要改名，返回 {\"items\":[]}。";
 
     private static final String TODAY_ORDER_SYSTEM_PROMPT = "你是任务调度助手。"
             + "请基于任务难度、成本、效益、优先级与当前时间，给出今天任务的推荐完成顺序。"
@@ -109,6 +133,9 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private ProjectMapper projectMapper;
+
+    @Resource
+    private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -287,6 +314,266 @@ public class AiServiceImpl implements AiService {
             result.setFallbackUsed(true);
             result.setItems(fallbackByRule(tasks, strategy, now));
             return result;
+        }
+    }
+
+    @Override
+    public DailyReviewSuggestRenameVO suggestDailyReviewRename(DailyReviewSuggestRenameRequest request) {
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+
+        DailyReviewSuggestRenameRequest safeRequest = request == null ? new DailyReviewSuggestRenameRequest() : request;
+        LocalDate reviewDate = resolveReviewDate(safeRequest.getReviewDate());
+        String strategy = normalizeRenameStrategy(safeRequest.getStrategy());
+        int maxEdits = resolveRenameMaxEdits(safeRequest.getMaxEdits());
+        List<Task> dayTasks = loadDailyReviewTasks(currentUserId, safeRequest.getTaskIds(), reviewDate);
+
+        List<Task> completedTasks = dayTasks.stream()
+                .filter(task -> TaskStatusEnum.isCompleted(task.getStatus()))
+                .toList();
+        List<Task> pendingTasks = dayTasks.stream()
+                .filter(task -> Objects.equals(task.getStatus(), TaskStatusEnum.TODO.getValue()))
+                .toList();
+
+        String operationId = generateRenameOperationId(reviewDate);
+        DailyReviewSuggestRenameVO result = new DailyReviewSuggestRenameVO();
+        result.setOperationId(operationId);
+        result.setGeneratedAt(LocalDateTime.now().toString());
+        result.setReviewDate(reviewDate.toString());
+        if (pendingTasks.isEmpty()) {
+            result.setItems(List.of());
+            return result;
+        }
+
+        List<TitleRenameSuggestionItemVO> suggestions;
+        try {
+            String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
+            String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt);
+            suggestions = parseAndValidateRenameSuggestions(aiRawContent, pendingTasks, maxEdits);
+        } catch (Exception e) {
+            log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
+            suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
+        }
+
+        saveRenameLogs(currentUserId, reviewDate, operationId, suggestions);
+        result.setItems(suggestions);
+        return result;
+    }
+
+    private LocalDate resolveReviewDate(String reviewDateText) {
+        if (StrUtil.isBlank(reviewDateText)) {
+            return LocalDate.now();
+        }
+        try {
+            return LocalDate.parse(reviewDateText.trim());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "reviewDate 格式必须为 yyyy-MM-dd");
+        }
+    }
+
+    private String normalizeRenameStrategy(String strategy) {
+        if (StrUtil.isBlank(strategy)) {
+            return "balanced";
+        }
+        String normalized = strategy.trim().toLowerCase(Locale.ROOT);
+        if ("balanced".equals(normalized) || "clarity_first".equals(normalized)) {
+            return normalized;
+        }
+        throw new BusinessException(ErrorCode.PARAMS_ERROR, "strategy 仅支持 balanced 或 clarity_first");
+    }
+
+    private int resolveRenameMaxEdits(Integer maxEdits) {
+        if (maxEdits == null || maxEdits <= 0) {
+            return DAILY_RENAME_MAX_EDITS_DEFAULT;
+        }
+        return Math.min(maxEdits, DAILY_RENAME_MAX_EDITS_MAX);
+    }
+
+    private List<Task> loadDailyReviewTasks(Long userId, List<Long> taskIds, LocalDate reviewDate) {
+        if (taskIds != null && !taskIds.isEmpty()) {
+            Set<Long> uniqueIds = taskIds.stream()
+                    .filter(id -> id != null && id > 0)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            if (uniqueIds.isEmpty()) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 至少包含一个有效任务ID");
+            }
+
+            List<Task> selectedTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                    .in(Task::getId, uniqueIds)
+                    .eq(Task::getUserId, userId)
+                    .eq(Task::getDueDate, reviewDate)
+                    .orderByDesc(Task::getPriority)
+                    .orderByAsc(Task::getCreateTime, Task::getId));
+            if (selectedTasks.isEmpty()) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "未找到与 reviewDate 和 taskIds 匹配的任务");
+            }
+            return selectedTasks;
+        }
+
+        return taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getUserId, userId)
+                .eq(Task::getDueDate, reviewDate)
+                .orderByDesc(Task::getPriority)
+                .orderByAsc(Task::getCreateTime, Task::getId));
+    }
+
+    private String buildDailyReviewRenameUserPrompt(LocalDate reviewDate,
+                                                    String strategy,
+                                                    int maxEdits,
+                                                    List<Task> completedTasks,
+                                                    List<Task> pendingTasks) {
+        JSONArray completedContext = JSONUtil.createArray();
+        for (Task task : completedTasks) {
+            completedContext.add(JSONUtil.createObj()
+                    .set("taskId", task.getId())
+                    .set("title", task.getTitle())
+                    .set("status", task.getStatus())
+                    .set("priority", task.getPriority())
+                    .set("completedAt", task.getCompletedAt()));
+        }
+
+        JSONArray pendingContext = JSONUtil.createArray();
+        for (Task task : pendingTasks) {
+            pendingContext.add(JSONUtil.createObj()
+                    .set("taskId", task.getId())
+                    .set("title", task.getTitle())
+                    .set("status", task.getStatus())
+                    .set("priority", task.getPriority())
+                    .set("dueDate", task.getDueDate())
+                    .set("description", task.getDescription()));
+        }
+
+        return "reviewDate: " + reviewDate
+                + "\nstrategy: " + strategy
+                + "\nmaxEdits: " + maxEdits
+                + "\ncompletedTasks(JSON): " + completedContext
+                + "\npendingTasks(JSON): " + pendingContext
+                + "\nOnly return rename suggestions for pendingTasks.";
+    }
+
+    private List<TitleRenameSuggestionItemVO> parseAndValidateRenameSuggestions(String aiRawContent,
+                                                                                 List<Task> pendingTasks,
+                                                                                 int maxEdits) {
+        String cleanedText = sanitizeJsonObjectText(aiRawContent);
+        JSONObject resultObj = JSONUtil.parseObj(cleanedText);
+        JSONArray items = resultObj.getJSONArray("items");
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Task> pendingTaskMap = pendingTasks.stream()
+                .collect(Collectors.toMap(Task::getId, Function.identity(), (a, b) -> a));
+
+        Set<Long> seenTaskIds = new HashSet<>();
+        List<TitleRenameSuggestionItemVO> suggestions = new ArrayList<>();
+        for (int i = 0; i < items.size(); i++) {
+            if (suggestions.size() >= maxEdits) {
+                break;
+            }
+            JSONObject item = items.getJSONObject(i);
+            if (item == null) {
+                continue;
+            }
+
+            Long taskId = item.getLong("taskId");
+            if (taskId == null || !pendingTaskMap.containsKey(taskId) || !seenTaskIds.add(taskId)) {
+                continue;
+            }
+
+            Task sourceTask = pendingTaskMap.get(taskId);
+            String oldTitle = safeTrim(sourceTask.getTitle());
+            String newTitle = normalizeSuggestedTitle(item.getStr("newTitle"));
+            if (StrUtil.isBlank(oldTitle) || StrUtil.isBlank(newTitle) || StrUtil.equals(oldTitle, newTitle)) {
+                continue;
+            }
+
+            String reason = safeTrim(item.getStr("reason"));
+            if (StrUtil.isBlank(reason)) {
+                reason = "提升标题清晰度与可执行性";
+            } else if (reason.length() > DAILY_RENAME_REASON_MAX_LEN) {
+                reason = reason.substring(0, DAILY_RENAME_REASON_MAX_LEN);
+            }
+            Integer confidence = clamp(item.getInt("confidence") == null ? 75 : item.getInt("confidence"), 0, 100);
+
+            TitleRenameSuggestionItemVO suggestion = new TitleRenameSuggestionItemVO();
+            suggestion.setTaskId(taskId);
+            suggestion.setOldTitle(oldTitle);
+            suggestion.setNewTitle(newTitle);
+            suggestion.setReason(reason);
+            suggestion.setConfidence(confidence);
+            suggestions.add(suggestion);
+        }
+        return suggestions;
+    }
+
+    private String normalizeSuggestedTitle(String title) {
+        if (StrUtil.isBlank(title)) {
+            return null;
+        }
+        String normalized = title.trim().replaceAll("\\s+", " ");
+        if (normalized.length() > TASK_TITLE_MAX_LEN) {
+            normalized = normalized.substring(0, TASK_TITLE_MAX_LEN).trim();
+        }
+        return StrUtil.isBlank(normalized) ? null : normalized;
+    }
+
+    private List<TitleRenameSuggestionItemVO> fallbackRenameSuggestions(List<Task> pendingTasks, int maxEdits) {
+        List<TitleRenameSuggestionItemVO> result = new ArrayList<>();
+        for (Task task : pendingTasks) {
+            if (result.size() >= maxEdits) {
+                break;
+            }
+            String oldTitle = safeTrim(task.getTitle());
+            if (StrUtil.isBlank(oldTitle)) {
+                continue;
+            }
+            String newTitle = normalizeSuggestedTitle("下一步：" + oldTitle);
+            if (StrUtil.isBlank(newTitle) || StrUtil.equals(oldTitle, newTitle)) {
+                continue;
+            }
+
+            TitleRenameSuggestionItemVO item = new TitleRenameSuggestionItemVO();
+            item.setTaskId(task.getId());
+            item.setOldTitle(oldTitle);
+            item.setNewTitle(newTitle);
+            item.setReason("规则兜底：优化标题表达");
+            item.setConfidence(60);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private String generateRenameOperationId(LocalDate reviewDate) {
+        return reviewDate.toString().replace("-", "")
+                + "_rename_"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    }
+
+    private void saveRenameLogs(Long userId,
+                                LocalDate reviewDate,
+                                String operationId,
+                                List<TitleRenameSuggestionItemVO> suggestions) {
+        if (suggestions == null || suggestions.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (TitleRenameSuggestionItemVO suggestion : suggestions) {
+            TaskTitleRenameLog logItem = new TaskTitleRenameLog();
+            logItem.setOperationId(operationId);
+            logItem.setUserId(userId);
+            logItem.setTaskId(suggestion.getTaskId());
+            logItem.setReviewDate(reviewDate);
+            logItem.setOldTitle(suggestion.getOldTitle());
+            logItem.setNewTitle(suggestion.getNewTitle());
+            logItem.setReason(suggestion.getReason());
+            logItem.setConfidence(suggestion.getConfidence());
+            logItem.setIsApplied(0);
+            logItem.setIsRollback(0);
+            logItem.setCreateTime(now);
+            logItem.setUpdateTime(now);
+            taskTitleRenameLogMapper.insert(logItem);
         }
     }
 

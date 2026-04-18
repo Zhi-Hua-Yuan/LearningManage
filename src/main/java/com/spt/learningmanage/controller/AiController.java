@@ -8,7 +8,9 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
+import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.service.AiService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,11 +57,6 @@ public class AiController {
                                             + "          \"name\": \"完成核心词汇第1-10单元\",\n"
                                             + "          \"priority\": 3,\n"
                                             + "          \"dueDate\": \"2026-04-25\"\n"
-                                            + "        },\n"
-                                            + "        {\n"
-                                            + "          \"name\": \"每日听力训练30分钟\",\n"
-                                            + "          \"priority\": 2,\n"
-                                            + "          \"dueDate\": \"2026-04-28\"\n"
                                             + "        }\n"
                                             + "      ]\n"
                                             + "    }\n"
@@ -85,33 +82,35 @@ public class AiController {
     }
 
     @Operation(summary = "今日任务推荐顺序", description = "根据今天到期任务，结合难度、成本、效益等因素生成推荐完成顺序")
+    @PostMapping("/today-order/recommend")
+    public BaseResponse<AiTodayOrderVO> recommendTodayOrder(@RequestBody(required = false) AiTodayOrderRequest request) {
+        return ResultUtils.ok(aiService.recommendTodayOrder(request));
+    }
+
+    @Operation(summary = "日报回顾改名建议", description = "根据当天任务完成情况，为未完成任务生成仅标题改名建议（不落库）")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "推荐成功",
+                    description = "建议生成成功",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
                             examples = @ExampleObject(
-                                    name = "今日任务推荐返回示例",
+                                    name = "日报回顾改名建议返回示例",
                                     value = "{\n"
                                             + "  \"code\": 0,\n"
                                             + "  \"message\": \"ok\",\n"
                                             + "  \"data\": {\n"
-                                            + "    \"strategy\": \"balanced\",\n"
-                                            + "    \"generatedAt\": \"2026-04-17T10:30:02\",\n"
-                                            + "    \"fallbackUsed\": false,\n"
+                                            + "    \"operationId\": \"20260418_rename_9ab27d5f\",\n"
+                                            + "    \"generatedAt\": \"2026-04-18T21:10:12\",\n"
+                                            + "    \"reviewDate\": \"2026-04-18\",\n"
                                             + "    \"items\": [\n"
                                             + "      {\n"
-                                            + "        \"taskId\": 102,\n"
-                                            + "        \"title\": \"完成核心词汇第1-10单元\",\n"
-                                            + "        \"rank\": 1,\n"
-                                            + "        \"score\": 88,\n"
-                                            + "        \"difficulty\": 3,\n"
-                                            + "        \"cost\": 2,\n"
-                                            + "        \"benefit\": 5,\n"
-                                            + "        \"estimatedMinutes\": 30,\n"
-                                            + "        \"reason\": \"收益高且可在30分钟内完成，建议优先处理\"\n"
+                                            + "        \"taskId\": 101,\n"
+                                            + "        \"oldTitle\": \"背单词\",\n"
+                                            + "        \"newTitle\": \"完成核心词汇第11-12单元记忆\",\n"
+                                            + "        \"reason\": \"标题更具体，可直接执行和验收\",\n"
+                                            + "        \"confidence\": 86\n"
                                             + "      }\n"
                                             + "    ]\n"
                                             + "  }\n"
@@ -120,9 +119,10 @@ public class AiController {
                     )
             )
     })
-    @PostMapping("/today-order/recommend")
-    public BaseResponse<AiTodayOrderVO> recommendTodayOrder(@RequestBody(required = false) AiTodayOrderRequest request) {
-        return ResultUtils.ok(aiService.recommendTodayOrder(request));
+    @PostMapping("/daily-review/suggest-rename")
+    public BaseResponse<DailyReviewSuggestRenameVO> suggestDailyReviewRename(
+            @RequestBody(required = false) DailyReviewSuggestRenameRequest request) {
+        return ResultUtils.ok(aiService.suggestDailyReviewRename(request));
     }
 
     @Operation(summary = "周总结润色", description = "根据任务列表和反思生成润色文本")
