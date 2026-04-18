@@ -13,23 +13,35 @@ import com.spt.learningmanage.utils.UserHolder;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
+import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
+import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
+import com.spt.learningmanage.model.dto.task.TaskRenameItemDTO;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
+import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
+import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -43,6 +55,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private MilestoneMapper milestoneMapper;
+
+    @Resource
+    private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
 
     /**
      * 创建任务，返回任务ID。
@@ -251,6 +266,145 @@ public class TaskServiceImpl implements TaskService {
     /**
      * 计算并更新项目/里程碑进度。
      */
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TaskBatchRenameVO batchRenameTitles(TaskBatchRenameRequest request) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        if (request == null || !StringUtils.hasText(request.getOperationId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "operationId 不能为空");
+        }
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "items 不能为空");
+        }
+
+        String operationId = request.getOperationId().trim();
+        List<TaskTitleRenameLog> logs = taskTitleRenameLogMapper.selectList(new LambdaQueryWrapper<TaskTitleRenameLog>()
+                .eq(TaskTitleRenameLog::getOperationId, operationId)
+                .eq(TaskTitleRenameLog::getUserId, userId)
+                .eq(TaskTitleRenameLog::getIsRollback, 0));
+        if (logs.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "operationId 不存在或无权限");
+        }
+
+        Map<Long, TaskTitleRenameLog> logMap = new HashMap<>();
+        for (TaskTitleRenameLog log : logs) {
+            if (log != null && log.getTaskId() != null) {
+                logMap.put(log.getTaskId(), log);
+            }
+        }
+
+        int successCount = 0;
+        int skipCount = 0;
+        List<Long> updatedTaskIds = new ArrayList<>();
+        for (TaskRenameItemDTO item : request.getItems()) {
+            if (item == null || item.getTaskId() == null || item.getTaskId() <= 0) {
+                skipCount++;
+                continue;
+            }
+
+            TaskTitleRenameLog log = logMap.get(item.getTaskId());
+            if (log == null || Objects.equals(log.getIsRollback(), 1)) {
+                skipCount++;
+                continue;
+            }
+
+            String oldTitle = item.getOldTitle() == null ? null : item.getOldTitle().trim();
+            String newTitle = item.getNewTitle() == null ? null : item.getNewTitle().trim();
+            if (!StringUtils.hasText(oldTitle) || !StringUtils.hasText(newTitle)) {
+                skipCount++;
+                continue;
+            }
+            validateTitle(newTitle);
+
+            if (!oldTitle.equals(log.getOldTitle()) || !newTitle.equals(log.getNewTitle())) {
+                skipCount++;
+                continue;
+            }
+
+            Task currentTask = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
+                    .eq(Task::getId, item.getTaskId())
+                    .eq(Task::getUserId, userId)
+                    .last("limit 1"));
+            if (currentTask == null || !oldTitle.equals(currentTask.getTitle())) {
+                skipCount++;
+                continue;
+            }
+
+            int updateRows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, item.getTaskId())
+                    .eq(Task::getUserId, userId)
+                    .eq(Task::getTitle, oldTitle)
+                    .set(Task::getTitle, newTitle));
+            if (updateRows == 1) {
+                taskTitleRenameLogMapper.update(null, new LambdaUpdateWrapper<TaskTitleRenameLog>()
+                        .eq(TaskTitleRenameLog::getId, log.getId())
+                        .set(TaskTitleRenameLog::getIsApplied, 1)
+                        .set(TaskTitleRenameLog::getAppliedAt, LocalDateTime.now()));
+                successCount++;
+                updatedTaskIds.add(item.getTaskId());
+            } else {
+                skipCount++;
+            }
+        }
+
+        TaskBatchRenameVO result = new TaskBatchRenameVO();
+        result.setOperationId(operationId);
+        result.setSuccessCount(successCount);
+        result.setSkipCount(skipCount);
+        result.setUpdatedTaskIds(updatedTaskIds);
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TaskBatchRollbackVO rollbackBatchRename(TaskBatchRollbackRequest request) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        if (request == null || !StringUtils.hasText(request.getOperationId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "operationId 不能为空");
+        }
+
+        String operationId = request.getOperationId().trim();
+        List<TaskTitleRenameLog> logs = taskTitleRenameLogMapper.selectList(new LambdaQueryWrapper<TaskTitleRenameLog>()
+                .eq(TaskTitleRenameLog::getOperationId, operationId)
+                .eq(TaskTitleRenameLog::getUserId, userId)
+                .eq(TaskTitleRenameLog::getIsApplied, 1)
+                .eq(TaskTitleRenameLog::getIsRollback, 0));
+        if (logs.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该批次没有可回滚的改名记录");
+        }
+
+        int rollbackCount = 0;
+        LocalDateTime now = LocalDateTime.now();
+        for (TaskTitleRenameLog log : logs) {
+            if (log == null || log.getTaskId() == null) {
+                continue;
+            }
+            int updateRows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, log.getTaskId())
+                    .eq(Task::getUserId, userId)
+                    .eq(Task::getTitle, log.getNewTitle())
+                    .set(Task::getTitle, log.getOldTitle()));
+            if (updateRows == 1) {
+                taskTitleRenameLogMapper.update(null, new LambdaUpdateWrapper<TaskTitleRenameLog>()
+                        .eq(TaskTitleRenameLog::getId, log.getId())
+                        .set(TaskTitleRenameLog::getIsRollback, 1)
+                        .set(TaskTitleRenameLog::getRollbackAt, now));
+                rollbackCount++;
+            }
+        }
+
+        TaskBatchRollbackVO result = new TaskBatchRollbackVO();
+        result.setOperationId(operationId);
+        result.setRollbackCount(rollbackCount);
+        return result;
+    }
     private void calculateAndUpdateProgress(Long projectId, Long milestoneId) {
         Long userId = UserHolder.get();
         if (userId == null) {

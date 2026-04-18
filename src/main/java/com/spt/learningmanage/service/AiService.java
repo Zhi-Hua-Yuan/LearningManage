@@ -1,7 +1,9 @@
 package com.spt.learningmanage.service;
 
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
+import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 
 import java.util.List;
@@ -28,4 +30,6 @@ public interface AiService {
     String polishWeeklyReview(List<Long> taskIds, String reflection);
 
     AiTodayOrderVO recommendTodayOrder(AiTodayOrderRequest request);
+
+    DailyReviewSuggestRenameVO suggestDailyReviewRename(DailyReviewSuggestRenameRequest request);
 }

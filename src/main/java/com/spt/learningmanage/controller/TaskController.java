@@ -5,13 +5,23 @@ import com.spt.learningmanage.common.BaseResponse;
 import com.spt.learningmanage.common.ResultUtils;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
+import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
+import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
+import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/task")
@@ -20,22 +30,19 @@ public class TaskController {
     @Resource
     private TaskService taskService;
 
-    // 创建任务，返回任务ID
     @PostMapping("/add")
     public BaseResponse<Long> addTask(@RequestBody TaskCreateRequest taskCreateRequest) {
         return ResultUtils.ok(taskService.create(taskCreateRequest));
     }
 
-    // 根据 id 获取任务详情（VO）
     @GetMapping("/get/{id}")
     public BaseResponse<TaskVo> getTaskById(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
         }
         return ResultUtils.ok(taskService.getById(id));
     }
 
-    // 分页获取任务列表（VO）
     @GetMapping("/list")
     public BaseResponse<Page<TaskVo>> listTask(
             @RequestParam(value = "projectId", required = false) Long projectId,
@@ -52,24 +59,37 @@ public class TaskController {
         return ResultUtils.ok(taskService.list(queryRequest));
     }
 
-    // 更新任务
     @PostMapping("/update")
     public BaseResponse<Boolean> updateTask(@RequestBody TaskUpdateRequest taskUpdateRequest) {
         if (taskUpdateRequest == null || taskUpdateRequest.getId() == null || taskUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
         }
         taskService.update(taskUpdateRequest);
         return ResultUtils.ok(true);
     }
 
-    // 删除任务（加入回收站）
     @PostMapping("/delete/{id}")
     public BaseResponse<Boolean> deleteTask(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
         }
         taskService.delete(id);
         return ResultUtils.ok(true);
     }
 
+    @PostMapping("/batch-rename")
+    public BaseResponse<TaskBatchRenameVO> batchRename(@RequestBody TaskBatchRenameRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+        }
+        return ResultUtils.ok(taskService.batchRenameTitles(request));
+    }
+
+    @PostMapping("/batch-rename/rollback")
+    public BaseResponse<TaskBatchRollbackVO> rollbackBatchRename(@RequestBody TaskBatchRollbackRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+        }
+        return ResultUtils.ok(taskService.rollbackBatchRename(request));
+    }
 }
