@@ -1,6 +1,5 @@
 # 1. 指定基础环境：
-# 【修复：加上国内镜像代理前缀，防止 JDK 下载超时】
-FROM dockerpull.com/library/eclipse-temurin:17-jre-alpine
+FROM docker.1panel.live/library/eclipse-temurin:17-jre-alpine
 
 # 2. 指定工作目录：进入这个微型电脑的 /app 文件夹
 WORKDIR /app
