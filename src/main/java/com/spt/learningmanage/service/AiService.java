@@ -32,4 +32,6 @@ public interface AiService {
     AiTodayOrderVO recommendTodayOrder(AiTodayOrderRequest request);
 
     DailyReviewSuggestRenameVO suggestDailyReviewRename(DailyReviewSuggestRenameRequest request);
+
+    boolean replanListTasks(Long listId);
 }
