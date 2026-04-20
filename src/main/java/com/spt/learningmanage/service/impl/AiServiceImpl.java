@@ -8,6 +8,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
@@ -32,6 +33,7 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,6 +68,17 @@ public class AiServiceImpl implements AiService {
     private static final int DAILY_RENAME_MAX_EDITS_DEFAULT = 10;
     private static final int DAILY_RENAME_MAX_EDITS_MAX = 50;
     private static final int DAILY_RENAME_REASON_MAX_LEN = 120;
+    private static final int LIST_REPLAN_TITLE_CONFIDENCE_THRESHOLD = 70;
+    private static final int LIST_REPLAN_REASON_MAX_LEN = 160;
+
+    private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
+            + "请基于清单内全部任务进行分析，尤其要结合已完成任务历史来推断用户执行力。"
+            + "只允许重排未完成任务（status=0）。"
+            + "你必须只输出合法 JSON 对象，不要输出 Markdown 或解释文字。"
+            + "输出结构严格为："
+            + "{\"items\":[{\"taskId\":1,\"newTitle\":\"...\",\"newPriority\":2,\"newDueDate\":\"2026-04-20\",\"confidence\":85,\"reason\":\"...\"}]}"
+            + "约束：newPriority 必须是 0-3 的整数；newDueDate 必须是 yyyy-MM-dd 或 null；"
+            + "newTitle 必须简洁且长度不超过 60 个字符。";
 
     private static final String DAILY_REVIEW_RENAME_SYSTEM_PROMPT = "你是一名任务命名优化助手。"
             + "请基于当天任务完成情况，仅对未完成任务给出更清晰、可执行的任务标题。"
@@ -362,6 +375,383 @@ public class AiServiceImpl implements AiService {
         return result;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean replanListTasks(Long listId) {
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+        if (listId == null || listId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "listId 不合法");
+        }
+
+        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
+                .eq(Project::getId, listId)
+                .eq(Project::getUserId, currentUserId)
+                .isNull(Project::getDeletedAt)
+                .last("limit 1"));
+        if (project == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "清单不存在或无访问权限");
+        }
+
+        List<Task> allTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getUserId, currentUserId)
+                .eq(Task::getProjectId, listId)
+                .eq(Task::getIsDelete, 0)
+                .orderByDesc(Task::getPriority)
+                .orderByAsc(Task::getDueDate, Task::getCreateTime, Task::getId));
+        if (allTasks.isEmpty()) {
+            return false;
+        }
+
+        List<Task> completedTasks = allTasks.stream()
+                .filter(task -> TaskStatusEnum.isCompleted(task.getStatus()))
+                .toList();
+        List<Task> pendingTasks = allTasks.stream()
+                .filter(task -> Objects.equals(task.getStatus(), TaskStatusEnum.TODO.getValue()))
+                .toList();
+        if (pendingTasks.isEmpty()) {
+            syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
+            return false;
+        }
+
+        LocalDate today = LocalDate.now();
+        List<ListTaskReplanItem> replanItems;
+        try {
+            String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
+            String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
+            replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
+        } catch (Exception e) {
+            log.warn("AI 清单重排失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
+            replanItems = fallbackListReplanItems(pendingTasks);
+        }
+
+        int updatedCount = applyListReplanItems(replanItems, currentUserId);
+        syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
+        return updatedCount > 0;
+    }
+
+    private String buildListReplanUserPrompt(Project project, List<Task> completedTasks, List<Task> pendingTasks, LocalDate today) {
+        int totalCount = completedTasks.size() + pendingTasks.size();
+        int completedCount = completedTasks.size();
+        int pendingCount = pendingTasks.size();
+        int overduePendingCount = (int) pendingTasks.stream()
+                .filter(task -> task.getDueDate() != null && task.getDueDate().isBefore(today))
+                .count();
+        int completedOnTimeCount = (int) completedTasks.stream()
+                .filter(task -> task.getCompletedAt() != null)
+                .filter(task -> task.getDueDate() == null || !task.getCompletedAt().toLocalDate().isAfter(task.getDueDate()))
+                .count();
+        double completionRate = totalCount == 0 ? 0D : (completedCount * 100.0D / totalCount);
+
+        JSONArray completedContext = JSONUtil.createArray();
+        for (Task task : completedTasks) {
+            completedContext.add(JSONUtil.createObj()
+                    .set("taskId", task.getId())
+                    .set("title", task.getTitle())
+                    .set("priority", task.getPriority())
+                    .set("dueDate", task.getDueDate())
+                    .set("completedAt", task.getCompletedAt())
+                    .set("status", task.getStatus()));
+        }
+
+        JSONArray pendingContext = JSONUtil.createArray();
+        for (Task task : pendingTasks) {
+            pendingContext.add(JSONUtil.createObj()
+                    .set("taskId", task.getId())
+                    .set("title", task.getTitle())
+                    .set("description", task.getDescription())
+                    .set("priority", task.getPriority())
+                    .set("dueDate", task.getDueDate())
+                    .set("status", task.getStatus()));
+        }
+
+        return "清单ID: " + project.getId()
+                + "\n清单名称: " + project.getName()
+                + "\n清单目标: " + project.getGoal()
+                + "\n今天日期: " + today
+                + "\n执行指标: {"
+                + "\"total\":" + totalCount
+                + ",\"completed\":" + completedCount
+                + ",\"pending\":" + pendingCount
+                + ",\"overduePending\":" + overduePendingCount
+                + ",\"completedOnTime\":" + completedOnTimeCount
+                + ",\"completionRate\":" + String.format(Locale.ROOT, "%.2f", completionRate)
+                + "}"
+                + "\n已完成任务(JSON): " + completedContext
+                + "\n未完成任务(JSON): " + pendingContext
+                + "\n仅返回未完成任务（pending taskIds）的重排结果。";
+    }
+
+    private List<ListTaskReplanItem> parseAndValidateListReplanItems(String aiRawContent,
+                                                                      List<Task> pendingTasks,
+                                                                      LocalDate today) {
+        String cleanedText = sanitizeJsonObjectText(aiRawContent);
+        JSONObject resultObj = JSONUtil.parseObj(cleanedText);
+        JSONArray items = resultObj.getJSONArray("items");
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Task> pendingTaskMap = pendingTasks.stream()
+                .collect(Collectors.toMap(Task::getId, Function.identity(), (a, b) -> a));
+        Set<Long> seenTaskIds = new HashSet<>();
+        List<ListTaskReplanItem> result = new ArrayList<>();
+
+        for (int i = 0; i < items.size(); i++) {
+            JSONObject item = items.getJSONObject(i);
+            if (item == null) {
+                continue;
+            }
+
+            Long taskId = item.getLong("taskId");
+            if (taskId == null || !pendingTaskMap.containsKey(taskId) || !seenTaskIds.add(taskId)) {
+                continue;
+            }
+
+            Task sourceTask = pendingTaskMap.get(taskId);
+            String oldTitle = safeTrim(sourceTask.getTitle());
+            String newTitle = normalizeReplanTitle(item.getStr("newTitle"), oldTitle);
+            int oldPriority = sourceTask.getPriority() == null ? 0 : sourceTask.getPriority();
+            int newPriority = normalizeReplanPriority(item.getInt("newPriority"), oldPriority);
+            LocalDate oldDueDate = sourceTask.getDueDate();
+            LocalDate newDueDate = normalizeReplanDueDate(item.get("newDueDate"), oldDueDate);
+            int confidence = clamp(item.getInt("confidence") == null ? 75 : item.getInt("confidence"), 0, 100);
+            String reason = normalizeReplanReason(item.getStr("reason"));
+
+            boolean likelyStarted = oldDueDate != null && !oldDueDate.isAfter(today);
+            if (likelyStarted && confidence < LIST_REPLAN_TITLE_CONFIDENCE_THRESHOLD) {
+                newTitle = oldTitle;
+                reason = StrUtil.isBlank(reason) ? "低置信度且疑似已开始执行，保持原标题" : reason;
+            }
+
+            ListTaskReplanItem replanItem = new ListTaskReplanItem();
+            replanItem.setTaskId(taskId);
+            replanItem.setOldTitle(oldTitle);
+            replanItem.setNewTitle(newTitle);
+            replanItem.setOldPriority(oldPriority);
+            replanItem.setNewPriority(newPriority);
+            replanItem.setOldDueDate(oldDueDate);
+            replanItem.setNewDueDate(newDueDate);
+            replanItem.setConfidence(confidence);
+            replanItem.setReason(reason);
+            result.add(replanItem);
+        }
+
+        return result;
+    }
+
+    private List<ListTaskReplanItem> fallbackListReplanItems(List<Task> pendingTasks) {
+        if (pendingTasks == null || pendingTasks.isEmpty()) {
+            return List.of();
+        }
+        List<ListTaskReplanItem> fallbackItems = new ArrayList<>(pendingTasks.size());
+        for (Task task : pendingTasks) {
+            ListTaskReplanItem item = new ListTaskReplanItem();
+            int priority = task.getPriority() == null ? 0 : task.getPriority();
+            item.setTaskId(task.getId());
+            item.setOldTitle(task.getTitle());
+            item.setNewTitle(task.getTitle());
+            item.setOldPriority(priority);
+            item.setNewPriority(priority);
+            item.setOldDueDate(task.getDueDate());
+            item.setNewDueDate(task.getDueDate());
+            item.setConfidence(0);
+            item.setReason("AI不可用，保持原计划");
+            fallbackItems.add(item);
+        }
+        return fallbackItems;
+    }
+
+    private int applyListReplanItems(List<ListTaskReplanItem> replanItems, Long userId) {
+        if (replanItems == null || replanItems.isEmpty()) {
+            return 0;
+        }
+
+        int updatedCount = 0;
+        for (ListTaskReplanItem item : replanItems) {
+            if (item == null || item.getTaskId() == null || !item.hasAnyChange()) {
+                continue;
+            }
+
+            int rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, item.getTaskId())
+                    .eq(Task::getUserId, userId)
+                    .eq(Task::getStatus, TaskStatusEnum.TODO.getValue())
+                    .eq(Task::getIsDelete, 0)
+                    .set(Task::getTitle, item.getNewTitle())
+                    .set(Task::getPriority, item.getNewPriority())
+                    .set(Task::getDueDate, item.getNewDueDate()));
+            if (rows == 1) {
+                updatedCount++;
+            }
+        }
+
+        return updatedCount;
+    }
+
+    private void syncProjectEndDateIfNeeded(Long listId, Long userId, LocalDate currentProjectEndDate) {
+        List<Task> tasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getUserId, userId)
+                .eq(Task::getProjectId, listId)
+                .eq(Task::getIsDelete, 0));
+
+        LocalDate maxDueDate = tasks.stream()
+                .map(Task::getDueDate)
+                .filter(Objects::nonNull)
+                .max(LocalDate::compareTo)
+                .orElse(null);
+
+        if (maxDueDate == null || Objects.equals(currentProjectEndDate, maxDueDate)) {
+            return;
+        }
+
+        projectMapper.update(null, new LambdaUpdateWrapper<Project>()
+                .eq(Project::getId, listId)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getDeletedAt)
+                .set(Project::getEndDate, maxDueDate));
+    }
+
+    private String normalizeReplanTitle(String suggestedTitle, String oldTitle) {
+        String oldValue = StrUtil.blankToDefault(safeTrim(oldTitle), "");
+        if (StrUtil.isBlank(suggestedTitle)) {
+            return oldValue;
+        }
+        String normalized = suggestedTitle.trim();
+        if (normalized.length() > TASK_TITLE_MAX_LEN) {
+            normalized = normalized.substring(0, TASK_TITLE_MAX_LEN);
+        }
+        return StrUtil.isBlank(normalized) ? oldValue : normalized;
+    }
+
+    private int normalizeReplanPriority(Integer suggestedPriority, int oldPriority) {
+        if (suggestedPriority == null) {
+            return clamp(oldPriority, TASK_PRIORITY_MIN, TASK_PRIORITY_MAX);
+        }
+        return clamp(suggestedPriority, TASK_PRIORITY_MIN, TASK_PRIORITY_MAX);
+    }
+
+    private LocalDate normalizeReplanDueDate(Object suggestedDueDate, LocalDate oldDueDate) {
+        if (suggestedDueDate == null) {
+            return oldDueDate;
+        }
+
+        String dueDateText = safeTrim(String.valueOf(suggestedDueDate));
+        if (StrUtil.isBlank(dueDateText)) {
+            return oldDueDate;
+        }
+        if ("null".equalsIgnoreCase(dueDateText) || "none".equalsIgnoreCase(dueDateText)) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dueDateText);
+        } catch (Exception e) {
+            return oldDueDate;
+        }
+    }
+
+    private String normalizeReplanReason(String reason) {
+        String normalized = safeTrim(reason);
+        if (StrUtil.isBlank(normalized)) {
+            return "按执行力与任务属性动态重排";
+        }
+        return normalized.length() > LIST_REPLAN_REASON_MAX_LEN
+                ? normalized.substring(0, LIST_REPLAN_REASON_MAX_LEN)
+                : normalized;
+    }
+
+    private static class ListTaskReplanItem {
+        private Long taskId;
+        private String oldTitle;
+        private String newTitle;
+        private Integer oldPriority;
+        private Integer newPriority;
+        private LocalDate oldDueDate;
+        private LocalDate newDueDate;
+        private Integer confidence;
+        private String reason;
+
+        public Long getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(Long taskId) {
+            this.taskId = taskId;
+        }
+
+        public String getOldTitle() {
+            return oldTitle;
+        }
+
+        public void setOldTitle(String oldTitle) {
+            this.oldTitle = oldTitle;
+        }
+
+        public String getNewTitle() {
+            return newTitle;
+        }
+
+        public void setNewTitle(String newTitle) {
+            this.newTitle = newTitle;
+        }
+
+        public Integer getOldPriority() {
+            return oldPriority;
+        }
+
+        public void setOldPriority(Integer oldPriority) {
+            this.oldPriority = oldPriority;
+        }
+
+        public Integer getNewPriority() {
+            return newPriority;
+        }
+
+        public void setNewPriority(Integer newPriority) {
+            this.newPriority = newPriority;
+        }
+
+        public LocalDate getOldDueDate() {
+            return oldDueDate;
+        }
+
+        public void setOldDueDate(LocalDate oldDueDate) {
+            this.oldDueDate = oldDueDate;
+        }
+
+        public LocalDate getNewDueDate() {
+            return newDueDate;
+        }
+
+        public void setNewDueDate(LocalDate newDueDate) {
+            this.newDueDate = newDueDate;
+        }
+
+        public Integer getConfidence() {
+            return confidence;
+        }
+
+        public void setConfidence(Integer confidence) {
+            this.confidence = confidence;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public void setReason(String reason) {
+            this.reason = reason;
+        }
+
+        public boolean hasAnyChange() {
+            return !Objects.equals(oldTitle, newTitle)
+                    || !Objects.equals(oldPriority, newPriority)
+                    || !Objects.equals(oldDueDate, newDueDate);
+        }
+    }
+
     private LocalDate resolveReviewDate(String reviewDateText) {
         if (StrUtil.isBlank(reviewDateText)) {
             return LocalDate.now();
@@ -448,9 +838,9 @@ public class AiServiceImpl implements AiService {
         return "reviewDate: " + reviewDate
                 + "\nstrategy: " + strategy
                 + "\nmaxEdits: " + maxEdits
-                + "\ncompletedTasks(JSON): " + completedContext
-                + "\npendingTasks(JSON): " + pendingContext
-                + "\nOnly return rename suggestions for pendingTasks.";
+                + "\n已完成任务(JSON): " + completedContext
+                + "\n未完成任务(JSON): " + pendingContext
+                + "\n仅返回未完成任务（pendingTasks）的改名建议。";
     }
 
     private List<TitleRenameSuggestionItemVO> parseAndValidateRenameSuggestions(String aiRawContent,
@@ -1014,7 +1404,7 @@ public class AiServiceImpl implements AiService {
             if (StrUtil.isBlank(fallbackModel) || StrUtil.equals(primaryModel, fallbackModel)) {
                 throw primaryException;
             }
-            log.warn("AI call failed on primary model, retrying with fallback model. primaryModel={}, fallbackModel={}",
+            log.warn("AI 主模型调用失败，开始使用兜底模型重试。primaryModel={}, fallbackModel={}",
                     primaryModel, fallbackModel, primaryException);
             return callAi(fallbackModel, systemPrompt, userPrompt);
         }
@@ -1023,7 +1413,7 @@ public class AiServiceImpl implements AiService {
     private String resolveModel(String preferredModel) {
         String model = StrUtil.isNotBlank(preferredModel) ? preferredModel.trim() : safeTrim(aiProperties.getModel());
         if (StrUtil.isBlank(model)) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI configuration is incomplete, please check ai.model");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI 配置不完整，请检查 ai.model");
         }
         return model;
     }
