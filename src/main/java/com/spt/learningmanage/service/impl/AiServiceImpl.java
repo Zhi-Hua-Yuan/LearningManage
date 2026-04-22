@@ -13,14 +13,20 @@ import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.mapper.AiReplanItemMapper;
+import com.spt.learningmanage.mapper.AiReplanOperationMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
+import com.spt.learningmanage.model.entity.AiReplanItem;
+import com.spt.learningmanage.model.entity.AiReplanOperation;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
+import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
+import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.model.vo.ai.AiTaskOrderItemVO;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
 import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
@@ -70,6 +76,11 @@ public class AiServiceImpl implements AiService {
     private static final int DAILY_RENAME_REASON_MAX_LEN = 120;
     private static final int LIST_REPLAN_TITLE_CONFIDENCE_THRESHOLD = 70;
     private static final int LIST_REPLAN_REASON_MAX_LEN = 160;
+    private static final int LIST_REPLAN_PREVIEW_EXPIRE_MINUTES = 20;
+    private static final int LIST_REPLAN_STATUS_PREVIEW = 0;
+    private static final int LIST_REPLAN_STATUS_CONFIRMED = 1;
+    private static final int LIST_REPLAN_STATUS_CANCELED = 2;
+    private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
             + "请基于清单内全部任务进行分析，尤其要结合已完成任务历史来推断用户执行力。"
@@ -149,6 +160,12 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
+
+    @Resource
+    private AiReplanOperationMapper aiReplanOperationMapper;
+
+    @Resource
+    private AiReplanItemMapper aiReplanItemMapper;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -375,7 +392,6 @@ public class AiServiceImpl implements AiService {
         return result;
     }
 
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean replanListTasks(Long listId) {
         Long currentUserId = UserHolder.get();
@@ -430,6 +446,148 @@ public class AiServiceImpl implements AiService {
         int updatedCount = applyListReplanItems(replanItems, currentUserId);
         syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
         return updatedCount > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AiListReplanPreviewVO previewListReplan(Long listId) {
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+        if (listId == null || listId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "listId 不合法");
+        }
+
+        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
+                .eq(Project::getId, listId)
+                .eq(Project::getUserId, currentUserId)
+                .isNull(Project::getDeletedAt)
+                .last("limit 1"));
+        if (project == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "清单不存在或无访问权限");
+        }
+
+        List<Task> allTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getUserId, currentUserId)
+                .eq(Task::getProjectId, listId)
+                .eq(Task::getIsDelete, 0)
+                .orderByDesc(Task::getPriority)
+                .orderByAsc(Task::getDueDate, Task::getCreateTime, Task::getId));
+
+        List<Task> completedTasks = allTasks.stream()
+                .filter(task -> TaskStatusEnum.isCompleted(task.getStatus()))
+                .toList();
+        List<Task> pendingTasks = allTasks.stream()
+                .filter(task -> Objects.equals(task.getStatus(), TaskStatusEnum.TODO.getValue()))
+                .toList();
+
+        LocalDate today = LocalDate.now();
+        List<ListTaskReplanItem> replanItems;
+        if (pendingTasks.isEmpty()) {
+            replanItems = List.of();
+        } else {
+            try {
+                String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
+                String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
+                replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
+            } catch (Exception e) {
+                log.warn("AI 清单重排预览失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
+                replanItems = fallbackListReplanItems(pendingTasks);
+            }
+        }
+
+        String operationId = generateListReplanOperationId();
+        saveListReplanPreview(operationId, currentUserId, listId, replanItems, pendingTasks);
+        return buildListReplanPreviewVO(operationId, replanItems);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean confirmListReplan(Long listId, String operationId) {
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+        if (listId == null || listId <= 0 || StrUtil.isBlank(operationId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+
+        String normalizedOperationId = operationId.trim();
+        AiReplanOperation operation = aiReplanOperationMapper.selectOne(new LambdaQueryWrapper<AiReplanOperation>()
+                .eq(AiReplanOperation::getOperationId, normalizedOperationId)
+                .eq(AiReplanOperation::getUserId, currentUserId)
+                .eq(AiReplanOperation::getProjectId, listId)
+                .last("limit 1"));
+        if (operation == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "重排操作不存在");
+        }
+        if (!Objects.equals(operation.getStatus(), LIST_REPLAN_STATUS_PREVIEW)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该重排操作已确认/取消/过期，不能重复确认");
+        }
+        if (operation.getExpiresAt() != null && LocalDateTime.now().isAfter(operation.getExpiresAt())) {
+            aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
+                    .eq(AiReplanOperation::getId, operation.getId())
+                    .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
+                    .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_EXPIRED));
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "重排预览已过期，请重新预览");
+        }
+
+        List<AiReplanItem> items = aiReplanItemMapper.selectList(new LambdaQueryWrapper<AiReplanItem>()
+                .eq(AiReplanItem::getOperationId, normalizedOperationId));
+        List<ListTaskReplanItem> replanItems = items.stream().map(this::toListReplanItem).toList();
+        long changedCount = replanItems.stream().filter(ListTaskReplanItem::hasAnyChange).count();
+        int updatedCount = applyListReplanItems(replanItems, currentUserId);
+        if (updatedCount != changedCount) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "部分任务状态已变化，重排确认失败，请重新预览");
+        }
+
+        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
+                .eq(Project::getId, listId)
+                .eq(Project::getUserId, currentUserId)
+                .isNull(Project::getDeletedAt)
+                .last("limit 1"));
+        if (project != null) {
+            syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
+        }
+
+        aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
+                .eq(AiReplanOperation::getId, operation.getId())
+                .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
+                .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_CONFIRMED)
+                .set(AiReplanOperation::getConfirmedAt, LocalDateTime.now()));
+        return updatedCount > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean cancelListReplan(String operationId) {
+        Long currentUserId = UserHolder.get();
+        if (currentUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+        if (StrUtil.isBlank(operationId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "operationId 不能为空");
+        }
+
+        String normalizedOperationId = operationId.trim();
+        AiReplanOperation operation = aiReplanOperationMapper.selectOne(new LambdaQueryWrapper<AiReplanOperation>()
+                .eq(AiReplanOperation::getOperationId, normalizedOperationId)
+                .eq(AiReplanOperation::getUserId, currentUserId)
+                .last("limit 1"));
+        if (operation == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "重排操作不存在");
+        }
+        if (!Objects.equals(operation.getStatus(), LIST_REPLAN_STATUS_PREVIEW)) {
+            return false;
+        }
+
+        int rows = aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
+                .eq(AiReplanOperation::getId, operation.getId())
+                .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
+                .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_CANCELED)
+                .set(AiReplanOperation::getCanceledAt, LocalDateTime.now()));
+        return rows > 0;
     }
 
     private String buildListReplanUserPrompt(Project project, List<Task> completedTasks, List<Task> pendingTasks, LocalDate today) {
@@ -562,6 +720,91 @@ public class AiServiceImpl implements AiService {
             fallbackItems.add(item);
         }
         return fallbackItems;
+    }
+
+    private String generateListReplanOperationId() {
+        return LocalDate.now().toString().replace("-", "")
+                + "_replan_"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    }
+
+    private void saveListReplanPreview(String operationId,
+                                       Long userId,
+                                       Long listId,
+                                       List<ListTaskReplanItem> replanItems,
+                                       List<Task> pendingTasks) {
+        LocalDateTime now = LocalDateTime.now();
+        AiReplanOperation operation = new AiReplanOperation();
+        operation.setOperationId(operationId);
+        operation.setUserId(userId);
+        operation.setProjectId(listId);
+        operation.setStatus(LIST_REPLAN_STATUS_PREVIEW);
+        operation.setExpiresAt(now.plusMinutes(LIST_REPLAN_PREVIEW_EXPIRE_MINUTES));
+        operation.setCreatedAt(now);
+        aiReplanOperationMapper.insert(operation);
+
+        if (replanItems == null || replanItems.isEmpty()) {
+            return;
+        }
+        Map<Long, Task> pendingMap = pendingTasks.stream()
+                .collect(Collectors.toMap(Task::getId, Function.identity(), (a, b) -> a));
+        for (ListTaskReplanItem item : replanItems) {
+            if (item == null || item.getTaskId() == null) {
+                continue;
+            }
+            AiReplanItem entity = new AiReplanItem();
+            entity.setOperationId(operationId);
+            entity.setTaskId(item.getTaskId());
+            entity.setOldTitle(item.getOldTitle());
+            entity.setNewTitle(item.getNewTitle());
+            entity.setOldPriority(item.getOldPriority());
+            entity.setNewPriority(item.getNewPriority());
+            entity.setOldDueDate(item.getOldDueDate());
+            entity.setNewDueDate(item.getNewDueDate());
+            entity.setConfidence(item.getConfidence());
+            entity.setReason(item.getReason());
+            Task sourceTask = pendingMap.get(item.getTaskId());
+            entity.setTaskSnapshotUpdateTime(sourceTask == null ? null : sourceTask.getUpdateTime());
+            aiReplanItemMapper.insert(entity);
+        }
+    }
+
+    private AiListReplanPreviewVO buildListReplanPreviewVO(String operationId, List<ListTaskReplanItem> replanItems) {
+        List<ListTaskReplanItem> safeItems = replanItems == null ? List.of() : replanItems;
+        AiListReplanPreviewVO result = new AiListReplanPreviewVO();
+        result.setOperationId(operationId);
+        result.setChangedCount((int) safeItems.stream().filter(ListTaskReplanItem::hasAnyChange).count());
+
+        List<AiListReplanPreviewItemVO> previewTasks = new ArrayList<>(safeItems.size());
+        for (ListTaskReplanItem item : safeItems) {
+            AiListReplanPreviewItemVO previewItem = new AiListReplanPreviewItemVO();
+            previewItem.setTaskId(item.getTaskId());
+            previewItem.setOldTitle(item.getOldTitle());
+            previewItem.setNewTitle(item.getNewTitle());
+            previewItem.setOldPriority(item.getOldPriority());
+            previewItem.setNewPriority(item.getNewPriority());
+            previewItem.setOldDueDate(item.getOldDueDate());
+            previewItem.setNewDueDate(item.getNewDueDate());
+            previewItem.setConfidence(item.getConfidence());
+            previewItem.setReason(item.getReason());
+            previewTasks.add(previewItem);
+        }
+        result.setPreviewTasks(previewTasks);
+        return result;
+    }
+
+    private ListTaskReplanItem toListReplanItem(AiReplanItem item) {
+        ListTaskReplanItem replanItem = new ListTaskReplanItem();
+        replanItem.setTaskId(item.getTaskId());
+        replanItem.setOldTitle(item.getOldTitle());
+        replanItem.setNewTitle(item.getNewTitle());
+        replanItem.setOldPriority(item.getOldPriority());
+        replanItem.setNewPriority(item.getNewPriority());
+        replanItem.setOldDueDate(item.getOldDueDate());
+        replanItem.setNewDueDate(item.getNewDueDate());
+        replanItem.setConfidence(item.getConfidence());
+        replanItem.setReason(item.getReason());
+        return replanItem;
     }
 
     private int applyListReplanItems(List<ListTaskReplanItem> replanItems, Long userId) {
