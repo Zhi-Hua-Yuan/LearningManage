@@ -6,10 +6,13 @@ import com.spt.learningmanage.common.ResultUtils;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
-import com.spt.learningmanage.model.dto.ai.AiListReplanRequest;
+import com.spt.learningmanage.model.dto.ai.AiListReplanCancelRequest;
+import com.spt.learningmanage.model.dto.ai.AiListReplanConfirmRequest;
+import com.spt.learningmanage.model.dto.ai.AiListReplanPreviewRequest;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
+import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
 import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
@@ -61,13 +64,31 @@ public class AiController {
         return ResultUtils.ok(aiService.suggestDailyReviewRename(request));
     }
 
-    @Operation(summary = "清单任务智能重排", description = "查询清单全部任务作为上下文，仅对未完成任务（status=0）直接执行重排并落库")
-    @PostMapping("/list/replan")
-    public BaseResponse<Boolean> replanList(@RequestBody AiListReplanRequest request) {
+    @Operation(summary = "清单任务智能重排预览", description = "生成重排结果供前端确认，不直接落库")
+    @PostMapping("/list/replan/preview")
+    public BaseResponse<AiListReplanPreviewVO> previewListReplan(@RequestBody AiListReplanPreviewRequest request) {
         if (request == null || request.getListId() == null || request.getListId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "listId 不合法");
         }
-        return ResultUtils.ok(aiService.replanListTasks(request.getListId()));
+        return ResultUtils.ok(aiService.previewListReplan(request.getListId()));
+    }
+
+    @Operation(summary = "清单任务智能重排确认", description = "确认预览结果并入库")
+    @PostMapping("/list/replan/confirm")
+    public BaseResponse<Boolean> confirmListReplan(@RequestBody AiListReplanConfirmRequest request) {
+        if (request == null || request.getListId() == null || request.getListId() <= 0 || StrUtil.isBlank(request.getOperationId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        return ResultUtils.ok(aiService.confirmListReplan(request.getListId(), request.getOperationId()));
+    }
+
+    @Operation(summary = "清单任务智能重排取消", description = "取消预览，不入库")
+    @PostMapping("/list/replan/cancel")
+    public BaseResponse<Boolean> cancelListReplan(@RequestBody AiListReplanCancelRequest request) {
+        if (request == null || StrUtil.isBlank(request.getOperationId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "operationId 不能为空");
+        }
+        return ResultUtils.ok(aiService.cancelListReplan(request.getOperationId()));
     }
 
     @Operation(summary = "周总结润色")

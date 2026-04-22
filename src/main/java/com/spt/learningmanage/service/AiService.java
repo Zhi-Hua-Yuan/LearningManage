@@ -3,6 +3,7 @@ package com.spt.learningmanage.service;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
+import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 
@@ -33,5 +34,9 @@ public interface AiService {
 
     DailyReviewSuggestRenameVO suggestDailyReviewRename(DailyReviewSuggestRenameRequest request);
 
-    boolean replanListTasks(Long listId);
+    AiListReplanPreviewVO previewListReplan(Long listId);
+
+    boolean confirmListReplan(Long listId, String operationId);
+
+    boolean cancelListReplan(String operationId);
 }
