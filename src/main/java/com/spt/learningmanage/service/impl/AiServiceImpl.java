@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -55,6 +56,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -81,6 +83,7 @@ public class AiServiceImpl implements AiService {
     private static final int LIST_REPLAN_STATUS_CONFIRMED = 1;
     private static final int LIST_REPLAN_STATUS_CANCELED = 2;
     private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
+    private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
             + "请基于清单内全部任务进行分析，尤其要结合已完成任务历史来推断用户执行力。"
@@ -683,6 +686,7 @@ public class AiServiceImpl implements AiService {
                 newTitle = oldTitle;
                 reason = StrUtil.isBlank(reason) ? "低置信度且疑似已开始执行，保持原标题" : reason;
             }
+            reason = alignReplanReasonWithDueDateFact(reason, oldDueDate, newDueDate);
 
             ListTaskReplanItem replanItem = new ListTaskReplanItem();
             replanItem.setTaskId(taskId);
@@ -785,6 +789,9 @@ public class AiServiceImpl implements AiService {
             previewItem.setNewPriority(item.getNewPriority());
             previewItem.setOldDueDate(item.getOldDueDate());
             previewItem.setNewDueDate(item.getNewDueDate());
+            previewItem.setDueChanged(!Objects.equals(item.getOldDueDate(), item.getNewDueDate()));
+            previewItem.setDueDeltaDays(calculateDueDeltaDays(item.getOldDueDate(), item.getNewDueDate()));
+            previewItem.setDueChangeLabel(buildDueChangeLabel(item.getOldDueDate(), item.getNewDueDate()));
             previewItem.setConfidence(item.getConfidence());
             previewItem.setReason(item.getReason());
             previewTasks.add(previewItem);
@@ -903,6 +910,103 @@ public class AiServiceImpl implements AiService {
         return normalized.length() > LIST_REPLAN_REASON_MAX_LEN
                 ? normalized.substring(0, LIST_REPLAN_REASON_MAX_LEN)
                 : normalized;
+    }
+
+    private String alignReplanReasonWithDueDateFact(String reason, LocalDate oldDueDate, LocalDate newDueDate) {
+        String normalized = normalizeReplanReason(reason);
+        String stripped = stripDueDateRelatedClauses(normalized);
+        String fact = buildDueDateFact(oldDueDate, newDueDate);
+        String merged = StrUtil.isBlank(stripped) ? fact : stripped + "；" + fact;
+        return merged.length() > LIST_REPLAN_REASON_MAX_LEN
+                ? merged.substring(0, LIST_REPLAN_REASON_MAX_LEN)
+                : merged;
+    }
+
+    private String stripDueDateRelatedClauses(String reason) {
+        if (StrUtil.isBlank(reason)) {
+            return "";
+        }
+        String[] parts = reason.split("[。；]");
+        List<String> kept = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            String text = safeTrim(part);
+            if (StrUtil.isBlank(text)) {
+                continue;
+            }
+            if (containsDueDateHint(text)) {
+                continue;
+            }
+            kept.add(text);
+        }
+        return String.join("；", kept);
+    }
+
+    private boolean containsDueDateHint(String text) {
+        if (StrUtil.isBlank(text)) {
+            return false;
+        }
+        if (DATE_TOKEN_PATTERN.matcher(text).find()) {
+            return true;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.contains("due")
+                || text.contains("截止")
+                || text.contains("到期")
+                || text.contains("提前")
+                || text.contains("顺延")
+                || text.contains("前移")
+                || text.contains("后移")
+                || text.contains("延期");
+    }
+
+    private String buildDueDateFact(LocalDate oldDueDate, LocalDate newDueDate) {
+        if (Objects.equals(oldDueDate, newDueDate)) {
+            return "截止日期不变";
+        }
+        if (oldDueDate == null && newDueDate != null) {
+            return "新增截止日期为" + newDueDate;
+        }
+        if (oldDueDate != null && newDueDate == null) {
+            return "移除截止日期（原为" + oldDueDate + "）";
+        }
+        long delta = ChronoUnit.DAYS.between(oldDueDate, newDueDate);
+        if (delta > 0) {
+            return "截止日期顺延" + delta + "天（" + oldDueDate + " -> " + newDueDate + "）";
+        }
+        if (delta < 0) {
+            return "截止日期提前" + (-delta) + "天（" + oldDueDate + " -> " + newDueDate + "）";
+        }
+        return "截止日期不变";
+    }
+
+    private Integer calculateDueDeltaDays(LocalDate oldDueDate, LocalDate newDueDate) {
+        if (oldDueDate == null || newDueDate == null) {
+            return null;
+        }
+        return Math.toIntExact(ChronoUnit.DAYS.between(oldDueDate, newDueDate));
+    }
+
+    private String buildDueChangeLabel(LocalDate oldDueDate, LocalDate newDueDate) {
+        if (Objects.equals(oldDueDate, newDueDate)) {
+            return "截止日期不变";
+        }
+        if (oldDueDate == null && newDueDate != null) {
+            return "新增截止日期";
+        }
+        if (oldDueDate != null && newDueDate == null) {
+            return "移除截止日期";
+        }
+        Integer delta = calculateDueDeltaDays(oldDueDate, newDueDate);
+        if (delta == null) {
+            return null;
+        }
+        if (delta > 0) {
+            return "顺延" + delta + "天";
+        }
+        if (delta < 0) {
+            return "提前" + (-delta) + "天";
+        }
+        return "截止日期不变";
     }
 
     private static class ListTaskReplanItem {
