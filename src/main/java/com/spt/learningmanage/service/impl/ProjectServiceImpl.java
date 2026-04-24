@@ -59,13 +59,14 @@ public class ProjectServiceImpl implements ProjectService {
         }
         validateName(projectCreateRequest.getName());
         validateIcon(projectCreateRequest.getIcon());
-        validateColor(projectCreateRequest.getColor());
+        String color = normalizeColor(projectCreateRequest.getColor());
+        validateColor(color);
         validateDateRange(projectCreateRequest.getStartDate(), projectCreateRequest.getEndDate());
 
         Project project = new Project();
         project.setName(projectCreateRequest.getName().trim());
         project.setIcon(projectCreateRequest.getIcon());
-        project.setColor(projectCreateRequest.getColor());
+        project.setColor(color);
         project.setGoal(projectCreateRequest.getGoal());
         project.setStartDate(projectCreateRequest.getStartDate());
         project.setEndDate(projectCreateRequest.getEndDate());
@@ -164,7 +165,7 @@ public class ProjectServiceImpl implements ProjectService {
         validateIcon(newIcon);
 
         String newColor = projectUpdateRequest.getColor() != null
-                ? projectUpdateRequest.getColor() : existing.getColor();
+                ? normalizeColor(projectUpdateRequest.getColor()) : normalizeColor(existing.getColor());
         validateColor(newColor);
 
         String newGoal = projectUpdateRequest.getGoal() != null
@@ -443,6 +444,16 @@ public class ProjectServiceImpl implements ProjectService {
         if (color != null && !color.matches("^#[0-9A-Fa-f]{6}$")) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "颜色格式必须为 #RRGGBB");
         }
+    }
+
+    /**
+     * 规范化项目颜色：空字符串视为未设置。
+     */
+    private String normalizeColor(String color) {
+        if (!StringUtils.hasText(color)) {
+            return null;
+        }
+        return color.trim();
     }
 
     /**

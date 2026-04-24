@@ -9,7 +9,7 @@ import java.time.LocalDate;
 @Schema(description = "清单任务重排预览明细")
 public class AiListReplanPreviewItemVO {
 
-    @Schema(description = "任务ID", example = "101")
+    @Schema(description = "任务ID（前端内部字段，不建议展示）", example = "101")
     private Long taskId;
 
     @Schema(description = "原任务标题", example = "背单词")
@@ -29,6 +29,15 @@ public class AiListReplanPreviewItemVO {
 
     @Schema(description = "建议截止日期", example = "2026-04-20")
     private LocalDate newDueDate;
+
+    @Schema(description = "截止日期是否发生变化", example = "true")
+    private Boolean dueChanged;
+
+    @Schema(description = "截止日期变化天数（new-old，负数为提前，正数为顺延）", example = "-2")
+    private Integer dueDeltaDays;
+
+    @Schema(description = "截止日期变化标签", example = "提前2天")
+    private String dueChangeLabel;
 
     @Schema(description = "建议置信度（0-100）", example = "86")
     private Integer confidence;
