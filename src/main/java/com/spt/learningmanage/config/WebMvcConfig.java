@@ -19,6 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/user/login",
                         "/user/register",
                         "/api/health",
+                        "/health",
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",
