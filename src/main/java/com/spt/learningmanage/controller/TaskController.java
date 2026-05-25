@@ -9,12 +9,15 @@ import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
+import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,8 +67,25 @@ public class TaskController {
         if (taskUpdateRequest == null || taskUpdateRequest.getId() == null || taskUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
         }
+        if (taskUpdateRequest.getStatus() != null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态变更请使用 /task/status/change 接口");
+        }
         taskService.update(taskUpdateRequest);
         return ResultUtils.ok(true);
+    }
+
+    @PostMapping("/status/change")
+    public BaseResponse<TaskStatusChangeVO> changeStatus(@RequestBody TaskStatusChangeRequest request) {
+        if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
+        }
+        if (request.getTargetStatus() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "targetStatus 不能为空");
+        }
+        if (!StringUtils.hasText(request.getClientRequestId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "clientRequestId 不能为空");
+        }
+        return ResultUtils.ok(taskService.changeStatus(request));
     }
 
     @PostMapping("/delete/{id}")

@@ -13,23 +13,28 @@ import com.spt.learningmanage.utils.UserHolder;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TaskStatusIdempotencyMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskRenameItemDTO;
+import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskStatusIdempotency;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -58,6 +63,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
+
+    @Resource
+    private TaskStatusIdempotencyMapper taskStatusIdempotencyMapper;
 
     /**
      * 创建任务，返回任务ID。
@@ -185,8 +193,11 @@ public class TaskServiceImpl implements TaskService {
 
         String newDescription = request.getDescription() != null ? request.getDescription() : existing.getDescription();
         validateDescription(newDescription);
+        Integer newStatus = existing.getStatus();
 
-        Integer newStatus = request.getStatus() != null ? request.getStatus() : existing.getStatus();
+        if (request.getStatus() != null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态变更请使用 /task/status/change 接口");
+        }
         validateStatus(newStatus); // ⚠️ 内部建议改用 TaskStatusEnum.fromValue(value) 校验
 
         Integer newPriority = request.getPriority() != null ? request.getPriority() : existing.getPriority();
@@ -202,21 +213,11 @@ public class TaskServiceImpl implements TaskService {
                 .eq(Task::getUserId, userId)
                 .set(Task::getTitle, newTitle)
                 .set(Task::getDescription, newDescription)
-                .set(Task::getStatus, newStatus)
                 .set(Task::getPriority, newPriority)
                 .set(Task::getDueDate, newDueDate)
                 .set(Task::getMilestoneId, milestoneId);
 
         // 4. 处理 completedAt（0为未完成，1/2/3均视为完成）
-        if (!Objects.equals(existing.getStatus(), newStatus)) {
-            boolean oldCompleted = TaskStatusEnum.isCompleted(existing.getStatus());
-            boolean newCompleted = TaskStatusEnum.isCompleted(newStatus);
-            if (!oldCompleted && newCompleted) {
-                updateWrapper.set(Task::getCompletedAt, LocalDateTime.now());
-            } else if (oldCompleted && !newCompleted) {
-                updateWrapper.set(Task::getCompletedAt, null);
-            }
-        }
 
         // 5. 执行更新
         int rows = taskMapper.update(null, updateWrapper);
@@ -224,14 +225,102 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新任务失败");
         }
 
-        if (!Objects.equals(existing.getStatus(), newStatus)) {
-            calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
-        }
     }
 
     /**
      * 删除任务，强制过滤 userId。
      */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TaskStatusChangeVO changeStatus(TaskStatusChangeRequest request) {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        validateChangeStatusRequest(request);
+
+        String clientRequestId = request.getClientRequestId().trim();
+        TaskStatusIdempotency idem = taskStatusIdempotencyMapper.selectOne(new LambdaQueryWrapper<TaskStatusIdempotency>()
+                .eq(TaskStatusIdempotency::getUserId, userId)
+                .eq(TaskStatusIdempotency::getTaskId, request.getTaskId())
+                .eq(TaskStatusIdempotency::getClientRequestId, clientRequestId)
+                .last("limit 1"));
+        if (idem != null) {
+            return toStatusChangeVO(idem, true);
+        }
+
+        Task task = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
+                .eq(Task::getId, request.getTaskId())
+                .eq(Task::getUserId, userId)
+                .last("limit 1"));
+        if (task == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在或无权限");
+        }
+
+        Integer oldStatus = task.getStatus();
+        Integer targetStatus = request.getTargetStatus();
+        validateStatus(targetStatus);
+        validateStatusTransition(oldStatus, targetStatus);
+        if (request.getExpectedStatus() != null && !Objects.equals(request.getExpectedStatus(), oldStatus)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已变化，请刷新后重试");
+        }
+
+        boolean changed = false;
+        Integer finalStatus = oldStatus;
+        LocalDateTime finalCompletedAt = task.getCompletedAt();
+        if (!Objects.equals(oldStatus, targetStatus)) {
+            LocalDateTime newCompletedAt = resolveCompletedAt(oldStatus, targetStatus, task.getCompletedAt());
+            int rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, request.getTaskId())
+                    .eq(Task::getUserId, userId)
+                    .eq(Task::getStatus, oldStatus)
+                    .set(Task::getStatus, targetStatus)
+                    .set(Task::getCompletedAt, newCompletedAt));
+            if (rows == 1) {
+                changed = true;
+                finalStatus = targetStatus;
+                finalCompletedAt = newCompletedAt;
+                calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
+            } else {
+                Task latest = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
+                        .eq(Task::getId, request.getTaskId())
+                        .eq(Task::getUserId, userId)
+                        .last("limit 1"));
+                if (latest == null) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在或无权限");
+                }
+                finalStatus = latest.getStatus();
+                finalCompletedAt = latest.getCompletedAt();
+                if (!Objects.equals(finalStatus, targetStatus)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已被其他请求更新，请刷新后重试");
+                }
+            }
+        }
+
+        TaskStatusIdempotency toSave = new TaskStatusIdempotency();
+        toSave.setUserId(userId);
+        toSave.setTaskId(request.getTaskId());
+        toSave.setClientRequestId(clientRequestId);
+        toSave.setTargetStatus(targetStatus);
+        toSave.setChanged(changed ? 1 : 0);
+        toSave.setFinalStatus(finalStatus);
+        toSave.setCompletedAt(finalCompletedAt);
+        try {
+            taskStatusIdempotencyMapper.insert(toSave);
+            return toStatusChangeVO(toSave, false);
+        } catch (DuplicateKeyException e) {
+            TaskStatusIdempotency duplicate = taskStatusIdempotencyMapper.selectOne(new LambdaQueryWrapper<TaskStatusIdempotency>()
+                    .eq(TaskStatusIdempotency::getUserId, userId)
+                    .eq(TaskStatusIdempotency::getTaskId, request.getTaskId())
+                    .eq(TaskStatusIdempotency::getClientRequestId, clientRequestId)
+                    .last("limit 1"));
+            if (duplicate == null) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "幂等请求处理失败，请重试");
+            }
+            return toStatusChangeVO(duplicate, true);
+        }
+    }
+
     @Override
     public void delete(Long id) {
         Long userId = UserHolder.get();
@@ -549,6 +638,58 @@ public class TaskServiceImpl implements TaskService {
     /**
      * 规范化页码。
      */
+    private void validateChangeStatusRequest(TaskStatusChangeRequest request) {
+        if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
+        }
+        if (!StringUtils.hasText(request.getClientRequestId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "clientRequestId 不能为空");
+        }
+        validateStatus(request.getTargetStatus());
+        if (request.getExpectedStatus() != null) {
+            validateStatus(request.getExpectedStatus());
+        }
+    }
+
+    private void validateStatusTransition(Integer oldStatus, Integer newStatus) {
+        if (Objects.equals(oldStatus, newStatus)) {
+            return;
+        }
+        boolean oldCompleted = TaskStatusEnum.isCompleted(oldStatus);
+        boolean newCompleted = TaskStatusEnum.isCompleted(newStatus);
+        if (!oldCompleted && newCompleted) {
+            return;
+        }
+        if (oldCompleted && !newCompleted && Objects.equals(newStatus, TaskStatusEnum.TODO.getValue())) {
+            return;
+        }
+        if (oldCompleted && newCompleted) {
+            return;
+        }
+        throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的任务状态流转");
+    }
+
+    private LocalDateTime resolveCompletedAt(Integer oldStatus, Integer newStatus, LocalDateTime oldCompletedAt) {
+        boolean oldCompleted = TaskStatusEnum.isCompleted(oldStatus);
+        boolean newCompleted = TaskStatusEnum.isCompleted(newStatus);
+        if (!oldCompleted && newCompleted) {
+            return oldCompletedAt != null ? oldCompletedAt : LocalDateTime.now();
+        }
+        if (oldCompleted && !newCompleted) {
+            return null;
+        }
+        return oldCompletedAt;
+    }
+
+    private TaskStatusChangeVO toStatusChangeVO(TaskStatusIdempotency record, boolean replay) {
+        TaskStatusChangeVO vo = new TaskStatusChangeVO();
+        vo.setChanged(record.getChanged() != null && record.getChanged() == 1);
+        vo.setFinalStatus(record.getFinalStatus());
+        vo.setCompletedAt(record.getCompletedAt());
+        vo.setIdempotentReplay(replay);
+        return vo;
+    }
+
     private long safePageNum(Long pageNum) {
         if (pageNum == null || pageNum < 1) {
             return 1L;
