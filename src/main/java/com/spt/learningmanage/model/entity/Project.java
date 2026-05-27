@@ -17,6 +17,12 @@ public class Project {
     private Long id;
 
     private Long userId;
+
+    /**
+     * 团队ID，null 表示个人项目
+     */
+    private Long teamId;
+
     private String name;
     private String goal;
     private Integer status;

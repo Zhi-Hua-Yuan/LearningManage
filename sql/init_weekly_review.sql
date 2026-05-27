@@ -1,7 +1,7 @@
 -- 周总结表
 CREATE TABLE IF NOT EXISTS `weekly_review`
 (
-    `id`                   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `id`                   BIGINT       NOT NULL COMMENT '主键ID',
     `user_id`              BIGINT       NOT NULL COMMENT '所属用户ID',
     `year`                 INT          NOT NULL COMMENT '年份',
     `week_no`              INT          NOT NULL COMMENT '本年第几周',
