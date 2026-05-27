@@ -10,6 +10,7 @@ public class HealthController {
 
     @GetMapping("/health")
     public BaseResponse<String> health() {
-        return ResultUtils.ok("ok");
+        return ResultUtils.success("ok");
     }
 }
+

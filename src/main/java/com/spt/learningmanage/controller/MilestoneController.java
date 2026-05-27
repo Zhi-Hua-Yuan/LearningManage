@@ -29,7 +29,7 @@ public class MilestoneController {
 
     @PostMapping("/add")
     public BaseResponse<Long> addMilestone(@RequestBody MilestoneCreateRequest request) {
-        return ResultUtils.ok(milestoneService.create(request));
+        return ResultUtils.success(milestoneService.create(request));
     }
 
     @GetMapping("/list")
@@ -37,30 +37,29 @@ public class MilestoneController {
             @RequestParam("projectId") Long projectId,
             @RequestParam(value = "keyword", required = false) String keyword) {
         if (projectId == null || projectId <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         MilestoneQueryRequest request = new MilestoneQueryRequest();
         request.setProjectId(projectId);
         request.setKeyword(keyword);
-        return ResultUtils.ok(milestoneService.list(request));
+        return ResultUtils.success(milestoneService.list(request));
     }
 
     @PostMapping("/update")
     public BaseResponse<Boolean> updateMilestone(@RequestBody MilestoneUpdateRequest request) {
         if (request == null || request.getId() == null || request.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "里程碑 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         milestoneService.update(request);
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 
     @PostMapping("/delete/{id}")
     public BaseResponse<Boolean> deleteMilestone(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "里程碑 ID 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         milestoneService.delete(id);
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 }
-

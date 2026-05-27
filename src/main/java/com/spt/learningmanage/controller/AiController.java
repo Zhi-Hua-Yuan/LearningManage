@@ -48,10 +48,10 @@ public class AiController {
     @PostMapping("/breakdown")
     public BaseResponse<List<MilestoneDraftVO>> breakdown(@RequestBody AiBreakdownRequest request) {
         if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDuration())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         boolean detailed = Boolean.TRUE.equals(request.getDetailed());
-        return ResultUtils.ok(aiService.generateTaskBreakdown(
+        return ResultUtils.success(aiService.generateTaskBreakdown(
                 request.getTarget(),
                 request.getDescription(),
                 request.getDuration(),
@@ -63,9 +63,9 @@ public class AiController {
     @PostMapping("/breakdown/preview")
     public BaseResponse<AiBreakdownPreviewVO> previewBreakdown(@RequestBody AiBreakdownRequest request) {
         if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDuration())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(aiService.previewTaskBreakdown(request));
+        return ResultUtils.success(aiService.previewTaskBreakdown(request));
     }
 
     @Operation(summary = "任务拆解确认")
@@ -74,7 +74,7 @@ public class AiController {
         if (request == null || StrUtil.hasBlank(request.getDraftId(), request.getOperationId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿ID和操作ID不能为空");
         }
-        return ResultUtils.ok(aiService.confirmTaskBreakdown(
+        return ResultUtils.success(aiService.confirmTaskBreakdown(
                 request.getDraftId(),
                 request.getOperationId(),
                 request.getProjectName(),
@@ -85,23 +85,23 @@ public class AiController {
     @Operation(summary = "今日任务推荐顺序")
     @PostMapping("/today-order/recommend")
     public BaseResponse<AiTodayOrderVO> recommendTodayOrder(@RequestBody(required = false) AiTodayOrderRequest request) {
-        return ResultUtils.ok(aiService.recommendTodayOrder(request));
+        return ResultUtils.success(aiService.recommendTodayOrder(request));
     }
 
     @Operation(summary = "日报回顾改名建议")
     @PostMapping("/daily-review/suggest-rename")
     public BaseResponse<DailyReviewSuggestRenameVO> suggestDailyReviewRename(
             @RequestBody(required = false) DailyReviewSuggestRenameRequest request) {
-        return ResultUtils.ok(aiService.suggestDailyReviewRename(request));
+        return ResultUtils.success(aiService.suggestDailyReviewRename(request));
     }
 
     @Operation(summary = "清单任务智能重排预览")
     @PostMapping("/list/replan/preview")
     public BaseResponse<AiListReplanPreviewVO> previewListReplan(@RequestBody AiListReplanPreviewRequest request) {
         if (request == null || request.getListId() == null || request.getListId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "清单ID不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(aiService.previewListReplan(request.getListId()));
+        return ResultUtils.success(aiService.previewListReplan(request.getListId()));
     }
 
     @Operation(summary = "清单任务智能重排确认")
@@ -110,7 +110,7 @@ public class AiController {
         if (request == null || request.getListId() == null || request.getListId() <= 0 || StrUtil.isBlank(request.getOperationId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(aiService.confirmListReplan(request.getListId(), request.getOperationId()));
+        return ResultUtils.success(aiService.confirmListReplan(request.getListId(), request.getOperationId()));
     }
 
     @Operation(summary = "清单任务智能重排取消")
@@ -119,25 +119,25 @@ public class AiController {
         if (request == null || StrUtil.isBlank(request.getOperationId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "操作ID不能为空");
         }
-        return ResultUtils.ok(aiService.cancelListReplan(request.getOperationId()));
+        return ResultUtils.success(aiService.cancelListReplan(request.getOperationId()));
     }
 
     @Operation(summary = "周总结润色草稿（兼容旧版）")
     @PostMapping("/polish")
     public BaseResponse<String> polish(@RequestBody AiPolishRequest request) {
         if (request == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(aiService.polishWeeklyReview(request.getTaskIds(), request.getReflection()));
+        return ResultUtils.success(aiService.polishWeeklyReview(request.getTaskIds(), request.getReflection()));
     }
 
     @Operation(summary = "周总结润色预览")
     @PostMapping("/polish/preview")
     public BaseResponse<AiPolishPreviewVO> previewPolish(@RequestBody AiPolishRequest request) {
         if (request == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(aiService.previewWeeklyPolish(request));
+        return ResultUtils.success(aiService.previewWeeklyPolish(request));
     }
 
     @Operation(summary = "周总结润色确认")
@@ -147,7 +147,7 @@ public class AiController {
                 || request.getReviewId() == null || request.getReviewId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿ID、操作ID和周总结ID不能为空");
         }
-        return ResultUtils.ok(aiService.confirmWeeklyPolish(request.getDraftId(), request.getOperationId(), request.getReviewId()));
+        return ResultUtils.success(aiService.confirmWeeklyPolish(request.getDraftId(), request.getOperationId(), request.getReviewId()));
     }
 
     @Operation(summary = "取消 AI 草稿")
@@ -156,7 +156,7 @@ public class AiController {
         if (request == null || StrUtil.isBlank(request.getDraftId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿ID不能为空");
         }
-        return ResultUtils.ok(aiService.cancelDraft(request.getDraftId(), null));
+        return ResultUtils.success(aiService.cancelDraft(request.getDraftId(), null));
     }
 
     @Operation(summary = "获取 AI 草稿详情")
@@ -165,6 +165,6 @@ public class AiController {
         if (StrUtil.isBlank(draftId)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿ID不能为空");
         }
-        return ResultUtils.ok(aiService.getDraftDetail(draftId));
+        return ResultUtils.success(aiService.getDraftDetail(draftId));
     }
 }

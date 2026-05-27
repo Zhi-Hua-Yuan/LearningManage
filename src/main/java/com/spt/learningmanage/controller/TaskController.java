@@ -35,15 +35,15 @@ public class TaskController {
 
     @PostMapping("/add")
     public BaseResponse<Long> addTask(@RequestBody TaskCreateRequest taskCreateRequest) {
-        return ResultUtils.ok(taskService.create(taskCreateRequest));
+        return ResultUtils.success(taskService.create(taskCreateRequest));
     }
 
     @GetMapping("/get/{id}")
     public BaseResponse<TaskVo> getTaskById(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(taskService.getById(id));
+        return ResultUtils.success(taskService.getById(id));
     }
 
     @GetMapping("/list")
@@ -59,25 +59,25 @@ public class TaskController {
         queryRequest.setIsOverdue(isOverdue);
         queryRequest.setPageNum((long) current);
         queryRequest.setPageSize((long) size);
-        return ResultUtils.ok(taskService.list(queryRequest));
+        return ResultUtils.success(taskService.list(queryRequest));
     }
 
     @PostMapping("/update")
     public BaseResponse<Boolean> updateTask(@RequestBody TaskUpdateRequest taskUpdateRequest) {
         if (taskUpdateRequest == null || taskUpdateRequest.getId() == null || taskUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         if (taskUpdateRequest.getStatus() != null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态变更请使用 /task/status/change 接口");
         }
         taskService.update(taskUpdateRequest);
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 
     @PostMapping("/status/change")
     public BaseResponse<TaskStatusChangeVO> changeStatus(@RequestBody TaskStatusChangeRequest request) {
         if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         if (request.getTargetStatus() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "targetStatus 不能为空");
@@ -85,31 +85,31 @@ public class TaskController {
         if (!StringUtils.hasText(request.getClientRequestId())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "clientRequestId 不能为空");
         }
-        return ResultUtils.ok(taskService.changeStatus(request));
+        return ResultUtils.success(taskService.changeStatus(request));
     }
 
     @PostMapping("/delete/{id}")
     public BaseResponse<Boolean> deleteTask(@PathVariable Long id) {
         if (id == null || id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务ID不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         taskService.delete(id);
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 
     @PostMapping("/batch-rename")
     public BaseResponse<TaskBatchRenameVO> batchRename(@RequestBody TaskBatchRenameRequest request) {
         if (request == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(taskService.batchRenameTitles(request));
+        return ResultUtils.success(taskService.batchRenameTitles(request));
     }
 
     @PostMapping("/batch-rename/rollback")
     public BaseResponse<TaskBatchRollbackVO> rollbackBatchRename(@RequestBody TaskBatchRollbackRequest request) {
         if (request == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求体不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        return ResultUtils.ok(taskService.rollbackBatchRename(request));
+        return ResultUtils.success(taskService.rollbackBatchRename(request));
     }
 }

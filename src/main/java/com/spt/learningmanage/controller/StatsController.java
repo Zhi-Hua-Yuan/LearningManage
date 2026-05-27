@@ -18,7 +18,8 @@ public class StatsController {
 
     @GetMapping("/overview")
     public BaseResponse<DashboardVO> getOverview() {
-        return ResultUtils.ok(statsService.getOverview());
+        return ResultUtils.success(statsService.getOverview());
     }
 }
+
 
