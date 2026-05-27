@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class ProjectVo {
     private Long id;
     private Long userId;
+    private Long teamId;
     private String name;
     private String goal;
     private Integer status;

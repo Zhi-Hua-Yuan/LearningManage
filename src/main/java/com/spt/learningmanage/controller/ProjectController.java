@@ -9,6 +9,8 @@ import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
+import com.spt.learningmanage.model.dto.project.TeamProjectCreateRequest;
+import com.spt.learningmanage.model.dto.project.TeamProjectQueryRequest;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import jakarta.annotation.Resource;
@@ -34,6 +36,11 @@ public class ProjectController {
         return ResultUtils.success(projectService.create(projectCreateRequest));
     }
 
+    @PostMapping("/team/create")
+    public BaseResponse<Long> createTeamProject(@RequestBody TeamProjectCreateRequest teamProjectCreateRequest) {
+        return ResultUtils.success(projectService.createTeamProject(teamProjectCreateRequest));
+    }
+
     @GetMapping("/get/{id}")
     public BaseResponse<ProjectVo> getProjectById(@PathVariable Long id) {
         if (id == null || id <= 0) {
@@ -54,6 +61,22 @@ public class ProjectController {
         request.setStatus(status);
         request.setKeyword(keyword);
         return ResultUtils.success(projectService.list(request));
+    }
+
+    @GetMapping("/team/list")
+    public BaseResponse<Page<ProjectVo>> listTeamProjects(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
+            @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+            @RequestParam(value = "status", required = false) Integer status,
+            @RequestParam(value = "keyword", required = false) String keyword) {
+        TeamProjectQueryRequest request = new TeamProjectQueryRequest();
+        request.setTeamId(teamId);
+        request.setPageNum(pageNum);
+        request.setPageSize(pageSize);
+        request.setStatus(status);
+        request.setKeyword(keyword);
+        return ResultUtils.success(projectService.listTeamProjects(request));
     }
 
     @PostMapping("/update")
