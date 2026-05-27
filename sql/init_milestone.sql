@@ -1,7 +1,7 @@
 -- 里程碑表
 CREATE TABLE IF NOT EXISTS `milestone`
 (
-    `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `id`          BIGINT        NOT NULL COMMENT '主键ID',
     `project_id`  BIGINT        NOT NULL COMMENT '项目ID',
     `user_id`     BIGINT        NOT NULL COMMENT '所属用户ID',
     `name`        VARCHAR(100)  NOT NULL COMMENT '里程碑名称',

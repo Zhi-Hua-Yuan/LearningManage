@@ -1,7 +1,7 @@
 -- 创建任务表
 CREATE TABLE `task`
 (
-    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `id`           BIGINT       NOT NULL COMMENT '主键ID',
     `project_id`   BIGINT       NOT NULL COMMENT '项目ID',
     `milestone_id` BIGINT                DEFAULT NULL COMMENT '所属里程碑ID',
     `user_id`      BIGINT       NOT NULL COMMENT '用户ID',

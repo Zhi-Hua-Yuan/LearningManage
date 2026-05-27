@@ -1,7 +1,8 @@
 CREATE TABLE `project`
 (
-    `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `id`          BIGINT        NOT NULL COMMENT '主键ID',
     `user_id`     BIGINT        NOT NULL COMMENT '所属用户ID',
+    `team_id`     BIGINT                 DEFAULT NULL COMMENT '团队ID，NULL表示个人项目',
     `name`        VARCHAR(100)  NOT NULL COMMENT '项目名称',
     `goal`        VARCHAR(500)           DEFAULT NULL COMMENT '项目目标',
     `status`      TINYINT       NOT NULL DEFAULT 0 COMMENT '状态: 0进行中, 1已归档',
@@ -19,6 +20,7 @@ CREATE TABLE `project`
     INDEX `idx_project_user_id` (`user_id`),
     INDEX `idx_project_user_order_no` (`user_id`, `order_no`),
     INDEX `idx_project_status` (`status`),
-    INDEX `idx_project_create_time` (`create_time`)
+    INDEX `idx_project_create_time` (`create_time`),
+    INDEX `idx_project_team_id` (`team_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='项目表';

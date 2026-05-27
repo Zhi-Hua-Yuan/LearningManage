@@ -28,41 +28,41 @@ public class UserController {
                 request.getPassword(),
                 request.getConfirmPassword()
         );
-        return ResultUtils.ok(userId);
+        return ResultUtils.success(userId);
     }
 
     // 2. 登录接口
     @PostMapping("/login")
     public BaseResponse<UserLoginVo> login(@RequestBody UserLoginRequest request) {
         UserLoginVo loginUserVo = userService.login(request.getAccount(), request.getPassword());
-        return ResultUtils.ok(loginUserVo);
+        return ResultUtils.success(loginUserVo);
     }
 
     // 3. 退出登录
     @PostMapping("/logout")
     public BaseResponse<Boolean> logout() {
         // 目前前端直接清除本地 Token 即可，后端直接返回 true。后续接入 Redis 可在此将 Token 加入黑名单
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 
     // 4. 获取当前登录用户信息
     @GetMapping("/me")
     public BaseResponse<UserVO> getLoginUser() {
         UserVO userVO = userService.getLoginUser();
-        return ResultUtils.ok(userVO);
+        return ResultUtils.success(userVO);
     }
 
     // 5. 修改个人信息
     @PostMapping("/update")
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest request) {
         userService.updateUser(request);
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 
     // 6. 修改密码
     @PostMapping("/password/update")
     public BaseResponse<Boolean> updatePassword(@RequestBody UserUpdatePasswordRequest request) {
         userService.updatePassword(request.getOldPassword(), request.getNewPassword());
-        return ResultUtils.ok(true);
+        return ResultUtils.success(true);
     }
 }

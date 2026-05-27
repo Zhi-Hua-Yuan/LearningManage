@@ -1,6 +1,12 @@
 package com.spt.learningmanage.service;
 
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
+import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
+import com.spt.learningmanage.model.vo.ai.AiBreakdownPreviewVO;
+import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
+import com.spt.learningmanage.model.vo.ai.AiDraftDetailVO;
+import com.spt.learningmanage.model.vo.ai.AiPolishPreviewVO;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
@@ -39,4 +45,18 @@ public interface AiService {
     boolean confirmListReplan(Long listId, String operationId);
 
     boolean cancelListReplan(String operationId);
+
+    AiBreakdownPreviewVO previewTaskBreakdown(AiBreakdownRequest request);
+
+    AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId, String projectName, String projectGoal);
+
+    boolean cancelDraft(String draftId, String scene);
+
+    AiPolishPreviewVO previewWeeklyPolish(AiPolishRequest request);
+
+    AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId);
+
+    AiDraftDetailVO getDraftDetail(String draftId);
+
+    int expirePreviewDrafts();
 }

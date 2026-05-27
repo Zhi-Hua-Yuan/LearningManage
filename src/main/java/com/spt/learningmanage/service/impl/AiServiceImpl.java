@@ -10,23 +10,39 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.constant.DeleteSourceConstant;
+import com.spt.learningmanage.constant.ProjectConstant;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
+import com.spt.learningmanage.mapper.AiDraftMapper;
 import com.spt.learningmanage.mapper.AiReplanItemMapper;
 import com.spt.learningmanage.mapper.AiReplanOperationMapper;
+import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewMapper;
+import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
+import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
+import com.spt.learningmanage.model.entity.AiDraft;
+import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
 import com.spt.learningmanage.model.entity.AiReplanItem;
 import com.spt.learningmanage.model.entity.AiReplanOperation;
+import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
+import com.spt.learningmanage.model.entity.WeeklyReview;
+import com.spt.learningmanage.model.vo.ai.AiBreakdownPreviewVO;
+import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
+import com.spt.learningmanage.model.vo.ai.AiDraftDetailVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
+import com.spt.learningmanage.model.vo.ai.AiPolishPreviewVO;
 import com.spt.learningmanage.model.vo.ai.AiTaskOrderItemVO;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
 import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
@@ -83,6 +99,13 @@ public class AiServiceImpl implements AiService {
     private static final int LIST_REPLAN_STATUS_CONFIRMED = 1;
     private static final int LIST_REPLAN_STATUS_CANCELED = 2;
     private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
+    private static final int AI_DRAFT_STATUS_PREVIEW = 0;
+    private static final int AI_DRAFT_STATUS_CONFIRMED = 1;
+    private static final int AI_DRAFT_STATUS_CANCELED = 2;
+    private static final int AI_DRAFT_STATUS_EXPIRED = 3;
+    private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
+    private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
+    private static final String AI_SCENE_POLISH = "weekly-polish";
     private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
@@ -163,6 +186,14 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
+    @Resource
+    private AiDraftMapper aiDraftMapper;
+    @Resource
+    private AiDraftConfirmLogMapper aiDraftConfirmLogMapper;
+    @Resource
+    private MilestoneMapper milestoneMapper;
+    @Resource
+    private WeeklyReviewMapper weeklyReviewMapper;
 
     @Resource
     private AiReplanOperationMapper aiReplanOperationMapper;
@@ -307,6 +338,220 @@ public class AiServiceImpl implements AiService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());
         }
+    }
+
+    @Override
+    public AiBreakdownPreviewVO previewTaskBreakdown(AiBreakdownRequest request) {
+        boolean detailed = request.getDetailed() != null && request.getDetailed();
+        List<MilestoneDraftVO> drafts = generateTaskBreakdown(
+                request.getTarget(),
+                request.getDescription(),
+                request.getDuration(),
+                detailed
+        );
+        Long userId = getCurrentUserId();
+        JSONObject payload = JSONUtil.createObj()
+                .set("target", request.getTarget())
+                .set("description", request.getDescription())
+                .set("duration", request.getDuration())
+                .set("detailed", detailed)
+                .set("milestones", drafts);
+        AiDraft draft = createDraft(userId, AI_SCENE_BREAKDOWN, payload.toString(), buildInputHash(payload.toString()));
+        AiBreakdownPreviewVO vo = new AiBreakdownPreviewVO();
+        vo.setDraftId(draft.getDraftId());
+        vo.setExpireAt(draft.getExpireAt());
+        vo.setMilestones(drafts);
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId, String projectName, String projectGoal) {
+        Long userId = getCurrentUserId();
+        AiDraft draft = getDraftForConfirm(userId, draftId, AI_SCENE_BREAKDOWN);
+        AiDraftConfirmLog replay = aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
+                .eq(AiDraftConfirmLog::getUserId, userId)
+                .eq(AiDraftConfirmLog::getDraftId, draftId)
+                .eq(AiDraftConfirmLog::getOperationId, operationId)
+                .last("limit 1"));
+        if (replay != null) {
+            return buildConfirmVO(true, replay.getBusinessId());
+        }
+
+        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
+        JSONArray milestonesJson = payload.getJSONArray("milestones");
+        if (milestonesJson == null || milestonesJson.isEmpty()) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿缺少里程碑数据");
+        }
+        List<MilestoneDraftVO> milestoneDrafts = JSONUtil.toList(milestonesJson, MilestoneDraftVO.class);
+        normalizeAndValidateDrafts(milestoneDrafts);
+
+        String target = safeTrim(payload.getStr("target"));
+        String finalProjectName = StrUtil.isNotBlank(projectName) ? projectName.trim() : target;
+        if (StrUtil.isBlank(finalProjectName)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "projectName 不能为空");
+        }
+        if (finalProjectName.length() > PROJECT_NAME_MAX_LEN) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "projectName 过长");
+        }
+
+        Project project = new Project();
+        project.setUserId(userId);
+        project.setName(finalProjectName);
+        project.setGoal(StrUtil.isNotBlank(projectGoal) ? projectGoal.trim() : safeTrim(payload.getStr("description")));
+        project.setStatus(ProjectConstant.STATUS_ACTIVE);
+        project.setProgress(java.math.BigDecimal.ZERO);
+        project.setIsDelete(0);
+        project.setOrderNo(getNextProjectOrderNo(userId));
+        int projectRows = projectMapper.insert(project);
+        if (projectRows != 1 || project.getId() == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建项目失败");
+        }
+
+        int milestoneOrder = 1;
+        for (MilestoneDraftVO milestoneDraft : milestoneDrafts) {
+            Milestone milestone = new Milestone();
+            milestone.setProjectId(project.getId());
+            milestone.setUserId(userId);
+            milestone.setName(milestoneDraft.getName());
+            milestone.setOrderNo(milestoneOrder++);
+            milestone.setProgress(java.math.BigDecimal.ZERO);
+            milestone.setIsDelete(0);
+            milestone.setDeleteSource(DeleteSourceConstant.NORMAL);
+            int milestoneRows = milestoneMapper.insert(milestone);
+            if (milestoneRows != 1 || milestone.getId() == null) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建里程碑失败");
+            }
+
+            for (TaskDraftVO taskDraft : milestoneDraft.getTasks()) {
+                Task task = new Task();
+                task.setProjectId(project.getId());
+                task.setMilestoneId(milestone.getId());
+                task.setUserId(userId);
+                task.setTitle(taskDraft.getName());
+                task.setPriority(taskDraft.getPriority());
+                task.setStatus(TaskStatusEnum.TODO.getValue());
+                task.setDueDate(LocalDate.parse(taskDraft.getDueDate()));
+                task.setIsDelete(0);
+                task.setDeleteSource(DeleteSourceConstant.NORMAL);
+                int taskRows = taskMapper.insert(task);
+                if (taskRows != 1) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建任务失败");
+                }
+            }
+        }
+
+        markDraftConfirmed(draft.getId());
+        insertConfirmLog(userId, draftId, operationId, AI_SCENE_BREAKDOWN, project.getId());
+        return buildConfirmVO(false, project.getId());
+    }
+
+    @Override
+    public boolean cancelDraft(String draftId, String scene) {
+        Long userId = getCurrentUserId();
+        LambdaUpdateWrapper<AiDraft> wrapper = new LambdaUpdateWrapper<AiDraft>()
+                .eq(AiDraft::getDraftId, draftId)
+                .eq(AiDraft::getUserId, userId)
+                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                .set(AiDraft::getStatus, AI_DRAFT_STATUS_CANCELED)
+                .set(AiDraft::getCanceledAt, LocalDateTime.now());
+        if (StrUtil.isNotBlank(scene)) {
+            wrapper.eq(AiDraft::getScene, scene);
+        }
+        return aiDraftMapper.update(null, wrapper) > 0;
+    }
+
+    @Override
+    public AiPolishPreviewVO previewWeeklyPolish(AiPolishRequest request) {
+        String polished = polishWeeklyReview(request.getTaskIds(), request.getReflection());
+        Long userId = getCurrentUserId();
+        JSONObject payload = JSONUtil.createObj()
+                .set("taskIds", request.getTaskIds())
+                .set("reflection", request.getReflection())
+                .set("polished", polished);
+        AiDraft draft = createDraft(userId, AI_SCENE_POLISH, payload.toString(), buildInputHash(payload.toString()));
+
+        AiPolishPreviewVO vo = new AiPolishPreviewVO();
+        vo.setDraftId(draft.getDraftId());
+        vo.setExpireAt(draft.getExpireAt());
+        vo.setReview(extractReviewText(polished));
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId) {
+        Long userId = getCurrentUserId();
+        AiDraft draft = getDraftForConfirm(userId, draftId, AI_SCENE_POLISH);
+        AiDraftConfirmLog replay = aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
+                .eq(AiDraftConfirmLog::getUserId, userId)
+                .eq(AiDraftConfirmLog::getDraftId, draftId)
+                .eq(AiDraftConfirmLog::getOperationId, operationId)
+                .last("limit 1"));
+        if (replay != null) {
+            return buildConfirmVO(true, replay.getBusinessId());
+        }
+
+        WeeklyReview review = weeklyReviewMapper.selectById(reviewId);
+        if (review == null || !Objects.equals(review.getUserId(), userId)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权操作该周总结");
+        }
+        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
+        String polished = payload.getStr("polished");
+        String reviewText = extractReviewText(polished);
+        if (StrUtil.isBlank(reviewText)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿内容为空");
+        }
+        review.setReflection(reviewText);
+        int rows = weeklyReviewMapper.updateById(review);
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结更新失败");
+        }
+
+        markDraftConfirmed(draft.getId());
+        insertConfirmLog(userId, draftId, operationId, AI_SCENE_POLISH, reviewId);
+        return buildConfirmVO(false, reviewId);
+    }
+
+    @Override
+    public AiDraftDetailVO getDraftDetail(String draftId) {
+        Long userId = getCurrentUserId();
+        if (StrUtil.isBlank(draftId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "draftId 不能为空");
+        }
+        AiDraft draft = aiDraftMapper.selectOne(new LambdaQueryWrapper<AiDraft>()
+                .eq(AiDraft::getDraftId, draftId.trim())
+                .eq(AiDraft::getUserId, userId)
+                .last("limit 1"));
+        if (draft == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
+        }
+        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_PREVIEW)
+                && draft.getExpireAt() != null
+                && LocalDateTime.now().isAfter(draft.getExpireAt())) {
+            aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
+                    .eq(AiDraft::getId, draft.getId())
+                    .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                    .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
+            draft.setStatus(AI_DRAFT_STATUS_EXPIRED);
+        }
+        AiDraftDetailVO vo = new AiDraftDetailVO();
+        vo.setDraftId(draft.getDraftId());
+        vo.setScene(draft.getScene());
+        vo.setStatus(draft.getStatus());
+        vo.setPayloadJson(draft.getPayloadJson());
+        vo.setExpireAt(draft.getExpireAt());
+        vo.setConfirmedAt(draft.getConfirmedAt());
+        vo.setCanceledAt(draft.getCanceledAt());
+        return vo;
+    }
+
+    @Override
+    public int expirePreviewDrafts() {
+        return aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
+                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                .lt(AiDraft::getExpireAt, LocalDateTime.now())
+                .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
     }
 
     @Override
@@ -1697,6 +1942,113 @@ public class AiServiceImpl implements AiService {
                     blankDueDateCount,
                     invalidDueDateCount);
         }
+    }
+
+    private Long getCurrentUserId() {
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        }
+        return userId;
+    }
+
+    private AiDraft createDraft(Long userId, String scene, String payloadJson, String inputHash) {
+        AiDraft draft = new AiDraft();
+        draft.setDraftId(UUID.randomUUID().toString().replace("-", ""));
+        draft.setUserId(userId);
+        draft.setScene(scene);
+        draft.setPayloadJson(payloadJson);
+        draft.setInputHash(inputHash);
+        draft.setStatus(AI_DRAFT_STATUS_PREVIEW);
+        draft.setExpireAt(LocalDateTime.now().plusMinutes(AI_DRAFT_EXPIRE_MINUTES));
+        int rows = aiDraftMapper.insert(draft);
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿创建失败");
+        }
+        return draft;
+    }
+
+    private AiDraft getDraftForConfirm(Long userId, String draftId, String scene) {
+        AiDraft draft = aiDraftMapper.selectOne(new LambdaQueryWrapper<AiDraft>()
+                .eq(AiDraft::getDraftId, draftId)
+                .eq(AiDraft::getUserId, userId)
+                .eq(AiDraft::getScene, scene)
+                .last("limit 1"));
+        if (draft == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
+        }
+        if (!Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_PREVIEW)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认/取消/过期");
+        }
+        if (draft.getExpireAt() != null && LocalDateTime.now().isAfter(draft.getExpireAt())) {
+            aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
+                    .eq(AiDraft::getId, draft.getId())
+                    .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                    .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
+        }
+        return draft;
+    }
+
+    private void markDraftConfirmed(Long draftDbId) {
+        int rows = aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
+                .eq(AiDraft::getId, draftDbId)
+                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                .set(AiDraft::getStatus, AI_DRAFT_STATUS_CONFIRMED)
+                .set(AiDraft::getConfirmedAt, LocalDateTime.now()));
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态更新失败");
+        }
+    }
+
+    private void insertConfirmLog(Long userId, String draftId, String operationId, String scene, Long businessId) {
+        AiDraftConfirmLog logEntity = new AiDraftConfirmLog();
+        logEntity.setUserId(userId);
+        logEntity.setDraftId(draftId);
+        logEntity.setOperationId(operationId);
+        logEntity.setScene(scene);
+        logEntity.setBusinessId(businessId);
+        try {
+            aiDraftConfirmLogMapper.insert(logEntity);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "确认日志写入失败");
+        }
+    }
+
+    private AiDraftConfirmVO buildConfirmVO(boolean replay, Long businessId) {
+        AiDraftConfirmVO vo = new AiDraftConfirmVO();
+        vo.setSuccess(true);
+        vo.setIdempotentReplay(replay);
+        vo.setBusinessId(businessId);
+        return vo;
+    }
+
+    private String extractReviewText(String polished) {
+        if (StrUtil.isBlank(polished)) {
+            return "";
+        }
+        try {
+            JSONObject obj = JSONUtil.parseObj(sanitizeJsonObjectText(polished));
+            return safeTrim(obj.getStr("review"));
+        } catch (Exception e) {
+            return safeTrim(polished);
+        }
+    }
+
+    private int getNextProjectOrderNo(Long userId) {
+        Project latest = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getDeletedAt)
+                .orderByDesc(Project::getOrderNo)
+                .last("limit 1"));
+        if (latest == null || latest.getOrderNo() == null) {
+            return 0;
+        }
+        return latest.getOrderNo() + 1;
+    }
+
+    private String buildInputHash(String raw) {
+        return Integer.toHexString(Objects.hashCode(raw));
     }
 
     private String safeTrim(String text) {

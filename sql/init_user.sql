@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS `user`
 (
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `id`          BIGINT       NOT NULL COMMENT '主键',
     `account`     VARCHAR(256) NOT NULL COMMENT '账号',
     `username`    VARCHAR(256) NOT NULL COMMENT '用户名',
     `password`    VARCHAR(512) NOT NULL COMMENT '密码（加密存储）',

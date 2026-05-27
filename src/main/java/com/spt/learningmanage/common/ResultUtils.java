@@ -6,11 +6,11 @@ public final class ResultUtils {
     private ResultUtils() {
     }
 
-    public static <T> BaseResponse<T> ok() {
-        return ok(null);
+    public static <T> BaseResponse<T> success() {
+        return success(null);
     }
 
-    public static <T> BaseResponse<T> ok(T data) {
+    public static <T> BaseResponse<T> success(T data) {
         return new BaseResponse<>(ErrorCode.SUCCESS, data);
     }
 
@@ -22,3 +22,4 @@ public final class ResultUtils {
         return new BaseResponse<>(errorCode, message);
     }
 }
+
