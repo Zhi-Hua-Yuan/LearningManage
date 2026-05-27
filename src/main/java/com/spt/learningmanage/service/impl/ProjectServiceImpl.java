@@ -5,18 +5,25 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.ProjectConstant;
+import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TeamMapper;
+import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
 import com.spt.learningmanage.model.dto.project.ProjectUpdateRequest;
+import com.spt.learningmanage.model.dto.project.TeamProjectCreateRequest;
+import com.spt.learningmanage.model.dto.project.TeamProjectQueryRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.Team;
+import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -45,9 +52,12 @@ public class ProjectServiceImpl implements ProjectService {
     @Resource
     private MilestoneMapper milestoneMapper;
 
-    /**
-     * 创建项目，返回项目ID。
-     */
+    @Resource
+    private TeamMapper teamMapper;
+
+    @Resource
+    private TeamMemberMapper teamMemberMapper;
+
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
         Long userId = UserHolder.get();
@@ -55,7 +65,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (projectCreateRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         validateName(projectCreateRequest.getName());
         validateIcon(projectCreateRequest.getIcon());
@@ -73,18 +83,60 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(ProjectConstant.STATUS_ACTIVE);
         project.setIsDelete(0);
         project.setUserId(userId);
-        project.setOrderNo(getNextOrderNo(userId));
+        project.setTeamId(null);
+        project.setOrderNo(getNextPersonalProjectOrderNo(userId));
 
         int rows = projectMapper.insert(project);
         if (rows != 1 || project.getId() == null) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
         return project.getId();
     }
 
-    /**
-     * 根据ID查询项目详情。
-     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createTeamProject(TeamProjectCreateRequest teamProjectCreateRequest) {
+        // 团队项目创建：OWNER/ADMIN 可创建，MEMBER 不可创建
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        if (teamProjectCreateRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        if (teamProjectCreateRequest.getTeamId() == null || teamProjectCreateRequest.getTeamId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+
+        Team team = getValidTeamById(teamProjectCreateRequest.getTeamId());
+        validateCanManageTeamProject(team.getId(), userId);
+
+        validateName(teamProjectCreateRequest.getName());
+        validateIcon(teamProjectCreateRequest.getIcon());
+        String color = normalizeColor(teamProjectCreateRequest.getColor());
+        validateColor(color);
+        validateDateRange(teamProjectCreateRequest.getStartDate(), teamProjectCreateRequest.getEndDate());
+
+        Project project = new Project();
+        project.setName(teamProjectCreateRequest.getName().trim());
+        project.setGoal(teamProjectCreateRequest.getGoal());
+        project.setIcon(teamProjectCreateRequest.getIcon());
+        project.setColor(color);
+        project.setStartDate(teamProjectCreateRequest.getStartDate());
+        project.setEndDate(teamProjectCreateRequest.getEndDate());
+        project.setStatus(ProjectConstant.STATUS_ACTIVE);
+        project.setIsDelete(0);
+        project.setUserId(userId);
+        project.setTeamId(team.getId());
+        project.setOrderNo(getNextTeamProjectOrderNo(team.getId()));
+
+        int rows = projectMapper.insert(project);
+        if (rows != 1 || project.getId() == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
+        }
+        return project.getId();
+    }
+
     @Override
     public ProjectVo getById(Long id) {
         Long userId = UserHolder.get();
@@ -92,11 +144,12 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (id == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
                 .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
                 .isNull(Project::getDeletedAt);
         Project project = projectMapper.selectOne(wrapper);
         if (project == null) {
@@ -105,9 +158,6 @@ public class ProjectServiceImpl implements ProjectService {
         return toVo(project);
     }
 
-    /**
-     * 分页查询项目列表。
-     */
     @Override
     public Page<ProjectVo> list(ProjectQueryRequest projectQueryRequest) {
         Long userId = UserHolder.get();
@@ -122,6 +172,7 @@ public class ProjectServiceImpl implements ProjectService {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNull(Project::getDeletedAt);
         wrapper.eq(Project::getUserId, userId);
+        wrapper.isNull(Project::getTeamId);
         if (validProjectQueryRequest.getStatus() != null) {
             wrapper.eq(Project::getStatus, validProjectQueryRequest.getStatus());
         }
@@ -137,9 +188,46 @@ public class ProjectServiceImpl implements ProjectService {
         return voPage;
     }
 
-    /**
-     * 更新项目信息。
-     */
+    @Override
+    public Page<ProjectVo> listTeamProjects(TeamProjectQueryRequest teamProjectQueryRequest) {
+        // 团队项目列表：团队成员均可查看
+        Long userId = UserHolder.get();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        TeamProjectQueryRequest validRequest = teamProjectQueryRequest == null
+                ? new TeamProjectQueryRequest()
+                : teamProjectQueryRequest;
+        if (validRequest.getTeamId() == null || validRequest.getTeamId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+
+        Team team = getValidTeamById(validRequest.getTeamId());
+        requireTeamMember(team.getId(), userId);
+
+        long pageNum = safePageNum(validRequest.getPageNum());
+        long pageSize = safePageSize(validRequest.getPageSize());
+
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getTeamId, team.getId())
+                .isNull(Project::getDeletedAt);
+        if (validRequest.getStatus() != null) {
+            validateStatus(validRequest.getStatus());
+            wrapper.eq(Project::getStatus, validRequest.getStatus());
+        }
+        String keyword = validRequest.getKeyword();
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(Project::getName, keyword.trim());
+        }
+        wrapper.orderByAsc(Project::getOrderNo).orderByDesc(Project::getCreateTime);
+
+        Page<Project> page = new Page<>(pageNum, pageSize);
+        Page<Project> resultPage = projectMapper.selectPage(page, wrapper);
+        Page<ProjectVo> voPage = new Page<>(resultPage.getCurrent(), resultPage.getSize(), resultPage.getTotal());
+        voPage.setRecords(resultPage.getRecords().stream().map(this::toVo).toList());
+        return voPage;
+    }
+
     @Override
     public void update(ProjectUpdateRequest projectUpdateRequest) {
         Long userId = UserHolder.get();
@@ -147,10 +235,13 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (projectUpdateRequest == null || projectUpdateRequest.getId() == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getId, projectUpdateRequest.getId()).eq(Project::getUserId, userId);
+        wrapper.eq(Project::getId, projectUpdateRequest.getId())
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
+                .isNull(Project::getDeletedAt);
         Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
@@ -193,13 +284,10 @@ public class ProjectServiceImpl implements ProjectService {
 
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
     }
 
-    /**
-     * 调整项目排序。
-     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void reorder(List<ProjectReorderRequest> reorderRequests) {
@@ -208,31 +296,33 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (reorderRequests == null || reorderRequests.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序列表不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
 
         Set<Long> idSet = new HashSet<>();
         Set<Integer> orderNoSet = new HashSet<>();
         for (ProjectReorderRequest reorderRequest : reorderRequests) {
             if (reorderRequest == null || reorderRequest.getId() == null || reorderRequest.getId() <= 0) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
             if (reorderRequest.getOrderNo() == null || reorderRequest.getOrderNo() < 0) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序序号不合法");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
             if (!idSet.add(reorderRequest.getId())) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目列表中存在重复 ID");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
             if (!orderNoSet.add(reorderRequest.getOrderNo())) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序序号不能重复");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
         }
 
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Project::getId, idSet).eq(Project::getUserId, userId);
+        wrapper.in(Project::getId, idSet)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId);
         List<Project> existingProjects = projectMapper.selectList(wrapper);
         if (existingProjects.size() != reorderRequests.size()) {
-            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "存在无权限或不存在的项目");
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "项目不存在");
         }
 
         for (ProjectReorderRequest reorderRequest : reorderRequests) {
@@ -242,14 +332,11 @@ public class ProjectServiceImpl implements ProjectService {
             update.setOrderNo(reorderRequest.getOrderNo());
             int rows = projectMapper.updateById(update);
             if (rows != 1) {
-                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新项目排序失败");
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
             }
         }
     }
 
-    /**
-     * 归档项目。
-     */
     @Override
     public void archive(List<Long> ids) {
         Long userId = UserHolder.get();
@@ -257,44 +344,43 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (ids == null || ids.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 列表不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         for (Long id : ids) {
             if (id == null || id <= 0) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
         }
 
-        // 检查所有项目是否存在
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Project::getId, ids).eq(Project::getUserId, userId);
+        wrapper.in(Project::getId, ids)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
+                .isNull(Project::getDeletedAt);
         List<Project> existingProjects = projectMapper.selectList(wrapper);
         if (existingProjects.size() != ids.size()) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
 
-        // 检查项目是否已经归档
         for (Project project : existingProjects) {
             if (Objects.equals(project.getStatus(), ProjectConstant.STATUS_ARCHIVED)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 " + project.getId() + " 已经归档，无法再次归档");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
         }
 
-        // 批量更新状态为归档
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.in(Project::getId, ids)
                 .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
+                .isNull(Project::getDeletedAt)
                 .set(Project::getStatus, ProjectConstant.STATUS_ARCHIVED);
 
         int rows = projectMapper.update(null, updateWrapper);
         if (rows < ids.size()) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "归档项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
     }
 
-    /**
-     * 删除项目。
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
@@ -303,16 +389,18 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (id == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        wrapper.eq(Project::getId, id)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId);
         Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
         if (existing.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目已删除，请勿重复操作");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
 
         LocalDateTime deleteTime = LocalDateTime.now();
@@ -335,21 +423,19 @@ public class ProjectServiceImpl implements ProjectService {
                 .set(Milestone::getDeletedAt, deleteTime);
         milestoneMapper.update(null, milestoneDeleteWrapper);
 
-        // 软删除：设置 deletedAt
-        Project update = new Project();
-        update.setId(id);
-        update.setDeletedAt(deleteTime);
-        update.setUserId(userId);
+        LambdaUpdateWrapper<Project> projectDeleteWrapper = new LambdaUpdateWrapper<>();
+        projectDeleteWrapper.eq(Project::getId, id)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
+                .isNull(Project::getDeletedAt)
+                .set(Project::getDeletedAt, deleteTime);
 
-        int rows = projectMapper.updateById(update);
+        int rows = projectMapper.update(null, projectDeleteWrapper);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
     }
 
-    /**
-     * 恢复项目。
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void recover(Long id) {
@@ -358,97 +444,78 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         if (id == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不能为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getId, id).eq(Project::getUserId, userId);
+        wrapper.eq(Project::getId, id)
+                .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId);
         Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
         if (existing.getDeletedAt() == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目未被删除，无法恢复");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         if (existing.getDeletedAt().plusDays(30).isBefore(LocalDateTime.now())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目删除超过30天，无法恢复");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
 
-        // 恢复：清空 deletedAt
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Project::getId, id)
                 .eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
                 .set(Project::getDeletedAt, null);
 
         int rows = projectMapper.update(null, updateWrapper);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复项目失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
 
         taskMapper.recoverByProjectId(userId, id);
         milestoneMapper.recoverByProjectId(userId, id);
     }
 
-    /**
-     * 将实体转换为VO。
-     */
     private ProjectVo toVo(Project project) {
         ProjectVo vo = new ProjectVo();
         BeanUtils.copyProperties(project, vo);
         return vo;
     }
 
-    /**
-     * 校验项目名称。
-     */
     private void validateName(String name) {
         if (!StringUtils.hasText(name)) {
             throw new BusinessException(ErrorCode.PROJECT_NAME_EMPTY);
         }
         if (name.length() > 100) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目名称长度不能超过100");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
     }
 
-    /**
-     * 校验日期区间。
-     */
     private void validateDateRange(LocalDate startDate, LocalDate endDate) {
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "结束日期不能早于开始日期");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
     }
 
-    /**
-     * 校验项目状态。
-     */
     private void validateStatus(Integer status) {
         if (!Objects.equals(status, ProjectConstant.STATUS_ACTIVE)
                 && !Objects.equals(status, ProjectConstant.STATUS_ARCHIVED)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目状态不合法");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
     }
 
-    /**
-     * 校验项目图标。
-     */
     private void validateIcon(String icon) {
         if (icon != null && icon.length() > 50) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "图标长度不能超过50");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
     }
 
-    /**
-     * 校验项目颜色。
-     */
     private void validateColor(String color) {
         if (color != null && !color.matches("^#[0-9A-Fa-f]{6}$")) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "颜色格式必须为 #RRGGBB");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
     }
 
-    /**
-     * 规范化项目颜色：空字符串视为未设置。
-     */
     private String normalizeColor(String color) {
         if (!StringUtils.hasText(color)) {
             return null;
@@ -456,9 +523,6 @@ public class ProjectServiceImpl implements ProjectService {
         return color.trim();
     }
 
-    /**
-     * 规范化页码。
-     */
     private long safePageNum(Long pageNum) {
         if (pageNum == null || pageNum < 1) {
             return 1L;
@@ -466,9 +530,6 @@ public class ProjectServiceImpl implements ProjectService {
         return pageNum;
     }
 
-    /**
-     * 规范化每页条数。
-     */
     private long safePageSize(Long pageSize) {
         if (pageSize == null || pageSize < 1) {
             return 10L;
@@ -476,12 +537,25 @@ public class ProjectServiceImpl implements ProjectService {
         return Math.min(pageSize, 100L);
     }
 
-    /**
-     * 获取当前用户下新的排序号。
-     */
-    private Integer getNextOrderNo(Long userId) {
+    private long safePageNum(Integer pageNum) {
+        if (pageNum == null || pageNum < 1) {
+            return 1L;
+        }
+        return pageNum.longValue();
+    }
+
+    private long safePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            return 10L;
+        }
+        return Math.min(pageSize.longValue(), 100L);
+    }
+
+    private Integer getNextPersonalProjectOrderNo(Long userId) {
+        // 个人项目排序号按“当前用户 + teamId 为空”维度递增
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getUserId, userId)
+                .isNull(Project::getTeamId)
                 .isNull(Project::getDeletedAt)
                 .orderByDesc(Project::getOrderNo)
                 .last("LIMIT 1");
@@ -491,4 +565,54 @@ public class ProjectServiceImpl implements ProjectService {
         }
         return lastProject.getOrderNo() + 1;
     }
+
+    private Integer getNextTeamProjectOrderNo(Long teamId) {
+        // 团队项目排序号按 teamId 维度递增
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getTeamId, teamId)
+                .isNull(Project::getDeletedAt)
+                .orderByDesc(Project::getOrderNo)
+                .last("LIMIT 1");
+        Project lastProject = projectMapper.selectOne(wrapper);
+        if (lastProject == null || lastProject.getOrderNo() == null) {
+            return 0;
+        }
+        return lastProject.getOrderNo() + 1;
+    }
+
+    private Team getValidTeamById(Long teamId) {
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        Team team = teamMapper.selectOne(new LambdaQueryWrapper<Team>()
+                .eq(Team::getId, teamId)
+                .eq(Team::getIsDelete, 0));
+        if (team == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "资源不存在");
+        }
+        return team;
+    }
+
+    private TeamMember requireTeamMember(Long teamId, Long userId) {
+        if (teamId == null || teamId <= 0 || userId == null || userId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        TeamMember teamMember = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, teamId)
+                .eq(TeamMember::getUserId, userId)
+                .eq(TeamMember::getIsDelete, 0));
+        if (teamMember == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限");
+        }
+        return teamMember;
+    }
+
+    private void validateCanManageTeamProject(Long teamId, Long userId) {
+        TeamMember teamMember = requireTeamMember(teamId, userId);
+        if (!TeamRoleEnum.canManageProject(teamMember.getRole())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限");
+        }
+    }
 }
+
+
