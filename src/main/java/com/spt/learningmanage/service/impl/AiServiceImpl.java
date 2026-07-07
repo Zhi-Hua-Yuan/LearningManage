@@ -50,6 +50,7 @@ import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.ai.TitleRenameSuggestionItemVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
+import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
@@ -103,6 +104,8 @@ public class AiServiceImpl implements AiService {
     private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
     private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
     private static final String AI_SCENE_POLISH = "weekly-polish";
+    private static final String PROMPT_TYPE_DEFAULT = "default";
+    private static final String PROMPT_TYPE_DETAILED = "detailed";
     private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
@@ -198,6 +201,9 @@ public class AiServiceImpl implements AiService {
     @Resource
     private AiReplanItemMapper aiReplanItemMapper;
 
+    @Resource
+    private AiCallLogService aiCallLogService;
+
     @Override
     public String chat(String systemPrompt, String userPrompt) {
         if (StrUtil.isBlank(systemPrompt) || StrUtil.isBlank(userPrompt)) {
@@ -211,6 +217,7 @@ public class AiServiceImpl implements AiService {
         if (StrUtil.hasBlank(target, duration)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空，描述可为空");
         }
+        Long userId = getCurrentUserId();
 
         String normalizedTarget = target.trim();
         if (normalizedTarget.length() > PROJECT_NAME_MAX_LEN) {
@@ -224,7 +231,29 @@ public class AiServiceImpl implements AiService {
         }
 
         String systemPrompt = detailed ? TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED : TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT;
-        String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), systemPrompt, userPrompt);
+        String modelName = resolveModel(aiProperties.getBreakdownModel());
+        String promptType = detailed ? PROMPT_TYPE_DETAILED : PROMPT_TYPE_DEFAULT;
+        Long callLogId = createAiCallLogSafely(
+                userId,
+                AI_SCENE_BREAKDOWN,
+                modelName,
+                promptType,
+                buildAiCallRequestText(systemPrompt, userPrompt),
+                0
+        );
+
+        long startTime = System.currentTimeMillis();
+        String aiRawContent;
+        try {
+            aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
+            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
+        } catch (BusinessException e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
+            throw e;
+        } catch (Exception e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 调用失败: " + e.getMessage());
+        }
         String jsonText = sanitizeJsonArrayText(aiRawContent);
 
         try {
@@ -2095,6 +2124,47 @@ public class AiServiceImpl implements AiService {
 
     private String buildInputHash(String raw) {
         return Integer.toHexString(Objects.hashCode(raw));
+    }
+
+    private Long createAiCallLogSafely(Long userId,
+                                       String scene,
+                                       String modelName,
+                                       String promptType,
+                                       String requestText,
+                                       Integer retryCount) {
+        try {
+            return aiCallLogService.createRunningLog(userId, scene, modelName, promptType, requestText, retryCount);
+        } catch (Exception e) {
+            log.warn("AI调用日志创建失败: scene={}, model={}", scene, modelName, e);
+            return null;
+        }
+    }
+
+    private void markAiCallSuccessSafely(Long logId, String responseText, Long costTimeMs) {
+        try {
+            aiCallLogService.markSuccess(logId, responseText, costTimeMs);
+        } catch (Exception e) {
+            log.warn("AI调用日志更新成功状态失败: logId={}", logId, e);
+        }
+    }
+
+    private void markAiCallFailedSafely(Long logId, String errorMessage, Long costTimeMs) {
+        try {
+            aiCallLogService.markFailed(logId, errorMessage, costTimeMs);
+        } catch (Exception e) {
+            log.warn("AI调用日志更新失败状态失败: logId={}", logId, e);
+        }
+    }
+
+    private long elapsedSince(long startTime) {
+        return System.currentTimeMillis() - startTime;
+    }
+
+    private String buildAiCallRequestText(String systemPrompt, String userPrompt) {
+        return JSONUtil.createObj()
+                .set("systemPrompt", systemPrompt)
+                .set("userPrompt", userPrompt)
+                .toString();
     }
 
     private String safeTrim(String text) {
