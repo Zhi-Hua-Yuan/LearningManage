@@ -9,13 +9,25 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AiCallLogMapper;
 import com.spt.learningmanage.model.dto.ai.AiCallLogQueryRequest;
+import com.spt.learningmanage.model.dto.ai.AiCallLogStatsRequest;
 import com.spt.learningmanage.model.entity.AiCallLog;
 import com.spt.learningmanage.model.vo.ai.AiCallLogDetailVO;
+import com.spt.learningmanage.model.vo.ai.AiCallLogSceneStatsVO;
+import com.spt.learningmanage.model.vo.ai.AiCallLogStatsVO;
+import com.spt.learningmanage.model.vo.ai.AiCallLogStatusStatsVO;
 import com.spt.learningmanage.model.vo.ai.AiCallLogVO;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 
 @Service
 public class AiCallLogServiceImpl implements AiCallLogService {
@@ -127,6 +139,28 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         return toDetailVO(callLog);
     }
 
+    @Override
+    public AiCallLogStatsVO getStats(AiCallLogStatsRequest request) {
+        Long userId = getCurrentUserId();
+        AiCallLogStatsRequest validRequest = request == null ? new AiCallLogStatsRequest() : request;
+        validateStatsRequest(validRequest);
+
+        LambdaQueryWrapper<AiCallLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiCallLog::getUserId, userId);
+        if (StrUtil.isNotBlank(validRequest.getScene())) {
+            wrapper.eq(AiCallLog::getScene, validRequest.getScene().trim());
+        }
+        if (validRequest.getStartTime() != null) {
+            wrapper.ge(AiCallLog::getCreateTime, validRequest.getStartTime());
+        }
+        if (validRequest.getEndTime() != null) {
+            wrapper.le(AiCallLog::getCreateTime, validRequest.getEndTime());
+        }
+
+        List<AiCallLog> callLogs = aiCallLogMapper.selectList(wrapper);
+        return buildStatsVO(callLogs);
+    }
+
     private void updateLog(Long logId, Integer status, String responseText, String errorMessage, Long costTimeMs) {
         if (logId == null || logId <= 0) {
             return;
@@ -156,6 +190,122 @@ public class AiCallLogServiceImpl implements AiCallLogService {
                 && request.getStartTime().isAfter(request.getEndTime())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "开始时间不能晚于结束时间");
         }
+    }
+
+    private void validateStatsRequest(AiCallLogStatsRequest request) {
+        if (request.getStartTime() != null && request.getEndTime() != null
+                && request.getStartTime().isAfter(request.getEndTime())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "开始时间不能晚于结束时间");
+        }
+    }
+
+    private AiCallLogStatsVO buildStatsVO(List<AiCallLog> callLogs) {
+        AiCallLogStatsVO vo = new AiCallLogStatsVO();
+        long totalCount = callLogs.size();
+        long successCount = countByStatus(callLogs, AiCallLogStatusEnum.SUCCESS);
+
+        vo.setTotalCount(totalCount);
+        vo.setRunningCount(countByStatus(callLogs, AiCallLogStatusEnum.RUNNING));
+        vo.setSuccessCount(successCount);
+        vo.setFailedCount(countByStatus(callLogs, AiCallLogStatusEnum.FAILED));
+        vo.setParseFailedCount(countByStatus(callLogs, AiCallLogStatusEnum.PARSE_FAILED));
+        vo.setTimeoutCount(countByStatus(callLogs, AiCallLogStatusEnum.TIMEOUT));
+        vo.setSuccessRate(calculateSuccessRate(successCount, totalCount));
+        vo.setAvgCostTimeMs(calculateAvgCostTimeMs(callLogs));
+        vo.setMaxCostTimeMs(calculateMaxCostTimeMs(callLogs));
+        vo.setMinCostTimeMs(calculateMinCostTimeMs(callLogs));
+        vo.setSceneStats(buildSceneStats(callLogs));
+        vo.setStatusStats(buildStatusStats(callLogs));
+        return vo;
+    }
+
+    private List<AiCallLogSceneStatsVO> buildSceneStats(List<AiCallLog> callLogs) {
+        Map<String, List<AiCallLog>> sceneLogMap = callLogs.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        callLog -> defaultIfBlank(callLog.getScene()),
+                        TreeMap::new,
+                        java.util.stream.Collectors.toList()));
+
+        return sceneLogMap.entrySet().stream()
+                .map(entry -> buildSceneStatsVO(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    private AiCallLogSceneStatsVO buildSceneStatsVO(String scene, List<AiCallLog> callLogs) {
+        AiCallLogSceneStatsVO vo = new AiCallLogSceneStatsVO();
+        long totalCount = callLogs.size();
+        long successCount = countByStatus(callLogs, AiCallLogStatusEnum.SUCCESS);
+
+        vo.setScene(scene);
+        vo.setTotalCount(totalCount);
+        vo.setRunningCount(countByStatus(callLogs, AiCallLogStatusEnum.RUNNING));
+        vo.setSuccessCount(successCount);
+        vo.setFailedCount(countByStatus(callLogs, AiCallLogStatusEnum.FAILED));
+        vo.setParseFailedCount(countByStatus(callLogs, AiCallLogStatusEnum.PARSE_FAILED));
+        vo.setTimeoutCount(countByStatus(callLogs, AiCallLogStatusEnum.TIMEOUT));
+        vo.setSuccessRate(calculateSuccessRate(successCount, totalCount));
+        vo.setAvgCostTimeMs(calculateAvgCostTimeMs(callLogs));
+        return vo;
+    }
+
+    private List<AiCallLogStatusStatsVO> buildStatusStats(List<AiCallLog> callLogs) {
+        return List.of(AiCallLogStatusEnum.values()).stream()
+                .map(status -> buildStatusStatsVO(status, callLogs))
+                .sorted(Comparator.comparing(AiCallLogStatusStatsVO::getStatus))
+                .toList();
+    }
+
+    private AiCallLogStatusStatsVO buildStatusStatsVO(AiCallLogStatusEnum status, List<AiCallLog> callLogs) {
+        AiCallLogStatusStatsVO vo = new AiCallLogStatusStatsVO();
+        vo.setStatus(status.getValue());
+        vo.setStatusText(status.getText());
+        vo.setCount(countByStatus(callLogs, status));
+        return vo;
+    }
+
+    private long countByStatus(List<AiCallLog> callLogs, AiCallLogStatusEnum status) {
+        return callLogs.stream()
+                .filter(callLog -> Objects.equals(callLog.getStatus(), status.getValue()))
+                .count();
+    }
+
+    private BigDecimal calculateSuccessRate(long successCount, long totalCount) {
+        if (totalCount <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(successCount)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(totalCount), 2, RoundingMode.HALF_UP);
+    }
+
+    private Long calculateAvgCostTimeMs(List<AiCallLog> callLogs) {
+        List<Long> costTimeList = getCostTimeList(callLogs);
+        if (costTimeList.isEmpty()) {
+            return null;
+        }
+        long totalCostTimeMs = costTimeList.stream().mapToLong(Long::longValue).sum();
+        return BigDecimal.valueOf(totalCostTimeMs)
+                .divide(BigDecimal.valueOf(costTimeList.size()), 0, RoundingMode.HALF_UP)
+                .longValue();
+    }
+
+    private Long calculateMaxCostTimeMs(List<AiCallLog> callLogs) {
+        return getCostTimeList(callLogs).stream()
+                .max(Long::compareTo)
+                .orElse(null);
+    }
+
+    private Long calculateMinCostTimeMs(List<AiCallLog> callLogs) {
+        return getCostTimeList(callLogs).stream()
+                .min(Long::compareTo)
+                .orElse(null);
+    }
+
+    private List<Long> getCostTimeList(List<AiCallLog> callLogs) {
+        return callLogs.stream()
+                .map(AiCallLog::getCostTimeMs)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private AiCallLogVO toListVO(AiCallLog callLog) {

@@ -6,7 +6,9 @@ import com.spt.learningmanage.common.ResultUtils;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.ai.AiCallLogQueryRequest;
+import com.spt.learningmanage.model.dto.ai.AiCallLogStatsRequest;
 import com.spt.learningmanage.model.vo.ai.AiCallLogDetailVO;
+import com.spt.learningmanage.model.vo.ai.AiCallLogStatsVO;
 import com.spt.learningmanage.model.vo.ai.AiCallLogVO;
 import com.spt.learningmanage.service.AiCallLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,5 +63,20 @@ public class AiCallLogController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "调用记录 ID 不合法");
         }
         return ResultUtils.success(aiCallLogService.getDetail(id));
+    }
+
+    @Operation(summary = "查询 AI 调用记录统计")
+    @GetMapping("/stats")
+    public BaseResponse<AiCallLogStatsVO> stats(
+            @RequestParam(value = "scene", required = false) String scene,
+            @RequestParam(value = "startTime", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(value = "endTime", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        AiCallLogStatsRequest request = new AiCallLogStatsRequest();
+        request.setScene(scene);
+        request.setStartTime(startTime);
+        request.setEndTime(endTime);
+        return ResultUtils.success(aiCallLogService.getStats(request));
     }
 }
