@@ -44,19 +44,15 @@ public class AiController {
     @Resource
     private AiService aiService;
 
-    @Operation(summary = "任务拆解草稿（兼容旧版）")
+    @Deprecated
+    @Operation(summary = "任务拆解草稿（兼容旧版，不推荐，正式流程请使用 /breakdown/preview）")
     @PostMapping("/breakdown")
     public BaseResponse<List<MilestoneDraftVO>> breakdown(@RequestBody AiBreakdownRequest request) {
         if (request == null || StrUtil.hasBlank(request.getTarget(), request.getDuration())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        boolean detailed = Boolean.TRUE.equals(request.getDetailed());
-        return ResultUtils.success(aiService.generateTaskBreakdown(
-                request.getTarget(),
-                request.getDescription(),
-                request.getDuration(),
-                detailed
-        ));
+        AiBreakdownPreviewVO preview = aiService.previewTaskBreakdown(request);
+        return ResultUtils.success(preview.getMilestones());
     }
 
     @Operation(summary = "任务拆解预览")
