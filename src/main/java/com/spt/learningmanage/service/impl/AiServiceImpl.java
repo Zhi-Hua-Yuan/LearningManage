@@ -104,6 +104,7 @@ public class AiServiceImpl implements AiService {
     private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
     private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
     private static final String AI_SCENE_POLISH = "weekly-polish";
+    private static final String AI_SCENE_TODAY_ORDER = "today-order";
     private static final String PROMPT_TYPE_DEFAULT = "default";
     private static final String PROMPT_TYPE_DETAILED = "detailed";
     private static final String PROMPT_TYPE_WEEKLY_POLISH = "weekly-polish";
@@ -631,15 +632,39 @@ public class AiServiceImpl implements AiService {
             return result;
         }
 
+        String userPrompt = buildTodayOrderUserPrompt(tasks, strategy, now, today, zoneId);
+        String modelName = resolveModel(aiProperties.getBreakdownModel());
+        Long callLogId = createAiCallLogSafely(
+                currentUserId,
+                AI_SCENE_TODAY_ORDER,
+                modelName,
+                strategy,
+                buildAiCallRequestText(TODAY_ORDER_SYSTEM_PROMPT, userPrompt),
+                0
+        );
+
+        long startTime = System.currentTimeMillis();
+        String aiRawContent;
         try {
-            String userPrompt = buildTodayOrderUserPrompt(tasks, strategy, now, today, zoneId);
-            String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), TODAY_ORDER_SYSTEM_PROMPT, userPrompt);
+            aiRawContent = callAiWithFallback(modelName, TODAY_ORDER_SYSTEM_PROMPT, userPrompt);
+        } catch (Exception e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
+            log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}",
+                    currentUserId, today, strategy, e);
+            result.setFallbackUsed(true);
+            result.setItems(fallbackByRule(tasks, strategy, now));
+            return result;
+        }
+
+        try {
             AiTodayOrderVO aiResult = parseAndValidateTodayOrderResult(aiRawContent, tasks, strategy, now);
             aiResult.setGeneratedAt(LocalDateTime.now(zoneId).toString());
             aiResult.setFallbackUsed(false);
+            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
             return aiResult;
         } catch (Exception e) {
-            log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}",
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
+            log.warn("AI今日任务排序结果解析失败，回退规则排序: userId={}, today={}, strategy={}",
                     currentUserId, today, strategy, e);
             result.setFallbackUsed(true);
             result.setItems(fallbackByRule(tasks, strategy, now));
