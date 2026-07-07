@@ -106,9 +106,11 @@ public class AiServiceImpl implements AiService {
     private static final String AI_SCENE_POLISH = "weekly-polish";
     private static final String AI_SCENE_TODAY_ORDER = "today-order";
     private static final String AI_SCENE_DAILY_REVIEW_RENAME = "daily-review-rename";
+    private static final String AI_SCENE_LIST_REPLAN = "list-replan";
     private static final String PROMPT_TYPE_DEFAULT = "default";
     private static final String PROMPT_TYPE_DETAILED = "detailed";
     private static final String PROMPT_TYPE_WEEKLY_POLISH = "weekly-polish";
+    private static final String PROMPT_TYPE_LIST_REPLAN_PREVIEW = "preview";
     private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
@@ -837,11 +839,30 @@ public class AiServiceImpl implements AiService {
         if (pendingTasks.isEmpty()) {
             replanItems = List.of();
         } else {
+            String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
+            String modelName = resolveModel(aiProperties.getBreakdownModel());
+            Long callLogId = createAiCallLogSafely(
+                    currentUserId,
+                    AI_SCENE_LIST_REPLAN,
+                    modelName,
+                    PROMPT_TYPE_LIST_REPLAN_PREVIEW,
+                    buildAiCallRequestText(LIST_REPLAN_SYSTEM_PROMPT, userPrompt),
+                    0
+            );
+
+            long startTime = System.currentTimeMillis();
             try {
-                String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-                String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
-                replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
+                String aiRawContent = callAiWithFallback(modelName, LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
+                try {
+                    replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
+                    markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
+                } catch (Exception e) {
+                    markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
+                    log.warn("AI 清单重排预览结果解析失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
+                    replanItems = fallbackListReplanItems(pendingTasks);
+                }
             } catch (Exception e) {
+                markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
                 log.warn("AI 清单重排预览失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
                 replanItems = fallbackListReplanItems(pendingTasks);
             }
