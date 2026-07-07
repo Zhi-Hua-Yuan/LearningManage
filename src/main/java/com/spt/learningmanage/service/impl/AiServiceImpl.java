@@ -105,6 +105,7 @@ public class AiServiceImpl implements AiService {
     private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
     private static final String AI_SCENE_POLISH = "weekly-polish";
     private static final String AI_SCENE_TODAY_ORDER = "today-order";
+    private static final String AI_SCENE_DAILY_REVIEW_RENAME = "daily-review-rename";
     private static final String PROMPT_TYPE_DEFAULT = "default";
     private static final String PROMPT_TYPE_DETAILED = "detailed";
     private static final String PROMPT_TYPE_WEEKLY_POLISH = "weekly-polish";
@@ -702,13 +703,37 @@ public class AiServiceImpl implements AiService {
             return result;
         }
 
+        String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
+        String modelName = resolveModel(aiProperties.getBreakdownModel());
+        Long callLogId = createAiCallLogSafely(
+                currentUserId,
+                AI_SCENE_DAILY_REVIEW_RENAME,
+                modelName,
+                strategy,
+                buildAiCallRequestText(DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt),
+                0
+        );
+
         List<TitleRenameSuggestionItemVO> suggestions;
+        long startTime = System.currentTimeMillis();
+        String aiRawContent;
         try {
-            String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
-            String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt);
-            suggestions = parseAndValidateRenameSuggestions(aiRawContent, pendingTasks, maxEdits);
+            aiRawContent = callAiWithFallback(modelName, DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt);
         } catch (Exception e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
+            suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
+            saveRenameLogs(currentUserId, reviewDate, operationId, suggestions);
+            result.setItems(suggestions);
+            return result;
+        }
+
+        try {
+            suggestions = parseAndValidateRenameSuggestions(aiRawContent, pendingTasks, maxEdits);
+            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
+        } catch (Exception e) {
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
+            log.warn("AI 日报回顾改名结果解析失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
             suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
         }
 
