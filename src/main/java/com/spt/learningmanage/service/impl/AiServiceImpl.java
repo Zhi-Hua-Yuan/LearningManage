@@ -10,6 +10,7 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.constant.AiDraftStatusEnum;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.ProjectConstant;
 import com.spt.learningmanage.constant.TaskStatusEnum;
@@ -99,10 +100,6 @@ public class AiServiceImpl implements AiService {
     private static final int LIST_REPLAN_STATUS_CONFIRMED = 1;
     private static final int LIST_REPLAN_STATUS_CANCELED = 2;
     private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
-    private static final int AI_DRAFT_STATUS_PREVIEW = 0;
-    private static final int AI_DRAFT_STATUS_CONFIRMED = 1;
-    private static final int AI_DRAFT_STATUS_CANCELED = 2;
-    private static final int AI_DRAFT_STATUS_EXPIRED = 3;
     private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
     private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
     private static final String AI_SCENE_POLISH = "weekly-polish";
@@ -446,15 +443,27 @@ public class AiServiceImpl implements AiService {
     @Override
     public boolean cancelDraft(String draftId, String scene) {
         Long userId = getCurrentUserId();
-        LambdaUpdateWrapper<AiDraft> wrapper = new LambdaUpdateWrapper<AiDraft>()
-                .eq(AiDraft::getDraftId, draftId)
-                .eq(AiDraft::getUserId, userId)
-                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
-                .set(AiDraft::getStatus, AI_DRAFT_STATUS_CANCELED)
-                .set(AiDraft::getCanceledAt, LocalDateTime.now());
-        if (StrUtil.isNotBlank(scene)) {
-            wrapper.eq(AiDraft::getScene, scene);
+        AiDraft draft = getDraftByUserAndOptionalScene(userId, draftId, scene);
+        refreshDraftExpiredIfNecessary(draft);
+
+        if (AiDraftStatusEnum.isCanceled(draft.getStatus())) {
+            return true;
         }
+        if (AiDraftStatusEnum.isConfirmed(draft.getStatus())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认，不能取消");
+        }
+        if (AiDraftStatusEnum.isExpired(draft.getStatus())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，不能取消");
+        }
+        if (!AiDraftStatusEnum.isPreview(draft.getStatus())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态异常，不能取消");
+        }
+
+        LambdaUpdateWrapper<AiDraft> wrapper = new LambdaUpdateWrapper<AiDraft>()
+                .eq(AiDraft::getId, draft.getId())
+                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
+                .set(AiDraft::getStatus, AiDraftStatusEnum.CANCELED.getValue())
+                .set(AiDraft::getCanceledAt, LocalDateTime.now());
         return aiDraftMapper.update(null, wrapper) > 0;
     }
 
@@ -520,19 +529,12 @@ public class AiServiceImpl implements AiService {
         if (draft == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
         }
-        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_PREVIEW)
-                && draft.getExpireAt() != null
-                && LocalDateTime.now().isAfter(draft.getExpireAt())) {
-            aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                    .eq(AiDraft::getId, draft.getId())
-                    .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
-                    .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
-            draft.setStatus(AI_DRAFT_STATUS_EXPIRED);
-        }
+        refreshDraftExpiredIfNecessary(draft);
         AiDraftDetailVO vo = new AiDraftDetailVO();
         vo.setDraftId(draft.getDraftId());
         vo.setScene(draft.getScene());
         vo.setStatus(draft.getStatus());
+        vo.setStatusText(AiDraftStatusEnum.getText(draft.getStatus()));
         vo.setPayloadJson(draft.getPayloadJson());
         vo.setExpireAt(draft.getExpireAt());
         vo.setConfirmedAt(draft.getConfirmedAt());
@@ -543,9 +545,9 @@ public class AiServiceImpl implements AiService {
     @Override
     public int expirePreviewDrafts() {
         return aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
+                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
                 .lt(AiDraft::getExpireAt, LocalDateTime.now())
-                .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
+                .set(AiDraft::getStatus, AiDraftStatusEnum.EXPIRED.getValue()));
     }
 
     @Override
@@ -1953,11 +1955,26 @@ public class AiServiceImpl implements AiService {
         draft.setScene(scene);
         draft.setPayloadJson(payloadJson);
         draft.setInputHash(inputHash);
-        draft.setStatus(AI_DRAFT_STATUS_PREVIEW);
+        draft.setStatus(AiDraftStatusEnum.PREVIEW.getValue());
         draft.setExpireAt(LocalDateTime.now().plusMinutes(AI_DRAFT_EXPIRE_MINUTES));
         int rows = aiDraftMapper.insert(draft);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿创建失败");
+        }
+        return draft;
+    }
+
+    private AiDraft getDraftByUserAndOptionalScene(Long userId, String draftId, String scene) {
+        LambdaQueryWrapper<AiDraft> wrapper = new LambdaQueryWrapper<AiDraft>()
+                .eq(AiDraft::getDraftId, draftId)
+                .eq(AiDraft::getUserId, userId);
+        if (StrUtil.isNotBlank(scene)) {
+            wrapper.eq(AiDraft::getScene, scene);
+        }
+        wrapper.last("limit 1");
+        AiDraft draft = aiDraftMapper.selectOne(wrapper);
+        if (draft == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
         }
         return draft;
     }
@@ -1983,32 +2000,47 @@ public class AiServiceImpl implements AiService {
     }
 
     private void validateDraftCanConfirm(AiDraft draft) {
-        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_CONFIRMED)) {
+        if (refreshDraftExpiredIfNecessary(draft)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
+        }
+        if (AiDraftStatusEnum.isPreview(draft.getStatus())) {
+            return;
+        }
+        if (AiDraftStatusEnum.isConfirmed(draft.getStatus())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认，请勿重复提交");
         }
-        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_CANCELED)) {
+        if (AiDraftStatusEnum.isCanceled(draft.getStatus())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已取消，请重新生成");
         }
-        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_EXPIRED)) {
+        if (AiDraftStatusEnum.isExpired(draft.getStatus())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
         }
-        if (!Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_PREVIEW)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态异常，无法确认");
+        throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                "草稿状态异常，无法确认：" + AiDraftStatusEnum.getText(draft.getStatus()));
+    }
+
+    private boolean refreshDraftExpiredIfNecessary(AiDraft draft) {
+        if (!AiDraftStatusEnum.isPreview(draft.getStatus())) {
+            return false;
         }
         if (draft.getExpireAt() != null && LocalDateTime.now().isAfter(draft.getExpireAt())) {
-            aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
+            int rows = aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
                     .eq(AiDraft::getId, draft.getId())
-                    .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
-                    .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
+                    .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
+                    .set(AiDraft::getStatus, AiDraftStatusEnum.EXPIRED.getValue()));
+            if (rows > 0) {
+                draft.setStatus(AiDraftStatusEnum.EXPIRED.getValue());
+            }
+            return true;
         }
+        return false;
     }
 
     private void markDraftConfirmed(Long draftDbId) {
         int rows = aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
                 .eq(AiDraft::getId, draftDbId)
-                .eq(AiDraft::getStatus, AI_DRAFT_STATUS_PREVIEW)
-                .set(AiDraft::getStatus, AI_DRAFT_STATUS_CONFIRMED)
+                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
+                .set(AiDraft::getStatus, AiDraftStatusEnum.CONFIRMED.getValue())
                 .set(AiDraft::getConfirmedAt, LocalDateTime.now()));
         if (rows != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态更新失败");
