@@ -246,7 +246,6 @@ public class AiServiceImpl implements AiService {
         String aiRawContent;
         try {
             aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
-            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
         } catch (BusinessException e) {
             markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             throw e;
@@ -254,9 +253,9 @@ public class AiServiceImpl implements AiService {
             markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 调用失败: " + e.getMessage());
         }
-        String jsonText = sanitizeJsonArrayText(aiRawContent);
 
         try {
+            String jsonText = sanitizeJsonArrayText(aiRawContent);
             JSONArray jsonArray = JSONUtil.parseArray(jsonText);
             List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
             normalizeAndValidateDrafts(result);
@@ -267,10 +266,13 @@ public class AiServiceImpl implements AiService {
                         "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）"
                 );
             }
+            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
             return result;
         } catch (BusinessException e) {
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
             throw e;
         } catch (Exception e) {
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务拆解结果解析失败，请重试。原始异常: " + e.getMessage());
         }
     }
@@ -2153,6 +2155,14 @@ public class AiServiceImpl implements AiService {
             aiCallLogService.markFailed(logId, errorMessage, costTimeMs);
         } catch (Exception e) {
             log.warn("AI调用日志更新失败状态失败: logId={}", logId, e);
+        }
+    }
+
+    private void markAiCallParseFailedSafely(Long logId, String responseText, String errorMessage, Long costTimeMs) {
+        try {
+            aiCallLogService.markParseFailed(logId, responseText, errorMessage, costTimeMs);
+        } catch (Exception e) {
+            log.warn("AI调用日志更新解析失败状态失败: logId={}", logId, e);
         }
     }
 
