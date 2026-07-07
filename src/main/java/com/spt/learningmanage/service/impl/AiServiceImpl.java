@@ -106,6 +106,7 @@ public class AiServiceImpl implements AiService {
     private static final String AI_SCENE_POLISH = "weekly-polish";
     private static final String PROMPT_TYPE_DEFAULT = "default";
     private static final String PROMPT_TYPE_DETAILED = "detailed";
+    private static final String PROMPT_TYPE_WEEKLY_POLISH = "weekly-polish";
     private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
     private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
@@ -350,20 +351,44 @@ public class AiServiceImpl implements AiService {
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
 
-        String aiRawContent = callAiWithFallback(aiProperties.getPolishModel(), WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
-        String cleanedResult = sanitizeJsonObjectText(aiRawContent);
+        String modelName = resolveModel(aiProperties.getPolishModel());
+        Long callLogId = createAiCallLogSafely(
+                currentUserId,
+                AI_SCENE_POLISH,
+                modelName,
+                PROMPT_TYPE_WEEKLY_POLISH,
+                buildAiCallRequestText(WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt),
+                0
+        );
+
+        long startTime = System.currentTimeMillis();
+        String aiRawContent;
+        try {
+            aiRawContent = callAiWithFallback(modelName, WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
+        } catch (BusinessException e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
+            throw e;
+        } catch (Exception e) {
+            markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 调用失败: " + e.getMessage());
+        }
 
         try {
+            String cleanedResult = sanitizeJsonObjectText(aiRawContent);
             JSONObject resultObj = JSONUtil.parseObj(cleanedResult);
             String review = resultObj.getStr("review");
             if (StrUtil.isBlank(review)) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果缺少 review 字段，请重试");
             }
             // 只返回 review，确保前后端契约稳定且无多余字段。
-            return JSONUtil.createObj().set("review", review).toString();
+            String result = JSONUtil.createObj().set("review", review).toString();
+            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
+            return result;
         } catch (BusinessException e) {
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
             throw e;
         } catch (Exception e) {
+            markAiCallParseFailedSafely(callLogId, aiRawContent, e.getMessage(), elapsedSince(startTime));
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果不是合法JSON，请重试。原始异常: " + e.getMessage());
         }
     }
