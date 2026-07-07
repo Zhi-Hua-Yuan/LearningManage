@@ -368,15 +368,12 @@ public class AiServiceImpl implements AiService {
     @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId, String projectName, String projectGoal) {
         Long userId = getCurrentUserId();
-        AiDraft draft = getDraftForConfirm(userId, draftId, AI_SCENE_BREAKDOWN);
-        AiDraftConfirmLog replay = aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
-                .eq(AiDraftConfirmLog::getUserId, userId)
-                .eq(AiDraftConfirmLog::getDraftId, draftId)
-                .eq(AiDraftConfirmLog::getOperationId, operationId)
-                .last("limit 1"));
+        AiDraft draft = getDraftByUserAndScene(userId, draftId, AI_SCENE_BREAKDOWN);
+        AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
         }
+        validateDraftCanConfirm(draft);
 
         JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
         JSONArray milestonesJson = payload.getJSONArray("milestones");
@@ -482,15 +479,12 @@ public class AiServiceImpl implements AiService {
     @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId) {
         Long userId = getCurrentUserId();
-        AiDraft draft = getDraftForConfirm(userId, draftId, AI_SCENE_POLISH);
-        AiDraftConfirmLog replay = aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
-                .eq(AiDraftConfirmLog::getUserId, userId)
-                .eq(AiDraftConfirmLog::getDraftId, draftId)
-                .eq(AiDraftConfirmLog::getOperationId, operationId)
-                .last("limit 1"));
+        AiDraft draft = getDraftByUserAndScene(userId, draftId, AI_SCENE_POLISH);
+        AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
         }
+        validateDraftCanConfirm(draft);
 
         WeeklyReview review = weeklyReviewMapper.selectById(reviewId);
         if (review == null || !Objects.equals(review.getUserId(), userId)) {
@@ -1968,7 +1962,7 @@ public class AiServiceImpl implements AiService {
         return draft;
     }
 
-    private AiDraft getDraftForConfirm(Long userId, String draftId, String scene) {
+    private AiDraft getDraftByUserAndScene(Long userId, String draftId, String scene) {
         AiDraft draft = aiDraftMapper.selectOne(new LambdaQueryWrapper<AiDraft>()
                 .eq(AiDraft::getDraftId, draftId)
                 .eq(AiDraft::getUserId, userId)
@@ -1977,8 +1971,29 @@ public class AiServiceImpl implements AiService {
         if (draft == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
         }
+        return draft;
+    }
+
+    private AiDraftConfirmLog getConfirmLog(Long userId, String draftId, String operationId) {
+        return aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
+                .eq(AiDraftConfirmLog::getUserId, userId)
+                .eq(AiDraftConfirmLog::getDraftId, draftId)
+                .eq(AiDraftConfirmLog::getOperationId, operationId)
+                .last("limit 1"));
+    }
+
+    private void validateDraftCanConfirm(AiDraft draft) {
+        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_CONFIRMED)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认，请勿重复提交");
+        }
+        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_CANCELED)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已取消，请重新生成");
+        }
+        if (Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_EXPIRED)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
+        }
         if (!Objects.equals(draft.getStatus(), AI_DRAFT_STATUS_PREVIEW)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认/取消/过期");
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态异常，无法确认");
         }
         if (draft.getExpireAt() != null && LocalDateTime.now().isAfter(draft.getExpireAt())) {
             aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
@@ -1987,7 +2002,6 @@ public class AiServiceImpl implements AiService {
                     .set(AiDraft::getStatus, AI_DRAFT_STATUS_EXPIRED));
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
         }
-        return draft;
     }
 
     private void markDraftConfirmed(Long draftDbId) {
