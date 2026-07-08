@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -53,9 +54,15 @@ public class RateLimitServiceImpl implements RateLimitService {
         }
         validateRequest(userId, scene);
 
-        int windowSeconds = normalizePositive(rateLimitProperties.getWindowSeconds(), DEFAULT_WINDOW_SECONDS);
-        int maxRequests = normalizePositive(rateLimitProperties.getMaxRequests(), DEFAULT_MAX_REQUESTS);
-        String key = buildAiRateLimitKey(userId, scene, windowSeconds);
+        RateLimitProperties.Rule rule = resolveRule(scene);
+        if (!isRuleEnabled(rule)) {
+            return;
+        }
+
+        int windowSeconds = normalizePositive(rule.getWindowSeconds(), DEFAULT_WINDOW_SECONDS);
+        int maxRequests = normalizePositive(rule.getMaxRequests(), DEFAULT_MAX_REQUESTS);
+        String normalizedScene = scene.trim();
+        String key = buildAiRateLimitKey(userId, normalizedScene, windowSeconds);
         int ttlSeconds = windowSeconds + EXPIRE_BUFFER_SECONDS;
 
         Long count;
@@ -63,7 +70,7 @@ public class RateLimitServiceImpl implements RateLimitService {
             count = stringRedisTemplate.execute(rateLimitScript, List.of(key), String.valueOf(ttlSeconds));
         } catch (Exception e) {
             if (isFailOpen()) {
-                log.warn("AI 限流 Redis 检查失败，按配置放行。userId={}, scene={}", userId, scene, e);
+                log.warn("AI 限流 Redis 检查失败，按配置放行。userId={}, scene={}", userId, normalizedScene, e);
                 return;
             }
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "限流服务暂不可用，请稍后再试");
@@ -72,6 +79,20 @@ public class RateLimitServiceImpl implements RateLimitService {
         if (count != null && count > maxRequests) {
             throw new BusinessException(ErrorCode.RATE_LIMIT_ERROR, "AI 调用过于频繁，请稍后再试");
         }
+    }
+
+    private RateLimitProperties.Rule resolveRule(String scene) {
+        Map<String, RateLimitProperties.Rule> sceneRules = rateLimitProperties.getSceneRules();
+        RateLimitProperties.Rule sceneRule = sceneRules == null ? null : sceneRules.get(scene.trim());
+        if (sceneRule != null) {
+            return sceneRule;
+        }
+        RateLimitProperties.Rule defaultRule = rateLimitProperties.getDefaultRule();
+        return defaultRule == null ? new RateLimitProperties.Rule() : defaultRule;
+    }
+
+    private boolean isRuleEnabled(RateLimitProperties.Rule rule) {
+        return rule == null || rule.getEnabled() == null || rule.getEnabled();
     }
 
     private void validateRequest(Long userId, String scene) {

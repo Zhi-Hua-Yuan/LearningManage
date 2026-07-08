@@ -29,6 +29,23 @@ ai:
 rate-limit:
   ai:
     enabled: true
-    window-seconds: 60
-    max-requests: 5
     fail-open: true
+    default-rule:
+      window-seconds: 60
+      max-requests: 5
+    scene-rules:
+      task-breakdown:
+        window-seconds: 60
+        max-requests: 3
+      weekly-polish:
+        window-seconds: 60
+        max-requests: 5
+      today-order:
+        window-seconds: 60
+        max-requests: 10
+      daily-review-rename:
+        window-seconds: 60
+        max-requests: 5
+      list-replan:
+        window-seconds: 60
+        max-requests: 3
