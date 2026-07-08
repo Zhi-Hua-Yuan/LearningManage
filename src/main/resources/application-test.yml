@@ -14,3 +14,10 @@ spring:
 logging:
   level:
     root: warn
+
+rate-limit:
+  ai:
+    enabled: true
+    window-seconds: 60
+    max-requests: 5
+    fail-open: true

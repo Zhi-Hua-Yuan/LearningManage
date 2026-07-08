@@ -25,3 +25,10 @@ ai:
   breakdown-model: ${AI_BREAKDOWN_MODEL:qwen-plus}
   polish-model: ${AI_POLISH_MODEL:qwen-flash}
   fallback-model: ${AI_FALLBACK_MODEL:qwen-plus}
+
+rate-limit:
+  ai:
+    enabled: true
+    window-seconds: 60
+    max-requests: 5
+    fail-open: true
