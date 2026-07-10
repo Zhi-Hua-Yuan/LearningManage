@@ -15,6 +15,12 @@ public class AiCallLogVO {
 
     private String promptType;
 
+    private Long promptTemplateId;
+
+    private Integer promptVersion;
+
+    private String promptSource;
+
     private String requestPreview;
 
     private String responsePreview;

@@ -2,43 +2,38 @@ package com.spt.learningmanage.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * 数据库中的 AI Prompt 模板版本。
+ */
 @Data
-@TableName("ai_call_log")
-public class AiCallLog {
+@TableName("prompt_template")
+public class PromptTemplate {
 
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
-    private Long userId;
+    private String templateCode;
 
     private String scene;
 
-    private String modelName;
+    private String templateName;
 
-    private String promptType;
+    private String templateContent;
 
-    private Long promptTemplateId;
+    private Integer version;
 
-    private Integer promptVersion;
+    private Integer enabled;
 
-    private String promptSource;
+    private String remark;
 
-    private String requestText;
-
-    private String responseText;
-
-    private Integer status;
-
-    private String errorMessage;
-
-    private Long costTimeMs;
-
-    private Integer retryCount;
+    @TableLogic
+    private Integer isDelete;
 
     private LocalDateTime createTime;
 

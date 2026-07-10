@@ -17,6 +17,12 @@ public class AiCallLogDetailVO {
 
     private String promptType;
 
+    private Long promptTemplateId;
+
+    private Integer promptVersion;
+
+    private String promptSource;
+
     private String requestText;
 
     private Boolean requestTextTruncated;

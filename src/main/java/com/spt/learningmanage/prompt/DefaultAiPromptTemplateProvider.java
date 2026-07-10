@@ -1,6 +1,7 @@
 package com.spt.learningmanage.prompt;
 
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
+import com.spt.learningmanage.constant.AiPromptSourceEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import org.springframework.stereotype.Component;
@@ -100,9 +101,11 @@ public class DefaultAiPromptTemplateProvider {
 
     private void register(AiPromptCodeEnum promptCode, String systemPrompt) {
         templates.put(promptCode, new AiPromptTemplate(
+                null,
                 promptCode.getCode(),
                 promptCode.getScene().getCode(),
                 DEFAULT_TEMPLATE_VERSION,
+                AiPromptSourceEnum.BUILTIN,
                 systemPrompt
         ));
     }

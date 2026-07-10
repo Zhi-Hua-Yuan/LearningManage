@@ -1,6 +1,7 @@
 package com.spt.learningmanage.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
 import com.spt.learningmanage.model.dto.ai.AiCallLogQueryRequest;
 import com.spt.learningmanage.model.dto.ai.AiCallLogStatsRequest;
 import com.spt.learningmanage.model.vo.ai.AiCallLogDetailVO;
@@ -9,12 +10,7 @@ import com.spt.learningmanage.model.vo.ai.AiCallLogVO;
 
 public interface AiCallLogService {
 
-    Long createRunningLog(Long userId,
-                          String scene,
-                          String modelName,
-                          String promptType,
-                          String requestText,
-                          Integer retryCount);
+    Long createRunningLog(AiCallLogCreateCommand command);
 
     void markSuccess(Long logId, String responseText, Long costTimeMs);
 

@@ -28,6 +28,7 @@ import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
@@ -53,7 +54,7 @@ import com.spt.learningmanage.model.vo.ai.TitleRenameSuggestionItemVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
 import com.spt.learningmanage.prompt.AiPromptTemplate;
-import com.spt.learningmanage.prompt.DefaultAiPromptTemplateProvider;
+import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -138,7 +139,7 @@ public class AiServiceImpl implements AiService {
     private AiCallLogService aiCallLogService;
 
     @Resource
-    private DefaultAiPromptTemplateProvider defaultAiPromptTemplateProvider;
+    private PromptTemplateResolver promptTemplateResolver;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -169,14 +170,13 @@ public class AiServiceImpl implements AiService {
         AiPromptCodeEnum promptCode = detailed
                 ? AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED
                 : AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT;
-        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider.getRequired(promptCode);
+        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(promptCode);
         String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
         Long callLogId = createAiCallLogSafely(
                 userId,
-                promptTemplate.scene(),
                 modelName,
-                promptTemplate.code(),
+                promptTemplate,
                 buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
@@ -289,15 +289,14 @@ public class AiServiceImpl implements AiService {
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
 
-        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
-                .getRequired(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT);
+        AiPromptTemplate promptTemplate = promptTemplateResolver
+                .resolve(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT);
         String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getPolishModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                promptTemplate.scene(),
                 modelName,
-                promptTemplate.code(),
+                promptTemplate,
                 buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
@@ -573,15 +572,14 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildTodayOrderUserPrompt(tasks, strategy, now, today, zoneId);
-        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
-                .getRequired(AiPromptCodeEnum.TODAY_ORDER_DEFAULT);
+        AiPromptTemplate promptTemplate = promptTemplateResolver
+                .resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT);
         String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                promptTemplate.scene(),
                 modelName,
-                promptTemplate.code(),
+                promptTemplate,
                 buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
@@ -646,15 +644,14 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
-        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
-                .getRequired(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT);
+        AiPromptTemplate promptTemplate = promptTemplateResolver
+                .resolve(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT);
         String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                promptTemplate.scene(),
                 modelName,
-                promptTemplate.code(),
+                promptTemplate,
                 buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
@@ -731,8 +728,8 @@ public class AiServiceImpl implements AiService {
         List<ListTaskReplanItem> replanItems;
         try {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-            AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
-                    .getRequired(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
+            AiPromptTemplate promptTemplate = promptTemplateResolver
+                    .resolve(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
             String aiRawContent = callAiWithFallback(
                     aiProperties.getBreakdownModel(), promptTemplate.systemPrompt(), userPrompt);
             replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
@@ -786,15 +783,14 @@ public class AiServiceImpl implements AiService {
             replanItems = List.of();
         } else {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-            AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
-                    .getRequired(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
+            AiPromptTemplate promptTemplate = promptTemplateResolver
+                    .resolve(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
             String systemPrompt = promptTemplate.systemPrompt();
             String modelName = resolveModel(aiProperties.getBreakdownModel());
             Long callLogId = createAiCallLogSafely(
                     currentUserId,
-                    promptTemplate.scene(),
                     modelName,
-                    promptTemplate.code(),
+                    promptTemplate,
                     buildAiCallRequestText(systemPrompt, userPrompt),
                     0
             );
@@ -2174,15 +2170,24 @@ public class AiServiceImpl implements AiService {
     }
 
     private Long createAiCallLogSafely(Long userId,
-                                       String scene,
                                        String modelName,
-                                       String promptType,
+                                       AiPromptTemplate promptTemplate,
                                        String requestText,
                                        Integer retryCount) {
         try {
-            return aiCallLogService.createRunningLog(userId, scene, modelName, promptType, requestText, retryCount);
+            return aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
+                    userId,
+                    promptTemplate.scene(),
+                    modelName,
+                    promptTemplate.code(),
+                    promptTemplate.templateId(),
+                    promptTemplate.version(),
+                    promptTemplate.source().getCode(),
+                    requestText,
+                    retryCount
+            ));
         } catch (Exception e) {
-            log.warn("AI调用日志创建失败: scene={}, model={}", scene, modelName, e);
+            log.warn("AI调用日志创建失败: scene={}, model={}", promptTemplate.scene(), modelName, e);
             return null;
         }
     }

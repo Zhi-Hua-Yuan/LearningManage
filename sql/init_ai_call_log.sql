@@ -3,7 +3,10 @@ CREATE TABLE IF NOT EXISTS `ai_call_log` (
   `user_id` BIGINT NOT NULL COMMENT '用户ID',
   `scene` VARCHAR(64) NOT NULL COMMENT '调用场景，如 task-breakdown、weekly-polish',
   `model_name` VARCHAR(64) NOT NULL COMMENT '模型名称',
-  `prompt_type` VARCHAR(64) NULL COMMENT 'Prompt 类型',
+  `prompt_type` VARCHAR(64) NULL COMMENT 'Prompt 模板编码，如 task-breakdown.default',
+  `prompt_template_id` BIGINT NULL COMMENT '实际使用的数据库模板ID，内置模板为空',
+  `prompt_version` INT NULL COMMENT '实际使用的Prompt版本',
+  `prompt_source` VARCHAR(16) NULL COMMENT '模板来源：database/builtin',
   `request_text` LONGTEXT NULL COMMENT '请求内容',
   `response_text` LONGTEXT NULL COMMENT '响应内容',
   `status` TINYINT NOT NULL COMMENT '状态: 0调用中 1成功 2调用失败 3解析失败 4超时',
@@ -14,5 +17,6 @@ CREATE TABLE IF NOT EXISTS `ai_call_log` (
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_scene_time` (`user_id`, `scene`, `create_time`),
-  KEY `idx_status_time` (`status`, `create_time`)
+  KEY `idx_status_time` (`status`, `create_time`),
+  KEY `idx_prompt_template_version` (`prompt_template_id`, `prompt_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI调用记录表';

@@ -8,6 +8,7 @@ import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AiCallLogMapper;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
 import com.spt.learningmanage.model.dto.ai.AiCallLogQueryRequest;
 import com.spt.learningmanage.model.dto.ai.AiCallLogStatsRequest;
 import com.spt.learningmanage.model.entity.AiCallLog;
@@ -41,24 +42,22 @@ public class AiCallLogServiceImpl implements AiCallLogService {
     private AiCallLogMapper aiCallLogMapper;
 
     @Override
-    public Long createRunningLog(Long userId,
-                                 String scene,
-                                 String modelName,
-                                 String promptType,
-                                 String requestText,
-                                 Integer retryCount) {
-        if (userId == null || userId <= 0) {
+    public Long createRunningLog(AiCallLogCreateCommand command) {
+        if (command == null || command.userId() == null || command.userId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "userId 不能为空");
         }
 
         AiCallLog callLog = new AiCallLog();
-        callLog.setUserId(userId);
-        callLog.setScene(defaultIfBlank(scene));
-        callLog.setModelName(defaultIfBlank(modelName));
-        callLog.setPromptType(promptType);
-        callLog.setRequestText(requestText);
+        callLog.setUserId(command.userId());
+        callLog.setScene(defaultIfBlank(command.scene()));
+        callLog.setModelName(defaultIfBlank(command.modelName()));
+        callLog.setPromptType(command.promptCode());
+        callLog.setPromptTemplateId(command.promptTemplateId());
+        callLog.setPromptVersion(command.promptVersion());
+        callLog.setPromptSource(command.promptSource());
+        callLog.setRequestText(command.requestText());
         callLog.setStatus(AiCallLogStatusEnum.RUNNING.getValue());
-        callLog.setRetryCount(retryCount == null || retryCount < 0 ? 0 : retryCount);
+        callLog.setRetryCount(command.retryCount() == null || command.retryCount() < 0 ? 0 : command.retryCount());
 
         int rows = aiCallLogMapper.insert(callLog);
         if (rows != 1 || callLog.getId() == null) {
@@ -314,6 +313,9 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setScene(callLog.getScene());
         vo.setModelName(callLog.getModelName());
         vo.setPromptType(callLog.getPromptType());
+        vo.setPromptTemplateId(callLog.getPromptTemplateId());
+        vo.setPromptVersion(callLog.getPromptVersion());
+        vo.setPromptSource(callLog.getPromptSource());
         vo.setRequestPreview(truncate(callLog.getRequestText(), LIST_TEXT_PREVIEW_MAX_LENGTH));
         vo.setResponsePreview(truncate(callLog.getResponseText(), LIST_TEXT_PREVIEW_MAX_LENGTH));
         vo.setStatus(callLog.getStatus());
@@ -333,6 +335,9 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setScene(callLog.getScene());
         vo.setModelName(callLog.getModelName());
         vo.setPromptType(callLog.getPromptType());
+        vo.setPromptTemplateId(callLog.getPromptTemplateId());
+        vo.setPromptVersion(callLog.getPromptVersion());
+        vo.setPromptSource(callLog.getPromptSource());
         vo.setRequestText(truncate(callLog.getRequestText(), DETAIL_TEXT_MAX_LENGTH));
         vo.setRequestTextTruncated(isTruncated(callLog.getRequestText(), DETAIL_TEXT_MAX_LENGTH));
         vo.setResponseText(truncate(callLog.getResponseText(), DETAIL_TEXT_MAX_LENGTH));
