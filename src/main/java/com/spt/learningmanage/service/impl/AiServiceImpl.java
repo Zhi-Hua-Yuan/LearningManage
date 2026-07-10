@@ -10,7 +10,9 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.constant.AiDraftStatusEnum;
+import com.spt.learningmanage.constant.AiSceneEnum;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.ProjectConstant;
 import com.spt.learningmanage.constant.TaskStatusEnum;
@@ -50,6 +52,8 @@ import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.ai.TitleRenameSuggestionItemVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
+import com.spt.learningmanage.prompt.AiPromptTemplate;
+import com.spt.learningmanage.prompt.DefaultAiPromptTemplateProvider;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -102,83 +106,7 @@ public class AiServiceImpl implements AiService {
     private static final int LIST_REPLAN_STATUS_CANCELED = 2;
     private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
     private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
-    private static final String AI_SCENE_BREAKDOWN = "task-breakdown";
-    private static final String AI_SCENE_POLISH = "weekly-polish";
-    private static final String AI_SCENE_TODAY_ORDER = "today-order";
-    private static final String AI_SCENE_DAILY_REVIEW_RENAME = "daily-review-rename";
-    private static final String AI_SCENE_LIST_REPLAN = "list-replan";
-    private static final String PROMPT_TYPE_DEFAULT = "default";
-    private static final String PROMPT_TYPE_DETAILED = "detailed";
-    private static final String PROMPT_TYPE_WEEKLY_POLISH = "weekly-polish";
-    private static final String PROMPT_TYPE_LIST_REPLAN_PREVIEW = "preview";
     private static final Pattern DATE_TOKEN_PATTERN = Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
-
-    private static final String LIST_REPLAN_SYSTEM_PROMPT = "你是一个任务智能重排助手。"
-            + "请基于清单内全部任务进行分析，尤其要结合已完成任务历史来推断用户执行力。"
-            + "只允许重排未完成任务（status=0）。"
-            + "你必须只输出合法 JSON 对象，不要输出 Markdown 或解释文字。"
-            + "输出结构严格为："
-            + "{\"items\":[{\"taskId\":1,\"newTitle\":\"...\",\"newPriority\":2,\"newDueDate\":\"2026-04-20\",\"confidence\":85,\"reason\":\"...\"}]}"
-            + "约束：newPriority 必须是 0-3 的整数；newDueDate 必须是 yyyy-MM-dd 或 null；"
-            + "newTitle 必须简洁且长度不超过 60 个字符。";
-
-    private static final String DAILY_REVIEW_RENAME_SYSTEM_PROMPT = "你是一名任务命名优化助手。"
-            + "请基于当天任务完成情况，仅对未完成任务给出更清晰、可执行的任务标题。"
-            + "只输出合法 JSON 对象，不要输出 Markdown，不要输出解释文本。"
-            + "严格输出结构为："
-            + "{\"items\":[{\"taskId\":1,\"newTitle\":\"...\",\"reason\":\"...\",\"confidence\":80}]}"
-            + "约束："
-            + "1）taskId 必须来自用户提示中的 pendingTasks；"
-            + "2）items 数量必须小于等于用户给定的 maxEdits；"
-            + "3）newTitle 必须简洁、动作化，长度不超过60个字符；"
-            + "4）保持原任务意图，不得扩大范围；"
-            + "5）confidence 必须是 0-100 的整数；"
-            + "6）如果不需要改名，返回 {\"items\":[]}。";
-
-    private static final String TODAY_ORDER_SYSTEM_PROMPT = "你是任务调度助手。"
-            + "请基于任务难度、成本、效益、优先级与当前时间，给出今天任务的推荐完成顺序。"
-            + "只输出合法JSON对象，不要Markdown，不要解释文字。"
-            + "输出结构严格为："
-            + "{\"strategy\":\"balanced\",\"items\":[{\"taskId\":1,\"difficulty\":3,\"cost\":2,\"benefit\":5,\"estimatedMinutes\":30,\"reason\":\"...\"}]}。"
-            + "要求：difficulty/cost/benefit 必须是1-5整数；estimatedMinutes为10-240整数；items必须覆盖所有输入taskId且不重复。";
-
-    private static final String TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT = "你是一名资深项目经理与学习规划顾问。"
-            + "请根据用户目标、周期和补充描述，输出可执行的里程碑与任务拆解。"
-            + "硬性要求："
-            + "1) 只输出纯 JSON 数组，不要 Markdown，不要解释文字；"
-            + "2) 里程碑 2-4 个，按推进顺序组织；"
-            + "3) 每个里程碑 2-5 个任务；"
-            + "4) 每个任务对象必须且仅包含 name、priority、dueDate 三个字段；"
-            + "5) priority 必须是 0-3 的整数（0=无/稍后，1=低，2=中，3=高）；"
-            + "6) dueDate 必须是绝对日期，格式 yyyy-MM-dd，不允许相对日期；"
-            + "7) 里程碑 name 长度不超过100，任务 name 长度不超过60，避免重复和空泛。"
-            + "严格输出结构："
-            + "[{\"name\":\"里程碑\",\"tasks\":[{\"name\":\"任务1\",\"priority\":2,\"dueDate\":\"2026-04-20\"}]}]";
-
-    private static final String TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED = "你是一名资深项目经理与学习规划顾问。"
-            + "现在需要输出更细颗粒度、可落地的执行计划。"
-            + "硬性要求："
-            + "1) 只输出纯 JSON 数组，不要 Markdown，不要解释文字；"
-            + "2) 里程碑 3-4 个，必须体现阶段递进关系；"
-            + "3) 每个里程碑 4-6 个任务，任务要具体、可执行、可检查；"
-            + "4) 每个任务对象必须且仅包含 name、priority、dueDate 三个字段；"
-            + "5) priority 必须是 0-3 的整数（0=无/稍后，1=低，2=中，3=高）；"
-            + "6) dueDate 必须是绝对日期，格式 yyyy-MM-dd，不允许相对日期；"
-            + "7) 优先输出有产出物的任务，避免重复和空泛。"
-            + "8) 里程碑 name 长度不超过100，任务 name 长度不超过60。"
-            + "严格输出结构："
-            + "[{\"name\":\"里程碑\",\"tasks\":[{\"name\":\"任务1\",\"priority\":3,\"dueDate\":\"2026-04-20\"}]}]";
-
-    private static final String WEEKLY_POLISH_SYSTEM_PROMPT = "你是一个专业的职场与学业规划 AI 助手，擅长周复盘总结。"
-            + "请基于用户的任务上下文与主观反思，生成高质量本周复盘。"
-            + "硬性要求："
-            + "1) 只输出合法 JSON 字符串；"
-            + "2) 绝对不要输出 Markdown、代码块标记（如 ```json）或解释文字；"
-            + "3) 输出结构必须严格为：{\"review\":\"...\"}。"
-            + "内容要求："
-            + "A) review：100-220字，结构化描述（完成情况、关键进展、问题与原因）；"
-            + "B) 语气积极、具体，不空泛，不编造不存在的数据；"
-            + "C) 若用户未填写反思，也需基于任务上下文给出客观复盘。";
 
     @Resource
     private AiProperties aiProperties;
@@ -209,6 +137,9 @@ public class AiServiceImpl implements AiService {
     @Resource
     private AiCallLogService aiCallLogService;
 
+    @Resource
+    private DefaultAiPromptTemplateProvider defaultAiPromptTemplateProvider;
+
     @Override
     public String chat(String systemPrompt, String userPrompt) {
         if (StrUtil.isBlank(systemPrompt) || StrUtil.isBlank(userPrompt)) {
@@ -235,14 +166,17 @@ public class AiServiceImpl implements AiService {
             userPrompt = userPrompt + String.format("补充描述：%s。", description.trim());
         }
 
-        String systemPrompt = detailed ? TASK_BREAKDOWN_SYSTEM_PROMPT_DETAILED : TASK_BREAKDOWN_SYSTEM_PROMPT_DEFAULT;
+        AiPromptCodeEnum promptCode = detailed
+                ? AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED
+                : AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT;
+        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider.getRequired(promptCode);
+        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
-        String promptType = detailed ? PROMPT_TYPE_DETAILED : PROMPT_TYPE_DEFAULT;
         Long callLogId = createAiCallLogSafely(
                 userId,
-                AI_SCENE_BREAKDOWN,
+                promptTemplate.scene(),
                 modelName,
-                promptType,
+                promptTemplate.code(),
                 buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
@@ -355,20 +289,23 @@ public class AiServiceImpl implements AiService {
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
 
+        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
+                .getRequired(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT);
+        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getPolishModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                AI_SCENE_POLISH,
+                promptTemplate.scene(),
                 modelName,
-                PROMPT_TYPE_WEEKLY_POLISH,
-                buildAiCallRequestText(WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt),
+                promptTemplate.code(),
+                buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
 
         long startTime = System.currentTimeMillis();
         String aiRawContent;
         try {
-            aiRawContent = callAiWithFallback(modelName, WEEKLY_POLISH_SYSTEM_PROMPT, userPrompt);
+            aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
         } catch (BusinessException e) {
             markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             throw e;
@@ -413,7 +350,7 @@ public class AiServiceImpl implements AiService {
                 .set("duration", request.getDuration())
                 .set("detailed", detailed)
                 .set("milestones", drafts);
-        AiDraft draft = createDraft(userId, AI_SCENE_BREAKDOWN, payload.toString(), buildInputHash(payload.toString()));
+        AiDraft draft = createDraft(userId, AiSceneEnum.TASK_BREAKDOWN.getCode(), payload.toString(), buildInputHash(payload.toString()));
         AiBreakdownPreviewVO vo = new AiBreakdownPreviewVO();
         vo.setDraftId(draft.getDraftId());
         vo.setExpireAt(draft.getExpireAt());
@@ -425,7 +362,7 @@ public class AiServiceImpl implements AiService {
     @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId, String projectName, String projectGoal) {
         Long userId = getCurrentUserId();
-        AiDraft draft = getDraftByUserAndScene(userId, draftId, AI_SCENE_BREAKDOWN);
+        AiDraft draft = getDraftByUserAndScene(userId, draftId, AiSceneEnum.TASK_BREAKDOWN.getCode());
         AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
@@ -496,7 +433,7 @@ public class AiServiceImpl implements AiService {
         }
 
         markDraftConfirmed(draft.getId());
-        insertConfirmLog(userId, draftId, operationId, AI_SCENE_BREAKDOWN, project.getId());
+        insertConfirmLog(userId, draftId, operationId, AiSceneEnum.TASK_BREAKDOWN.getCode(), project.getId());
         return buildConfirmVO(false, project.getId());
     }
 
@@ -535,7 +472,7 @@ public class AiServiceImpl implements AiService {
                 .set("taskIds", request.getTaskIds())
                 .set("reflection", request.getReflection())
                 .set("polished", polished);
-        AiDraft draft = createDraft(userId, AI_SCENE_POLISH, payload.toString(), buildInputHash(payload.toString()));
+        AiDraft draft = createDraft(userId, AiSceneEnum.WEEKLY_POLISH.getCode(), payload.toString(), buildInputHash(payload.toString()));
 
         AiPolishPreviewVO vo = new AiPolishPreviewVO();
         vo.setDraftId(draft.getDraftId());
@@ -548,7 +485,7 @@ public class AiServiceImpl implements AiService {
     @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId) {
         Long userId = getCurrentUserId();
-        AiDraft draft = getDraftByUserAndScene(userId, draftId, AI_SCENE_POLISH);
+        AiDraft draft = getDraftByUserAndScene(userId, draftId, AiSceneEnum.WEEKLY_POLISH.getCode());
         AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
@@ -572,7 +509,7 @@ public class AiServiceImpl implements AiService {
         }
 
         markDraftConfirmed(draft.getId());
-        insertConfirmLog(userId, draftId, operationId, AI_SCENE_POLISH, reviewId);
+        insertConfirmLog(userId, draftId, operationId, AiSceneEnum.WEEKLY_POLISH.getCode(), reviewId);
         return buildConfirmVO(false, reviewId);
     }
 
@@ -636,20 +573,23 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildTodayOrderUserPrompt(tasks, strategy, now, today, zoneId);
+        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
+                .getRequired(AiPromptCodeEnum.TODAY_ORDER_DEFAULT);
+        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                AI_SCENE_TODAY_ORDER,
+                promptTemplate.scene(),
                 modelName,
-                strategy,
-                buildAiCallRequestText(TODAY_ORDER_SYSTEM_PROMPT, userPrompt),
+                promptTemplate.code(),
+                buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
 
         long startTime = System.currentTimeMillis();
         String aiRawContent;
         try {
-            aiRawContent = callAiWithFallback(modelName, TODAY_ORDER_SYSTEM_PROMPT, userPrompt);
+            aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
         } catch (Exception e) {
             markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}",
@@ -706,13 +646,16 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
+        AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
+                .getRequired(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT);
+        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
         Long callLogId = createAiCallLogSafely(
                 currentUserId,
-                AI_SCENE_DAILY_REVIEW_RENAME,
+                promptTemplate.scene(),
                 modelName,
-                strategy,
-                buildAiCallRequestText(DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt),
+                promptTemplate.code(),
+                buildAiCallRequestText(systemPrompt, userPrompt),
                 0
         );
 
@@ -720,7 +663,7 @@ public class AiServiceImpl implements AiService {
         long startTime = System.currentTimeMillis();
         String aiRawContent;
         try {
-            aiRawContent = callAiWithFallback(modelName, DAILY_REVIEW_RENAME_SYSTEM_PROMPT, userPrompt);
+            aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
         } catch (Exception e) {
             markAiCallFailedSafely(callLogId, e.getMessage(), elapsedSince(startTime));
             log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
@@ -788,7 +731,10 @@ public class AiServiceImpl implements AiService {
         List<ListTaskReplanItem> replanItems;
         try {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-            String aiRawContent = callAiWithFallback(aiProperties.getBreakdownModel(), LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
+            AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
+                    .getRequired(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
+            String aiRawContent = callAiWithFallback(
+                    aiProperties.getBreakdownModel(), promptTemplate.systemPrompt(), userPrompt);
             replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
         } catch (Exception e) {
             log.warn("AI 清单重排失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
@@ -840,19 +786,22 @@ public class AiServiceImpl implements AiService {
             replanItems = List.of();
         } else {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
+            AiPromptTemplate promptTemplate = defaultAiPromptTemplateProvider
+                    .getRequired(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
+            String systemPrompt = promptTemplate.systemPrompt();
             String modelName = resolveModel(aiProperties.getBreakdownModel());
             Long callLogId = createAiCallLogSafely(
                     currentUserId,
-                    AI_SCENE_LIST_REPLAN,
+                    promptTemplate.scene(),
                     modelName,
-                    PROMPT_TYPE_LIST_REPLAN_PREVIEW,
-                    buildAiCallRequestText(LIST_REPLAN_SYSTEM_PROMPT, userPrompt),
+                    promptTemplate.code(),
+                    buildAiCallRequestText(systemPrompt, userPrompt),
                     0
             );
 
             long startTime = System.currentTimeMillis();
             try {
-                String aiRawContent = callAiWithFallback(modelName, LIST_REPLAN_SYSTEM_PROMPT, userPrompt);
+                String aiRawContent = callAiWithFallback(modelName, systemPrompt, userPrompt);
                 try {
                     replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
                     markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
