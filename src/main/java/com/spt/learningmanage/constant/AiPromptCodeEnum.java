@@ -1,5 +1,6 @@
 package com.spt.learningmanage.constant;
 
+import cn.hutool.core.util.StrUtil;
 import lombok.Getter;
 
 /**
@@ -27,5 +28,18 @@ public enum AiPromptCodeEnum {
         this.code = code;
         this.scene = scene;
         this.description = description;
+    }
+
+    public static AiPromptCodeEnum fromCode(String code) {
+        if (StrUtil.isBlank(code)) {
+            return null;
+        }
+        String normalizedCode = code.trim();
+        for (AiPromptCodeEnum value : values()) {
+            if (StrUtil.equals(value.code, normalizedCode)) {
+                return value;
+            }
+        }
+        return null;
     }
 }
