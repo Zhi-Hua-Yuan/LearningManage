@@ -21,7 +21,7 @@ LearningManage 是一个学习管理系统后端项目，基于 Spring Boot 3 + 
 - 周总结：当前周草稿、保存、更新、历史列表
 - 数据看板：核心指标、项目排名、近 7 日趋势
 - AI 能力：
-  - 任务拆解（`/api/ai/breakdown`）
+  - 任务拆解草稿（正式流程：`/api/ai/breakdown/preview` → 查询草稿 → 确认或取消；`/api/ai/breakdown` 仅兼容旧版）
   - 今日任务排序推荐（`/api/ai/today-order/recommend`）
   - 周总结润色（`/api/ai/polish`）
 
@@ -58,12 +58,7 @@ src/main/java/com/spt/learningmanage
 ### 2. 初始化数据库
 
 1. 创建数据库：`learning_manage`
-2. 按顺序执行 `sql/` 目录下脚本：
-   - `init_user.sql`
-   - `init_project.sql`
-   - `init_milestone.sql`
-   - `init_task.sql`
-   - `init_weekly_review.sql`
+2. 按业务依赖顺序执行 `sql/` 目录下脚本。完整顺序、AI 相关表、已有数据库升级注意事项见 [后端运行与 AI 依赖使用说明](docs/backend-usage-guide.md)。
 
 ### 3. 配置环境
 
@@ -78,6 +73,8 @@ src/main/java/com/spt/learningmanage
 - `ai.api-key`
 - `ai.base-url`
 - `ai.model` / `ai.breakdown-model` / `ai.polish-model` / `ai.fallback-model`
+- `spring.data.redis.*`
+- `rate-limit.ai.*`
 
 建议通过环境变量覆盖敏感信息：
 
@@ -150,6 +147,11 @@ docker compose up -d --build
 - `40400`：资源不存在
 - `50000`：系统错误
 - `50001`：操作失败
+- `42900`：AI 请求过于频繁
+- `30001`：AI 服务暂时不可用
+- `30002`：AI 服务响应超时
+- `30003`：AI 返回结果格式异常
+- `30004`：AI 服务配置异常
 
 ## 快速验证
 
@@ -165,4 +167,14 @@ curl http://localhost:8123/api/health
 
 ---
 
-如需完整接口定义，优先以 Knife4j 文档页面为准：`/api/doc.html`。
+## 文档索引
+
+- [后端运行与 AI 依赖使用说明](docs/backend-usage-guide.md)
+- [AI 接口文档](docs/api/README.md)
+- [AI 草稿接口文档](docs/api/ai-draft-api.md)
+- [AI 调用记录接口文档](docs/api/ai-call-log-api.md)
+- [Redis AI 限流模块文档](docs/redis-rate-limit-module.md)
+- [AI 调用记录模块文档](docs/ai-call-log-module.md)
+- [Sprint 3 AI 草稿联调验收记录](docs/sprint/Sprint3_AI草稿联调验收记录.md)
+
+如需完整接口定义，优先以 Knife4j 文档页面和上述 API 文档为准：`/api/doc.html`。
