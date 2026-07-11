@@ -1,5 +1,7 @@
 # AI 调用记录模块交付文档
 
+> 面向前端联调的请求、响应和错误码契约见 [AI 调用记录接口文档](api/ai-call-log-api.md)。AI 草稿生成流程见 [AI 草稿接口文档](api/ai-draft-api.md)。本文件保留模块设计、数据口径、运维和测试说明。
+
 ## 一、模块目标
 
 AI 调用记录模块用于记录后端真实发起的大模型调用，支持后续排查 AI 调用失败、解析失败、耗时异常和不同 AI 场景的稳定性。
@@ -29,6 +31,9 @@ ai_call_log
 | `scene` | AI 调用场景 |
 | `model_name` | 实际调用模型名称 |
 | `prompt_type` | Prompt 类型或业务策略 |
+| `prompt_template_id` | 实际使用的数据库 Prompt 模板 ID；内置模板为空 |
+| `prompt_version` | 实际使用的 Prompt 版本 |
+| `prompt_source` | Prompt 来源：`database` 或 `builtin` |
 | `request_text` | 请求内容 |
 | `response_text` | 响应内容 |
 | `status` | 调用状态 |
