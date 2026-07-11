@@ -28,6 +28,8 @@ ai:
   breakdown-model: ${AI_BREAKDOWN_MODEL:}
   polish-model: ${AI_POLISH_MODEL:}
   fallback-model: ${AI_FALLBACK_MODEL:}
+  connect-timeout-ms: ${AI_CONNECT_TIMEOUT_MS:5000}
+  read-timeout-ms: ${AI_READ_TIMEOUT_MS:60000}
 
 #logging:
 #  level:

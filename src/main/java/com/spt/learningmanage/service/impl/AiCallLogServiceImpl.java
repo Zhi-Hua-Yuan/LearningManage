@@ -67,6 +67,26 @@ public class AiCallLogServiceImpl implements AiCallLogService {
     }
 
     @Override
+    public void updateExecutionMetadata(Long logId, String actualModel, Integer retryCount) {
+        if (logId == null || logId <= 0) {
+            return;
+        }
+        if (StrUtil.isBlank(actualModel) && retryCount == null) {
+            return;
+        }
+
+        LambdaUpdateWrapper<AiCallLog> wrapper = new LambdaUpdateWrapper<AiCallLog>()
+                .eq(AiCallLog::getId, logId);
+        if (StrUtil.isNotBlank(actualModel)) {
+            wrapper.set(AiCallLog::getModelName, actualModel.trim());
+        }
+        if (retryCount != null) {
+            wrapper.set(AiCallLog::getRetryCount, Math.max(retryCount, 0));
+        }
+        aiCallLogMapper.update(null, wrapper);
+    }
+
+    @Override
     public void markSuccess(Long logId, String responseText, Long costTimeMs) {
         updateLog(logId, AiCallLogStatusEnum.SUCCESS.getValue(), responseText, null, costTimeMs);
     }

@@ -12,6 +12,8 @@ public interface AiCallLogService {
 
     Long createRunningLog(AiCallLogCreateCommand command);
 
+    void updateExecutionMetadata(Long logId, String actualModel, Integer retryCount);
+
     void markSuccess(Long logId, String responseText, Long costTimeMs);
 
     void markFailed(Long logId, String errorMessage, Long costTimeMs);

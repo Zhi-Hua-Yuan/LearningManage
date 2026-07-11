@@ -29,4 +29,14 @@ public class AiProperties {
     private String polishModel;
 
     private String fallbackModel;
+
+    /**
+     * AI HTTP 建立连接的超时时间。
+     */
+    private Integer connectTimeoutMs = 5000;
+
+    /**
+     * AI HTTP 等待响应数据的超时时间。
+     */
+    private Integer readTimeoutMs = 60000;
 }

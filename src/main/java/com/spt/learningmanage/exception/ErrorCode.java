@@ -29,7 +29,15 @@ public enum ErrorCode {
      */
     USER_NOT_FOUND(20001, "用户不存在"),
     ACCOUNT_ALREADY_EXISTS(20002, "账号已存在"),
-    PASSWORD_ERROR(20003, "密码错误");
+    PASSWORD_ERROR(20003, "密码错误"),
+
+    /**
+     * AI 调用相关 (3xxxx)
+     */
+    AI_SERVICE_UNAVAILABLE(30001, "AI 服务暂时不可用"),
+    AI_REQUEST_TIMEOUT(30002, "AI 服务响应超时"),
+    AI_RESPONSE_INVALID(30003, "AI 返回结果格式异常"),
+    AI_CONFIG_ERROR(30004, "AI 服务配置异常");
 
     private final int code;
     private final String message;
