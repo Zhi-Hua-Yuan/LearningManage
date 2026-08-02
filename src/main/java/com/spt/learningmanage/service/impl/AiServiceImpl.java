@@ -176,12 +176,15 @@ public class AiServiceImpl implements AiService {
             userPrompt = userPrompt + String.format("补充描述：%s。", description.trim());
         }
 
+        // 获取提示词模版编码
         AiPromptCodeEnum promptCode = detailed
                 ? AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED
                 : AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT;
+        // 根据提示词编码去获取提示词模版
         AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(promptCode);
         String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
+        // 创建 AI 调用日志
         Long callLogId = createAiCallLogSafely(
                 userId,
                 modelName,
@@ -193,6 +196,7 @@ public class AiServiceImpl implements AiService {
         long startTime = System.currentTimeMillis();
         String aiRawContent;
         try {
+            // 调用 AI 模型，并获取结果
             aiRawContent = invokeAiWithLog(callLogId, modelName, systemPrompt, userPrompt, startTime).content();
         } catch (AiInvocationException e) {
             log.warn("AI 任务拆解调用失败: type={}, model={}", e.getFailureType(), e.getModelName(), e);
@@ -200,10 +204,13 @@ public class AiServiceImpl implements AiService {
         }
 
         try {
+            // 解析 AI 返回结果
             String jsonText = sanitizeJsonArrayText(aiRawContent);
             JSONArray jsonArray = JSONUtil.parseArray(jsonText);
             List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
+            // 检查每一个里程碑是否符合条件
             normalizeAndValidateDrafts(result);
+            // 检测结果风险并在有问题时记录日志
             logDraftLengthRisk(result, normalizedTarget, detailed);
             if (result == null || result.isEmpty()) {
                 throw new BusinessException(
@@ -211,6 +218,7 @@ public class AiServiceImpl implements AiService {
                         "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）"
                 );
             }
+            // AI 模型调用成功记录日志
             markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
             return result;
         } catch (BusinessException e) {
@@ -344,6 +352,7 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public AiBreakdownPreviewVO previewTaskBreakdown(AiBreakdownRequest request) {
+        // 详细模式与默认模式
         boolean detailed = request.getDetailed() != null && request.getDetailed();
         List<MilestoneDraftVO> drafts = generateTaskBreakdown(
                 request.getTarget(),
@@ -371,6 +380,7 @@ public class AiServiceImpl implements AiService {
     public AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId, String projectName, String projectGoal) {
         Long userId = getCurrentUserId();
         AiDraft draft = getDraftByUserAndScene(userId, draftId, AiSceneEnum.TASK_BREAKDOWN.getCode());
+        // 查询 operationId 是否已经处理
         AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
@@ -2181,6 +2191,16 @@ public class AiServiceImpl implements AiService {
         return Integer.toHexString(Objects.hashCode(raw));
     }
 
+    /**
+     * 创建 AI 调用日志
+     *
+     * @param userId
+     * @param modelName
+     * @param promptTemplate
+     * @param requestText
+     * @param retryCount
+     * @return
+     */
     private Long createAiCallLogSafely(Long userId,
                                        String modelName,
                                        AiPromptTemplate promptTemplate,
@@ -2210,10 +2230,13 @@ public class AiServiceImpl implements AiService {
                                                String userPrompt,
                                                long startTime) {
         try {
+            // 调用 AI 模型，并保存调用记录
             AiInvocationResult result = aiModelClient.invoke(modelName, systemPrompt, userPrompt);
+            // 更新调用元数据
             updateExecutionMetadataSafely(logId, result.actualModel(), result.retryCount());
             return result;
         } catch (AiInvocationException e) {
+            // 如果 AI 模型调用异常，则将其记录
             markInvocationFailedSafely(logId, e, elapsedSince(startTime));
             throw e;
         } catch (Exception e) {

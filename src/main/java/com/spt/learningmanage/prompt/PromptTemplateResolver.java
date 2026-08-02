@@ -33,6 +33,7 @@ public class PromptTemplateResolver {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "Prompt 模板编码不能为空");
         }
 
+        // 优先从数据库里获取提示词模版，如果有问题则获取兜底的默认提示词模版
         try {
             List<PromptTemplate> templates = promptTemplateMapper.selectList(
                     new LambdaQueryWrapper<PromptTemplate>()
