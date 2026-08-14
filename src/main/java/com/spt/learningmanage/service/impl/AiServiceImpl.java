@@ -660,38 +660,26 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildDailyReviewRenameUserPrompt(reviewDate, strategy, maxEdits, completedTasks, pendingTasks);
-        AiPromptTemplate promptTemplate = promptTemplateResolver
-                .resolve(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT);
-        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
-        Long callLogId = createAiCallLogSafely(
+        AiExecutionCommand command = new AiExecutionCommand(
                 currentUserId,
                 modelName,
-                promptTemplate,
-                buildAiCallRequestText(systemPrompt, userPrompt),
-                0
+                AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT,
+                userPrompt,
+                "AI 日报回顾改名结果格式异常"
         );
 
         List<TitleRenameSuggestionItemVO> suggestions;
-        long startTime = System.currentTimeMillis();
-        String aiRawContent;
         try {
-            aiRawContent = invokeAiWithLog(callLogId, modelName, systemPrompt, userPrompt, startTime).content();
+            suggestions = aiInvocationPipeline.execute(
+                    command,
+                    rawContent -> parseAndValidateRenameSuggestions(rawContent, pendingTasks, maxEdits)
+            ).data();
         } catch (AiInvocationException e) {
             log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}, type={}, model={}",
                     currentUserId, reviewDate, e.getFailureType(), e.getModelName(), e);
             suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
-            saveRenameLogs(currentUserId, reviewDate, operationId, suggestions);
-            result.setItems(suggestions);
-            return result;
-        }
-
-        try {
-            suggestions = parseAndValidateRenameSuggestions(aiRawContent, pendingTasks, maxEdits);
-            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
-        } catch (Exception e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent,
-                    "AI 日报回顾改名结果格式异常", elapsedSince(startTime));
+        } catch (AiResponseProcessingException e) {
             log.warn("AI 日报回顾改名结果解析失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
             suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
         }
