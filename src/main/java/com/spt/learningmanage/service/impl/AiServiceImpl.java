@@ -6,6 +6,8 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
+import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
@@ -17,6 +19,7 @@ import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.exception.AiInvocationException;
+import com.spt.learningmanage.exception.AiResponseProcessingException;
 import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
 import com.spt.learningmanage.mapper.AiDraftMapper;
 import com.spt.learningmanage.mapper.AiReplanItemMapper;
@@ -144,6 +147,9 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private PromptTemplateResolver promptTemplateResolver;
+
+    @Resource
+    private AiInvocationPipeline aiInvocationPipeline;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -591,39 +597,30 @@ public class AiServiceImpl implements AiService {
         }
 
         String userPrompt = buildTodayOrderUserPrompt(tasks, strategy, now, today, zoneId);
-        AiPromptTemplate promptTemplate = promptTemplateResolver
-                .resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT);
-        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
-        Long callLogId = createAiCallLogSafely(
+        AiExecutionCommand command = new AiExecutionCommand(
                 currentUserId,
                 modelName,
-                promptTemplate,
-                buildAiCallRequestText(systemPrompt, userPrompt),
-                0
+                AiPromptCodeEnum.TODAY_ORDER_DEFAULT,
+                userPrompt,
+                "AI 今日任务排序结果格式异常"
         );
 
-        long startTime = System.currentTimeMillis();
-        String aiRawContent;
         try {
-            aiRawContent = invokeAiWithLog(callLogId, modelName, systemPrompt, userPrompt, startTime).content();
+            AiTodayOrderVO aiResult = aiInvocationPipeline.execute(
+                    command,
+                    rawContent -> parseAndValidateTodayOrderResult(rawContent, tasks, strategy, now)
+            ).data();
+            aiResult.setGeneratedAt(LocalDateTime.now(zoneId).toString());
+            aiResult.setFallbackUsed(false);
+            return aiResult;
         } catch (AiInvocationException e) {
             log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}, type={}, model={}",
                     currentUserId, today, strategy, e.getFailureType(), e.getModelName(), e);
             result.setFallbackUsed(true);
             result.setItems(fallbackByRule(tasks, strategy, now));
             return result;
-        }
-
-        try {
-            AiTodayOrderVO aiResult = parseAndValidateTodayOrderResult(aiRawContent, tasks, strategy, now);
-            aiResult.setGeneratedAt(LocalDateTime.now(zoneId).toString());
-            aiResult.setFallbackUsed(false);
-            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
-            return aiResult;
-        } catch (Exception e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent,
-                    "AI 今日任务排序结果格式异常", elapsedSince(startTime));
+        } catch (AiResponseProcessingException e) {
             log.warn("AI今日任务排序结果解析失败，回退规则排序: userId={}, today={}, strategy={}",
                     currentUserId, today, strategy, e);
             result.setFallbackUsed(true);

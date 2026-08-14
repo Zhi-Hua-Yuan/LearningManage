@@ -2,6 +2,7 @@ package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -73,6 +75,12 @@ class AiServiceImplTodayOrderTest {
 
     @BeforeEach
     void setUp() {
+        AiInvocationPipeline pipeline = new AiInvocationPipeline(
+                promptTemplateResolver,
+                aiModelClient,
+                aiCallLogService
+        );
+        ReflectionTestUtils.setField(aiService, "aiInvocationPipeline", pipeline);
         UserHolder.set(USER_ID);
     }
 
