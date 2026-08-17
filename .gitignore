@@ -49,3 +49,4 @@ deploy/mysql-data/
 
 # 前端构建产物 (如果你把 dist 放进来了，建议忽略它，只传前端源码)
 deploy/dist/
+/.codex-tmp/
