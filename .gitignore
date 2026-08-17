@@ -40,7 +40,12 @@ Thumbs.db
 # =========================================================================
 # 5. 敏感配置文件 (核心建议)
 # 建议忽略包含敏感信息的配置文件，或者只上传 .example 模板
-src/main/resources/application-prod.yml
+.env
+.env.local
+.env.*.local
+application-local.yml
+application-*.local.yml
+!.env.example
 # 如果你在本地测试中有敏感配置，也可以忽略 dev 版本
 # application-dev.yml
 

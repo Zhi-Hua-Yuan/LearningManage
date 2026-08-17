@@ -4,8 +4,6 @@ server:
     context-path: /api
 
 spring:
-  profiles:
-    active: dev
   application:
     name: LearningManage
 
@@ -21,7 +19,7 @@ mybatis-plus:
 # AI 大模型配置 (阿里云通义千问)
 ai:
   # 使用 ${} 读取系统环境变量，冒号后面是默认值（如果没有配置环境变量就用默认值）
-  api-key: ${ALIYUN_API_KEY:please_set_your_api_key_in_env}
+  api-key: ${ALIYUN_API_KEY}
   # 阿里云百炼平台的 OpenAI 兼容接口地址
   base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
   model: qwen-plus
@@ -30,6 +28,11 @@ ai:
   fallback-model: ${AI_FALLBACK_MODEL:}
   connect-timeout-ms: ${AI_CONNECT_TIMEOUT_MS:5000}
   read-timeout-ms: ${AI_READ_TIMEOUT_MS:60000}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    expire-seconds: ${JWT_EXPIRE_SECONDS:86400}
 
 #logging:
 #  level:

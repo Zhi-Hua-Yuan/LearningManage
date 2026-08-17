@@ -11,7 +11,7 @@ import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.model.vo.user.UserLoginVo;
 import com.spt.learningmanage.model.vo.user.UserVO;
 import com.spt.learningmanage.service.UserService;
-import com.spt.learningmanage.utils.JwtUtils;
+import com.spt.learningmanage.service.JwtTokenService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -23,6 +23,9 @@ public class UserServiceImpl implements UserService {
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private JwtTokenService jwtTokenService;
 
     @Override
     public Long register(String userAccount, String username, String userPassword, String checkPassword) {
@@ -95,7 +98,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号或密码错误，请检查后重试");
         }
         // 签发 token
-        String token = JwtUtils.createToken(user.getId());
+        String token = jwtTokenService.createToken(user.getId());
         // 返回登录视图对象
         UserLoginVo vo = new UserLoginVo();
         vo.setId(user.getId());

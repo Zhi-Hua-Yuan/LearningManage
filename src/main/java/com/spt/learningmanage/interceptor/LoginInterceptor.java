@@ -2,7 +2,7 @@ package com.spt.learningmanage.interceptor;
 
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
-import com.spt.learningmanage.utils.JwtUtils;
+import com.spt.learningmanage.service.JwtTokenService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +14,12 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
+
+    private final JwtTokenService jwtTokenService;
+
+    public LoginInterceptor(JwtTokenService jwtTokenService) {
+        this.jwtTokenService = jwtTokenService;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -35,7 +41,10 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         // 3. 解析 Token
         try {
-            Long userId = JwtUtils.parseToken(token);
+            Long userId = jwtTokenService.parseToken(token);
+            if (userId == null) {
+                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            }
             // 4. 存储用户信息到 ThreadLocal
             UserHolder.set(userId);
             return true;
