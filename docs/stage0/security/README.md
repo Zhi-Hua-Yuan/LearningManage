@@ -27,3 +27,13 @@ $env:ALIYUN_API_KEY = 'your_local_api_key'
 ## 凭据轮换
 
 真实凭据轮换属于阶段 0.3-B，需要在阶段 0.3-A 验收后单独确认。当前代码改造不会主动让现有 Token 失效，也不会修改数据库账号。
+
+## 阶段 0.3-B1
+
+2026-08-18 已完成本机和当前仓库范围内的凭据轮换前置检查：
+
+- [凭据清单](credential-inventory-2026-08-18.md)
+- [轮换就绪报告](credential-rotation-readiness-2026-08-18.md)
+- [阶段 0.3-B2 运行手册](credential-rotation-runbook.md)
+
+B1 未创建账号、修改权限、轮换密钥、停用凭据或重启应用。B2 仍需确认外部部署范围、Redis 处理方式、凭据存储位置和阿里云 Key 所有权。
