@@ -2,6 +2,8 @@
 
 本目录记录阶段 0.4 PR 1（V1 设计和结构清单）的冻结结果。PR 1 只冻结设计、结构和参考数据边界，不引入 Flyway 依赖、不创建迁移 SQL、不连接或修改数据库。
 
+PR 2 已完成实现，详见 [pr2-implementation.md](pr2-implementation.md)。PR 2 仍默认关闭 Flyway，不执行现有数据库接管；接管和 baseline 留给 PR 3。
+
 ## 文档索引
 
 | 文档 | 用途 |
@@ -10,6 +12,7 @@
 | [v1-schema-manifest.md](v1-schema-manifest.md) | 20 张表的结构、索引和约束清单 |
 | [v1-reference-data-manifest.md](v1-reference-data-manifest.md) | 固定参考数据的保留、脱敏和播种策略 |
 | [v1-legacy-sql-diff.md](v1-legacy-sql-diff.md) | `sql/` 初始化脚本与审计快照的差异 |
+| [pr2-implementation.md](pr2-implementation.md) | Flyway 依赖、配置、V1 DDL 和验证记录 |
 
 ## 冻结对象
 

@@ -6,6 +6,14 @@ server:
 spring:
   application:
     name: LearningManage
+  flyway:
+    # PR 2 仅打包迁移能力；PR 3 完成接管演练后才允许按环境开启。
+    enabled: ${FLYWAY_ENABLED:false}
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+    out-of-order: false
 
 mybatis-plus:
   configuration:
