@@ -4,6 +4,8 @@
 
 PR 2 已完成实现，详见 [pr2-implementation.md](pr2-implementation.md)。PR 2 仍默认关闭 Flyway，不执行现有数据库接管；接管和 baseline 留给 PR 3。
 
+PR 3 已完成隔离演练：空库 V1 迁移见 [pr3-empty-db-rehearsal-2026-08-19.md](pr3-empty-db-rehearsal-2026-08-19.md)，已有结构库显式 baseline 接管见 [pr3-existing-db-baseline-rehearsal-2026-08-19.md](pr3-existing-db-baseline-rehearsal-2026-08-19.md)。两条路径均未连接或修改现有 3306 主库。
+
 ## 文档索引
 
 | 文档 | 用途 |
@@ -13,6 +15,8 @@ PR 2 已完成实现，详见 [pr2-implementation.md](pr2-implementation.md)。P
 | [v1-reference-data-manifest.md](v1-reference-data-manifest.md) | 固定参考数据的保留、脱敏和播种策略 |
 | [v1-legacy-sql-diff.md](v1-legacy-sql-diff.md) | `sql/` 初始化脚本与审计快照的差异 |
 | [pr2-implementation.md](pr2-implementation.md) | Flyway 依赖、配置、V1 DDL 和验证记录 |
+| [pr3-empty-db-rehearsal-2026-08-19.md](pr3-empty-db-rehearsal-2026-08-19.md) | 空库 V1 迁移实测记录 |
+| [pr3-existing-db-baseline-rehearsal-2026-08-19.md](pr3-existing-db-baseline-rehearsal-2026-08-19.md) | 已有结构库显式 baseline 接管实测记录 |
 
 ## 冻结对象
 
