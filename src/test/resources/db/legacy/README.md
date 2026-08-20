@@ -2,11 +2,13 @@
 
 本目录用于保存经过脱敏和规范化的 Flyway 接管前结构 fixture。
 
-## 计划文件
+## 文件
 
 ```text
 pre_flyway_v1_schema.sql
 ```
+
+状态：A2 已生成并完成离线审查。
 
 ## 用途
 
@@ -23,6 +25,16 @@ pre_flyway_v1_schema.sql
 ```
 
 源备份位于 Git 忽略目录，不提交到仓库。规范化后的 fixture 将在 A2 生成并重新计算 SHA-256。
+
+本次生成结果：
+
+```text
+fixture_sha256=1ECF286291C3276585DA18722348BC4D70FAC8B751C0563568CC4B58B417FF96
+table_count=20
+source_block_diff=0
+v1_block_diff=0
+database_execution=NOT_EXECUTED
+```
 
 ## 禁止内容
 
@@ -44,4 +56,15 @@ pre_flyway_v1_schema.sql
 - 不放入 `db/migration` 目录。
 - 不用于新环境安装。
 - 不连接或修改主库。
-- fixture 将在 A2 生成，当前目录只包含说明文件。
+- fixture 已在 A2 生成；数据库导入留给 A5。
+
+## A2 审查结果
+
+- 来源文件 SHA-256 与 PR5-A 记录一致；
+- 来源包含 20 个 `CREATE TABLE` 和 20 个 `DROP TABLE`；
+- fixture 仅保留 20 个严格 `CREATE TABLE` 定义；
+- 表顺序与 V1 冻结顺序一致；
+- fixture 与来源快照逐表定义差异为 0；
+- fixture 与 `V1__baseline_schema.sql` 逐表定义差异为 0；
+- 禁止内容扫描全部为 0；
+- 未连接或修改任何数据库。
