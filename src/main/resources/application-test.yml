@@ -1,4 +1,10 @@
 spring:
+  flyway:
+    # 测试默认关闭；需要空库启动验收时显式设置 FLYWAY_ENABLED=true，
+    # 并提供具备 DDL 权限的隔离迁移账号。
+    enabled: ${FLYWAY_ENABLED:false}
+    user: ${FLYWAY_DB_USERNAME:__flyway_migrator_not_configured__}
+    password: ${FLYWAY_DB_PASSWORD:__flyway_migrator_not_configured__}
   datasource:
     url: jdbc:mysql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:3306}/${TEST_DB_NAME:learning_manage_test}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: ${TEST_DB_USERNAME}

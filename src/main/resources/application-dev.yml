@@ -1,4 +1,9 @@
 spring:
+  flyway:
+    # 开发环境也必须显式开启；开启时提供 FLYWAY_DB_USERNAME/PASSWORD。
+    enabled: ${FLYWAY_ENABLED:false}
+    user: ${FLYWAY_DB_USERNAME:__flyway_migrator_not_configured__}
+    password: ${FLYWAY_DB_PASSWORD:__flyway_migrator_not_configured__}
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:learning_manage}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: ${DB_USERNAME}

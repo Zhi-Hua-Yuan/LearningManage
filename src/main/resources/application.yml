@@ -7,9 +7,13 @@ spring:
   application:
     name: LearningManage
   flyway:
-    # PR 2 仅打包迁移能力；PR 3 完成接管演练后才允许按环境开启。
+    # PR 4 提供显式切换；默认关闭，避免应用启动自动改写现有数据库。
     enabled: ${FLYWAY_ENABLED:false}
     locations: classpath:db/migration
+    # 迁移必须使用独立账号。占位值使误开启在未配置迁移账号时快速失败，
+    # 不会回退到仅有业务 DML 权限的应用账号。
+    user: ${FLYWAY_DB_USERNAME:__flyway_migrator_not_configured__}
+    password: ${FLYWAY_DB_PASSWORD:__flyway_migrator_not_configured__}
     baseline-on-migrate: false
     validate-on-migrate: true
     clean-disabled: true
