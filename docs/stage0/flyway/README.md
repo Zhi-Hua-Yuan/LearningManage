@@ -8,7 +8,9 @@ PR 3 已完成隔离演练：空库 V1 迁移见 [pr3-empty-db-rehearsal-2026-08
 
 PR 4 已完成应用配置切换与启动验证，记录见 [pr4-app-flyway-startup-2026-08-19.md](pr4-app-flyway-startup-2026-08-19.md)。应用默认不执行迁移；受控开启时必须提供独立的 `FLYWAY_DB_USERNAME` / `FLYWAY_DB_PASSWORD`，不会回退到业务应用账号。
 
-PR 5-A 已完成仓库侧接管准备、3306 主库只读前置审计、最新备份、真实数据隔离恢复和 baseline 演练，记录见 [pr5-a-main-takeover-preparation-2026-08-20.md](pr5-a-main-takeover-preparation-2026-08-20.md)。3306 主库尚未创建 `flyway_schema_history`，正式 baseline 留给 PR5-B 的受控维护窗口。
+PR 5-A 已完成仓库侧接管准备、3306 主库只读前置审计、最新备份、真实数据隔离恢复和 baseline 演练，记录见 [pr5-a-main-takeover-preparation-2026-08-20.md](pr5-a-main-takeover-preparation-2026-08-20.md)。
+
+PR 5-B 已完成 3306 `learning_manage` 主库 V1 显式 baseline 接管，记录见 [pr5-b-main-baseline-execution-2026-08-20.md](pr5-b-main-baseline-execution-2026-08-20.md)。主库现有业务表未被重建，`migrate` 执行数量为 0，应用默认仍关闭 Flyway。
 
 ## 文档索引
 
@@ -23,6 +25,7 @@ PR 5-A 已完成仓库侧接管准备、3306 主库只读前置审计、最新�
 | [pr3-existing-db-baseline-rehearsal-2026-08-19.md](pr3-existing-db-baseline-rehearsal-2026-08-19.md) | 已有结构库显式 baseline 接管实测记录 |
 | [pr4-app-flyway-startup-2026-08-19.md](pr4-app-flyway-startup-2026-08-19.md) | 应用 Flyway 开关、账号隔离与启动验证 |
 | [pr5-a-main-takeover-preparation-2026-08-20.md](pr5-a-main-takeover-preparation-2026-08-20.md) | 主库接管准备、前置守卫和执行门槛 |
+| [pr5-b-main-baseline-execution-2026-08-20.md](pr5-b-main-baseline-execution-2026-08-20.md) | 3306 主库 V1 显式 baseline 与后置验收 |
 
 ## 冻结对象
 
@@ -56,3 +59,7 @@ Windows 环境可以使用 `scripts/flyway-admin.ps1` 执行受控的 `info`、`
 - `FLYWAY_BASELINE_VERSION=1`。
 
 主库接管前后只读 SQL 位于 `sql/flyway/stage0/main/`。原始输出必须保存在仓库外的受限目录，不得提交业务数据、密码或完整连接参数。
+
+## 阶段 0.4 状态
+
+V1 设计、迁移实现、空库迁移、存量库接管演练、应用开关、主库 baseline 均已完成。下一项是阶段 0 CI/Docker 门禁，不得在 CI 完成前直接开始 V2 结构迁移。
