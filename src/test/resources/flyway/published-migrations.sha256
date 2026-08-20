@@ -1,0 +1,3 @@
+# Published Flyway migrations. Existing entries are append-only.
+# Format: SHA-256, two spaces, repository-relative path.
+E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9  src/main/resources/db/migration/V1__baseline_schema.sql

@@ -1,7 +1,7 @@
 # PR6-A 后端 CI 迁移门禁基础执行记录
 
 执行日期：2026-08-20（Asia/Shanghai）
-执行状态：进行中，A2 完成
+执行状态：进行中，A3 完成
 
 ## 1. 目标
 
@@ -81,7 +81,40 @@ fixture SHA-256：
 
 ### A3 V1 不可变检查
 
-状态：未开始
+状态：实现完成，待本地验证
+
+已建立：
+
+- .gitattributes 对迁移 SQL、fixture SQL 和哈希清单统一使用 LF；
+- src/test/resources/flyway/published-migrations.sha256 已登记 V1；
+- FlywayTestSupport 统一提供原始字节读取、SHA-256、表块和清单解析；
+- FlywayPublishedMigrationImmutabilityTest 检查 V1 哈希、清单覆盖、版本唯一性和非法清单；
+- FlywayLegacyFixtureStaticTest 检查 fixture 哈希、20 张表、逐表结构和禁止内容；
+- 负向测试验证修改 V1 字节后不会匹配冻结哈希。
+
+当前冻结哈希：
+
+v1_sha256=E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9
+legacy_fixture_sha256=1ECF286291C3276585DA18722348BC4D70FAC8B751C0563568CC4B58B417FF96
+
+A3 仍未连接数据库，也未创建 GitHub Actions。基于目标分支的迁移文件增删改策略留给 A4/PR6-B。
+
+本地验证结果：
+
+| 检查项 | 结果 |
+|---|---:|
+| Maven 全量测试 | 73 项通过，0 失败，0 错误 |
+| V1 固定 SHA-256 | 通过 |
+| fixture 固定 SHA-256 | 通过 |
+| 发布清单覆盖与版本唯一性 | 通过 |
+| 非法发布清单负向测试 | 通过 |
+| 修改 V1 字节负向测试 | 通过 |
+| fixture 逐表结构和禁止内容 | 通过 |
+| 跳过测试打包 | 成功 |
+| 生产 JAR 包含 V1 | 是 |
+| 生产 JAR 包含 fixture | 否 |
+| 生产 JAR 包含测试哈希清单 | 否 |
+| 数据库连接或修改 | 未执行 |
 
 ### A4 后端 CI 脚本
 
@@ -104,7 +137,7 @@ fixture SHA-256：
 - 禁止内容扫描：通过
 - `git diff --check`：通过
 - 数据库导入：未执行，留给 A5
-- Maven 全量测试：留给 A3/A6 统一执行
+- Maven 全量测试：A3 已执行并通过 73 项，A6 仍需最终复核
 
 ## 6. 数据库影响
 

@@ -1,2 +1,5 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+/src/main/resources/db/migration/*.sql text eol=lf
+/src/test/resources/db/legacy/*.sql text eol=lf
+/docs/stage0/flyway/*.sha256 text eol=lf
