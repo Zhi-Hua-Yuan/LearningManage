@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Zhi-Hua-Yuan/LearningManage/blob/develop/docs/stage0/ci/release-candidate-manifest.schema.json",
+  "title": "LearningManage cross-repository release candidate manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "reason",
+    "status",
+    "backend",
+    "frontend",
+    "flyway",
+    "docker",
+    "workflow"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "candidateId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "const": "PASS"
+    },
+    "backend": {
+      "$ref": "#/$defs/backend"
+    },
+    "frontend": {
+      "$ref": "#/$defs/frontend"
+    },
+    "flyway": {
+      "$ref": "#/$defs/flyway"
+    },
+    "docker": {
+      "$ref": "#/$defs/docker"
+    },
+    "workflow": {
+      "$ref": "#/$defs/workflow"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9A-F]{64}$"
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "sha",
+        "developShaAtStart",
+        "developShaAtEnd",
+        "testCount",
+        "jarSha256",
+        "rulesetContractSha256"
+      ],
+      "properties": {
+        "repository": {
+          "const": "Zhi-Hua-Yuan/LearningManage"
+        },
+        "sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "developShaAtStart": {
+          "$ref": "#/$defs/sha"
+        },
+        "developShaAtEnd": {
+          "$ref": "#/$defs/sha"
+        },
+        "testCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "jarSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rulesetContractSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "sha",
+        "developShaAtStart",
+        "developShaAtEnd",
+        "distManifestSha256",
+        "rulesetContractSha256"
+      ],
+      "properties": {
+        "repository": {
+          "const": "Zhi-Hua-Yuan/learning-manage-frontend"
+        },
+        "sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "developShaAtStart": {
+          "$ref": "#/$defs/sha"
+        },
+        "developShaAtEnd": {
+          "$ref": "#/$defs/sha"
+        },
+        "distManifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rulesetContractSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "flyway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publishedV1Sha256", "emptyDatabase", "existingDatabase"],
+      "properties": {
+        "publishedV1Sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "emptyDatabase": {
+          "const": "PASS"
+        },
+        "existingDatabase": {
+          "const": "PASS"
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backendRuntime", "applicationFlywayEnabled"],
+      "properties": {
+        "backendRuntime": {
+          "const": "PASS"
+        },
+        "applicationFlywayEnabled": {
+          "const": false
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "runAttempt", "workflowSha", "triggeredBy", "executedAt"],
+      "properties": {
+        "runId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "runAttempt": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "workflowSha": {
+          "$ref": "#/$defs/sha"
+        },
+        "triggeredBy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -13,6 +13,8 @@
 | `verify-empty-database.sh` | 验证空库 V1 迁移和二次迁移幂等性 |
 | `verify-existing-database.sh` | 验证 fixture 导入、显式 baseline 和 migrate(0) |
 | `verify-published-migrations.sh` | 验证哈希清单及相对目标分支的迁移不可变性 |
+| `validate-release-candidate.sh` | 验证跨仓候选输入、仓库身份、`develop` 最新性和运行期间分支稳定性 |
+| `create-release-manifest.sh` | 生成不含凭据的跨仓候选 Manifest 和 SHA-256 |
 | `tests/static-guards-test.sh` | 不连接数据库的静态负向保护自检 |
 
 ## 运行前提
@@ -56,6 +58,8 @@ FLYWAY_DB_USERNAME=learning_manage_ci_migrator
 - 日志不得包含密码、Token 或完整凭据。
 - baseline 授权只能作用于存量库脚本中的单次命令。
 - 数据库非空时直接失败，不自动清理或重建。
+- 跨仓候选只接受两个指定公开仓库的完整 SHA，且必须等于执行时各自 `develop` 最新提交。
+- 跨仓候选运行结束前重新检查两个 `develop`；分支移动时拒绝生成 PASS Manifest。
 
 ## A4 静态验证
 
