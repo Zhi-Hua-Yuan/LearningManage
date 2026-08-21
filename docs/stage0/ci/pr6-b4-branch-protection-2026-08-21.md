@@ -92,12 +92,14 @@ PR 作者不能批准自己的 PR，因此本仓库以结构化自审替代不�
 
 Ruleset 已按“Disabled 创建、核验、Active 激活”的顺序完成。GitHub Effective Rules API 已确认四类规则均命中 `develop`，且当前用户不能日常绕过（`current_user_can_bypass=never`）。
 
+验证 PR 首轮运行已确认五项 Backend CI 均为 `completed/success`。首轮通过后将 PR 从 Draft 转为 Ready，并通过本次记录更新验证新提交会使旧检查失效、重新触发完整门禁。
+
 ```text
 ruleset_id=21133622
 ruleset_url=https://github.com/Zhi-Hua-Yuan/LearningManage/rules/21133622
 ruleset_json_sha256=FB1892DF0C7927ECA7A83704ECED68D34115C07BCC1CA92938E001C270A4F92F
-validation_pr=<pending>
-validation_run=<pending>
+validation_pr=https://github.com/Zhi-Hua-Yuan/LearningManage/pull/21
+validation_run=https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32461067038
 merge_commit=<pending>
 post_merge_run=<pending>
 ```
