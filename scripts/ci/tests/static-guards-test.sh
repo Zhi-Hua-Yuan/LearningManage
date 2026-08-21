@@ -11,6 +11,9 @@ published_guard="${ci_dir}/verify-published-migrations.sh"
 dockerignore="${project_root}/.dockerignore"
 dockerfile="${project_root}/Dockerfile"
 ci_compose="${project_root}/deploy/docker-compose.ci.yml"
+release_common="${ci_dir}/lib/release-candidate-common.sh"
+release_workflow="${project_root}/.github/workflows/release-gate.yml"
+release_schema="${project_root}/docs/stage0/ci/release-candidate-manifest.schema.json"
 
 passed=0
 
@@ -29,7 +32,7 @@ expect_pass() {
 expect_fail() {
     local name="$1"
     shift
-    if "$@" >/dev/null 2>&1; then
+    if ("$@" >/dev/null 2>&1); then
         printf 'selftest.error=%s_expected_failure\n' "$name" >&2
         exit 1
     fi
@@ -78,6 +81,38 @@ check_ci_compose_contract() {
         && ! grep -Fq '"3306:3306"' "$ci_compose"
 }
 
+check_release_workflow_contract() {
+    [[ -f "$release_workflow" ]] || return 1
+    grep -Fqx 'name: Cross-repository release gate' "$release_workflow" \
+        && grep -Fq 'workflow_dispatch:' "$release_workflow" \
+        && grep -Fq 'permissions:' "$release_workflow" \
+        && grep -Fq 'contents: read' "$release_workflow" \
+        && grep -Fq 'cancel-in-progress: false' "$release_workflow" \
+        && grep -Fq 'repository: Zhi-Hua-Yuan/learning-manage-frontend' "$release_workflow" \
+        && grep -Fq 'persist-credentials: false' "$release_workflow" \
+        && grep -Fq 'Confirm both protected branches stayed unchanged' "$release_workflow" \
+        && grep -Fq 'FLYWAY_BASELINE_ON_MIGRATE: '\''false'\''' "$release_workflow" \
+        && ! grep -Eq '^[[:space:]]+(pull_request|push|schedule):' "$release_workflow" \
+        && ! grep -Fq 'pull_request_'"target" "$release_workflow" \
+        && ! grep -Fq 'learning_manage_app' "$release_workflow" \
+        && ! grep -Fq 'learning_manage_migrator' "$release_workflow" \
+        && ! grep -Fq 'DB_PORT: '\''3306'\''' "$release_workflow"
+}
+
+check_release_manifest_schema() {
+    [[ -f "$release_schema" ]] || return 1
+    grep -Fq '"schemaVersion"' "$release_schema" \
+        && grep -Fq '"candidateId"' "$release_schema" \
+        && grep -Fq '"backend"' "$release_schema" \
+        && grep -Fq '"frontend"' "$release_schema" \
+        && grep -Fq '"flyway"' "$release_schema" \
+        && grep -Fq '"workflow"' "$release_schema" \
+        && ! grep -Eiq 'password|token|api[-_]?key|secret' "$release_schema"
+}
+
+# shellcheck source=scripts/ci/lib/release-candidate-common.sh
+source "$release_common"
+
 valid_environment=(
     env -i
     "PATH=${PATH}"
@@ -109,6 +144,17 @@ expect_pass maven_wrapper_line_ending grep -Fx '/mvnw text eol=lf' .gitattribute
 expect_pass dockerignore_allowlist check_dockerignore_contract
 expect_pass dockerfile_contract check_dockerfile_contract
 expect_pass ci_compose_contract check_ci_compose_contract
+expect_pass release_workflow_contract check_release_workflow_contract
+expect_pass release_manifest_schema check_release_manifest_schema
+expect_pass release_valid_sha release_validate_sha 0123456789abcdef0123456789abcdef01234567
+expect_fail release_short_sha release_validate_sha 0123456789abcdef
+expect_fail release_branch_name release_validate_sha develop
+expect_pass release_valid_candidate_id release_validate_candidate_id stage0-20260821-001
+expect_fail release_path_traversal release_validate_candidate_id '../stage0'
+expect_fail release_candidate_id_too_long release_validate_candidate_id \
+    'stage0-20260821-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-extra'
+expect_pass release_valid_reason release_validate_reason 'PR6-D1 candidate validation'
+expect_fail release_multiline_reason release_validate_reason $'line1\nline2'
 
 printf 'selftest.success=true\n'
 printf 'selftest.cases=%s\n' "$passed"

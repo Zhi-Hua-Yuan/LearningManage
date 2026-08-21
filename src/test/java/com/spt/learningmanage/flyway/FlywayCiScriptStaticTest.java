@@ -1,12 +1,14 @@
 package com.spt.learningmanage.flyway;
 
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,6 +18,7 @@ class FlywayCiScriptStaticTest {
     private static final List<String> BASH_SCRIPTS = List.of(
             "scripts/flyway-admin.sh",
             "scripts/ci/lib/ci-common.sh",
+            "scripts/ci/lib/release-candidate-common.sh",
             "scripts/ci/assert-ci-database-target.sh",
             "scripts/ci/wait-for-mysql.sh",
             "scripts/ci/provision-ci-databases.sh",
@@ -23,6 +26,8 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/verify-existing-database.sh",
             "scripts/ci/verify-published-migrations.sh",
             "scripts/ci/verify-docker-runtime.sh",
+            "scripts/ci/validate-release-candidate.sh",
+            "scripts/ci/create-release-manifest.sh",
             "scripts/ci/tests/static-guards-test.sh"
     );
 
@@ -103,9 +108,14 @@ class FlywayCiScriptStaticTest {
                 "missing_authorization", "main_database", "port_3306", "localhost_host",
                 "external_host", "invalid_database_name", "expected_name_mismatch",
                 "production_migrator", "flyway_clean", "flyway_repair",
-                "published_invalid_base", "dockerfile_contract", "ci_compose_contract")) {
+                "published_invalid_base", "dockerfile_contract", "ci_compose_contract",
+                "release_short_sha", "release_branch_name", "release_path_traversal",
+                "release_candidate_id_too_long", "release_multiline_reason")) {
             assertTrue(selfTest.contains(caseName), caseName);
         }
+
+        Map<?, ?> workflow = new Yaml().load(read(".github/workflows/release-gate.yml"));
+        assertTrue(workflow.containsKey("jobs"));
     }
 
     private static String read(String relativePath) throws IOException {

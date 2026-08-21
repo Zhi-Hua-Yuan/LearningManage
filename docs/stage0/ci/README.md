@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A、PR6-B 已完成
+状态：PR6-A、PR6-B、PR6-C 已完成；PR6-D1 实施中
 
 ## 目标
 
@@ -23,8 +23,9 @@
 |---|---|---|
 | PR6-A | 后端 CI 脚本、存量库 fixture、V1 不可变检查 | 已完成 |
 | PR6-B | 后端 GitHub Actions、Docker 门禁和分支保护 | 已完成 |
-| PR6-C | 前端测试和前端 CI | 未开始 |
-| PR6-D | 跨仓发布门禁和阶段 0 验收 | 未开始 |
+| PR6-C | 前端测试、前端 CI 和分支保护 | 已完成 |
+| PR6-D1 | 跨仓候选发布工作流 | 实施中 |
+| PR6-D2～D4 | 全栈门禁、阶段 0 验收和证据封存 | 未开始 |
 
 ## PR6-A 实施步骤
 
@@ -55,3 +56,6 @@
 - [PR6-B2 Docker运行契约记录](pr6-b2-docker-runtime-contract-2026-08-21.md)
 - [PR6-B3 GitHub Actions远程验收记录](pr6-b3-backend-github-actions-2026-08-21.md)
 - [PR6-B4 分支保护执行记录](pr6-b4-branch-protection-2026-08-21.md)
+- [PR6-D1 跨仓候选发布工作流](pr6-d1-cross-repo-candidate-workflow-2026-08-21.md)
+- [跨仓候选发布运行手册](release-gate-runbook.md)
+- [候选 Manifest Schema](release-candidate-manifest.schema.json)
