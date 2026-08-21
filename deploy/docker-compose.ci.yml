@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: ${CI_MYSQL_IMAGE:?CI_MYSQL_IMAGE is required}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CI_MYSQL_ADMIN_PASSWORD:?CI_MYSQL_ADMIN_PASSWORD is required}
+    ports:
+      - "127.0.0.1:13306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  backend:
+    image: ${CI_BACKEND_IMAGE:?CI_BACKEND_IMAGE is required}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${CI_EMPTY_DB_NAME:?CI_EMPTY_DB_NAME is required}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${CI_EMPTY_DB_NAME:?CI_EMPTY_DB_NAME is required}
+      DB_USERNAME: ${TEST_DB_USERNAME:?TEST_DB_USERNAME is required}
+      DB_PASSWORD: ${TEST_DB_PASSWORD:?TEST_DB_PASSWORD is required}
+      FLYWAY_ENABLED: "false"
+      FLYWAY_DB_USERNAME: __flyway_migrator_not_configured__
+      FLYWAY_DB_PASSWORD: __flyway_migrator_not_configured__
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      AI_RATE_LIMIT_ENABLED: "false"
+      ALIYUN_API_KEY: ci-only-not-a-real-key
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+    ports:
+      - "127.0.0.1:18123:8123"

@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A A4 跨平台 CI 脚本已完成
+状态：PR6-A 已完成；PR6-B Docker运行契约建设中
 
 ## 目标
 
@@ -21,8 +21,8 @@
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| PR6-A | 后端 CI 脚本、存量库 fixture、V1 不可变检查 | 进行中 |
-| PR6-B | 后端 GitHub Actions 和 Docker 门禁 | 未开始 |
+| PR6-A | 后端 CI 脚本、存量库 fixture、V1 不可变检查 | 已完成 |
+| PR6-B | 后端 GitHub Actions 和 Docker 门禁 | B2 Docker契约进行中 |
 | PR6-C | 前端测试和前端 CI | 未开始 |
 | PR6-D | 跨仓发布门禁和阶段 0 验收 | 未开始 |
 
@@ -34,11 +34,22 @@
 | A2 | 生成并审查存量库 fixture | 已完成 |
 | A3 | 实现 V1 和已发布迁移不可变检查 | 已完成 |
 | A4 | 实现跨平台 CI 脚本 | 已完成 |
-| A5 | 隔离 MySQL 端到端验证 | 未开始 |
-| A6 | 完成记录、复核和提交 | 未开始 |
+| A5 | 隔离 MySQL 端到端验证 | 已完成 |
+| A6 | 完成记录、复核和提交 | 已完成 |
+
+## PR6-B 实施步骤
+
+| 步骤 | 内容 | 状态 |
+|---|---|---|
+| B1 | Linux构建权限和Docker构建上下文 | 已完成 |
+| B2 | Dockerfile、CI Compose和静态运行契约 | 已完成；真实Docker build待GitHub Runner |
+| B3 | 后端GitHub Actions编排 | 未开始 |
+| B4 | 首次远程运行和分支保护 | 未开始 |
 
 ## 文档索引
 
 - [PR6-A 执行记录](pr6-a-backend-ci-foundation-2026-08-20.md)
 - [CI 脚本说明](../../../scripts/ci/README.md)
 - [存量库 fixture 说明](../../../src/test/resources/db/legacy/README.md)
+- [CI Docker Compose](../../../deploy/docker-compose.ci.yml)
+- [PR6-B2 Docker运行契约记录](pr6-b2-docker-runtime-contract-2026-08-21.md)

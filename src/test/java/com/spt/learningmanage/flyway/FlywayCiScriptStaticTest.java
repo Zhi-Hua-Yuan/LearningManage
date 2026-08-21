@@ -39,6 +39,14 @@ class FlywayCiScriptStaticTest {
     }
 
     @Test
+    void dockerCiContractFilesUseLf() throws IOException {
+        for (String relativePath : List.of("Dockerfile", "deploy/docker-compose.ci.yml")) {
+            String text = read(relativePath);
+            assertFalse(text.contains("\r"), relativePath);
+        }
+    }
+
+    @Test
     void ciTargetGuardRejectsMainInstanceAndProductionIdentities() throws IOException {
         String common = read("scripts/ci/lib/ci-common.sh");
 
@@ -93,7 +101,7 @@ class FlywayCiScriptStaticTest {
                 "missing_authorization", "main_database", "port_3306", "localhost_host",
                 "external_host", "invalid_database_name", "expected_name_mismatch",
                 "production_migrator", "flyway_clean", "flyway_repair",
-                "published_invalid_base")) {
+                "published_invalid_base", "dockerfile_contract", "ci_compose_contract")) {
             assertTrue(selfTest.contains(caseName), caseName);
         }
     }

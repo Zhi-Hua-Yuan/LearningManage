@@ -23,6 +23,8 @@
 - `git`、`grep`、`awk`、`sha256sum`；
 - A5 本地临时 MySQL 使用非 3306 端口；
 - PR6-B GitHub Service Container 计划映射到 `127.0.0.1:13306`。
+- Docker 门禁使用 `deploy/docker-compose.ci.yml`，后端容器端口为 `127.0.0.1:18123`。
+- Docker 镜像只接收已经测试过的 `target/LearningManage-0.0.1-SNAPSHOT.jar`。
 
 ## 目标保护
 
