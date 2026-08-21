@@ -2,6 +2,7 @@
 /.dockerignore text eol=lf
 /Dockerfile text eol=lf
 /deploy/docker-compose.ci.yml text eol=lf
+/.github/workflows/*.yml text eol=lf
 *.cmd text eol=crlf
 /scripts/**/*.sh text eol=lf
 /src/main/resources/db/migration/*.sql text eol=lf

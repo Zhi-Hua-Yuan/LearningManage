@@ -22,6 +22,7 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/verify-empty-database.sh",
             "scripts/ci/verify-existing-database.sh",
             "scripts/ci/verify-published-migrations.sh",
+            "scripts/ci/verify-docker-runtime.sh",
             "scripts/ci/tests/static-guards-test.sh"
     );
 
@@ -65,7 +66,8 @@ class FlywayCiScriptStaticTest {
                 "scripts/ci/wait-for-mysql.sh",
                 "scripts/ci/provision-ci-databases.sh",
                 "scripts/ci/verify-empty-database.sh",
-                "scripts/ci/verify-existing-database.sh")) {
+                "scripts/ci/verify-existing-database.sh",
+                "scripts/ci/verify-docker-runtime.sh")) {
             String script = read(relativePath);
             int guard = script.indexOf("ci_assert_ci_target");
             int firstMysqlCall = script.indexOf("ci_mysql_");

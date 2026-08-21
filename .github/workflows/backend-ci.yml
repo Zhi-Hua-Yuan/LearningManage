@@ -1,0 +1,360 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Optional immutable base commit for migration checks
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  CI_EXPECTED_TEST_COUNT: '81'
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+
+jobs:
+  guard:
+    name: Guard and migration immutability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      base_ref: ${{ steps.resolve-base.outputs.base_ref }}
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+      - name: Resolve migration comparison base
+        id: resolve-base
+        shell: bash
+        env:
+          WORKFLOW_BASE_REF: ${{ inputs.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -Eeuo pipefail
+          candidate="$WORKFLOW_BASE_REF"
+          if [[ -z "$candidate" && "$EVENT_NAME" == "pull_request" ]]; then
+            candidate="$PR_BASE_SHA"
+          fi
+          if [[ -z "$candidate" || "$candidate" == "0000000000000000000000000000000000000000" ]]; then
+            candidate="$PUSH_BEFORE_SHA"
+          fi
+          if [[ -z "$candidate" || "$candidate" == "0000000000000000000000000000000000000000" ]]; then
+            candidate="HEAD^"
+          fi
+          base_commit="$(git rev-parse --verify "${candidate}^{commit}" 2>/dev/null)"
+          printf 'base_ref=%s\n' "$base_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Run shell and migration guards
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.resolve-base.outputs.base_ref }}
+        run: |
+          set -Eeuo pipefail
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          bash scripts/ci/tests/static-guards-test.sh
+          bash scripts/ci/verify-published-migrations.sh
+          git diff --check
+
+  backend-test:
+    name: Maven verification and tested artifact
+    needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_only
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_only --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_only
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_only
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_only
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      ALIYUN_API_KEY: ci-only-not-a-real-key
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! command -v mysql >/dev/null 2>&1 || ! command -v mysqladmin >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          fi
+      - name: Provision and verify empty database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Run Maven verification
+        run: ./mvnw -B -ntp verify
+      - name: Assert expected test count
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual_count="$(grep -hroE 'Tests run: [0-9]+' target/surefire-reports/*.txt | awk '{sum += $3} END {print sum + 0}')"
+          [[ "$actual_count" == "$CI_EXPECTED_TEST_COUNT" ]] || {
+            printf 'expected %s tests, got %s\n' "$CI_EXPECTED_TEST_COUNT" "$actual_count" >&2
+            exit 1
+          }
+      - name: Package tested backend JAR
+        id: package
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ -f target/LearningManage-0.0.1-SNAPSHOT.jar ]]
+          mkdir -p ci-artifacts
+          cp target/LearningManage-0.0.1-SNAPSHOT.jar ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar
+          (cd ci-artifacts && sha256sum LearningManage-0.0.1-SNAPSHOT.jar > backend.jar.sha256)
+          printf 'artifact_name=backend-jar-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ci-artifacts
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: surefire-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 7
+
+  flyway-empty:
+    name: Flyway empty database gate
+    needs: backend-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_empty
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_empty --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_empty
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_empty
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_empty
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! command -v mysql >/dev/null 2>&1 || ! command -v mysqladmin >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          fi
+      - name: Run empty database gate
+        run: |
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+
+  flyway-existing:
+    name: Flyway existing database gate
+    needs: flyway-empty
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_legacy
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_legacy --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_legacy
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_legacy
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_legacy
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_legacy
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_legacy
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! command -v mysql >/dev/null 2>&1 || ! command -v mysqladmin >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          fi
+      - name: Run existing database gate
+        run: |
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-existing-database.sh
+
+  docker-gate:
+    name: Docker runtime and migration gate
+    needs: [backend-test, flyway-existing]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_docker
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_docker
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_docker
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      CI_BACKEND_IMAGE: learningmanage-ci:${{ github.sha }}
+      CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
+      CI_COMPOSE_PROJECT_NAME: learningmanage-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_HEALTH_URL: http://127.0.0.1:18123/api/health
+      CI_EXPECTED_HISTORY_TOTAL: '1'
+      CI_EMPTY_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! command -v mysql >/dev/null 2>&1 || ! command -v mysqladmin >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          fi
+      - name: Download tested backend JAR
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-jar-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-artifacts
+      - name: Verify tested JAR checksum
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum --check ci-artifacts/backend.jar.sha256
+          mkdir -p target
+          cp ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar target/LearningManage-0.0.1-SNAPSHOT.jar
+      - name: Validate Docker tooling
+        run: |
+          docker version
+          docker compose version
+      - name: Build backend image
+        run: |
+          docker build --pull \
+            --build-arg RUNTIME_IMAGE=eclipse-temurin:17-jre-alpine@sha256:b0ae54a36f82e04dc6c45e40ca5c55762e20b9a0858ee457faf557d440a9b571 \
+            --tag "$CI_BACKEND_IMAGE" .
+      - name: Validate CI Compose contract
+        run: docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" config --quiet
+      - name: Start MySQL and provision empty database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d mysql
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Start backend and verify runtime gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d backend
+          bash scripts/ci/verify-docker-runtime.sh
+      - name: Capture Docker diagnostics
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/learningmanage-docker-logs"
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" ps \
+            > "$RUNNER_TEMP/learningmanage-docker-logs/compose-ps.txt" || true
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" logs --no-color \
+            > "$RUNNER_TEMP/learningmanage-docker-logs/compose-logs.txt" || true
+      - name: Upload Docker diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/learningmanage-docker-logs
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Tear down Docker stack
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" down --volumes --remove-orphans || true
+          docker image rm "$CI_BACKEND_IMAGE" || true
