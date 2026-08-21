@@ -1,7 +1,7 @@
 # 阶段 0 / PR6-B3：后端 GitHub Actions 与 Docker 门禁执行记录
 
 日期：2026-08-21
-状态：工作流已落地，等待 GitHub Linux Runner 首次执行验收
+状态：已通过 GitHub Linux Runner 远程验收
 
 ## 本次变更
 
@@ -26,6 +26,18 @@
 - 已完成工作流文件和脚本的静态检查准备，并更新 `FlywayCiScriptStaticTest` 覆盖 Docker 运行时脚本。
 - 本机 Docker Desktop Linux daemon 与 WSL 仍不可用，因此未在本地执行真实 Docker build、Compose 启动或 Bash 门禁脚本。
 - 首次 GitHub Linux Runner 执行是本 PR6-B3 的最终验收点；若失败，优先查看 `docker-diagnostics-*`、Surefire 报告和 job 日志。
+
+## 远程验收结果
+
+- 工作流运行：[#2](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32453122804)
+- 验收提交：`21dfdcd fix(ci): 修复Docker运行时脚本Bash语法`
+- 结果：成功
+- `Guard and migration immutability`：success
+- `Maven verification and tested artifact`：success
+- `Flyway empty database gate`：success
+- `Flyway existing database gate`：success
+- `Docker runtime and migration gate`：success
+- 首次运行因 Docker 运行时脚本 Bash 语法错误失败，已在 `21dfdcd` 修复后重跑通过。
 
 ## 验收标准
 
