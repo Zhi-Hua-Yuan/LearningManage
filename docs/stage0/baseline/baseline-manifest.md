@@ -57,7 +57,7 @@ health_status=200
 health_body_sha256=2be1ab8fc1d7e23f0d2f7a94343f5f97667935c345fd6169427cb5ee61605434
 openapi_status=200
 openapi_length_bytes=63663
-openapi_sha256=2ad2526a2f2c16aa2d3da716b326576960739a0f323a78675b2837c51a31b31f
+2ad2526a2f2c16aa2d3da716b326576960739a0f323a78675b2837c51a31b31f  openapi-document.json
 knife4j_status=200
 ```
 
@@ -82,4 +82,3 @@ frontend_github_workflows=ABSENT
 gitleaks=NOT_INSTALLED
 docker_daemon=UNAVAILABLE_AT_BASELINE_TIME
 ```
-
