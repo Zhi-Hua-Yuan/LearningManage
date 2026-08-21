@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A、PR6-B1 至 B3 已完成；PR6-B4 分支保护实施中
+状态：PR6-A、PR6-B 已完成
 
 ## 目标
 
@@ -22,7 +22,7 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | PR6-A | 后端 CI 脚本、存量库 fixture、V1 不可变检查 | 已完成 |
-| PR6-B | 后端 GitHub Actions、Docker 门禁和分支保护 | B1-B3 已完成；B4 实施中 |
+| PR6-B | 后端 GitHub Actions、Docker 门禁和分支保护 | 已完成 |
 | PR6-C | 前端测试和前端 CI | 未开始 |
 | PR6-D | 跨仓发布门禁和阶段 0 验收 | 未开始 |
 
@@ -44,7 +44,7 @@
 | B1 | Linux构建权限和Docker构建上下文 | 已完成 |
 | B2 | Dockerfile、CI Compose和静态运行契约 | 已完成 |
 | B3 | 后端GitHub Actions编排与远程Runner验收 | 已完成 |
-| B4 | 单人仓库Ruleset、必需状态检查和验证PR | 实施中 |
+| B4 | 单人仓库Ruleset、必需状态检查和验证PR | 已完成 |
 
 ## 文档索引
 
