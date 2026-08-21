@@ -1,7 +1,7 @@
 # PR6-A 后端 CI 迁移门禁基础执行记录
 
-执行日期：2026-08-20（Asia/Shanghai）
-执行状态：进行中，A4 完成
+执行日期：2026-08-20 至 2026-08-21（Asia/Shanghai）
+执行状态：完成（A1-A6）
 
 ## 1. 目标
 
@@ -162,11 +162,67 @@ A4 验证结果：
 
 ### A5 隔离 MySQL 验证
 
-状态：未开始
+状态：完成
+
+执行实例：
+
+```text
+mysql_version=8.0.41
+bind_address=127.0.0.1
+port=3311
+runtime=WSL 官方 MySQL 8.0.41 minimal archive
+archive_sha256=F50BBB1611955ACE3993F84590EFCD636D3B83550799110F8FCDDB04601B7219
+signature=fingerprint BCA43417C3B485DD128EC6D4B7B3B788A8D3785C，Good signature
+```
+
+由于 Windows 实例的本机回环地址无法从 WSL 可靠访问，本次使用官方 Linux minimal archive 在 WSL 中启动同版本临时实例；未放宽目标保护，也未使用 3306。签名对应官方 MySQL 归档文件，签名日期为 2024-12-17；本地密钥当前已过期，但签名验证结果为 Good。
+
+执行结果：
+
+| 检查项 | 结果 |
+|---|---:|
+| 临时账号及数据库创建 | 通过 |
+| 空库 V1 首次迁移 | 20 张业务表，历史表 1 张，共 21 张 |
+| 空库业务数据 | 0 行 |
+| 空库二次迁移 | 0 条新迁移 |
+| 空库重复执行负向保护 | 按预期拒绝，`empty_database_not_empty` |
+| 存量 fixture 哈希校验 | 通过，SHA-256 与冻结值一致 |
+| 存量库 baseline | 20 张业务表，历史表 1 张，共 21 张 |
+| 存量库 Flyway 历史 | 1 条 `BASELINE`，0 条 V1 `SQL` |
+| 存量库重复执行负向保护 | 按预期拒绝，`legacy_database_not_empty` |
+| 业务账号 DDL 探针 | 按预期拒绝 |
+| 主库名在临时实例上出现 | 0 个 |
+| 临时实例清理 | 已优雅关闭，WSL/Windows 3311 均已释放 |
+
+A5 全程未连接或修改 3306 主库。收尾复核时发现 Windows 的 `MySQL80` 进程（PID 6512）已监听 3306；未对该进程执行连接、停止或任何数据库操作，已记录为环境状态异常。
+
+证据目录（本地忽略目录，不进入提交）：
+
+```text
+.codex-tmp/pr6a-a5-evidence-20260820/
+```
+
+关键证据 SHA-256：
+
+```text
+11-post-verification.txt=2A4B26F3B5A3EB6C1A21280B21E7C7602935BB7807A755A4208690E0D2F4BFFB
+12-cleanup-verification.txt=5C96AB71B58225C3214D640ED3A6A28842D861ADF5BAE318BD4700BA7168C94F
+```
 
 ### A6 收尾
 
-状态：未开始
+状态：完成
+
+已完成：更新本记录、执行最终 Maven 测试和 `git diff --check`，并提交本地变更；未推送远程。
+
+最终收尾结果：
+
+```text
+maven_tests=78 passed, 0 failures, 0 errors
+git_diff_check=passed
+worktree_before_commit=only this execution record modified
+remote_push=not performed
+```
 
 ## 5. A1-A4 验证结果
 
@@ -176,17 +232,20 @@ A4 验证结果：
 - 20 张表逐表 V1 比较：通过
 - 禁止内容扫描：通过
 - `git diff --check`：通过
-- 数据库导入：未执行，留给 A5
-- Maven 全量测试：A3 已执行并通过 73 项，A6 仍需最终复核
+- 数据库导入：A5 两条隔离端到端路径通过
+- Maven 全量测试：A3 通过 73 项，A6 最终复核通过 78 项
 - A4 Bash 语法检查：9 个文件通过
 - A4 静态目标保护自检：14 项通过
 - A4 Maven 全量测试：78 项通过
 - 3306、主库名、非本机地址和正式账号负向保护：通过
 - 已发布迁移相对 `HEAD` 和 `origin/develop` 检查：通过
+- 空库 V1 迁移、二次迁移和重复执行拒绝：通过
+- 存量 fixture baseline、重复执行拒绝和业务账号 DDL 拒绝：通过
+- 临时 MySQL 8.0.41 已停止，A5 运行目录已清理
 
 ## 6. 数据库影响
 
-A1-A4 未连接、读取或修改任何数据库。A4 只完成脚本语法、静态契约和提前拒绝验证；实际临时数据库执行留给 A5。
+A1-A4 未连接、读取或修改任何数据库。A5 只连接 WSL `127.0.0.1:3311` 的临时 MySQL 8.0.41；未连接或修改 3306 主库。A5 结束后临时实例已停止，两个运行目录及 WSL 运行目录已删除，证据目录保留在本地忽略路径。
 
 ## 7. 安全检查
 
@@ -199,4 +258,4 @@ A1-A4 未连接、读取或修改任何数据库。A4 只完成脚本语法、�
 
 ## 8. 下一步
 
-进入 A5：在 `127.0.0.1:3311` 的隔离 MySQL 8.0.41 实例上执行临时账号创建、空库 V1 迁移和存量库 baseline 两条端到端路径。A5 仍不得连接或修改 3306 主实例。
+完成 A6 收尾后进入 PR6-B：将现有脚本接入 GitHub Actions，配置 MySQL service、迁移不可变门禁、空库迁移门禁和存量库 baseline 门禁；仍需保持 3306 主库隔离和正式凭据不可用。
