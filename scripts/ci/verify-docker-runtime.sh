@@ -18,10 +18,10 @@ ci_require_env "CI_HEALTH_URL"
 ci_require_env "CI_EXPECTED_HISTORY_TOTAL"
 
 compose=(docker compose --project-name "${CI_COMPOSE_PROJECT_NAME}" --file "${CI_COMPOSE_FILE}")
-backend_container="$("${compose[@]} ps -q backend)"
+backend_container=$("${compose[@]}" ps -q backend)
 [[ -n "$backend_container" ]] || ci_fail "docker_backend_container_missing"
 
-container_user="$(docker inspect --format '{{.Config.User}}' "$backend_container")"
+container_user=$(docker inspect --format '{{.Config.User}}' "$backend_container")
 [[ -n "$container_user" ]] || ci_fail "docker_backend_user_missing"
 [[ "$container_user" != "root" && "$container_user" != "0" ]] \
     || ci_fail "docker_backend_running_as_root"
@@ -29,7 +29,7 @@ container_user="$(docker inspect --format '{{.Config.User}}' "$backend_container
 deadline=$((SECONDS + 120))
 health_body=""
 while (( SECONDS < deadline )); do
-    if health_body="$(curl --fail --silent --show-error --max-time 5 "${CI_HEALTH_URL}" 2>/dev/null)"; then
+    if health_body=$(curl --fail --silent --show-error --max-time 5 "$CI_HEALTH_URL" 2>/dev/null); then
         if grep -Eq '"code"[[:space:]]*:[[:space:]]*0' <<<"$health_body"; then
             break
         fi
@@ -41,8 +41,7 @@ done
 grep -Eq '"code"[[:space:]]*:[[:space:]]*0' <<<"$health_body" \
     || ci_fail "docker_health_response_invalid"
 
-history_total="$(ci_mysql_migrator --database="${DB_NAME}" \
-    --execute='SELECT COUNT(*) FROM flyway_schema_history;')"
+history_total=$(ci_mysql_migrator --database="$DB_NAME" --execute='SELECT COUNT(*) FROM flyway_schema_history;')
 ci_assert_equals "${CI_EXPECTED_HISTORY_TOTAL}" "$history_total" \
     "docker_flyway_history_changed"
 ci_assert_application_ddl_denied
