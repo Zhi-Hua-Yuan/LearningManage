@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A 已完成；PR6-B Docker运行契约建设中
+状态：PR6-A、PR6-B1 至 B3 已完成；PR6-B4 分支保护实施中
 
 ## 目标
 
@@ -22,7 +22,7 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | PR6-A | 后端 CI 脚本、存量库 fixture、V1 不可变检查 | 已完成 |
-| PR6-B | 后端 GitHub Actions 和 Docker 门禁 | B2 Docker契约进行中 |
+| PR6-B | 后端 GitHub Actions、Docker 门禁和分支保护 | B1-B3 已完成；B4 实施中 |
 | PR6-C | 前端测试和前端 CI | 未开始 |
 | PR6-D | 跨仓发布门禁和阶段 0 验收 | 未开始 |
 
@@ -42,9 +42,9 @@
 | 步骤 | 内容 | 状态 |
 |---|---|---|
 | B1 | Linux构建权限和Docker构建上下文 | 已完成 |
-| B2 | Dockerfile、CI Compose和静态运行契约 | 已完成；真实Docker build待GitHub Runner |
-| B3 | 后端GitHub Actions编排 | 未开始 |
-| B4 | 首次远程运行和分支保护 | 未开始 |
+| B2 | Dockerfile、CI Compose和静态运行契约 | 已完成 |
+| B3 | 后端GitHub Actions编排与远程Runner验收 | 已完成 |
+| B4 | 单人仓库Ruleset、必需状态检查和验证PR | 实施中 |
 
 ## 文档索引
 
@@ -53,3 +53,5 @@
 - [存量库 fixture 说明](../../../src/test/resources/db/legacy/README.md)
 - [CI Docker Compose](../../../deploy/docker-compose.ci.yml)
 - [PR6-B2 Docker运行契约记录](pr6-b2-docker-runtime-contract-2026-08-21.md)
+- [PR6-B3 GitHub Actions远程验收记录](pr6-b3-backend-github-actions-2026-08-21.md)
+- [PR6-B4 分支保护执行记录](pr6-b4-branch-protection-2026-08-21.md)
