@@ -1,4 +1,5 @@
 /mvnw text eol=lf
+/.dockerignore text eol=lf
 *.cmd text eol=crlf
 /scripts/**/*.sh text eol=lf
 /src/main/resources/db/migration/*.sql text eol=lf
