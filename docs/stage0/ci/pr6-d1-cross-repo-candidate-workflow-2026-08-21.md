@@ -1,7 +1,7 @@
 # 阶段 0 / PR6-D1：跨仓候选发布工作流
 
 执行日期：2026-08-21（Asia/Shanghai）
-状态：本地实施与验收完成，远程 Runner 验收待完成
+状态：已完成
 
 ## 1. 目标
 
@@ -62,7 +62,47 @@ frontend_ruleset_id=21145113
 
 候选Run `32488088269`验证了深度为1的检出仅扫描1个冻结提交，但当前基线文档仍包含`openapi_sha256=<64位哈希>`形式，继续被默认`generic-api-key`规则解释为密钥赋值。该值是已公开的OpenAPI文档摘要，不是凭据。
 
-第二次修复不增加allowlist，而是把证据改为标准`sha256sum`格式`<摘要>  openapi-document.json`，完整保留摘要值并消除错误的密钥赋值语义。修复后的最终候选Run、Manifest和产物哈希待补充。
+第二次修复不增加allowlist，而是把证据改为标准`sha256sum`格式`<摘要>  openapi-document.json`，完整保留摘要值并消除错误的密钥赋值语义。修复PR [#25](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/25)通过五项Backend CI后受保护合并，提交为`3e7caeb876e4bb15865d07963fe0f118caf0d15b`。
+
+候选Run `32489396298`的后端完整快照扫描成功，随后前端完整快照将API文档中的高熵伪JWT识别为`generic-api-key`。前端修复PR [#15](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/15)把示例替换为明确的`<issued-jwt>`占位符，不增加allowlist；三项Frontend CI通过后由Ruleset受保护合并，提交为`7ed05ecb78b529a28d5d7602f85f154c2745fd77`。
+
+### 6.1 最终候选
+
+最终候选 [Run 32490153711](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32490153711) 于`2026-08-21T14:04:14Z`至`14:11:25Z`执行，候选ID为`stage0-pr6-d1-20260821-004`。
+
+| Job | 结论 |
+|---|---|
+| Freeze release candidate | PASS |
+| Guard backend candidate | PASS |
+| Guard both repositories | PASS |
+| Backend verification and tested artifact | PASS |
+| Frontend tests and static verification | PASS |
+| Frontend production build | PASS |
+| Flyway empty database gate | PASS |
+| Flyway existing database gate | PASS |
+| Backend Docker runtime gate | PASS |
+| Candidate manifest | PASS |
+
+### 6.2 Manifest证据
+
+```text
+candidate_id=stage0-pr6-d1-20260821-004
+backend_sha=3e7caeb876e4bb15865d07963fe0f118caf0d15b
+frontend_sha=7ed05ecb78b529a28d5d7602f85f154c2745fd77
+backend_test_count=81
+backend_jar_sha256=421CF8D89E158FBD440AE0D3243679238B3C6DFD421545DB5B95929EE487E682
+frontend_dist_manifest_sha256=B106AA7DC24EB0F209F27713AA5B5BA5828316FE2EA90139F1FE554F130D3A65
+v1_sha256=E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9
+backend_ruleset_contract_sha256=FB1892DF0C7927ECA7A83704ECED68D34115C07BCC1CA92938E001C270A4F92F
+frontend_ruleset_contract_sha256=82491817E5FA8485B84B488BD262758E419FBD0A0DC7720BE18D9B5D9A8294CF
+manifest_sha256=466D90C748ABAA6736BEF16785324B21FB72DCE9A4043C3A99CC176E6617F52B
+```
+
+Manifest中两个仓库的`developShaAtStart`、候选`sha`和`developShaAtEnd`分别完全一致；`status=PASS`，Flyway空库和存量库均为PASS，Docker运行门禁为PASS，`applicationFlywayEnabled=false`。本地下载后执行`sha256sum --check`通过，并再次复核上述状态契约。
+
+候选Run生成并保留后端JAR、Surefire报告、前端覆盖率、前端`dist`及候选Manifest五类产物。Docker诊断采集因无失败而跳过，产物上传和`Tear down Docker stack`均成功。全程只使用Runner临时MySQL 13306和Docker资源，未连接或修改3306主库，未部署环境，未推送正式镜像。
+
+候选004由其Manifest中的两个精确提交唯一标识；本执行记录的后续文档收尾提交不属于候选内容，不改变已封存候选证据。
 
 ## 7. 回滚
 
