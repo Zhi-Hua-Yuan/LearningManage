@@ -108,6 +108,9 @@ jobs:
       FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
       CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_only
       FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_only
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: '13306'
+      TEST_DB_NAME: learning_manage_ci_empty
       TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_only
       FLYWAY_BASELINE_ON_MIGRATE: 'false'
       ALIYUN_API_KEY: ci-only-not-a-real-key
@@ -305,7 +308,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          sha256sum --check ci-artifacts/backend.jar.sha256
+          (cd ci-artifacts && sha256sum --check backend.jar.sha256)
           mkdir -p target
           cp ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar target/LearningManage-0.0.1-SNAPSHOT.jar
       - name: Validate Docker tooling
