@@ -90,6 +90,7 @@ check_release_workflow_contract() {
         && grep -Fq 'cancel-in-progress: false' "$release_workflow" \
         && grep -Fq 'repository: Zhi-Hua-Yuan/learning-manage-frontend' "$release_workflow" \
         && grep -Fq 'persist-credentials: false' "$release_workflow" \
+        && [[ "$(grep -Fxc '          fetch-depth: 1' "$release_workflow")" -eq 2 ]] \
         && grep -Fq 'Confirm both protected branches stayed unchanged' "$release_workflow" \
         && grep -Fq 'FLYWAY_BASELINE_ON_MIGRATE: '\''false'\''' "$release_workflow" \
         && ! grep -Eq '^[[:space:]]+(pull_request|push|schedule):' "$release_workflow" \

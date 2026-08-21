@@ -56,7 +56,11 @@ frontend_ruleset_id=21145113
 
 ## 6. 远程验收
 
-待本PR通过现有五项Backend CI并受保护合并后执行。远程记录至少包含：工作流Run ID、两个最终SHA、所有Job结论、JAR SHA、dist清单SHA、Manifest SHA及临时资源清理结果。
+实现PR [#23](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/23) 已通过五项Backend CI并由Ruleset受保护合并，合并提交为`c506957362697235988e2490dab4100f667e9d83`；合并后的Backend CI Run `32486312678`五项Job全部成功。
+
+首次候选Run `32486780822`成功冻结后端`c506957362697235988e2490dab4100f667e9d83`和前端`901a025783fcb7933994d2d32ccce527046ee02a`，随后在后端Gitleaks步骤失败。原因是`workflow_dispatch`默认执行全历史扫描，并把已记录的`openapi_sha256`历史哈希误判为通用API Key；普通PR扫描此前已成功。
+
+修复原则：候选密钥扫描改为冻结提交的完整快照扫描，不添加宽泛忽略、不隐藏有效发现、不修改普通PR扫描。修复后的最终候选Run、Manifest和产物哈希待补充。
 
 ## 7. 回滚
 

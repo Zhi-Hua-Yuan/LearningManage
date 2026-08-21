@@ -40,6 +40,8 @@ Freeze release candidate
 
 最后一步会重新读取两个远端 `develop`。任一分支在运行期间移动时，候选会以 `STALE` 语义失败，必须使用新的精确 SHA 重新触发。
 
+密钥扫描针对冻结提交的完整候选快照执行。候选扫描使用深度为1的独立检出，使`workflow_dispatch`不会把已在阶段0基线中审计过的历史提交重新解释为本次候选泄漏；普通PR仍由现有Backend/Frontend CI扫描本次变更范围。
+
 ## 产物
 
 - 已测试的后端 JAR及其 SHA-256，保留30天；
