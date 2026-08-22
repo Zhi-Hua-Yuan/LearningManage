@@ -72,14 +72,14 @@ request_json POST /api/user/login \
 assert_success "$work_dir/login.json"
 token="$(jq -er '.data.token | select(type == "string" and length > 0)' "$work_dir/login.json")"
 # Jackson serializes Java Long values as strings for frontend precision safety.
-# Normalize the identifier back to a numeric value for request/evidence checks.
-user_id="$(jq -er '.data.id | tonumber' "$work_dir/login.json")"
+# Keep the identifier as a string so it matches the /me response shape too.
+user_id="$(jq -er '.data.id | tostring' "$work_dir/login.json")"
 printf '::add-mask::%s\n' "$password"
 printf '::add-mask::%s\n' "$token"
 
 request_json GET /api/user/me "" "$work_dir/me.json" "$token"
 assert_success "$work_dir/me.json"
-jq -e --argjson userId "$user_id" '.data.id == $userId' "$work_dir/me.json" >/dev/null \
+jq -e --arg userId "$user_id" '(.data.id | tostring) == $userId' "$work_dir/me.json" >/dev/null \
     || ci_fail "authenticated_user_mismatch"
 
 preview_request="$(json_body --arg target "D2-C-$RELEASE_CANDIDATE_ID" --arg duration "8周" \
