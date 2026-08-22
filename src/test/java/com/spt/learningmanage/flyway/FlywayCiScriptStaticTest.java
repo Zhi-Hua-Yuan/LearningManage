@@ -118,6 +118,19 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.containsKey("jobs"));
     }
 
+    @Test
+    void crossRepositoryGateVerifiesAndPackagesFrontendApiContract() throws IOException {
+        String workflow = read(".github/workflows/release-gate.yml");
+
+        assertTrue(workflow.contains("npm run contract:test && npm run contract:verify"));
+        assertTrue(workflow.contains("npm run contract:export"));
+        assertTrue(workflow.contains("contracts/frontend-api-contract.schema.json"));
+        assertTrue(workflow.contains("frontend-api-contract.sha256"));
+        assertTrue(workflow.contains("frontend_contract_sha256"));
+        assertTrue(workflow.contains("frontend_operation_count"));
+        assertTrue(workflow.contains("frontend_contract_schema_version"));
+    }
+
     private static String read(String relativePath) throws IOException {
         Path path = FlywayTestSupport.projectRoot().resolve(relativePath);
         return Files.readString(path, StandardCharsets.UTF_8);
