@@ -16,6 +16,7 @@ services:
       start_period: 10s
     networks:
       - release-internal
+      - ci-host-access
 
   ai-stub:
     image: ${CI_AI_STUB_IMAGE:?CI_AI_STUB_IMAGE is required}
@@ -80,3 +81,8 @@ services:
 networks:
   release-internal:
     internal: true
+  # Docker internal networks intentionally do not publish host ports. This
+  # loopback-only bridge is used solely by the Runner-side CI MySQL scripts;
+  # application services remain on release-internal and connect to mysql:3306.
+  ci-host-access:
+    driver: bridge

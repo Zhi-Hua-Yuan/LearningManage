@@ -13,7 +13,7 @@
   - Nginx 只发布 `127.0.0.1:18080`，后端仅 `expose: 8123`；
   - 后端 `FLYWAY_ENABLED=false`，使用独立迁移占位变量；
   - AI Base URL 固定指向同一内部网络中的 CI Stub；
-  - `release-internal` 网络启用 `internal: true`。
+  - 应用服务位于 `release-internal` 内部网络；MySQL 另接仅供 Runner 使用的 `ci-host-access` 回环桥接，以便既保留应用隔离又让既有数据库门禁脚本访问 `127.0.0.1:13306`。
 - `scripts/ci/stubs/ai-chat-completions-stub.py`
   - 仅实现健康检查和 OpenAI 兼容 Chat Completions；
   - 固定返回 2 个里程碑、4 个任务；
