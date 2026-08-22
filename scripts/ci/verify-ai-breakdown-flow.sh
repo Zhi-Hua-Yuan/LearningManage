@@ -120,7 +120,9 @@ assert_success "$work_dir/preview-confirm.json"
 confirm_draft_id="$(jq -er '.data.draftId | select(type == "string" and length > 0)' "$work_dir/preview-confirm.json")"
 confirm_milestone_count="$(jq -er '.data.milestones | length' "$work_dir/preview-confirm.json")"
 confirm_task_count="$(jq -er '[.data.milestones[].tasks[]] | length' "$work_dir/preview-confirm.json")"
-operation_id="confirm-$RELEASE_CANDIDATE_ID"
+# ai_draft_confirm_log.operation_id is VARCHAR(64); derive a bounded ID even
+# when a caller supplies a candidate ID at the maximum accepted length.
+operation_id="confirm-$(printf '%s' "$RELEASE_CANDIDATE_ID" | sha256sum | awk '{print substr($1, 1, 48)}')"
 project_name="D2-C-$RELEASE_CANDIDATE_ID"
 
 confirm_body="$(json_body --arg draftId "$confirm_draft_id" --arg operationId "$operation_id" \
