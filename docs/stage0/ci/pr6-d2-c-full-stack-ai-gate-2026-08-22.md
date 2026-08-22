@@ -1,6 +1,6 @@
 # PR6-D2-C：全栈运行与确定性 AI 流程门禁
 
-状态：本地实现与静态/单元验证完成；远程候选运行、受保护合并和 Artifact 下载验收待执行。
+状态：已完成。第 004 候选远程运行、证据下载校验和受保护合并均通过。
 
 ## 目标
 
@@ -40,10 +40,31 @@
 | `docker compose ... deploy/docker-compose.release-gate.yml config --quiet` | PASS |
 | Manifest Schema JSON 解析 | PASS |
 | `git diff --check` | PASS |
-| Maven 测试 | PASS，84 项，0 失败 |
+| Maven 测试 | PASS，候选 CI 84 项，0 失败 |
 | 3306 主库 | 未连接、未修改 |
 | 真实 AI 凭据/生产环境 | 未使用 |
 | 本地 Docker 全栈启动 | 未宣称通过；本机镜像层下载在构建阶段中断，未启动容器 |
+
+## 远程验收记录
+
+### 第 003 候选：失败与修复
+
+- 候选：`stage0-pr6-d2-c-20260822-003`，Run [32562375645](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32562375645)；
+- 冻结、双仓保护、后端/前端构建、Flyway 空库/存量库和全栈边缘/API 契约均通过；
+- AI 门禁在登录 ID 提取处失败，根因是 Jackson 将 `Long` 序列化为字符串，而脚本使用 `jq numbers`；
+- PR [#34](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/34) 修复登录/业务 ID 的字符串归一化与幂等比较，已受保护合并。
+
+### 第 004 候选：最终通过
+
+- 候选：`stage0-pr6-d2-c-20260822-004`；Run [32563964654](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32563964654)；
+- 后端候选 SHA：`bcda9d995b34b47c6da808077eb966d7d3d1321c`；前端候选 SHA：`cdff8f777843ab18f0c01c08d5f2ac7a82ec23e9`；
+- 10/10 Job 全部成功；后端 develop CI Run [32563658262](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32563658262) 5/5 全部成功；
+- OpenAPI `3.0.1`：前端 37、运行时 60、匹配 37、缺失 0；
+- Flyway 空库、存量库、Docker 运行和应用账号 DDL 拒绝均 PASS；
+- 全栈 AI Stub：预览、取消、确认、幂等重放均 PASS；确认后项目/里程碑/任务计数为 `1/2/4`，成功调用日志数为 `2`；
+- Manifest SHA-256：`AEC80AE7494E535D98F106D7AE816B81E661D551201A38C04495ABD4D791F7BD`；
+- 全栈证据 SHA-256：`C4D51F71C1D31EC311E44815B0E0680BB2CBC2B1D1A5C4A2FD4EBAED867A1162`；
+- API 契约报告、运行时 OpenAPI、全栈证据和 Manifest 下载后摘要校验均通过。
 
 ## 远程验收门槛
 
@@ -56,4 +77,4 @@
 5. 下载候选 Manifest 和全栈证据后再次校验摘要；
 6. 受保护 PR 合并后，两个仓库 `develop` 与候选 SHA 一致，工作区 clean。
 
-本记录不包含远程候选 ID、运行号或 PASS Manifest；这些字段必须由实际远程运行产生，不能预填。
+本次验收未连接或修改 3306 主库，未使用生产凭据，未部署正式环境或推送正式镜像。
