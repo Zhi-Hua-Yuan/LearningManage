@@ -1,7 +1,7 @@
 # PR6-D2-B2：后端运行时 OpenAPI 与前端接口存在性门禁
 
 执行日期：2026-08-22（Asia/Shanghai）
-状态：实现与本地验收完成，待受保护合并及跨仓候选验证
+状态：已实现、受保护合并，并完成跨仓候选验收
 
 ## 1. 目标与边界
 
@@ -38,7 +38,33 @@
 
 ## 5. 远程验收
 
-本节在实现 PR 受保护合并后补充：实现 PR、合并后 `develop` CI、跨仓候选 Run、候选 Manifest 和下载后 SHA-256 校验结果。
+实现 PR [#29](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/29) 已按 Ruleset 使用 Squash 方式受保护合并。
+
+- 合并提交：`7e4670e9e43260e5f1ab4f2013fa887eb4927cab`；
+- PR CI：[Run 32555308799](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32555308799)，五项 Job 全部 PASS；
+- 合并后 `develop` CI：[Run 32555569651](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32555569651)，五项 Job 全部 PASS，Maven 测试数量为 83；
+- 前端固定提交：`cdff8f777843ab18f0c01c08d5f2ac7a82ec23e9`，冻结期间前后 SHA 一致。
+
+跨仓候选 [Run 32555816201](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32555816201) 使用候选 ID `stage0-pr6-d2-b2-20260822-001`，10 个 Job 全部 PASS。运行时接口门禁证据如下：
+
+| 指标 | 结果 |
+|---|---:|
+| OpenAPI 版本 | `3.0.1` |
+| 前端契约操作数 | `37` |
+| 运行时 OpenAPI 操作数 | `60` |
+| 匹配操作数 | `37` |
+| 缺失操作数 | `0` |
+| 前端契约 SHA-256 | `39CA49E63C1D1F3C6F7D232180F57B20A668B14573AC6C2792C65C4A53F69035` |
+| 运行时文档 SHA-256 | `F2F2FA3DC3D4E70A99E6A356FB59E5636F160DE339DD1CEB4D250EEE433DA2D7` |
+| 比较报告 SHA-256 | `AB096EE147D560367EF9F9916E7D674B35DEEF4547996F579838F29530F4A9F5` |
+
+候选 Manifest 为 schemaVersion 2，`interfaceContract.existenceGate=PASS`，并记录以上接口数量与摘要。候选 Manifest SHA-256 为：
+
+```text
+813394F44AE06AEA63A4DBA319AECA77C75964913098193D1E9BBD67DBF7A0BB  release-candidate-manifest.json
+```
+
+下载候选 API contract 与 Manifest Artifact 后，`sha256sum --check` 对运行时文档、比较报告和 Manifest 均通过。
 
 ## 6. 回滚
 
