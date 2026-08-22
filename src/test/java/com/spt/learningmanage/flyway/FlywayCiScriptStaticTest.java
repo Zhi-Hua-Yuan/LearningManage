@@ -26,6 +26,7 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/verify-existing-database.sh",
             "scripts/ci/verify-published-migrations.sh",
             "scripts/ci/verify-docker-runtime.sh",
+            "scripts/ci/verify-runtime-api-contract.sh",
             "scripts/ci/validate-release-candidate.sh",
             "scripts/ci/create-release-manifest.sh",
             "scripts/ci/tests/static-guards-test.sh"
@@ -129,6 +130,27 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.contains("frontend_contract_sha256"));
         assertTrue(workflow.contains("frontend_operation_count"));
         assertTrue(workflow.contains("frontend_contract_schema_version"));
+    }
+
+    @Test
+    void runtimeApiContractGateExportsAndComparesFrozenInputs() throws IOException {
+        String workflow = read(".github/workflows/release-gate.yml");
+        String script = read("scripts/ci/verify-runtime-api-contract.sh");
+        String manifestScript = read("scripts/ci/create-release-manifest.sh");
+        String manifestSchema = read("docs/stage0/ci/release-candidate-manifest.schema.json");
+
+        assertTrue(workflow.contains("verify-runtime-api-contract.sh"));
+        assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL"));
+        assertTrue(workflow.contains("release-api-contract-"));
+        assertTrue(workflow.contains("schemaVersion == 2"));
+        assertTrue(workflow.contains("matched_operation_count"));
+        assertTrue(script.contains("/api/v3/api-docs") || workflow.contains("/api/v3/api-docs"));
+        assertTrue(script.contains("frontend_operation_missing_from_runtime_openapi"));
+        assertTrue(script.contains("runtime-openapi.json"));
+        assertTrue(manifestScript.contains("interfaceContract"));
+        assertTrue(manifestScript.contains("schemaVersion: 2"));
+        assertTrue(manifestSchema.contains("\"interfaceContract\""));
+        assertTrue(manifestSchema.contains("\"const\": 2"));
     }
 
     private static String read(String relativePath) throws IOException {

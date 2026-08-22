@@ -14,6 +14,7 @@ ci_compose="${project_root}/deploy/docker-compose.ci.yml"
 release_common="${ci_dir}/lib/release-candidate-common.sh"
 release_workflow="${project_root}/.github/workflows/release-gate.yml"
 release_schema="${project_root}/docs/stage0/ci/release-candidate-manifest.schema.json"
+runtime_contract="${ci_dir}/verify-runtime-api-contract.sh"
 
 passed=0
 
@@ -122,6 +123,18 @@ check_frontend_contract_workflow() {
         && grep -Fq 'frontend_contract_schema_version' "$release_workflow"
 }
 
+check_runtime_api_contract_workflow() {
+    [[ -f "$runtime_contract" ]] || return 1
+    grep -Fq 'verify-runtime-api-contract.sh' "$release_workflow" \
+        && grep -Fq 'CI_RUNTIME_OPENAPI_URL' "$release_workflow" \
+        && grep -Fq 'release-api-contract-' "$release_workflow" \
+        && grep -Fq 'schemaVersion == 2' "$release_workflow" \
+        && grep -Fq 'interfaceContract' "$release_schema" \
+        && grep -Fq 'schemaVersion: 2' "$project_root/scripts/ci/create-release-manifest.sh" \
+        && grep -Fq 'frontend_operation_missing_from_runtime_openapi' "$runtime_contract" \
+        && ! grep -Eiq 'password|token|api[-_]?key|secret' "$runtime_contract"
+}
+
 # shellcheck source=scripts/ci/lib/release-candidate-common.sh
 source "$release_common"
 
@@ -159,6 +172,7 @@ expect_pass ci_compose_contract check_ci_compose_contract
 expect_pass release_workflow_contract check_release_workflow_contract
 expect_pass release_manifest_schema check_release_manifest_schema
 expect_pass frontend_contract_workflow check_frontend_contract_workflow
+expect_pass runtime_api_contract_workflow check_runtime_api_contract_workflow
 expect_pass release_valid_sha release_validate_sha 0123456789abcdef0123456789abcdef01234567
 expect_fail release_short_sha release_validate_sha 0123456789abcdef
 expect_fail release_branch_name release_validate_sha develop

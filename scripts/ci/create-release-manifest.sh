@@ -13,6 +13,9 @@ for name in \
     BACKEND_DEVELOP_END FRONTEND_DEVELOP_END V1_SHA256 \
     BACKEND_RULESET_SHA256 FRONTEND_RULESET_SHA256 \
     BACKEND_TEST_COUNT BACKEND_JAR_SHA256 FRONTEND_DIST_MANIFEST_SHA256 \
+    FRONTEND_CONTRACT_SHA256 RUNTIME_DOCUMENT_SHA256 COMPARISON_REPORT_SHA256 \
+    FRONTEND_OPERATION_COUNT RUNTIME_OPERATION_COUNT MATCHED_OPERATION_COUNT MISSING_OPERATION_COUNT \
+    RUNTIME_OPENAPI_VERSION \
     WORKFLOW_RUN_ID WORKFLOW_RUN_ATTEMPT WORKFLOW_SHA WORKFLOW_ACTOR WORKFLOW_EXECUTED_AT; do
     release_require_env "$name"
 done
@@ -26,10 +29,22 @@ for value in \
 done
 for value in \
     "$V1_SHA256" "$BACKEND_RULESET_SHA256" "$FRONTEND_RULESET_SHA256" \
-    "$BACKEND_JAR_SHA256" "$FRONTEND_DIST_MANIFEST_SHA256"; do
+    "$BACKEND_JAR_SHA256" "$FRONTEND_DIST_MANIFEST_SHA256" \
+    "$FRONTEND_CONTRACT_SHA256" "$RUNTIME_DOCUMENT_SHA256" "$COMPARISON_REPORT_SHA256"; do
     release_validate_sha256 "$value"
 done
 [[ "$BACKEND_TEST_COUNT" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_backend_test_count"
+for value in \
+    "$FRONTEND_OPERATION_COUNT" "$RUNTIME_OPERATION_COUNT" \
+    "$MATCHED_OPERATION_COUNT" "$MISSING_OPERATION_COUNT"; do
+    [[ "$value" =~ ^[0-9]+$ ]] || release_fail "invalid_api_contract_operation_count"
+done
+[[ "$FRONTEND_OPERATION_COUNT" -ge 1 ]] || release_fail "invalid_frontend_operation_count"
+[[ "$MISSING_OPERATION_COUNT" == "0" ]] || release_fail "api_contract_has_missing_operation"
+[[ "$MATCHED_OPERATION_COUNT" == "$FRONTEND_OPERATION_COUNT" ]] \
+    || release_fail "api_contract_match_count_mismatch"
+[[ "$RUNTIME_OPENAPI_VERSION" =~ ^3\.[0-9]+([.][0-9]+)?$ ]] \
+    || release_fail "invalid_runtime_openapi_version"
 [[ "$WORKFLOW_RUN_ID" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_workflow_run_id"
 [[ "$WORKFLOW_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_workflow_run_attempt"
 
@@ -50,14 +65,22 @@ jq -n \
     --arg frontendRulesetSha256 "$FRONTEND_RULESET_SHA256" \
     --arg backendJarSha256 "$BACKEND_JAR_SHA256" \
     --arg frontendDistManifestSha256 "$FRONTEND_DIST_MANIFEST_SHA256" \
+    --arg frontendContractSha256 "$FRONTEND_CONTRACT_SHA256" \
+    --arg runtimeDocumentSha256 "$RUNTIME_DOCUMENT_SHA256" \
+    --arg comparisonReportSha256 "$COMPARISON_REPORT_SHA256" \
+    --arg runtimeOpenapiVersion "$RUNTIME_OPENAPI_VERSION" \
     --arg workflowRunId "$WORKFLOW_RUN_ID" \
     --arg workflowRunAttempt "$WORKFLOW_RUN_ATTEMPT" \
     --arg workflowSha "$WORKFLOW_SHA" \
     --arg workflowActor "$WORKFLOW_ACTOR" \
     --arg workflowExecutedAt "$WORKFLOW_EXECUTED_AT" \
     --argjson backendTestCount "$BACKEND_TEST_COUNT" \
+    --argjson frontendOperationCount "$FRONTEND_OPERATION_COUNT" \
+    --argjson runtimeOperationCount "$RUNTIME_OPERATION_COUNT" \
+    --argjson matchedOperationCount "$MATCHED_OPERATION_COUNT" \
+    --argjson missingOperationCount "$MISSING_OPERATION_COUNT" \
     '{
-        schemaVersion: 1,
+        schemaVersion: 2,
         candidateId: $candidateId,
         reason: $reason,
         status: "PASS",
@@ -77,6 +100,19 @@ jq -n \
             developShaAtEnd: $frontendDevelopEnd,
             distManifestSha256: $frontendDistManifestSha256,
             rulesetContractSha256: $frontendRulesetSha256
+        },
+        interfaceContract: {
+            existenceGate: "PASS",
+            frontendSchemaVersion: 1,
+            frontendBasePath: "/api",
+            runtimeOpenapiVersion: $runtimeOpenapiVersion,
+            frontendOperationCount: $frontendOperationCount,
+            runtimeOperationCount: $runtimeOperationCount,
+            matchedOperationCount: $matchedOperationCount,
+            missingOperationCount: $missingOperationCount,
+            frontendContractSha256: $frontendContractSha256,
+            runtimeDocumentSha256: $runtimeDocumentSha256,
+            comparisonReportSha256: $comparisonReportSha256
         },
         flyway: {
             publishedV1Sha256: $v1Sha256,
