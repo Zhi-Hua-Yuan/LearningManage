@@ -1,7 +1,7 @@
 # PR6-D2-B1：前端接口契约接入跨仓候选门禁
 
 执行日期：2026-08-22（Asia/Shanghai）
-状态：已完成并通过受保护合并及合并后 CI
+状态：D2-B1 实现已合并；跨仓候选验证待 D2-B2
 
 ## 1. 目标
 
@@ -49,7 +49,7 @@ frontend-api-contract.schema.json
 - 未启动 Docker，未连接数据库，未访问 3306 主库；
 - 当前环境执行 `bash scripts/ci/tests/static-guards-test.sh` 时，Bash 进程被 Windows 沙箱以 `E_ACCESSDENIED` 拒绝启动，因此该 shell 自测未记为通过，待 Ubuntu CI Runner 执行。
 
-## 5. 远程验收结果
+## 5. 远程实现验收结果
 
 实现 PR [#27](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/27) 已按 Ruleset 使用 Squash 方式受保护合并。
 
@@ -75,13 +75,14 @@ frontend-api-contract.schema.json
 - 远程 `develop` 当前 SHA 为 `541b8bf286f62d81cd3183aeceaf641c2d5414f3`；
 - Review Thread 已解决，未使用管理员绕过、强制推送或直接写入 `develop`。
 
-本阶段已确认：
+本阶段实现已确认：
 
-- 前端契约验证通过；
-- 契约操作数量为 37；
-- 契约 SHA-256 下载后校验通过；
-- Artifact 同时包含 dist、契约、Schema 和各自摘要；
-- 候选期间两个受保护 `develop` 未发生变化。
+- 工作流包含前端契约验证、导出、Schema 和 SHA-256 校验逻辑；
+- 前端构建 Artifact 定义包含 dist、契约、Schema 和各自摘要；
+- 新增的静态测试和测试数量同步已通过后端 CI；
+- 实现 PR 和合并后的后端 `develop` CI 均通过五项门禁。
+
+本记录尚未声称跨仓候选验证完成：截至本次收口，尚未执行 `release-gate.yml`，因此尚无 D2-B 候选 ID、跨仓 Manifest、前端冻结 SHA 的候选期末复核或候选 Artifact 下载证据。上述验证将在 D2-B2 的候选运行中完成。
 
 跨仓候选中实际运行时 OpenAPI 导出和前后端接口存在性比对属于下一步 D2-B2，不在本记录的验收范围内。
 
