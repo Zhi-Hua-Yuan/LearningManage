@@ -71,13 +71,15 @@ request_json POST /api/user/login \
     "$work_dir/login.json"
 assert_success "$work_dir/login.json"
 token="$(jq -er '.data.token | select(type == "string" and length > 0)' "$work_dir/login.json")"
-user_id="$(jq -er '.data.id | numbers' "$work_dir/login.json")"
+# Jackson serializes Java Long values as strings for frontend precision safety.
+# Keep the identifier as a string so it matches the /me response shape too.
+user_id="$(jq -er '.data.id | tostring' "$work_dir/login.json")"
 printf '::add-mask::%s\n' "$password"
 printf '::add-mask::%s\n' "$token"
 
 request_json GET /api/user/me "" "$work_dir/me.json" "$token"
 assert_success "$work_dir/me.json"
-jq -e --argjson userId "$user_id" '.data.id == $userId' "$work_dir/me.json" >/dev/null \
+jq -e --arg userId "$user_id" '(.data.id | tostring) == $userId' "$work_dir/me.json" >/dev/null \
     || ci_fail "authenticated_user_mismatch"
 
 preview_request="$(json_body --arg target "D2-C-$RELEASE_CANDIDATE_ID" --arg duration "8周" \
@@ -129,7 +131,7 @@ confirm_body="$(json_body --arg draftId "$confirm_draft_id" --arg operationId "$
     --arg projectName "$project_name" '{draftId:$draftId,operationId:$operationId,projectName:$projectName,projectGoal:"CI AI breakdown gate"}')"
 request_json POST /api/ai/breakdown/confirm "$confirm_body" "$work_dir/confirm.json" "$token"
 assert_success "$work_dir/confirm.json"
-business_id="$(jq -er '.data.businessId | numbers' "$work_dir/confirm.json")"
+business_id="$(jq -er '.data.businessId | tonumber' "$work_dir/confirm.json")"
 jq -e '.data.success == true and .data.idempotentReplay == false' "$work_dir/confirm.json" >/dev/null \
     || ci_fail "confirm_first_result_invalid"
 
@@ -140,8 +142,8 @@ jq -e '.data.status == 1' "$work_dir/confirm-detail.json" >/dev/null \
 
 request_json POST /api/ai/breakdown/confirm "$confirm_body" "$work_dir/replay.json" "$token"
 assert_success "$work_dir/replay.json"
-jq -e --argjson businessId "$business_id" \
-    '.data.success == true and .data.idempotentReplay == true and .data.businessId == $businessId' \
+jq -e --arg businessId "$business_id" \
+    '.data.success == true and .data.idempotentReplay == true and (.data.businessId | tostring) == $businessId' \
     "$work_dir/replay.json" >/dev/null || ci_fail "confirm_idempotent_replay_invalid"
 
 request_json GET "/api/project/list?pageNum=1&pageSize=1000&keyword=${project_name}" "" \
