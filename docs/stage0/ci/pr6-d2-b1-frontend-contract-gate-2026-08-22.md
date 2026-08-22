@@ -1,13 +1,13 @@
 # PR6-D2-B1：前端接口契约接入跨仓候选门禁
 
 执行日期：2026-08-22（Asia/Shanghai）
-状态：本地实现完成，待受保护 PR 与远程候选验收
+状态：已完成并通过受保护合并及合并后 CI
 
 ## 1. 目标
 
 将前端 PR6-D2-A 生成的接口契约接入后端跨仓候选工作流。候选工作流必须从冻结的前端提交重新验证并导出契约，校验摘要和 Schema 后再打包前端产物，为后续 PR6-D2-B 的后端运行时 OpenAPI 比对提供不可变输入。
 
-本次只完成契约接入，不启动后端 Docker、MySQL、Redis、Qdrant 或部署环境。
+本地实施阶段未启动后端 Docker、MySQL、Redis、Qdrant 或部署环境；远程 CI 仅使用 Runner 隔离资源。
 
 ## 2. 冻结输入
 
@@ -49,11 +49,33 @@ frontend-api-contract.schema.json
 - 未启动 Docker，未连接数据库，未访问 3306 主库；
 - 当前环境执行 `bash scripts/ci/tests/static-guards-test.sh` 时，Bash 进程被 Windows 沙箱以 `E_ACCESSDENIED` 拒绝启动，因此该 shell 自测未记为通过，待 Ubuntu CI Runner 执行。
 
-## 5. 远程验收要求
+## 5. 远程验收结果
 
-实现 PR 必须通过后端 Ruleset 的五项必需检查并受保护合并。合并后，使用合并产生的后端新 `develop` SHA 和前端固定 SHA `cdff8f777843ab18f0c01c08d5f2ac7a82ec23e9` 运行跨仓候选工作流。
+实现 PR [#27](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/27) 已按 Ruleset 使用 Squash 方式受保护合并。
 
-本阶段预期确认：
+修订后的实现提交为 `8e62f07`，同步更新了后端 CI 和跨仓候选工作流的期望测试数量 `82`。
+
+最终 PR CI：[Run 32553165338](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32553165338)
+
+| Job | 结论 |
+|---|---|
+| Guard and migration immutability | PASS |
+| Maven verification and tested artifact | PASS |
+| Flyway empty database gate | PASS |
+| Flyway existing database gate | PASS |
+| Docker runtime and migration gate | PASS |
+
+合并提交：`541b8bf286f62d81cd3183aeceaf641c2d5414f3`
+
+合并后的 `develop` CI：[Run 32553494594](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/32553494594)
+
+- 五项 Job 全部 PASS；
+- Maven 测试数量断言为 82 并通过；
+- Docker runtime、Flyway 和清理步骤全部通过；
+- 远程 `develop` 当前 SHA 为 `541b8bf286f62d81cd3183aeceaf641c2d5414f3`；
+- Review Thread 已解决，未使用管理员绕过、强制推送或直接写入 `develop`。
+
+本阶段已确认：
 
 - 前端契约验证通过；
 - 契约操作数量为 37；
@@ -61,8 +83,8 @@ frontend-api-contract.schema.json
 - Artifact 同时包含 dist、契约、Schema 和各自摘要；
 - 候选期间两个受保护 `develop` 未发生变化。
 
-后端运行时 OpenAPI 导出和前后端存在性比对属于下一步 D2-B2，不在本记录的验收范围内。
+跨仓候选中实际运行时 OpenAPI 导出和前后端接口存在性比对属于下一步 D2-B2，不在本记录的验收范围内。
 
 ## 6. 回滚
 
-若远程验证发现工作流契约接入问题，通过新的受保护 PR 回滚本次工作流和静态测试改动。不得禁用 Ruleset、跳过契约验证、增加生产凭据或扩大数据库权限。
+若后续发现工作流契约接入问题，通过新的受保护 PR 回滚本次工作流和静态测试改动。不得禁用 Ruleset、跳过契约验证、增加生产凭据或扩大数据库权限。
