@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A、PR6-B、PR6-C、PR6-D1 已完成
+状态：PR6-A、PR6-B、PR6-C、PR6-D1、PR6-D2-B2 已完成；PR6-D2-C 已完成本地实现，待远程候选验收
 
 ## 目标
 
@@ -25,7 +25,8 @@
 | PR6-B | 后端 GitHub Actions、Docker 门禁和分支保护 | 已完成 |
 | PR6-C | 前端测试、前端 CI 和分支保护 | 已完成 |
 | PR6-D1 | 跨仓候选发布工作流 | 已完成 |
-| PR6-D2～D4 | 全栈门禁、阶段 0 验收和证据封存 | 未开始 |
+| PR6-D2-C | Nginx 全栈运行、确定性 AI 流程和幂等门禁 | 本地实现完成，远程候选待验收 |
+| PR6-D3～D4 | 阶段 0 验收和证据封存 | 待 PR6-D2-C 通过后执行 |
 
 ## PR6-A 实施步骤
 
@@ -57,5 +58,7 @@
 - [PR6-B3 GitHub Actions远程验收记录](pr6-b3-backend-github-actions-2026-08-21.md)
 - [PR6-B4 分支保护执行记录](pr6-b4-branch-protection-2026-08-21.md)
 - [PR6-D1 跨仓候选发布工作流](pr6-d1-cross-repo-candidate-workflow-2026-08-21.md)
+- [PR6-D2-B2 运行时 OpenAPI 契约门禁](pr6-d2-b2-runtime-openapi-contract-2026-08-22.md)
+- [PR6-D2-C 全栈 AI 门禁执行记录](pr6-d2-c-full-stack-ai-gate-2026-08-22.md)
 - [跨仓候选发布运行手册](release-gate-runbook.md)
 - [候选 Manifest Schema](release-candidate-manifest.schema.json)

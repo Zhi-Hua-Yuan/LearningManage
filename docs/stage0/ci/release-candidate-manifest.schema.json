@@ -14,11 +14,12 @@
     "flyway",
     "docker",
     "interfaceContract",
+    "fullStackRuntime",
     "workflow"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 2
+      "const": 3
     },
     "candidateId": {
       "type": "string",
@@ -46,6 +47,9 @@
     },
     "interfaceContract": {
       "$ref": "#/$defs/interfaceContract"
+    },
+    "fullStackRuntime": {
+      "$ref": "#/$defs/fullStackRuntime"
     },
     "workflow": {
       "$ref": "#/$defs/workflow"
@@ -155,6 +159,64 @@
         },
         "applicationFlywayEnabled": {
           "const": false
+        }
+      }
+    },
+    "fullStackRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate",
+        "frontendViaNginx",
+        "apiProxy",
+        "aiProvider",
+        "aiBreakdownFlow",
+        "cancelFlow",
+        "confirmFlow",
+        "idempotentReplay",
+        "confirmedProjectCount",
+        "confirmedMilestoneCount",
+        "confirmedTaskCount",
+        "evidenceSha256"
+      ],
+      "properties": {
+        "gate": {
+          "const": "PASS"
+        },
+        "frontendViaNginx": {
+          "const": "PASS"
+        },
+        "apiProxy": {
+          "const": "PASS"
+        },
+        "aiProvider": {
+          "const": "deterministic-ci-stub"
+        },
+        "aiBreakdownFlow": {
+          "const": "PASS"
+        },
+        "cancelFlow": {
+          "const": "PASS"
+        },
+        "confirmFlow": {
+          "const": "PASS"
+        },
+        "idempotentReplay": {
+          "const": "PASS"
+        },
+        "confirmedProjectCount": {
+          "const": 1
+        },
+        "confirmedMilestoneCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "confirmedTaskCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "evidenceSha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
