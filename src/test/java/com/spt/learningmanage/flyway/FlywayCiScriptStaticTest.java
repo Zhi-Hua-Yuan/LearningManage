@@ -174,6 +174,7 @@ class FlywayCiScriptStaticTest {
         assertTrue(compose.contains("FLYWAY_ENABLED: \"false\""));
         assertTrue(compose.contains("internal: true"));
         assertTrue(compose.contains("ci-host-access"));
+        assertTrue(compose.contains("ci-edge-access"));
         assertTrue(flow.contains("/api/ai/breakdown/preview"));
         assertTrue(flow.contains("idempotentReplay"));
         assertTrue(flow.contains("full-stack-ai-flow-evidence.json"));

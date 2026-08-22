@@ -147,6 +147,7 @@ check_full_stack_ai_contract() {
         && grep -Fq 'CI_FRONTEND_DIST_DIR' "$release_compose" \
         && grep -Fq 'internal: true' "$release_compose" \
         && grep -Fq 'ci-host-access' "$release_compose" \
+        && grep -Fq 'ci-edge-access' "$release_compose" \
         && grep -Fq 'verify-ai-breakdown-flow.sh' "$release_workflow" \
         && grep -Fq 'release-full-stack-' "$release_workflow" \
         && grep -Fq 'fullStackRuntime' "$release_schema" \

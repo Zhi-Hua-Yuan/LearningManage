@@ -77,6 +77,7 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - release-internal
+      - ci-edge-access
 
 networks:
   release-internal:
@@ -85,4 +86,8 @@ networks:
   # loopback-only bridge is used solely by the Runner-side CI MySQL scripts;
   # application services remain on release-internal and connect to mysql:3306.
   ci-host-access:
+    driver: bridge
+  # Keep the Runner-facing edge bridge separate from MySQL's host-access
+  # bridge so the edge container cannot reach the database through it.
+  ci-edge-access:
     driver: bridge
