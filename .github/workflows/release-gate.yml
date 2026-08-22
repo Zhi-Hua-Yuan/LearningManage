@@ -291,6 +291,8 @@ jobs:
         run: npm run test:coverage
       - name: Type-check
         run: npm run type-check
+      - name: Verify frontend API contract
+        run: npm run contract:test && npm run contract:verify
       - name: Verify checks did not modify tracked files
         run: git diff --exit-code
       - name: Upload frontend coverage
@@ -310,6 +312,9 @@ jobs:
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
       dist_manifest_sha256: ${{ steps.package.outputs.dist_manifest_sha256 }}
+      frontend_contract_sha256: ${{ steps.package.outputs.frontend_contract_sha256 }}
+      frontend_operation_count: ${{ steps.package.outputs.frontend_operation_count }}
+      frontend_contract_schema_version: ${{ steps.package.outputs.frontend_contract_schema_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -335,13 +340,25 @@ jobs:
             echo 'sensitive configuration marker found in dist' >&2
             exit 1
           fi
+          command -v jq >/dev/null 2>&1
           mkdir -p ci-artifacts
+          npm run contract:export
+          cp contracts/frontend-api-contract.schema.json ci-artifacts/frontend-api-contract.schema.json
+          (cd ci-artifacts && sha256sum --check frontend-api-contract.sha256)
+          frontend_contract_sha256="$(sha256sum ci-artifacts/frontend-api-contract.json | awk '{print toupper($1)}')"
+          frontend_operation_count="$(jq -er '.operations | length' ci-artifacts/frontend-api-contract.json)"
+          frontend_contract_schema_version="$(jq -er '.schemaVersion' ci-artifacts/frontend-api-contract.json)"
+          [[ "$frontend_operation_count" =~ ^[1-9][0-9]*$ ]]
+          [[ "$frontend_contract_schema_version" == '1' ]]
           cp -R dist ci-artifacts/dist
           (cd ci-artifacts && find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist.sha256)
           dist_manifest_sha256="$(sha256sum ci-artifacts/dist.sha256 | awk '{print toupper($1)}')"
           artifact_name="release-frontend-dist-${{ needs.freeze-candidate.outputs.candidate_id }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
           printf 'dist_manifest_sha256=%s\n' "$dist_manifest_sha256" >> "$GITHUB_OUTPUT"
+          printf 'frontend_contract_sha256=%s\n' "$frontend_contract_sha256" >> "$GITHUB_OUTPUT"
+          printf 'frontend_operation_count=%s\n' "$frontend_operation_count" >> "$GITHUB_OUTPUT"
+          printf 'frontend_contract_schema_version=%s\n' "$frontend_contract_schema_version" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.package.outputs.artifact_name }}

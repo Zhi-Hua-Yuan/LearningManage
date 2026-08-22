@@ -111,6 +111,17 @@ check_release_manifest_schema() {
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$release_schema"
 }
 
+check_frontend_contract_workflow() {
+    [[ -f "$release_workflow" ]] || return 1
+    grep -Fq 'npm run contract:test && npm run contract:verify' "$release_workflow" \
+        && grep -Fq 'npm run contract:export' "$release_workflow" \
+        && grep -Fq 'contracts/frontend-api-contract.schema.json' "$release_workflow" \
+        && grep -Fq 'frontend-api-contract.sha256' "$release_workflow" \
+        && grep -Fq 'frontend_contract_sha256' "$release_workflow" \
+        && grep -Fq 'frontend_operation_count' "$release_workflow" \
+        && grep -Fq 'frontend_contract_schema_version' "$release_workflow"
+}
+
 # shellcheck source=scripts/ci/lib/release-candidate-common.sh
 source "$release_common"
 
@@ -147,6 +158,7 @@ expect_pass dockerfile_contract check_dockerfile_contract
 expect_pass ci_compose_contract check_ci_compose_contract
 expect_pass release_workflow_contract check_release_workflow_contract
 expect_pass release_manifest_schema check_release_manifest_schema
+expect_pass frontend_contract_workflow check_frontend_contract_workflow
 expect_pass release_valid_sha release_validate_sha 0123456789abcdef0123456789abcdef01234567
 expect_fail release_short_sha release_validate_sha 0123456789abcdef
 expect_fail release_branch_name release_validate_sha develop
