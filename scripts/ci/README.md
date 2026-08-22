@@ -13,6 +13,7 @@
 | `verify-empty-database.sh` | 验证空库 V1 迁移和二次迁移幂等性 |
 | `verify-existing-database.sh` | 验证 fixture 导入、显式 baseline 和 migrate(0) |
 | `verify-published-migrations.sh` | 验证哈希清单及相对目标分支的迁移不可变性 |
+| `verify-runtime-api-contract.sh` | 导出运行时 OpenAPI 并比较冻结前端契约的接口存在性 |
 | `validate-release-candidate.sh` | 验证跨仓候选输入、仓库身份、`develop` 最新性和运行期间分支稳定性 |
 | `create-release-manifest.sh` | 生成不含凭据的跨仓候选 Manifest 和 SHA-256 |
 | `tests/static-guards-test.sh` | 不连接数据库的静态负向保护自检 |
