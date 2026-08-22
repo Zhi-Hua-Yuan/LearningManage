@@ -11,10 +11,13 @@ published_guard="${ci_dir}/verify-published-migrations.sh"
 dockerignore="${project_root}/.dockerignore"
 dockerfile="${project_root}/Dockerfile"
 ci_compose="${project_root}/deploy/docker-compose.ci.yml"
+release_compose="${project_root}/deploy/docker-compose.release-gate.yml"
 release_common="${ci_dir}/lib/release-candidate-common.sh"
 release_workflow="${project_root}/.github/workflows/release-gate.yml"
 release_schema="${project_root}/docs/stage0/ci/release-candidate-manifest.schema.json"
 runtime_contract="${ci_dir}/verify-runtime-api-contract.sh"
+ai_flow="${ci_dir}/verify-ai-breakdown-flow.sh"
+ai_stub="${ci_dir}/stubs/ai-chat-completions-stub.py"
 
 passed=0
 
@@ -128,11 +131,27 @@ check_runtime_api_contract_workflow() {
     grep -Fq 'verify-runtime-api-contract.sh' "$release_workflow" \
         && grep -Fq 'CI_RUNTIME_OPENAPI_URL' "$release_workflow" \
         && grep -Fq 'release-api-contract-' "$release_workflow" \
-        && grep -Fq 'schemaVersion == 2' "$release_workflow" \
+        && grep -Fq 'schemaVersion == 3' "$release_workflow" \
         && grep -Fq 'interfaceContract' "$release_schema" \
-        && grep -Fq 'schemaVersion: 2' "$project_root/scripts/ci/create-release-manifest.sh" \
+        && grep -Fq 'schemaVersion: 3' "$project_root/scripts/ci/create-release-manifest.sh" \
         && grep -Fq 'frontend_operation_missing_from_runtime_openapi' "$runtime_contract" \
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$runtime_contract"
+}
+
+check_full_stack_ai_contract() {
+    [[ -f "$release_compose" && -f "$ai_flow" && -f "$ai_stub" ]] \
+        && grep -Fq '127.0.0.1:18080:80' "$release_compose" \
+        && grep -Fq '127.0.0.1:13306:3306' "$release_compose" \
+        && grep -Fq 'AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1' "$release_compose" \
+        && grep -Fq 'FLYWAY_ENABLED: "false"' "$release_compose" \
+        && grep -Fq 'CI_FRONTEND_DIST_DIR' "$release_compose" \
+        && grep -Fq 'internal: true' "$release_compose" \
+        && grep -Fq 'verify-ai-breakdown-flow.sh' "$release_workflow" \
+        && grep -Fq 'release-full-stack-' "$release_workflow" \
+        && grep -Fq 'fullStackRuntime' "$release_schema" \
+        && grep -Fq 'deterministic-ci-stub' "$release_schema" \
+        && grep -Fq 'full-stack-ai-flow-evidence.json' "$ai_flow" \
+        && ! grep -Eiq 'dashscope|password|authorization|bearer' "$ai_stub"
 }
 
 # shellcheck source=scripts/ci/lib/release-candidate-common.sh
@@ -173,6 +192,7 @@ expect_pass release_workflow_contract check_release_workflow_contract
 expect_pass release_manifest_schema check_release_manifest_schema
 expect_pass frontend_contract_workflow check_frontend_contract_workflow
 expect_pass runtime_api_contract_workflow check_runtime_api_contract_workflow
+expect_pass full_stack_ai_contract check_full_stack_ai_contract
 expect_pass release_valid_sha release_validate_sha 0123456789abcdef0123456789abcdef01234567
 expect_fail release_short_sha release_validate_sha 0123456789abcdef
 expect_fail release_branch_name release_validate_sha develop

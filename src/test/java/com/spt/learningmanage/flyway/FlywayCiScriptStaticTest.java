@@ -27,6 +27,7 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/verify-published-migrations.sh",
             "scripts/ci/verify-docker-runtime.sh",
             "scripts/ci/verify-runtime-api-contract.sh",
+            "scripts/ci/verify-ai-breakdown-flow.sh",
             "scripts/ci/validate-release-candidate.sh",
             "scripts/ci/create-release-manifest.sh",
             "scripts/ci/tests/static-guards-test.sh"
@@ -47,7 +48,10 @@ class FlywayCiScriptStaticTest {
 
     @Test
     void dockerCiContractFilesUseLf() throws IOException {
-        for (String relativePath : List.of("Dockerfile", "deploy/docker-compose.ci.yml")) {
+        for (String relativePath : List.of(
+                "Dockerfile",
+                "deploy/docker-compose.ci.yml",
+                "deploy/docker-compose.release-gate.yml")) {
             String text = read(relativePath);
             assertFalse(text.contains("\r"), relativePath);
         }
@@ -142,15 +146,39 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.contains("verify-runtime-api-contract.sh"));
         assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL"));
         assertTrue(workflow.contains("release-api-contract-"));
-        assertTrue(workflow.contains("schemaVersion == 2"));
+        assertTrue(workflow.contains("schemaVersion == 3"));
         assertTrue(workflow.contains("matched_operation_count"));
         assertTrue(script.contains("/api/v3/api-docs") || workflow.contains("/api/v3/api-docs"));
         assertTrue(script.contains("frontend_operation_missing_from_runtime_openapi"));
         assertTrue(script.contains("runtime-openapi.json"));
         assertTrue(manifestScript.contains("interfaceContract"));
-        assertTrue(manifestScript.contains("schemaVersion: 2"));
+        assertTrue(manifestScript.contains("schemaVersion: 3"));
         assertTrue(manifestSchema.contains("\"interfaceContract\""));
-        assertTrue(manifestSchema.contains("\"const\": 2"));
+        assertTrue(manifestSchema.contains("\"fullStackRuntime\""));
+        assertTrue(manifestSchema.contains("\"const\": 3"));
+    }
+
+    @Test
+    void fullStackGateUsesNginxAndDeterministicAiStubWithoutCredentials() throws IOException {
+        String workflow = read(".github/workflows/release-gate.yml");
+        String compose = read("deploy/docker-compose.release-gate.yml");
+        String flow = read("scripts/ci/verify-ai-breakdown-flow.sh");
+        String stub = read("scripts/ci/stubs/ai-chat-completions-stub.py");
+
+        assertTrue(workflow.contains("verify-ai-breakdown-flow.sh"));
+        assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs"));
+        assertTrue(workflow.contains("CI_NGINX_IMAGE: nginx:1.27-alpine@sha256:"));
+        assertTrue(workflow.contains("CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:"));
+        assertTrue(compose.contains("127.0.0.1:18080:80"));
+        assertTrue(compose.contains("AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1"));
+        assertTrue(compose.contains("FLYWAY_ENABLED: \"false\""));
+        assertTrue(compose.contains("internal: true"));
+        assertTrue(flow.contains("/api/ai/breakdown/preview"));
+        assertTrue(flow.contains("idempotentReplay"));
+        assertTrue(flow.contains("full-stack-ai-flow-evidence.json"));
+        assertTrue(stub.contains("/compatible-mode/v1/chat/completions"));
+        assertFalse(stub.toLowerCase().contains("dashscope"));
+        assertFalse(stub.toLowerCase().contains("authorization"));
     }
 
     private static String read(String relativePath) throws IOException {

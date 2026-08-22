@@ -1,0 +1,82 @@
+services:
+  mysql:
+    image: ${CI_MYSQL_IMAGE:?CI_MYSQL_IMAGE is required}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CI_MYSQL_ADMIN_PASSWORD:?CI_MYSQL_ADMIN_PASSWORD is required}
+    ports:
+      - "127.0.0.1:13306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    networks:
+      - release-internal
+
+  ai-stub:
+    image: ${CI_AI_STUB_IMAGE:?CI_AI_STUB_IMAGE is required}
+    command: ["python", "/opt/ai-stub/ai-chat-completions-stub.py"]
+    volumes:
+      - ../scripts/ci/stubs/ai-chat-completions-stub.py:/opt/ai-stub/ai-chat-completions-stub.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+    networks:
+      - release-internal
+
+  backend:
+    image: ${CI_BACKEND_IMAGE:?CI_BACKEND_IMAGE is required}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai-stub:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${CI_EMPTY_DB_NAME:?CI_EMPTY_DB_NAME is required}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${CI_EMPTY_DB_NAME:?CI_EMPTY_DB_NAME is required}
+      DB_USERNAME: ${TEST_DB_USERNAME:?TEST_DB_USERNAME is required}
+      DB_PASSWORD: ${TEST_DB_PASSWORD:?TEST_DB_PASSWORD is required}
+      FLYWAY_ENABLED: "false"
+      FLYWAY_DB_USERNAME: __flyway_migrator_not_configured__
+      FLYWAY_DB_PASSWORD: __flyway_migrator_not_configured__
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1
+      AI_MODEL: ci-ai-stub
+      AI_BREAKDOWN_MODEL: ci-ai-stub
+      AI_POLISH_MODEL: ci-ai-stub
+      AI_FALLBACK_MODEL: ci-ai-stub
+      AI_RATE_LIMIT_ENABLED: "false"
+      ALIYUN_API_KEY: ci-only-not-a-real-key
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+    expose:
+      - "8123"
+    networks:
+      - release-internal
+
+  frontend:
+    image: ${CI_NGINX_IMAGE:?CI_NGINX_IMAGE is required}
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "127.0.0.1:18080:80"
+    volumes:
+      - ${CI_FRONTEND_DIST_DIR:?CI_FRONTEND_DIST_DIR is required}:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - release-internal
+
+networks:
+  release-internal:
+    internal: true

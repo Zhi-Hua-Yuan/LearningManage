@@ -15,7 +15,8 @@ for name in \
     BACKEND_TEST_COUNT BACKEND_JAR_SHA256 FRONTEND_DIST_MANIFEST_SHA256 \
     FRONTEND_CONTRACT_SHA256 RUNTIME_DOCUMENT_SHA256 COMPARISON_REPORT_SHA256 \
     FRONTEND_OPERATION_COUNT RUNTIME_OPERATION_COUNT MATCHED_OPERATION_COUNT MISSING_OPERATION_COUNT \
-    RUNTIME_OPENAPI_VERSION \
+    RUNTIME_OPENAPI_VERSION FULL_STACK_EVIDENCE_SHA256 \
+    FULL_STACK_CONFIRMED_PROJECT_COUNT FULL_STACK_CONFIRMED_MILESTONE_COUNT FULL_STACK_CONFIRMED_TASK_COUNT \
     WORKFLOW_RUN_ID WORKFLOW_RUN_ATTEMPT WORKFLOW_SHA WORKFLOW_ACTOR WORKFLOW_EXECUTED_AT; do
     release_require_env "$name"
 done
@@ -30,7 +31,8 @@ done
 for value in \
     "$V1_SHA256" "$BACKEND_RULESET_SHA256" "$FRONTEND_RULESET_SHA256" \
     "$BACKEND_JAR_SHA256" "$FRONTEND_DIST_MANIFEST_SHA256" \
-    "$FRONTEND_CONTRACT_SHA256" "$RUNTIME_DOCUMENT_SHA256" "$COMPARISON_REPORT_SHA256"; do
+    "$FRONTEND_CONTRACT_SHA256" "$RUNTIME_DOCUMENT_SHA256" "$COMPARISON_REPORT_SHA256" \
+    "$FULL_STACK_EVIDENCE_SHA256"; do
     release_validate_sha256 "$value"
 done
 [[ "$BACKEND_TEST_COUNT" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_backend_test_count"
@@ -45,6 +47,13 @@ done
     || release_fail "api_contract_match_count_mismatch"
 [[ "$RUNTIME_OPENAPI_VERSION" =~ ^3\.[0-9]+([.][0-9]+)?$ ]] \
     || release_fail "invalid_runtime_openapi_version"
+for value in \
+    "$FULL_STACK_CONFIRMED_PROJECT_COUNT" "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" "$FULL_STACK_CONFIRMED_TASK_COUNT"; do
+    [[ "$value" =~ ^[0-9]+$ ]] || release_fail "invalid_full_stack_count"
+done
+[[ "$FULL_STACK_CONFIRMED_PROJECT_COUNT" == "1" ]] || release_fail "full_stack_project_count_mismatch"
+[[ "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" -ge 1 ]] || release_fail "full_stack_milestone_count_invalid"
+[[ "$FULL_STACK_CONFIRMED_TASK_COUNT" -ge 1 ]] || release_fail "full_stack_task_count_invalid"
 [[ "$WORKFLOW_RUN_ID" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_workflow_run_id"
 [[ "$WORKFLOW_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_workflow_run_attempt"
 
@@ -69,6 +78,7 @@ jq -n \
     --arg runtimeDocumentSha256 "$RUNTIME_DOCUMENT_SHA256" \
     --arg comparisonReportSha256 "$COMPARISON_REPORT_SHA256" \
     --arg runtimeOpenapiVersion "$RUNTIME_OPENAPI_VERSION" \
+    --arg fullStackEvidenceSha256 "$FULL_STACK_EVIDENCE_SHA256" \
     --arg workflowRunId "$WORKFLOW_RUN_ID" \
     --arg workflowRunAttempt "$WORKFLOW_RUN_ATTEMPT" \
     --arg workflowSha "$WORKFLOW_SHA" \
@@ -79,8 +89,11 @@ jq -n \
     --argjson runtimeOperationCount "$RUNTIME_OPERATION_COUNT" \
     --argjson matchedOperationCount "$MATCHED_OPERATION_COUNT" \
     --argjson missingOperationCount "$MISSING_OPERATION_COUNT" \
+    --argjson fullStackConfirmedProjectCount "$FULL_STACK_CONFIRMED_PROJECT_COUNT" \
+    --argjson fullStackConfirmedMilestoneCount "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" \
+    --argjson fullStackConfirmedTaskCount "$FULL_STACK_CONFIRMED_TASK_COUNT" \
     '{
-        schemaVersion: 2,
+        schemaVersion: 3,
         candidateId: $candidateId,
         reason: $reason,
         status: "PASS",
@@ -122,6 +135,20 @@ jq -n \
         docker: {
             backendRuntime: "PASS",
             applicationFlywayEnabled: false
+        },
+        fullStackRuntime: {
+            gate: "PASS",
+            frontendViaNginx: "PASS",
+            apiProxy: "PASS",
+            aiProvider: "deterministic-ci-stub",
+            aiBreakdownFlow: "PASS",
+            cancelFlow: "PASS",
+            confirmFlow: "PASS",
+            idempotentReplay: "PASS",
+            confirmedProjectCount: $fullStackConfirmedProjectCount,
+            confirmedMilestoneCount: $fullStackConfirmedMilestoneCount,
+            confirmedTaskCount: $fullStackConfirmedTaskCount,
+            evidenceSha256: $fullStackEvidenceSha256
         },
         workflow: {
             runId: $workflowRunId,

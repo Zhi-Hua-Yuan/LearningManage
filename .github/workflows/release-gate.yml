@@ -31,7 +31,7 @@ env:
   JAVA_VERSION: '17'
   NODE_VERSION: '22.13.1'
   NPM_VERSION: '10.9.2'
-  CI_EXPECTED_TEST_COUNT: '83'
+  CI_EXPECTED_TEST_COUNT: '84'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -449,7 +449,7 @@ jobs:
           bash scripts/ci/verify-existing-database.sh
 
   docker-gate:
-    name: Backend runtime and API contract gate
+    name: Full-stack runtime, API contract and AI breakdown gate
     needs: [freeze-candidate, backend-test, frontend-build, flyway-existing]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -462,6 +462,10 @@ jobs:
       matched_operation_count: ${{ steps.api-contract.outputs.matched_operation_count }}
       missing_operation_count: ${{ steps.api-contract.outputs.missing_operation_count }}
       runtime_openapi_version: ${{ steps.api-contract.outputs.runtime_openapi_version }}
+      full_stack_evidence_sha256: ${{ steps.ai_flow.outputs.full_stack_evidence_sha256 }}
+      full_stack_confirmed_project_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_project_count }}
+      full_stack_confirmed_milestone_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_milestone_count }}
+      full_stack_confirmed_task_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_task_count }}
     env:
       DB_NAME: learning_manage_ci_empty
       FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
@@ -470,13 +474,18 @@ jobs:
       TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_release_docker
       FLYWAY_BASELINE_ON_MIGRATE: 'false'
       CI_BACKEND_IMAGE: learningmanage-release:${{ needs.freeze-candidate.outputs.backend_sha }}
-      CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
+      CI_COMPOSE_FILE: deploy/docker-compose.release-gate.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-release-${{ github.run_id }}-${{ github.run_attempt }}
-      CI_HEALTH_URL: http://127.0.0.1:18123/api/health
+      CI_HEALTH_URL: http://127.0.0.1:18080/api/health
       CI_EXPECTED_HISTORY_TOTAL: '1'
       CI_FRONTEND_ARTIFACT_DIR: frontend-artifacts
+      CI_FRONTEND_DIST_DIR: ${{ github.workspace }}/frontend-artifacts/dist
       CI_API_CONTRACT_OUTPUT_DIR: ci-artifacts/api-contract
-      CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18123/api/v3/api-docs
+      CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs
+      CI_FULL_STACK_BASE_URL: http://127.0.0.1:18080
+      CI_AI_FLOW_OUTPUT_DIR: ci-artifacts/full-stack
+      CI_NGINX_IMAGE: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+      CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -506,6 +515,12 @@ jobs:
         with:
           name: ${{ needs.frontend-build.outputs.artifact_name }}
           path: frontend-artifacts
+      - name: Verify tested frontend dist checksum
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -d "$CI_FRONTEND_DIST_DIR"
+          (cd frontend-artifacts && sha256sum --check dist.sha256)
       - name: Build backend candidate image
         run: |
           docker build --pull \
@@ -520,22 +535,36 @@ jobs:
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh
           bash scripts/ci/verify-empty-database.sh
-      - name: Start backend and verify runtime
+      - name: Start full-stack runtime and verify edge health
         shell: bash
         run: |
           set -Eeuo pipefail
-          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d backend
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d ai-stub backend frontend
           bash scripts/ci/verify-docker-runtime.sh
       - name: Export runtime OpenAPI and compare frontend contract
         id: api-contract
         shell: bash
         run: bash scripts/ci/verify-runtime-api-contract.sh
+      - name: Verify full-stack AI breakdown lifecycle
+        id: ai_flow
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+        run: bash scripts/ci/verify-ai-breakdown-flow.sh
       - name: Upload API contract evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-api-contract-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-artifacts/api-contract
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Upload full-stack AI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-full-stack-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-artifacts/full-stack
           if-no-files-found: ignore
           retention-days: 90
       - name: Capture Docker diagnostics
@@ -623,6 +652,10 @@ jobs:
           MATCHED_OPERATION_COUNT: ${{ needs.docker-gate.outputs.matched_operation_count }}
           MISSING_OPERATION_COUNT: ${{ needs.docker-gate.outputs.missing_operation_count }}
           RUNTIME_OPENAPI_VERSION: ${{ needs.docker-gate.outputs.runtime_openapi_version }}
+          FULL_STACK_EVIDENCE_SHA256: ${{ needs.docker-gate.outputs.full_stack_evidence_sha256 }}
+          FULL_STACK_CONFIRMED_PROJECT_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}
+          FULL_STACK_CONFIRMED_MILESTONE_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}
+          FULL_STACK_CONFIRMED_TASK_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
           WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
           WORKFLOW_SHA: ${{ github.sha }}
@@ -634,7 +667,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           manifest="${{ steps.manifest.outputs.manifest_path }}"
-          jq -e '.schemaVersion == 2 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0' "$manifest" >/dev/null
+          jq -e '.schemaVersion == 3 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS"' "$manifest" >/dev/null
           (cd "$(dirname "$manifest")" && sha256sum --check "$(basename "$manifest").sha256")
       - name: Upload release candidate manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -652,5 +685,6 @@ jobs:
             printf -- '- Backend: `%s`\n' '${{ needs.freeze-candidate.outputs.backend_sha }}'
             printf -- '- Frontend: `%s`\n' '${{ needs.freeze-candidate.outputs.frontend_sha }}'
             printf -- '- Matched frontend operations: `%s`\n' '${{ needs.docker-gate.outputs.matched_operation_count }}'
+            printf -- '- AI breakdown flow: `%s` projects, `%s` milestones, `%s` tasks\n' '${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}'
             printf -- '- Manifest SHA-256: `%s`\n' '${{ steps.manifest.outputs.manifest_sha256 }}'
           } >> "$GITHUB_STEP_SUMMARY"
