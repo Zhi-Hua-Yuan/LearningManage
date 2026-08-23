@@ -146,13 +146,13 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.contains("verify-runtime-api-contract.sh"));
         assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL"));
         assertTrue(workflow.contains("release-api-contract-"));
-        assertTrue(workflow.contains("schemaVersion == 3"));
+        assertTrue(workflow.contains("schemaVersion == 4"));
         assertTrue(workflow.contains("matched_operation_count"));
         assertTrue(script.contains("/api/v3/api-docs") || workflow.contains("/api/v3/api-docs"));
         assertTrue(script.contains("frontend_operation_missing_from_runtime_openapi"));
         assertTrue(script.contains("runtime-openapi.json"));
         assertTrue(manifestScript.contains("interfaceContract"));
-        assertTrue(manifestScript.contains("schemaVersion: 3"));
+        assertTrue(manifestScript.contains("schemaVersion: 4"));
         assertTrue(manifestSchema.contains("\"interfaceContract\""));
         assertTrue(manifestSchema.contains("\"fullStackRuntime\""));
         assertTrue(manifestSchema.contains("\"const\": 3"));
