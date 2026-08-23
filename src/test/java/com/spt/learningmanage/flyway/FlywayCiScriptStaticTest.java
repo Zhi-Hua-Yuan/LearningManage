@@ -155,7 +155,7 @@ class FlywayCiScriptStaticTest {
         assertTrue(manifestScript.contains("schemaVersion: 4"));
         assertTrue(manifestSchema.contains("\"interfaceContract\""));
         assertTrue(manifestSchema.contains("\"fullStackRuntime\""));
-        assertTrue(manifestSchema.contains("\"const\": 3"));
+        assertTrue(manifestSchema.contains("\"const\": 4"));
     }
 
     @Test
