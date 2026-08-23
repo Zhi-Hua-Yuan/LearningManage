@@ -1,0 +1,122 @@
+{
+  "$schema": "./stage1-acceptance-contract.schema.json",
+  "schemaVersion": 1,
+  "stage": "stage1",
+  "contractVersion": 1,
+  "status": "DRAFT",
+  "baseline": {
+    "flywayPublishedVersion": "1",
+    "frontendExistingOperationCount": 37,
+    "frontendExistingMissingOperationCount": 0,
+    "backendExpectedTestCountAtDesignTime": 84
+  },
+  "designInputs": [
+    "../requirements/stage1-requirements-contract.md",
+    "../authorization/permission-matrix.md",
+    "../architecture/ADR-001-task-identity-and-assignment.md",
+    "../architecture/ADR-002-weekly-review-visibility.md",
+    "../architecture/ADR-003-role-boundaries.md",
+    "../architecture/ADR-004-permission-service.md",
+    "../database/v2-data-dictionary.md",
+    "../api/api-compatibility-contract.md",
+    "../risk/stage1-risk-register.md"
+  ],
+  "gates": [
+    {
+      "id": "S1-A-001",
+      "domain": "database",
+      "requirement": "V2 installs on an empty MySQL 8.0.41 database and upgrades an installed V1 database",
+      "status": "PENDING",
+      "targetPr": "PR2",
+      "evidenceRequired": ["empty database report", "V1 to V2 upgrade report", "Flyway history"]
+    },
+    {
+      "id": "S1-A-002",
+      "domain": "database",
+      "requirement": "Published V1 remains byte-identical and V2 is immutable after publication",
+      "status": "PENDING",
+      "targetPr": "PR2",
+      "evidenceRequired": ["migration checksum test"]
+    },
+    {
+      "id": "S1-A-003",
+      "domain": "assignment",
+      "requirement": "Invalid assignees written to the database equals zero and every real assignment change is auditable",
+      "status": "PENDING",
+      "targetPr": "PR4",
+      "evidenceRequired": ["assignment integration tests", "assignment reconciliation report"]
+    },
+    {
+      "id": "S1-A-004",
+      "domain": "team",
+      "requirement": "Leaving or removing a member unassigns all incomplete team tasks atomically",
+      "status": "PENDING",
+      "targetPr": "PR5",
+      "evidenceRequired": ["transaction tests", "concurrency tests"]
+    },
+    {
+      "id": "S1-A-005",
+      "domain": "authorization",
+      "requirement": "Unauthorized access allowed count equals zero for the frozen permission matrix",
+      "status": "PENDING",
+      "targetPr": "PR3",
+      "evidenceRequired": ["parameterized permission matrix test report"]
+    },
+    {
+      "id": "S1-A-006",
+      "domain": "privacy",
+      "requirement": "Private weekly review content returned to non-authors equals zero",
+      "status": "PENDING",
+      "targetPr": "PR6",
+      "evidenceRequired": ["serialization tests", "multi-user authorization tests"]
+    },
+    {
+      "id": "S1-A-007",
+      "domain": "performance",
+      "requirement": "Batch authorization for 100 resources does not execute per-resource authorization queries",
+      "status": "PENDING",
+      "targetPr": "PR3",
+      "evidenceRequired": ["query-count test or equivalent SQL evidence"]
+    },
+    {
+      "id": "S1-A-008",
+      "domain": "ai-security",
+      "requirement": "Existing AI endpoints reject nonexistent or unauthorized business IDs before model invocation",
+      "status": "PENDING",
+      "targetPr": "PR6",
+      "evidenceRequired": ["AI authorization regression tests"]
+    },
+    {
+      "id": "S1-A-009",
+      "domain": "api-contract",
+      "requirement": "All 37 existing frontend operations remain present and every new frontend operation matches runtime OpenAPI",
+      "status": "PENDING",
+      "targetPr": "PR8",
+      "evidenceRequired": ["frontend contract", "runtime OpenAPI comparison report"]
+    },
+    {
+      "id": "S1-A-010",
+      "domain": "regression",
+      "requirement": "Personal project, task, weekly review, and existing AI breakdown core paths have no regression",
+      "status": "PENDING",
+      "targetPr": "PR8",
+      "evidenceRequired": ["backend tests", "frontend tests", "full-stack evidence"]
+    },
+    {
+      "id": "S1-A-011",
+      "domain": "release",
+      "requirement": "A cross-repository candidate binds exact backend/frontend SHAs and all stage1 evidence hashes",
+      "status": "PENDING",
+      "targetPr": "PR8",
+      "evidenceRequired": ["candidate manifest", "evidence checksums"]
+    },
+    {
+      "id": "S1-A-012",
+      "domain": "release",
+      "requirement": "Stage1 tag and release are created only after every required gate passes",
+      "status": "PENDING",
+      "targetPr": "PR8",
+      "evidenceRequired": ["protected merge", "tag", "release record"]
+    }
+  ]
+}
