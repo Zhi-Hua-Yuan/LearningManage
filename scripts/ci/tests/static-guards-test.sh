@@ -17,6 +17,8 @@ release_workflow="${project_root}/.github/workflows/release-gate.yml"
 release_schema="${project_root}/docs/stage0/ci/release-candidate-manifest.schema.json"
 stage0_acceptance="${project_root}/docs/stage0/acceptance/stage0-acceptance.json"
 stage0_acceptance_schema="${project_root}/docs/stage0/acceptance/stage0-acceptance.schema.json"
+stage0_acceptance_script="${ci_dir}/verify-stage0-acceptance.sh"
+stage0_schema_validator="${ci_dir}/validate-json-schema.py"
 runtime_contract="${ci_dir}/verify-runtime-api-contract.sh"
 ai_flow="${ci_dir}/verify-ai-breakdown-flow.sh"
 ai_stub="${ci_dir}/stubs/ai-chat-completions-stub.py"
@@ -119,12 +121,15 @@ check_release_manifest_schema() {
 
 check_stage0_acceptance_contract() {
     [[ -f "$stage0_acceptance" && -f "$stage0_acceptance_schema" ]] \
+        && [[ -f "$stage0_acceptance_script" && -f "$stage0_schema_validator" ]] \
         && grep -Fq '"schemaVersion": 1' "$stage0_acceptance" \
         && grep -Fq '"status": "PROVISIONAL"' "$stage0_acceptance" \
         && grep -Fq '"finalSeal"' "$stage0_acceptance" \
         && grep -Fq '"requiredFailureCount": 0' "$stage0_acceptance" \
         && grep -Fq '"mainDatabaseTouchedByD3": false' "$stage0_acceptance" \
         && grep -Fq '"publishedFlywayV1ModifiedByD3": false' "$stage0_acceptance" \
+        && grep -Fq 'validate-json-schema.py' "$stage0_acceptance_script" \
+        && grep -Fq 'class ValidationError' "$stage0_schema_validator" \
         && ! grep -Eiq 'AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[A-Za-z0-9._-]{20,}' "$stage0_acceptance"
 }
 

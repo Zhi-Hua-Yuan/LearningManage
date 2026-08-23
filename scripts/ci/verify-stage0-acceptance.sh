@@ -6,6 +6,8 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "${script_dir}/../.." && pwd)"
 acceptance_file="${STAGE0_ACCEPTANCE_FILE:-${project_root}/docs/stage0/acceptance/stage0-acceptance.json}"
 schema_file="${STAGE0_ACCEPTANCE_SCHEMA:-${project_root}/docs/stage0/acceptance/stage0-acceptance.schema.json}"
+schema_validator="${STAGE0_SCHEMA_VALIDATOR:-${script_dir}/validate-json-schema.py}"
+python_bin="${STAGE0_PYTHON_BIN:-python3}"
 
 fail() {
     printf 'stage0.acceptance.error=%s\n' "$1" >&2
@@ -13,11 +15,14 @@ fail() {
 }
 
 command -v jq >/dev/null 2>&1 || fail jq_required
+command -v "$python_bin" >/dev/null 2>&1 || fail python3_required
 [[ -f "$acceptance_file" ]] || fail acceptance_file_missing
 [[ -f "$schema_file" ]] || fail schema_file_missing
+[[ -f "$schema_validator" ]] || fail schema_validator_missing
 
 jq -e . "$acceptance_file" >/dev/null || fail acceptance_json_invalid
 jq -e . "$schema_file" >/dev/null || fail acceptance_schema_invalid
+"$python_bin" "$schema_validator" "$acceptance_file" "$schema_file" >/dev/null || fail schema_validation_failed
 
 stage="$(jq -er '.stage' "$acceptance_file")"
 schema_version="$(jq -er '.schemaVersion' "$acceptance_file")"
@@ -50,6 +55,22 @@ jq -e '
     (.summary.fail == 0) and
     (.summary.pending == 2)
 ' "$acceptance_file" >/dev/null || fail gate_status_invalid
+
+for status_pair in \
+    'PASS pass' \
+    'ACCEPTED_RISK acceptedRisk' \
+    'DEFERRED deferred' \
+    'NOT_APPLICABLE notApplicable' \
+    'FAIL fail'; do
+    read -r gate_status summary_key <<< "$status_pair"
+    actual_count="$(jq -er --arg status "$gate_status" '[.gates[] | select(.status == $status)] | length' "$acceptance_file")"
+    declared_count="$(jq -er --arg key "$summary_key" '.summary[$key]' "$acceptance_file")"
+    [[ "$actual_count" == "$declared_count" ]] || fail "summary_mismatch:${summary_key}"
+done
+
+pending_count="$(jq -er '[.closingGates[] | select(.status == "PENDING")] | length' "$acceptance_file")"
+declared_pending="$(jq -er '.summary.pending' "$acceptance_file")"
+[[ "$pending_count" == "$declared_pending" ]] || fail summary_mismatch:pending
 
 for evidence_path in $(jq -er '.gates[].evidence[]' "$acceptance_file"); do
     [[ -f "${project_root}/${evidence_path}" ]] || fail "evidence_missing:${evidence_path}"
