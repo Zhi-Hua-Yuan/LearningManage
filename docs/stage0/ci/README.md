@@ -60,5 +60,7 @@
 - [PR6-D1 跨仓候选发布工作流](pr6-d1-cross-repo-candidate-workflow-2026-08-21.md)
 - [PR6-D2-B2 运行时 OpenAPI 契约门禁](pr6-d2-b2-runtime-openapi-contract-2026-08-22.md)
 - [PR6-D2-C 全栈 AI 门禁执行记录](pr6-d2-c-full-stack-ai-gate-2026-08-22.md)
+- [阶段 0 验收合同](../acceptance/README.md)
+- [阶段 0 验收矩阵](../acceptance/stage0-acceptance-matrix-2026-08-23.md)
 - [跨仓候选发布运行手册](release-gate-runbook.md)
 - [候选 Manifest Schema](release-candidate-manifest.schema.json)
