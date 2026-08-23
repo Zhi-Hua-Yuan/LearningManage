@@ -17,6 +17,7 @@ for name in \
     FRONTEND_OPERATION_COUNT RUNTIME_OPERATION_COUNT MATCHED_OPERATION_COUNT MISSING_OPERATION_COUNT \
     RUNTIME_OPENAPI_VERSION FULL_STACK_EVIDENCE_SHA256 \
     FULL_STACK_CONFIRMED_PROJECT_COUNT FULL_STACK_CONFIRMED_MILESTONE_COUNT FULL_STACK_CONFIRMED_TASK_COUNT \
+    STAGE0_ACCEPTANCE_SHA256 STAGE0_MATRIX_SHA256 STAGE0_RISK_REGISTER_SHA256 STAGE0_SCHEMA_SHA256 \
     WORKFLOW_RUN_ID WORKFLOW_RUN_ATTEMPT WORKFLOW_SHA WORKFLOW_ACTOR WORKFLOW_EXECUTED_AT; do
     release_require_env "$name"
 done
@@ -32,7 +33,8 @@ for value in \
     "$V1_SHA256" "$BACKEND_RULESET_SHA256" "$FRONTEND_RULESET_SHA256" \
     "$BACKEND_JAR_SHA256" "$FRONTEND_DIST_MANIFEST_SHA256" \
     "$FRONTEND_CONTRACT_SHA256" "$RUNTIME_DOCUMENT_SHA256" "$COMPARISON_REPORT_SHA256" \
-    "$FULL_STACK_EVIDENCE_SHA256"; do
+    "$FULL_STACK_EVIDENCE_SHA256" "$STAGE0_ACCEPTANCE_SHA256" "$STAGE0_MATRIX_SHA256" \
+    "$STAGE0_RISK_REGISTER_SHA256" "$STAGE0_SCHEMA_SHA256"; do
     release_validate_sha256 "$value"
 done
 [[ "$BACKEND_TEST_COUNT" =~ ^[1-9][0-9]*$ ]] || release_fail "invalid_backend_test_count"
@@ -79,6 +81,10 @@ jq -n \
     --arg comparisonReportSha256 "$COMPARISON_REPORT_SHA256" \
     --arg runtimeOpenapiVersion "$RUNTIME_OPENAPI_VERSION" \
     --arg fullStackEvidenceSha256 "$FULL_STACK_EVIDENCE_SHA256" \
+    --arg stage0AcceptanceSha256 "$STAGE0_ACCEPTANCE_SHA256" \
+    --arg stage0MatrixSha256 "$STAGE0_MATRIX_SHA256" \
+    --arg stage0RiskRegisterSha256 "$STAGE0_RISK_REGISTER_SHA256" \
+    --arg stage0SchemaSha256 "$STAGE0_SCHEMA_SHA256" \
     --arg workflowRunId "$WORKFLOW_RUN_ID" \
     --arg workflowRunAttempt "$WORKFLOW_RUN_ATTEMPT" \
     --arg workflowSha "$WORKFLOW_SHA" \
@@ -93,7 +99,7 @@ jq -n \
     --argjson fullStackConfirmedMilestoneCount "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" \
     --argjson fullStackConfirmedTaskCount "$FULL_STACK_CONFIRMED_TASK_COUNT" \
     '{
-        schemaVersion: 3,
+        schemaVersion: 4,
         candidateId: $candidateId,
         reason: $reason,
         status: "PASS",
@@ -149,6 +155,16 @@ jq -n \
             confirmedMilestoneCount: $fullStackConfirmedMilestoneCount,
             confirmedTaskCount: $fullStackConfirmedTaskCount,
             evidenceSha256: $fullStackEvidenceSha256
+        },
+        stage0Acceptance: {
+            bindingStatus: "BOUND",
+            contractStatus: "PROVISIONAL",
+            acceptanceDocumentSha256: $stage0AcceptanceSha256,
+            matrixSha256: $stage0MatrixSha256,
+            riskRegisterSha256: $stage0RiskRegisterSha256,
+            schemaSha256: $stage0SchemaSha256,
+            requiredFailureCount: 0,
+            pendingClosingGateCount: 2
         },
         workflow: {
             runId: $workflowRunId,

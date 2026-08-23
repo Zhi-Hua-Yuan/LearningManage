@@ -115,6 +115,7 @@ check_release_manifest_schema() {
         && grep -Fq '"backend"' "$release_schema" \
         && grep -Fq '"frontend"' "$release_schema" \
         && grep -Fq '"flyway"' "$release_schema" \
+        && grep -Fq '"stage0Acceptance"' "$release_schema" \
         && grep -Fq '"workflow"' "$release_schema" \
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$release_schema"
 }
@@ -149,9 +150,14 @@ check_runtime_api_contract_workflow() {
     grep -Fq 'verify-runtime-api-contract.sh' "$release_workflow" \
         && grep -Fq 'CI_RUNTIME_OPENAPI_URL' "$release_workflow" \
         && grep -Fq 'release-api-contract-' "$release_workflow" \
-        && grep -Fq 'schemaVersion == 3' "$release_workflow" \
+        && grep -Fq 'schemaVersion == 4' "$release_workflow" \
         && grep -Fq 'interfaceContract' "$release_schema" \
-        && grep -Fq 'schemaVersion: 3' "$project_root/scripts/ci/create-release-manifest.sh" \
+        && grep -Fq 'schemaVersion: 4' "$project_root/scripts/ci/create-release-manifest.sh" \
+        && grep -Fq 'STAGE0_ACCEPTANCE_SHA256' "$release_workflow" \
+        && grep -Fq 'STAGE0_MATRIX_SHA256' "$release_workflow" \
+        && grep -Fq 'STAGE0_RISK_REGISTER_SHA256' "$release_workflow" \
+        && grep -Fq 'STAGE0_SCHEMA_SHA256' "$release_workflow" \
+        && grep -Fq 'stage0Acceptance' "$project_root/scripts/ci/create-release-manifest.sh" \
         && grep -Fq 'frontend_operation_missing_from_runtime_openapi' "$runtime_contract" \
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$runtime_contract"
 }
