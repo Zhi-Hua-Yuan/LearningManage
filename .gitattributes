@@ -1,7 +1,8 @@
+/.gitattributes text eol=lf
 /mvnw text eol=lf
 /.dockerignore text eol=lf
 /Dockerfile text eol=lf
-/deploy/docker-compose.ci.yml text eol=lf
+/deploy/*.yml text eol=lf
 /.github/workflows/*.yml text eol=lf
 *.cmd text eol=crlf
 /scripts/**/*.sh text eol=lf
