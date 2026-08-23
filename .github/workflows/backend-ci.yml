@@ -84,6 +84,7 @@ jobs:
           set -Eeuo pipefail
           find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
           bash scripts/ci/tests/static-guards-test.sh
+          bash scripts/ci/verify-stage0-acceptance.sh
           bash scripts/ci/verify-published-migrations.sh
           git diff --check
 

@@ -18,7 +18,9 @@
 | `stubs/ai-chat-completions-stub.py` | CI 专用、无凭据、固定响应的 OpenAI 兼容 AI Stub |
 | `validate-release-candidate.sh` | 验证跨仓候选输入、仓库身份、`develop` 最新性和运行期间分支稳定性 |
 | `create-release-manifest.sh` | 生成不含凭据的跨仓候选 Manifest 和 SHA-256 |
+| `verify-stage0-acceptance.sh` | 校验阶段 0 验收合同、残余风险分类、证据路径和封存前置条件 |
 | `tests/static-guards-test.sh` | 不连接数据库的静态负向保护自检 |
+| `tests/stage0-acceptance-test.sh` | 阶段 0 验收合同的 JSON、Schema 和脚本自检 |
 
 ## 运行前提
 
@@ -26,6 +28,7 @@
 - JDK 17 和仓库 Maven Wrapper；
 - MySQL 8 兼容的 `mysql` / `mysqladmin` 客户端；
 - `git`、`grep`、`awk`、`sha256sum`；
+- 阶段 0 验收合同校验需要 `jq`；
 - A5 本地临时 MySQL 使用非 3306 端口；
 - PR6-B GitHub Service Container 计划映射到 `127.0.0.1:13306`。
 - 后端 Docker 门禁使用 `deploy/docker-compose.ci.yml`；PR6-D2-C 全栈门禁使用 `deploy/docker-compose.release-gate.yml`，仅发布 Nginx 的 `127.0.0.1:18080`，后端不直接发布端口。

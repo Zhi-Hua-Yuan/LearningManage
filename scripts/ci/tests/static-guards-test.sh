@@ -15,6 +15,8 @@ release_compose="${project_root}/deploy/docker-compose.release-gate.yml"
 release_common="${ci_dir}/lib/release-candidate-common.sh"
 release_workflow="${project_root}/.github/workflows/release-gate.yml"
 release_schema="${project_root}/docs/stage0/ci/release-candidate-manifest.schema.json"
+stage0_acceptance="${project_root}/docs/stage0/acceptance/stage0-acceptance.json"
+stage0_acceptance_schema="${project_root}/docs/stage0/acceptance/stage0-acceptance.schema.json"
 runtime_contract="${ci_dir}/verify-runtime-api-contract.sh"
 ai_flow="${ci_dir}/verify-ai-breakdown-flow.sh"
 ai_stub="${ci_dir}/stubs/ai-chat-completions-stub.py"
@@ -115,6 +117,17 @@ check_release_manifest_schema() {
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$release_schema"
 }
 
+check_stage0_acceptance_contract() {
+    [[ -f "$stage0_acceptance" && -f "$stage0_acceptance_schema" ]] \
+        && grep -Fq '"schemaVersion": 1' "$stage0_acceptance" \
+        && grep -Fq '"status": "PROVISIONAL"' "$stage0_acceptance" \
+        && grep -Fq '"finalSeal"' "$stage0_acceptance" \
+        && grep -Fq '"requiredFailureCount": 0' "$stage0_acceptance" \
+        && grep -Fq '"mainDatabaseTouchedByD3": false' "$stage0_acceptance" \
+        && grep -Fq '"publishedFlywayV1ModifiedByD3": false' "$stage0_acceptance" \
+        && ! grep -Eiq 'AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[A-Za-z0-9._-]{20,}' "$stage0_acceptance"
+}
+
 check_frontend_contract_workflow() {
     [[ -f "$release_workflow" ]] || return 1
     grep -Fq 'npm run contract:test && npm run contract:verify' "$release_workflow" \
@@ -192,6 +205,7 @@ expect_pass dockerfile_contract check_dockerfile_contract
 expect_pass ci_compose_contract check_ci_compose_contract
 expect_pass release_workflow_contract check_release_workflow_contract
 expect_pass release_manifest_schema check_release_manifest_schema
+expect_pass stage0_acceptance_contract check_stage0_acceptance_contract
 expect_pass frontend_contract_workflow check_frontend_contract_workflow
 expect_pass runtime_api_contract_workflow check_runtime_api_contract_workflow
 expect_pass full_stack_ai_contract check_full_stack_ai_contract

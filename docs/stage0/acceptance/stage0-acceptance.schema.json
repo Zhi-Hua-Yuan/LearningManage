@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Zhi-Hua-Yuan/LearningManage/blob/develop/docs/stage0/acceptance/stage0-acceptance.schema.json",
+  "title": "LearningManage Stage 0 acceptance contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "stage",
+    "status",
+    "generatedAt",
+    "repositories",
+    "sourceMatrix",
+    "gates",
+    "closingGates",
+    "risks",
+    "summary",
+    "policy",
+    "finalSeal"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "stage": {"const": "stage0"},
+    "status": {"enum": ["PROVISIONAL", "PASS"]},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "repositories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend"],
+      "properties": {
+        "backend": {"$ref": "#/$defs/repository"},
+        "frontend": {"$ref": "#/$defs/repository"}
+      }
+    },
+    "sourceMatrix": {"type": "string", "pattern": "^docs/stage0/acceptance/[^\\s]+\\.md$"},
+    "gates": {
+      "type": "array",
+      "minItems": 21,
+      "items": {"$ref": "#/$defs/gate"}
+    },
+    "closingGates": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/closingGate"}
+    },
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/risk"}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "acceptedRisk", "deferred", "notApplicable", "fail", "pending"],
+      "properties": {
+        "pass": {"type": "integer", "minimum": 0},
+        "acceptedRisk": {"type": "integer", "minimum": 0},
+        "deferred": {"type": "integer", "minimum": 0},
+        "notApplicable": {"type": "integer", "minimum": 0},
+        "fail": {"type": "integer", "minimum": 0},
+        "pending": {"type": "integer", "minimum": 0}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredFailureCount", "unclassifiedCount", "allowedResidualStatuses", "mainDatabaseTouchedByD3", "publishedFlywayV1ModifiedByD3"],
+      "properties": {
+        "requiredFailureCount": {"const": 0},
+        "unclassifiedCount": {"const": 0},
+        "allowedResidualStatuses": {
+          "type": "array",
+          "const": ["ACCEPTED_RISK", "DEFERRED", "NOT_APPLICABLE"]
+        },
+        "mainDatabaseTouchedByD3": {"const": false},
+        "publishedFlywayV1ModifiedByD3": {"const": false}
+      }
+    },
+    "finalSeal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "requiresFinalCandidate", "requiresManifestSha256", "requiresAnnotatedTag", "requiresGitHubRelease"],
+      "properties": {
+        "status": {"enum": ["PENDING", "PASS"]},
+        "requiresFinalCandidate": {"const": true},
+        "requiresManifestSha256": {"const": true},
+        "requiresAnnotatedTag": {"const": true},
+        "requiresGitHubRelease": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "branch", "sha"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "branch": {"const": "develop"},
+        "sha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain", "status", "criteria", "evidence"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^E0-[0-9]{2}$"},
+        "domain": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PASS", "ACCEPTED_RISK", "DEFERRED", "NOT_APPLICABLE", "FAIL"]},
+        "criteria": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^docs/"}}
+      }
+    },
+    "closingGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain", "status", "criteria", "owner", "requires"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^E0-[0-9]{2}$"},
+        "domain": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PENDING", "PASS", "FAIL"]},
+        "criteria": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "requires": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "title", "owner", "trigger", "mitigation", "targetStage"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^R-[0-9]{3}$"},
+        "status": {"enum": ["ACCEPTED_RISK", "DEFERRED", "NOT_APPLICABLE"]},
+        "title": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "trigger": {"type": "string", "minLength": 1},
+        "mitigation": {"type": "string", "minLength": 1},
+        "targetStage": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
