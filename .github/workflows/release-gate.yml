@@ -56,6 +56,10 @@ jobs:
       v1_sha256: ${{ steps.validate.outputs.v1_sha256 }}
       backend_ruleset_sha256: ${{ steps.validate.outputs.backend_ruleset_sha256 }}
       frontend_ruleset_sha256: ${{ steps.validate.outputs.frontend_ruleset_sha256 }}
+      stage0_acceptance_sha256: ${{ steps.stage0-binding.outputs.acceptance_sha256 }}
+      stage0_matrix_sha256: ${{ steps.stage0-binding.outputs.matrix_sha256 }}
+      stage0_risk_register_sha256: ${{ steps.stage0-binding.outputs.risk_register_sha256 }}
+      stage0_schema_sha256: ${{ steps.stage0-binding.outputs.schema_sha256 }}
     steps:
       - name: Reject unprotected workflow ref and malformed inputs
         shell: bash
@@ -99,6 +103,37 @@ jobs:
           BACKEND_CHECKOUT_DIR: ${{ github.workspace }}/backend
           FRONTEND_CHECKOUT_DIR: ${{ github.workspace }}/frontend
         run: bash backend/scripts/ci/validate-release-candidate.sh
+
+      - name: Validate and hash Stage 0 acceptance evidence
+        id: stage0-binding
+        shell: bash
+        working-directory: backend
+        run: |
+          set -Eeuo pipefail
+          acceptance='docs/stage0/acceptance/stage0-acceptance.json'
+          matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
+          risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
+          schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
+          for file in "$acceptance" "$matrix" "$risk_register" "$schema"; do
+            test -s "$file"
+          done
+          jq -e '
+            .schemaVersion == 1 and
+            .status == "PROVISIONAL" and
+            .policy.requiredFailureCount == 0 and
+            (.closingGates | map(select(.status == "PENDING")) | length) == 2 and
+            .finalSeal.status == "PENDING"
+          ' "$acceptance" >/dev/null
+          for pair in \
+            "acceptance_sha256=$acceptance" \
+            "matrix_sha256=$matrix" \
+            "risk_register_sha256=$risk_register" \
+            "schema_sha256=$schema"; do
+            name="${pair%%=*}"
+            file="${pair#*=}"
+            value="$(sha256sum "$file" | awk '{print toupper($1)}')"
+            printf '%s=%s\n' "$name" "$value" >> "$GITHUB_OUTPUT"
+          done
 
   guard-backend:
     name: Guard backend candidate
@@ -657,6 +692,10 @@ jobs:
           FULL_STACK_CONFIRMED_PROJECT_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}
           FULL_STACK_CONFIRMED_MILESTONE_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}
           FULL_STACK_CONFIRMED_TASK_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}
+          STAGE0_ACCEPTANCE_SHA256: ${{ needs.freeze-candidate.outputs.stage0_acceptance_sha256 }}
+          STAGE0_MATRIX_SHA256: ${{ needs.freeze-candidate.outputs.stage0_matrix_sha256 }}
+          STAGE0_RISK_REGISTER_SHA256: ${{ needs.freeze-candidate.outputs.stage0_risk_register_sha256 }}
+          STAGE0_SCHEMA_SHA256: ${{ needs.freeze-candidate.outputs.stage0_schema_sha256 }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
           WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
           WORKFLOW_SHA: ${{ github.sha }}
@@ -668,7 +707,21 @@ jobs:
         run: |
           set -Eeuo pipefail
           manifest="${{ steps.manifest.outputs.manifest_path }}"
-          jq -e '.schemaVersion == 3 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS"' "$manifest" >/dev/null
+          acceptance='docs/stage0/acceptance/stage0-acceptance.json'
+          matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
+          risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
+          schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
+          jq -e '.schemaVersion == 4 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
+          verify_bound_hash() {
+            local field="$1" file="$2" actual expected
+            actual="$(sha256sum "$file" | awk '{print toupper($1)}')"
+            expected="$(jq -er ".stage0Acceptance.${field}" "$manifest")"
+            [[ "$actual" == "$expected" ]]
+          }
+          verify_bound_hash acceptanceDocumentSha256 "$acceptance"
+          verify_bound_hash matrixSha256 "$matrix"
+          verify_bound_hash riskRegisterSha256 "$risk_register"
+          verify_bound_hash schemaSha256 "$schema"
           (cd "$(dirname "$manifest")" && sha256sum --check "$(basename "$manifest").sha256")
       - name: Upload release candidate manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,6 +1,6 @@
 # 阶段 0 CI 与迁移发布门禁
 
-状态：PR6-A、PR6-B、PR6-C、PR6-D1、PR6-D2-B2、PR6-D2-C 已完成；可进入 PR6-D3～D4 阶段 0 总验收
+状态：PR6-A、PR6-B、PR6-C、PR6-D1、PR6-D2-B2、PR6-D2-C、PR6-D3-1 已完成；PR6-D3-2 已实现并待受保护合并；随后进入 PR6-D4 最终候选与证据封存
 
 ## 目标
 
@@ -26,7 +26,9 @@
 | PR6-C | 前端测试、前端 CI 和分支保护 | 已完成 |
 | PR6-D1 | 跨仓候选发布工作流 | 已完成 |
 | PR6-D2-C | Nginx 全栈运行、确定性 AI 流程和幂等门禁 | 已完成（第 004 候选全绿） |
-| PR6-D3～D4 | 阶段 0 验收和证据封存 | 待 PR6-D2-C 通过后执行 |
+| PR6-D3-1 | 阶段 0 验收合同、矩阵和风险登记 | 已完成（PR #36） |
+| PR6-D3-2 | 验收合同与最终候选 Manifest v4 绑定 | 实现完成，待受保护 PR 合并 |
+| PR6-D4 | 最终候选运行、总验收和证据封存 | 待执行 |
 
 ## PR6-A 实施步骤
 
@@ -64,3 +66,4 @@
 - [阶段 0 验收矩阵](../acceptance/stage0-acceptance-matrix-2026-08-23.md)
 - [跨仓候选发布运行手册](release-gate-runbook.md)
 - [候选 Manifest Schema](release-candidate-manifest.schema.json)
+- [D3-2 Manifest 绑定执行记录](../acceptance/pr6-d3-2-manifest-binding-2026-08-23.md)

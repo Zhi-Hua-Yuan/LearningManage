@@ -15,11 +15,12 @@
     "docker",
     "interfaceContract",
     "fullStackRuntime",
+    "stage0Acceptance",
     "workflow"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 3
+      "const": 4
     },
     "candidateId": {
       "type": "string",
@@ -50,6 +51,9 @@
     },
     "fullStackRuntime": {
       "$ref": "#/$defs/fullStackRuntime"
+    },
+    "stage0Acceptance": {
+      "$ref": "#/$defs/stage0Acceptance"
     },
     "workflow": {
       "$ref": "#/$defs/workflow"
@@ -299,6 +303,47 @@
         },
         "comparisonReportSha256": {
           "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "stage0Acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bindingStatus",
+        "contractStatus",
+        "acceptanceDocumentSha256",
+        "matrixSha256",
+        "riskRegisterSha256",
+        "schemaSha256",
+        "requiredFailureCount",
+        "pendingClosingGateCount"
+      ],
+      "properties": {
+        "bindingStatus": {
+          "enum": ["BOUND", "SEALED"]
+        },
+        "contractStatus": {
+          "enum": ["PROVISIONAL", "PASS"]
+        },
+        "acceptanceDocumentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "matrixSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "riskRegisterSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "requiredFailureCount": {
+          "const": 0
+        },
+        "pendingClosingGateCount": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }
