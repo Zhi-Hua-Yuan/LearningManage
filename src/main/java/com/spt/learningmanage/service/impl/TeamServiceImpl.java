@@ -3,17 +3,24 @@ package com.spt.learningmanage.service.impl;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
+import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.UserMapper;
 import com.spt.learningmanage.model.dto.team.TeamCreateRequest;
 import com.spt.learningmanage.model.dto.team.TeamJoinRequest;
 import com.spt.learningmanage.model.dto.team.TeamMemberRoleUpdateRequest;
 import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.model.vo.team.TeamCreateVO;
 import com.spt.learningmanage.model.vo.team.TeamMemberVO;
@@ -32,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +62,15 @@ public class TeamServiceImpl implements TeamService {
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private ProjectMapper projectMapper;
+
+    @Resource
+    private TaskMapper taskMapper;
+
+    @Resource
+    private TaskAssignmentLogMapper taskAssignmentLogMapper;
 
     @Resource
     private JdbcTemplate jdbcTemplate;
@@ -298,6 +315,142 @@ public class TeamServiceImpl implements TeamService {
         int rows = teamMemberMapper.updateById(targetMember);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "修改成员角色失败");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void leaveTeam(Long teamId) {
+        Long actorId = getLoginUserId();
+        Team team = getValidTeamById(teamId);
+        TeamMember actor = getValidTeamMemberOrNull(team.getId(), actorId);
+        if (actor == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你不是该团队成员");
+        }
+        if (TeamRoleEnum.isOwner(actor.getRole())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "团队拥有者不能直接退出团队");
+        }
+
+        // 重新读取并锁定成员关系，确保退出与并发移除/恢复不会交叉提交。
+        TeamMember lockedActor = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, team.getId())
+                .eq(TeamMember::getUserId, actorId)
+                .eq(TeamMember::getIsDelete, 0)
+                .last("FOR UPDATE"));
+        if (lockedActor == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你不是该团队成员");
+        }
+        if (TeamRoleEnum.isOwner(lockedActor.getRole())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "团队拥有者不能直接退出团队");
+        }
+        unassignUnfinishedTasks(team.getId(), actorId, actorId, "成员主动退出团队");
+        deactivateMember(team.getId(), actorId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeMember(Long teamId, Long targetUserId) {
+        Long actorId = getLoginUserId();
+        Team team = getValidTeamById(teamId);
+        if (targetUserId == null || targetUserId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标用户ID不合法");
+        }
+
+        TeamMember operator = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, team.getId())
+                .eq(TeamMember::getUserId, actorId)
+                .eq(TeamMember::getIsDelete, 0)
+                .last("FOR UPDATE"));
+        if (operator == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你不是该团队成员");
+        }
+        TeamRoleEnum operatorRole = TeamRoleEnum.fromValue(operator.getRole());
+        if (operatorRole != TeamRoleEnum.OWNER && operatorRole != TeamRoleEnum.ADMIN) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅团队拥有者或管理员可移除成员");
+        }
+
+        TeamMember target = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, team.getId())
+                .eq(TeamMember::getUserId, targetUserId)
+                .eq(TeamMember::getIsDelete, 0)
+                .last("FOR UPDATE"));
+        if (target == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "目标成员不存在");
+        }
+        TeamRoleEnum targetRole = TeamRoleEnum.fromValue(target.getRole());
+        if (targetRole == TeamRoleEnum.OWNER) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "不能移除团队拥有者");
+        }
+        if (operatorRole == TeamRoleEnum.ADMIN && targetRole != TeamRoleEnum.MEMBER) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "管理员只能移除普通成员");
+        }
+
+        unassignUnfinishedTasks(team.getId(), targetUserId, actorId, "成员被移除出团队");
+        deactivateMember(team.getId(), targetUserId);
+    }
+
+    /**
+     * 在当前事务内锁定并解除目标成员在该团队项目中的所有未完成任务。
+     * 已完成任务（状态 1/2/3）不会被修改，以保留责任历史。
+     */
+    private void unassignUnfinishedTasks(Long teamId, Long targetUserId, Long actorId, String reason) {
+        List<Project> projects = projectMapper.selectList(new LambdaQueryWrapper<Project>()
+                .eq(Project::getTeamId, teamId)
+                .eq(Project::getIsDelete, 0));
+        if (projects == null || projects.isEmpty()) {
+            return;
+        }
+        List<Long> projectIds = projects.stream()
+                .map(Project::getId)
+                .filter(id -> id != null && id > 0)
+                .toList();
+        if (projectIds.isEmpty()) {
+            return;
+        }
+
+        List<Task> tasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .in(Task::getProjectId, projectIds)
+                .eq(Task::getAssigneeUserId, targetUserId)
+                .eq(Task::getStatus, 0)
+                .eq(Task::getIsDelete, 0)
+                .orderByAsc(Task::getId)
+                .last("FOR UPDATE"));
+        if (tasks == null || tasks.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Task task : tasks) {
+            int updated = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                    .eq(Task::getId, task.getId())
+                    .eq(Task::getAssigneeUserId, targetUserId)
+                    .eq(Task::getStatus, 0)
+                    .eq(Task::getIsDelete, 0)
+                    .set(Task::getAssigneeUserId, null)
+                    .set(Task::getAssignedByUserId, actorId)
+                    .set(Task::getAssignedAt, now));
+            if (updated != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "解除成员任务分配失败，请重试");
+            }
+
+            TaskAssignmentLog log = new TaskAssignmentLog();
+            log.setTaskId(task.getId());
+            log.setFromAssigneeUserId(targetUserId);
+            log.setToAssigneeUserId(null);
+            log.setAssignedByUserId(actorId);
+            log.setAction("UNASSIGN");
+            log.setReason(reason);
+            log.setCreateTime(now);
+            if (taskAssignmentLogMapper.insert(log) != 1) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存任务分配历史失败");
+            }
+        }
+    }
+
+    private void deactivateMember(Long teamId, Long userId) {
+        int rows = teamMemberMapper.deactivateMember(teamId, userId, LocalDateTime.now());
+        if (rows != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "成员关系更新失败，请重试");
         }
     }
 

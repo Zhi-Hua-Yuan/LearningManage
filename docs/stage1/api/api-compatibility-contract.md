@@ -72,6 +72,16 @@ taskIds
 | POST | `/api/team/{teamId}/member/remove` | OWNER 或受限 ADMIN | 移除成员 |
 | GET | `/api/review/team` | 指定团队有效成员 | 查询团队共享摘要 |
 
+成员移除请求体：
+
+```json
+{
+  "targetUserId": 1002
+}
+```
+
+`/team/{teamId}/leave` 不需要请求体；`/team/{teamId}/member/remove` 的 `targetUserId` 必须为当前有效成员。
+
 后端已存在 `GET /api/team/{teamId}/members`；阶段 1 前端新增调用，但不重复新增后端路由。
 
 ## 4. 关键 DTO/VO

@@ -38,4 +38,14 @@ public interface TeamService {
      * 修改团队成员角色
      */
     void updateMemberRole(TeamMemberRoleUpdateRequest request);
+
+    /**
+     * 当前用户主动退出团队。退出时会原子解除其在团队项目中的未完成任务。
+     */
+    void leaveTeam(Long teamId);
+
+    /**
+     * 由团队 OWNER/ADMIN 移除成员。移除时会原子解除目标成员的未完成任务。
+     */
+    void removeMember(Long teamId, Long targetUserId);
 }

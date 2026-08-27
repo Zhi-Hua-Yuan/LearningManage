@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR4 任务分配与历史审计实现完成；受保护 CI 实跑通过
+状态：PR5 成员退出与移除实现完成；本地验收通过
 
 建立日期：2026-08-23
 
@@ -46,6 +46,7 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 15. [PR2 工作包 3：CI 数据库门禁本地验收记录](acceptance/pr2-work-package-3-acceptance-2026-08-27.md)
 16. [PR3 权限核心本地验收记录](acceptance/pr3-permission-core-acceptance-2026-08-27.md)
 17. [PR4 任务分配与历史审计本地验收记录](acceptance/pr4-task-assignment-acceptance-2026-08-27.md)
+18. [PR5 成员退出与移除本地验收记录](acceptance/pr5-team-member-lifecycle-acceptance-2026-08-27.md)
 
 ## 3. 决策状态规则
 
