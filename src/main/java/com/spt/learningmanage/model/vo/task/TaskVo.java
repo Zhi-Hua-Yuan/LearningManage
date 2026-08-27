@@ -11,6 +11,9 @@ public class TaskVo {
     private Long projectId;
     private Long milestoneId;
     private Long userId;
+    private Long assigneeUserId;
+    private Long assignedByUserId;
+    private LocalDateTime assignedAt;
     private String title;
     private String description;
     private Integer status;

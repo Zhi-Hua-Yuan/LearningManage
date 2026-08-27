@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1 设计评审中（`PROPOSED`）
+状态：PR4 任务分配与历史审计本地实现完成；等待受保护 CI 实跑证据
 
 建立日期：2026-08-23
 
@@ -40,6 +40,12 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 9. [阶段 1 风险登记表](risk/stage1-risk-register.md)
 10. [机器可读验收合同](acceptance/stage1-acceptance-contract.json)
 11. [PR1 设计验收记录](acceptance/pr1-design-acceptance-2026-08-23.md)
+12. [PR2 工作包 1：迁移输入与测试样本合同](database/pr2-work-package-1-input-and-fixture.md)
+13. [PR2 工作包 1 本地验收记录](acceptance/pr2-work-package-1-acceptance-2026-08-24.md)
+14. [PR2 工作包 2 V2 迁移实跑验收记录](acceptance/pr2-work-package-2-acceptance-2026-08-27.md)
+15. [PR2 工作包 3：CI 数据库门禁本地验收记录](acceptance/pr2-work-package-3-acceptance-2026-08-27.md)
+16. [PR3 权限核心本地验收记录](acceptance/pr3-permission-core-acceptance-2026-08-27.md)
+17. [PR4 任务分配与历史审计本地验收记录](acceptance/pr4-task-assignment-acceptance-2026-08-27.md)
 
 ## 3. 决策状态规则
 

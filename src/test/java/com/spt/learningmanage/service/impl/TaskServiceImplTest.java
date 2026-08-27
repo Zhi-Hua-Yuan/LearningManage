@@ -7,6 +7,7 @@ import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskStatusIdempotencyMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.entity.Task;
@@ -53,6 +54,8 @@ class TaskServiceImplTest {
     private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
     @Mock
     private TaskStatusIdempotencyMapper taskStatusIdempotencyMapper;
+    @Mock
+    private PermissionService permissionService;
 
     @InjectMocks
     private TaskServiceImpl taskService;

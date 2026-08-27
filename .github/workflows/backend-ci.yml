@@ -24,7 +24,7 @@ env:
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
-  CI_EXPECTED_TEST_COUNT: '84'
+  CI_EXPECTED_TEST_COUNT: '120'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -262,6 +262,7 @@ jobs:
         run: |
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-v2-negative-preflight.sh
           bash scripts/ci/verify-existing-database.sh
 
   docker-gate:
@@ -280,7 +281,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-ci-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18123/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '1'
+      CI_EXPECTED_HISTORY_TOTAL: '2'
       CI_EMPTY_DB_NAME: learning_manage_ci_empty
       CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
     steps:

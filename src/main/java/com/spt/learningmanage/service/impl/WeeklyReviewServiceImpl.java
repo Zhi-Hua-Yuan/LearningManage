@@ -14,6 +14,7 @@ import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.WeeklyReviewService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private ProjectMapper projectMapper;
+
+    @Resource
+    private PermissionService permissionService;
 
     @Override
     public WeeklyReview getCurrentWeekReview() {
@@ -118,9 +122,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
 
         Long currentUserId = getCurrentUserId();
-        if (!currentUserId.equals(review.getUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权查看他人的周总结");
-        }
+        permissionService.requireWeeklyReviewFullView(currentUserId, id);
 
         return review;
     }
@@ -135,9 +137,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (oldReview == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
         }
-        if (!oldReview.getUserId().equals(getCurrentUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权修改他人的周总结");
-        }
+        permissionService.requireWeeklyReviewFullView(getCurrentUserId(), weeklyReview.getId());
 
         oldReview.setReflection(weeklyReview.getReflection());
         oldReview.setNextPlan(weeklyReview.getNextPlan());
@@ -158,9 +158,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             return;
         }
 
-        if (!review.getUserId().equals(getCurrentUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权删除他人的周总结");
-        }
+        permissionService.requireWeeklyReviewFullView(getCurrentUserId(), id);
 
         int rows = weeklyReviewMapper.deleteById(id);
         if (rows != 1) {

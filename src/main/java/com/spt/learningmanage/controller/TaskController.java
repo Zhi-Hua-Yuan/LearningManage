@@ -7,12 +7,15 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
+import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentLogVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentResultVO;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
@@ -25,6 +28,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/task")
@@ -95,6 +100,22 @@ public class TaskController {
         }
         taskService.delete(id);
         return ResultUtils.success(true);
+    }
+
+    @PostMapping("/assign")
+    public BaseResponse<TaskAssignmentResultVO> assignTask(@RequestBody TaskAssignRequest request) {
+        if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        return ResultUtils.success(taskService.assign(request));
+    }
+
+    @GetMapping("/{taskId}/assignment-history")
+    public BaseResponse<List<TaskAssignmentLogVO>> assignmentHistory(@PathVariable Long taskId) {
+        if (taskId == null || taskId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        return ResultUtils.success(taskService.assignmentHistory(taskId));
     }
 
     @PostMapping("/batch-rename")

@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "fixture": "v1_to_v2_seed.sql",
+  "targetMigration": "V2__stage1_business_semantics_and_permissions.sql",
+  "expectedCounts": {
+    "beforeMigration": {
+      "user": 5,
+      "team": 1,
+      "teamMember": 3,
+      "project": 2,
+      "milestone": 2,
+      "task": 5,
+      "weeklyReview": 2,
+      "taskAssignmentLog": 0,
+      "weeklyReviewTask": 0
+    },
+    "afterMigration": {
+      "user": 5,
+      "team": 1,
+      "teamMember": 3,
+      "project": 2,
+      "milestone": 2,
+      "task": 5,
+      "weeklyReview": 2,
+      "taskAssignmentLog": 5,
+      "weeklyReviewTask": 0
+    }
+  },
+  "resources": {
+    "teamIds": [2101],
+    "projectIds": [4101, 4102],
+    "milestoneIds": [5101, 5102]
+  },
+  "systemRoles": [
+    {
+      "userId": 1101,
+      "v1Role": "user",
+      "v2Role": "USER"
+    },
+    {
+      "userId": 1102,
+      "v1Role": "admin",
+      "v2Role": "SYSTEM_ADMIN"
+    },
+    {
+      "userId": 1103,
+      "v1Role": "USER",
+      "v2Role": "USER"
+    },
+    {
+      "userId": 1104,
+      "v1Role": "SYSTEM_ADMIN",
+      "v2Role": "SYSTEM_ADMIN"
+    },
+    {
+      "userId": 1105,
+      "v1Role": "USER",
+      "v2Role": "USER"
+    }
+  ],
+  "teamMemberships": [
+    {
+      "teamMemberId": 3101,
+      "teamId": 2101,
+      "userId": 1101,
+      "role": "OWNER",
+      "isDelete": 0
+    },
+    {
+      "teamMemberId": 3102,
+      "teamId": 2101,
+      "userId": 1103,
+      "role": "MEMBER",
+      "isDelete": 0
+    },
+    {
+      "teamMemberId": 3103,
+      "teamId": 2101,
+      "userId": 1105,
+      "role": "MEMBER",
+      "isDelete": 1
+    }
+  ],
+  "taskAssignments": [
+    {
+      "taskId": 6101,
+      "projectId": 4101,
+      "lifecycle": "ACTIVE_INCOMPLETE",
+      "v1CreatedByUserId": 1101,
+      "v1AssigneeUserId": null,
+      "expectedAssigneeUserId": 1101,
+      "expectedAssignedByUserId": 1101,
+      "expectedAssignedAt": "2026-08-01T09:00:00",
+      "expectedInitialLog": {
+        "id": 6101,
+        "fromAssigneeUserId": null,
+        "toAssigneeUserId": 1101,
+        "assignedByUserId": 1101,
+        "action": "INITIAL_ASSIGN",
+        "reason": null,
+        "createTime": "2026-08-01T09:00:00"
+      }
+    },
+    {
+      "taskId": 6102,
+      "projectId": 4102,
+      "lifecycle": "ACTIVE_INCOMPLETE",
+      "v1CreatedByUserId": 1101,
+      "v1AssigneeUserId": null,
+      "expectedAssigneeUserId": 1101,
+      "expectedAssignedByUserId": 1101,
+      "expectedAssignedAt": "2026-08-01T10:00:00",
+      "expectedInitialLog": {
+        "id": 6102,
+        "fromAssigneeUserId": null,
+        "toAssigneeUserId": 1101,
+        "assignedByUserId": 1101,
+        "action": "INITIAL_ASSIGN",
+        "reason": null,
+        "createTime": "2026-08-01T10:00:00"
+      }
+    },
+    {
+      "taskId": 6103,
+      "projectId": 4102,
+      "lifecycle": "ACTIVE_INCOMPLETE",
+      "v1CreatedByUserId": 1101,
+      "v1AssigneeUserId": 1103,
+      "expectedAssigneeUserId": 1103,
+      "expectedAssignedByUserId": 1101,
+      "expectedAssignedAt": "2026-08-01T11:00:00",
+      "expectedInitialLog": {
+        "id": 6103,
+        "fromAssigneeUserId": null,
+        "toAssigneeUserId": 1103,
+        "assignedByUserId": 1101,
+        "action": "INITIAL_ASSIGN",
+        "reason": null,
+        "createTime": "2026-08-01T11:00:00"
+      }
+    },
+    {
+      "taskId": 6104,
+      "projectId": 4102,
+      "lifecycle": "COMPLETED",
+      "v1CreatedByUserId": 1101,
+      "v1AssigneeUserId": 1105,
+      "expectedAssigneeUserId": 1105,
+      "expectedAssignedByUserId": 1101,
+      "expectedAssignedAt": "2026-08-02T09:00:00",
+      "expectedInitialLog": {
+        "id": 6104,
+        "fromAssigneeUserId": null,
+        "toAssigneeUserId": 1105,
+        "assignedByUserId": 1101,
+        "action": "INITIAL_ASSIGN",
+        "reason": null,
+        "createTime": "2026-08-02T09:00:00"
+      }
+    },
+    {
+      "taskId": 6105,
+      "projectId": 4102,
+      "lifecycle": "LOGICALLY_DELETED",
+      "v1CreatedByUserId": 1101,
+      "v1AssigneeUserId": 1105,
+      "expectedAssigneeUserId": 1105,
+      "expectedAssignedByUserId": 1101,
+      "expectedAssignedAt": "2026-08-03T09:00:00",
+      "expectedInitialLog": {
+        "id": 6105,
+        "fromAssigneeUserId": null,
+        "toAssigneeUserId": 1105,
+        "assignedByUserId": 1101,
+        "action": "INITIAL_ASSIGN",
+        "reason": null,
+        "createTime": "2026-08-03T09:00:00"
+      }
+    }
+  ],
+  "weeklyReviews": [
+    {
+      "reviewId": 7101,
+      "authorUserId": 1101,
+      "year": 2026,
+      "weekNo": 31,
+      "expectedVisibilityScope": "PRIVATE",
+      "expectedTeamId": null,
+      "expectedFocusProjectId": null,
+      "expectedSharedSummary": null
+    },
+    {
+      "reviewId": 7102,
+      "authorUserId": 1103,
+      "year": 2026,
+      "weekNo": 31,
+      "expectedVisibilityScope": "PRIVATE",
+      "expectedTeamId": null,
+      "expectedFocusProjectId": null,
+      "expectedSharedSummary": null
+    }
+  ]
+}

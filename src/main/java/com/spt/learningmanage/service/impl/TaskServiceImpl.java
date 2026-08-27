@@ -13,8 +13,12 @@ import com.spt.learningmanage.utils.UserHolder;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskStatusIdempotencyMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
+import com.spt.learningmanage.mapper.TeamMemberMapper;
+import com.spt.learningmanage.mapper.UserMapper;
+import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
@@ -25,13 +29,19 @@ import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.entity.TaskStatusIdempotency;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
+import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentLogVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentResultVO;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
+import com.spt.learningmanage.service.PermissionService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -44,6 +54,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,11 +78,24 @@ public class TaskServiceImpl implements TaskService {
     @Resource
     private TaskStatusIdempotencyMapper taskStatusIdempotencyMapper;
 
+    @Resource
+    private TaskAssignmentLogMapper taskAssignmentLogMapper;
+
+    @Resource
+    private TeamMemberMapper teamMemberMapper;
+
+    @Resource
+    private UserMapper userMapper;
+
+    @Resource
+    private PermissionService permissionService;
+
     /**
      * 创建任务，返回任务ID。
      * 强制校验项目归属当前用户。
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long create(TaskCreateRequest request) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -83,6 +107,7 @@ public class TaskServiceImpl implements TaskService {
         if (request.getProjectId() == null || request.getProjectId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
+        permissionService.requireProjectManage(userId, request.getProjectId());
         validateProjectOwnership(request.getProjectId(), userId);
         validateMilestoneOwnership(request.getProjectId(), request.getMilestoneId(), userId);
         validateTitle(request.getTitle());
@@ -102,9 +127,33 @@ public class TaskServiceImpl implements TaskService {
         task.setDeleteSource(DeleteSourceConstant.NORMAL);
         task.setDeletedAt(null);
 
+        Project project = projectMapper.selectById(request.getProjectId());
+        if (project == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+        LocalDateTime initialAssignedAt = LocalDateTime.now();
+        if (project.getTeamId() == null) {
+            task.setAssigneeUserId(userId);
+            task.setAssignedByUserId(userId);
+            task.setAssignedAt(initialAssignedAt);
+        }
+
         int rows = taskMapper.insert(task);
         if (rows != 1 || task.getId() == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建任务失败");
+        }
+
+        if (task.getAssigneeUserId() != null) {
+            TaskAssignmentLog log = new TaskAssignmentLog();
+            log.setTaskId(task.getId());
+            log.setFromAssigneeUserId(null);
+            log.setToAssigneeUserId(task.getAssigneeUserId());
+            log.setAssignedByUserId(userId);
+            log.setAction("INITIAL_ASSIGN");
+            log.setCreateTime(initialAssignedAt);
+            if (taskAssignmentLogMapper.insert(log) != 1) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存任务分配历史失败");
+            }
         }
 
         calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
@@ -112,7 +161,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * 根据ID查询任务详情，强制过滤 userId。
+     * 根据 ID 查询任务详情，权限由 PermissionService 统一计算。
      */
     @Override
     public TaskVo getById(Long id) {
@@ -123,8 +172,9 @@ public class TaskServiceImpl implements TaskService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
         }
+        permissionService.requireTaskView(userId, id);
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Task::getId, id).eq(Task::getUserId, userId);
+        wrapper.eq(Task::getId, id);
         Task task = taskMapper.selectOne(wrapper);
         if (task == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
@@ -166,7 +216,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * 更新任务信息，强制过滤 userId。
+     * 更新任务信息，按实际变化字段执行统一权限校验。
      * 处理状态变化：从未完成到已完成设置 completedAt，从已完成到未完成清空 completedAt。
      */
     @Override
@@ -181,7 +231,7 @@ public class TaskServiceImpl implements TaskService {
 
         // 1. 查询任务
         LambdaQueryWrapper<Task> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Task::getId, request.getId()).eq(Task::getUserId, userId);
+        queryWrapper.eq(Task::getId, request.getId());
         Task existing = taskMapper.selectOne(queryWrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
@@ -203,14 +253,21 @@ public class TaskServiceImpl implements TaskService {
         Integer newPriority = request.getPriority() != null ? request.getPriority() : existing.getPriority();
         validatePriority(newPriority);
 
-        LocalDate newDueDate = request.getDueDate();
+        LocalDate newDueDate = request.getDueDate() != null ? request.getDueDate() : existing.getDueDate();
 
-        Long milestoneId = request.getMilestoneId();
+        Long milestoneId = request.getMilestoneId() != null ? request.getMilestoneId() : existing.getMilestoneId();
+
+        if (request.getTitle() != null || request.getDescription() != null || request.getDueDate() != null) {
+            permissionService.requireTaskEditContent(userId, request.getId());
+        }
+        if ((request.getPriority() != null && !Objects.equals(request.getPriority(), existing.getPriority()))
+                || (request.getMilestoneId() != null && !Objects.equals(request.getMilestoneId(), existing.getMilestoneId()))) {
+            permissionService.requireTaskReorganize(userId, request.getId());
+        }
 
         // 3. 使用 UpdateWrapper 构造更新
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Task::getId, request.getId())
-                .eq(Task::getUserId, userId)
                 .set(Task::getTitle, newTitle)
                 .set(Task::getDescription, newDescription)
                 .set(Task::getPriority, newPriority)
@@ -228,7 +285,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * 删除任务，强制过滤 userId。
+     * 删除任务，权限由 PermissionService 统一计算。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -249,9 +306,10 @@ public class TaskServiceImpl implements TaskService {
             return toStatusChangeVO(idem, true);
         }
 
+        permissionService.requireTaskChangeStatus(userId, request.getTaskId());
+
         Task task = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
                 .eq(Task::getId, request.getTaskId())
-                .eq(Task::getUserId, userId)
                 .last("limit 1"));
         if (task == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在或无权限");
@@ -272,7 +330,6 @@ public class TaskServiceImpl implements TaskService {
             LocalDateTime newCompletedAt = resolveCompletedAt(oldStatus, targetStatus, task.getCompletedAt());
             int rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
                     .eq(Task::getId, request.getTaskId())
-                    .eq(Task::getUserId, userId)
                     .eq(Task::getStatus, oldStatus)
                     .set(Task::getStatus, targetStatus)
                     .set(Task::getCompletedAt, newCompletedAt));
@@ -284,7 +341,6 @@ public class TaskServiceImpl implements TaskService {
             } else {
                 Task latest = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
                         .eq(Task::getId, request.getTaskId())
-                        .eq(Task::getUserId, userId)
                         .last("limit 1"));
                 if (latest == null) {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在或无权限");
@@ -330,8 +386,9 @@ public class TaskServiceImpl implements TaskService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
         }
+        permissionService.requireTaskDelete(userId, id);
         LambdaQueryWrapper<Task> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Task::getId, id).eq(Task::getUserId, userId);
+        queryWrapper.eq(Task::getId, id);
         Task existing = taskMapper.selectOne(queryWrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
@@ -339,7 +396,6 @@ public class TaskServiceImpl implements TaskService {
 
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Task::getId, id)
-                .eq(Task::getUserId, userId)
                 .set(Task::getIsDelete, 1)
                 .set(Task::getDeleteSource, DeleteSourceConstant.MANUAL)
                 .set(Task::getDeletedAt, LocalDateTime.now());
@@ -350,6 +406,172 @@ public class TaskServiceImpl implements TaskService {
         }
 
         calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
+    }
+
+    /**
+     * Assign, reassign or unassign a task. The task row and its audit record
+     * are written in one transaction and protected by a locked read plus an
+     * assignee compare-and-set predicate.
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TaskAssignmentResultVO assign(TaskAssignRequest request) {
+        Long actorId = UserHolder.get();
+        if (actorId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        validateAssignRequest(request);
+        permissionService.requireTaskAssign(actorId, request.getTaskId());
+
+        Task task = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
+                .eq(Task::getId, request.getTaskId())
+                .last("FOR UPDATE"));
+        if (task == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "任务不存在");
+        }
+        if (Objects.equals(task.getIsDelete(), 1)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "已删除任务不能分配");
+        }
+
+        Long currentAssignee = task.getAssigneeUserId();
+        boolean expectedProvided = Boolean.TRUE.equals(request.getExpectedAssigneeProvided())
+                || request.getExpectedAssigneeUserId() != null;
+        if (expectedProvided && !Objects.equals(currentAssignee, request.getExpectedAssigneeUserId())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务受理人已变化，请刷新后重试");
+        }
+
+        Long targetAssignee = request.getAssigneeUserId();
+        if (Objects.equals(currentAssignee, targetAssignee)) {
+            return assignmentResult(task, currentAssignee, targetAssignee, task.getAssignedByUserId(),
+                    null, "NOOP", false);
+        }
+        validateTargetAssignee(task, targetAssignee);
+
+        LocalDateTime assignedAt = LocalDateTime.now();
+        LambdaUpdateWrapper<Task> update = new LambdaUpdateWrapper<Task>()
+                .eq(Task::getId, task.getId());
+        if (currentAssignee == null) {
+            update.isNull(Task::getAssigneeUserId);
+        } else {
+            update.eq(Task::getAssigneeUserId, currentAssignee);
+        }
+        update.set(Task::getAssigneeUserId, targetAssignee)
+                .set(Task::getAssignedByUserId, actorId)
+                .set(Task::getAssignedAt, assignedAt);
+        if (taskMapper.update(null, update) != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务受理人已变化，请刷新后重试");
+        }
+
+        TaskAssignmentLog log = new TaskAssignmentLog();
+        log.setTaskId(task.getId());
+        log.setFromAssigneeUserId(currentAssignee);
+        log.setToAssigneeUserId(targetAssignee);
+        log.setAssignedByUserId(actorId);
+        log.setAction(resolveAssignmentAction(currentAssignee, targetAssignee));
+        log.setReason(request.getReason() == null ? null : request.getReason().trim());
+        log.setCreateTime(assignedAt);
+        if (taskAssignmentLogMapper.insert(log) != 1) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存任务分配历史失败");
+        }
+
+        task.setAssigneeUserId(targetAssignee);
+        task.setAssignedByUserId(actorId);
+        task.setAssignedAt(assignedAt);
+        return assignmentResult(task, currentAssignee, targetAssignee, actorId,
+                log.getId(), log.getAction(), true);
+    }
+
+    @Override
+    public List<TaskAssignmentLogVO> assignmentHistory(Long taskId) {
+        Long actorId = UserHolder.get();
+        if (actorId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        if (taskId == null || taskId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务 ID 不合法");
+        }
+        permissionService.requireTaskView(actorId, taskId);
+        List<TaskAssignmentLog> logs = taskAssignmentLogMapper.selectList(new LambdaQueryWrapper<TaskAssignmentLog>()
+                .eq(TaskAssignmentLog::getTaskId, taskId)
+                .orderByAsc(TaskAssignmentLog::getCreateTime)
+                .orderByAsc(TaskAssignmentLog::getId));
+        if (logs == null || logs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return logs.stream().map(this::toAssignmentLogVO).toList();
+    }
+
+    private void validateAssignRequest(TaskAssignRequest request) {
+        if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
+        }
+        if (request.getAssigneeUserId() != null && request.getAssigneeUserId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "assigneeUserId 不合法");
+        }
+        if (request.getExpectedAssigneeUserId() != null && request.getExpectedAssigneeUserId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "expectedAssigneeUserId 不合法");
+        }
+        if (request.getReason() != null && request.getReason().length() > 200) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "reason 长度不能超过200");
+        }
+    }
+
+    private void validateTargetAssignee(Task task, Long targetAssignee) {
+        if (targetAssignee == null) {
+            return;
+        }
+        User target = userMapper.selectById(targetAssignee);
+        if (target == null || Objects.equals(target.getIsDelete(), 1)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "受理人不存在或已停用");
+        }
+        if (task.getProjectId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务项目不存在");
+        }
+        Project project = projectMapper.selectById(task.getProjectId());
+        if (project == null || Objects.equals(project.getIsDelete(), 1)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务项目不存在或已归档");
+        }
+        if (project.getTeamId() == null) {
+            if (!Objects.equals(project.getUserId(), targetAssignee)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "个人项目受理人必须是项目所有者");
+            }
+            return;
+        }
+        TeamMember membership = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, project.getTeamId())
+                .eq(TeamMember::getUserId, targetAssignee)
+                .eq(TeamMember::getIsDelete, 0)
+                .last("limit 1"));
+        if (membership == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "受理人不是有效团队成员");
+        }
+    }
+
+    private String resolveAssignmentAction(Long from, Long to) {
+        if (from == null) {
+            return "ASSIGN";
+        }
+        return to == null ? "UNASSIGN" : "REASSIGN";
+    }
+
+    private TaskAssignmentResultVO assignmentResult(Task task, Long from, Long to, Long actorId,
+                                                    Long logId, String action, boolean changed) {
+        TaskAssignmentResultVO result = new TaskAssignmentResultVO();
+        result.setTaskId(task.getId());
+        result.setFromAssigneeUserId(from);
+        result.setToAssigneeUserId(to);
+        result.setAssignedByUserId(actorId);
+        result.setAssignedAt(task.getAssignedAt());
+        result.setAction(action);
+        result.setLogId(logId);
+        result.setChanged(changed);
+        return result;
+    }
+
+    private TaskAssignmentLogVO toAssignmentLogVO(TaskAssignmentLog log) {
+        TaskAssignmentLogVO vo = new TaskAssignmentLogVO();
+        BeanUtils.copyProperties(log, vo);
+        return vo;
     }
 
     /**

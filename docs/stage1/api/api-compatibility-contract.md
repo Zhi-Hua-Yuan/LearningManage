@@ -89,6 +89,9 @@ taskIds
 
 `assigneeUserId=null` 表示解除分配。`expectedAssigneeUserId` 必须能区分“未提供并发条件”和“预期当前为空”；具体 JSON 表达由 PR4 在不歧义的前提下固定，可使用额外 `expectedVersion` 替代。
 
+PR4 固定采用 `expectedAssigneeProvided=true` 表示调用方明确预期当前无人受理；当
+`expectedAssigneeUserId` 为非空时视为已提供，未传两个字段则不启用受理人并发条件。
+
 ### `TaskVO.capabilities`
 
 ```json

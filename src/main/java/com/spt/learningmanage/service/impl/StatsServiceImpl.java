@@ -62,13 +62,13 @@ public class StatsServiceImpl implements StatsService {
         coreMetricsVO.setOngoingProjectCount(toInteger(projectMapper.selectCount(ongoingProjectWrapper)));
 
         LambdaQueryWrapper<Task> overdueTaskWrapper = new LambdaQueryWrapper<>();
-        overdueTaskWrapper.eq(Task::getUserId, userId)
+        overdueTaskWrapper.eq(Task::getAssigneeUserId, userId)
                 .lt(Task::getDueDate, today)
                 .eq(Task::getStatus, TaskStatusEnum.TODO.getValue());
         coreMetricsVO.setOverdueTaskCount(toInteger(taskMapper.selectCount(overdueTaskWrapper)));
 
         LambdaQueryWrapper<Task> dueTodayTaskWrapper = new LambdaQueryWrapper<>();
-        dueTodayTaskWrapper.eq(Task::getUserId, userId)
+        dueTodayTaskWrapper.eq(Task::getAssigneeUserId, userId)
                 .eq(Task::getDueDate, today)
                 .eq(Task::getStatus, TaskStatusEnum.TODO.getValue());
         coreMetricsVO.setDueTodayTaskCount(toInteger(taskMapper.selectCount(dueTodayTaskWrapper)));
@@ -95,7 +95,7 @@ public class StatsServiceImpl implements StatsService {
         LocalDateTime rangeEndExclusive = today.plusDays(1L).atStartOfDay();
 
         LambdaQueryWrapper<Task> completedTaskWrapper = new LambdaQueryWrapper<>();
-        completedTaskWrapper.eq(Task::getUserId, userId)
+        completedTaskWrapper.eq(Task::getAssigneeUserId, userId)
                 .in(Task::getStatus,
                         TaskStatusEnum.DONE_BASIC.getValue(),
                         TaskStatusEnum.DONE_STANDARD.getValue(),

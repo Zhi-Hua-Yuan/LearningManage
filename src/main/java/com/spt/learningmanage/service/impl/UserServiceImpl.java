@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.UserMapper;
+import com.spt.learningmanage.constant.SystemRole;
 import com.spt.learningmanage.model.dto.user.UserUpdateRequest;
 import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.model.vo.user.UserLoginVo;
@@ -69,7 +70,7 @@ public class UserServiceImpl implements UserService {
         user.setAccount(userAccount);
         user.setUsername(StrUtil.isNotBlank(username) ? username.trim() : UUID.randomUUID().toString().substring(0, 10));
         user.setPassword(encryptedPwd);
-        user.setUserRole("user");
+        user.setUserRole(SystemRole.USER.name());
         int result = userMapper.insert(user);
         if (result <= 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "注册失败");
@@ -93,6 +94,11 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号或密码错误，请检查后重试");
         }
+        String canonicalRole = SystemRole.canonicalize(user.getUserRole());
+        if (canonicalRole == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户角色无效，请联系管理员");
+        }
+        user.setUserRole(canonicalRole);
         // 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号或密码错误，请检查后重试");
