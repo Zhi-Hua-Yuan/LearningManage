@@ -1,2 +1,0 @@
--- Marker migration used only by the guarded baseline command.
--- The actual V1 schema is supplied by the legacy fixture before baselining.
