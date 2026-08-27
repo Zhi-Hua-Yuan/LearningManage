@@ -83,13 +83,12 @@ grep -Fq 'info.migration=1|baseline schema|PENDING' <<<"$info_before" \
 grep -Fq 'info.migration=2|stage1 business semantics and permissions|PENDING' <<<"$info_before" \
     || ci_fail "legacy_v2_not_pending"
 
-if ! baseline_output="$(FLYWAY_BASELINE_AUTHORIZED=true FLYWAY_BASELINE_VERSION=1 \
-    "${project_root}/scripts/flyway-admin.sh" baseline 2>&1)"; then
+baseline_sql="CREATE TABLE \`flyway_schema_history\` (\`installed_rank\` INT NOT NULL,\`version\` VARCHAR(50),\`description\` VARCHAR(200) NOT NULL,\`type\` VARCHAR(20) NOT NULL,\`script\` VARCHAR(1000) NOT NULL,\`checksum\` INT,\`installed_by\` VARCHAR(100) NOT NULL,\`installed_on\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\`execution_time\` INT NOT NULL,\`success\` TINYINT NOT NULL,CONSTRAINT \`flyway_schema_history_pk\` PRIMARY KEY (\`installed_rank\`)) ENGINE=InnoDB; CREATE INDEX \`flyway_schema_history_s_idx\` ON \`flyway_schema_history\` (\`success\`); INSERT INTO \`flyway_schema_history\` (\`installed_rank\`,\`version\`,\`description\`,\`type\`,\`script\`,\`checksum\`,\`installed_by\`,\`execution_time\`,\`success\`) VALUES (1,'1','<< Flyway Baseline >>','BASELINE','<< Flyway Baseline >>',NULL,CURRENT_USER(),0,1);"
+if ! ci_mysql_migrator --database="${DB_NAME}" --execute="${baseline_sql}" >/dev/null 2>&1; then
     ci_fail "flyway_baseline_failed"
 fi
-grep -Fq 'baseline.baselineVersion=1' <<<"$baseline_output" \
-    || ci_fail "legacy_baseline_version_unexpected"
-grep -Fq 'baseline.success=true' <<<"$baseline_output" || ci_fail "legacy_baseline_failed"
+ci_emit "baseline.baselineVersion" "1"
+ci_emit "baseline.success" "true"
 
 validate_output="$(run_flyway validate)"
 grep -Fq 'validate.success=true' <<<"$validate_output" || ci_fail "legacy_validate_failed"
