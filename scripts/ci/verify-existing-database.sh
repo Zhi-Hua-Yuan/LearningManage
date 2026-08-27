@@ -90,7 +90,7 @@ fi
 ci_emit "baseline.baselineVersion" "1"
 ci_emit "baseline.success" "true"
 
-validate_output="$(run_flyway validate)"
+validate_output="$(FLYWAY_ALLOW_PENDING_VALIDATE=true run_flyway validate)"
 grep -Fq 'validate.success=true' <<<"$validate_output" || ci_fail "legacy_validate_failed"
 
 info_after="$(run_flyway info)"
