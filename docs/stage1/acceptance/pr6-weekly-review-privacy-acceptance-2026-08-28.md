@@ -35,11 +35,11 @@
 
 GitHub Actions 运行：
 
-- [Run 33094299668](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33094299668)
-- Maven verification and tested artifact：PASS（job 98595124487）
-- Guard and migration immutability：PASS（job 98595052341）
-- Flyway empty database gate：PASS（job 98595535022）
-- Flyway existing database gate：PASS（job 98595852039）
-- Docker runtime and migration gate：PASS（job 98596179094）
+- [Run 33094880059](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33094880059)
+- Maven verification and tested artifact：PASS（job 98597120896）
+- Guard and migration immutability：PASS（job 98597050599）
+- Flyway empty database gate：PASS（job 98597583194）
+- Flyway existing database gate：PASS（job 98597904131）
+- Docker runtime and migration gate：PASS（job 98598206382）
 
 五项受保护门禁全部通过，PR6 具备进入评审/合并流程的验收证据。
