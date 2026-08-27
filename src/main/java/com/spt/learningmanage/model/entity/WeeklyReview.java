@@ -16,6 +16,10 @@ public class WeeklyReview {
     private Long id;
 
     private Long userId;
+    private String visibilityScope;
+    private Long teamId;
+    private Long focusProjectId;
+    private String sharedSummary;
     private Integer year;
     private Integer weekNo;
     private LocalDate startDate;

@@ -24,6 +24,7 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/provision-ci-databases.sh",
             "scripts/ci/verify-empty-database.sh",
             "scripts/ci/verify-existing-database.sh",
+            "scripts/ci/verify-v2-negative-preflight.sh",
             "scripts/ci/verify-published-migrations.sh",
             "scripts/ci/verify-docker-runtime.sh",
             "scripts/ci/verify-runtime-api-contract.sh",
@@ -77,6 +78,7 @@ class FlywayCiScriptStaticTest {
                 "scripts/ci/provision-ci-databases.sh",
                 "scripts/ci/verify-empty-database.sh",
                 "scripts/ci/verify-existing-database.sh",
+                "scripts/ci/verify-v2-negative-preflight.sh",
                 "scripts/ci/verify-docker-runtime.sh")) {
             String script = read(relativePath);
             int guard = script.indexOf("ci_assert_ci_target");
@@ -181,6 +183,17 @@ class FlywayCiScriptStaticTest {
         assertTrue(stub.contains("/compatible-mode/v1/chat/completions"));
         assertFalse(stub.toLowerCase().contains("dashscope"));
         assertFalse(stub.toLowerCase().contains("authorization"));
+    }
+
+    @Test
+    void stage1FlywayGatesAreWiredIntoCiWithV2HistoryBaseline() throws IOException {
+        String backendWorkflow = read(".github/workflows/backend-ci.yml");
+        String releaseWorkflow = read(".github/workflows/release-gate.yml");
+
+        for (String workflow : List.of(backendWorkflow, releaseWorkflow)) {
+            assertTrue(workflow.contains("verify-v2-negative-preflight.sh"));
+            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '2'"));
+        }
     }
 
     private static String read(String relativePath) throws IOException {

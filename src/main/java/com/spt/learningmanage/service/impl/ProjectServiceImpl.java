@@ -26,6 +26,7 @@ import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -57,6 +58,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Resource
     private TeamMemberMapper teamMemberMapper;
+
+    @Resource
+    private PermissionService permissionService;
 
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
@@ -146,6 +150,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectView(userId, id);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
                 .eq(Project::getUserId, userId)
@@ -237,6 +242,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (projectUpdateRequest == null || projectUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(userId, projectUpdateRequest.getId());
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, projectUpdateRequest.getId())
                 .eq(Project::getUserId, userId)
@@ -311,6 +317,7 @@ public class ProjectServiceImpl implements ProjectService {
             if (!idSet.add(reorderRequest.getId())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
+            permissionService.requireProjectManage(userId, reorderRequest.getId());
             if (!orderNoSet.add(reorderRequest.getOrderNo())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
@@ -350,6 +357,7 @@ public class ProjectServiceImpl implements ProjectService {
             if (id == null || id <= 0) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
             }
+            permissionService.requireProjectManage(userId, id);
         }
 
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
@@ -391,6 +399,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(userId, id);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
                 .eq(Project::getUserId, userId)
@@ -446,6 +455,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(userId, id);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
                 .eq(Project::getUserId, userId)

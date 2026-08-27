@@ -72,6 +72,18 @@ taskIds
 | POST | `/api/team/{teamId}/member/remove` | OWNER 或受限 ADMIN | 移除成员 |
 | GET | `/api/review/team` | 指定团队有效成员 | 查询团队共享摘要 |
 
+`GET /api/review/team` 查询参数：`teamId`（必填）、`year` 和 `weekNo`（可选）。响应为 `WeeklyReviewSharedVO[]`，只返回指定团队中 `visibilityScope=TEAM` 的独立共享摘要，不返回 `reflection`、`nextPlan`、`taskIds` 或私人项目详情。
+
+成员移除请求体：
+
+```json
+{
+  "targetUserId": 1002
+}
+```
+
+`/team/{teamId}/leave` 不需要请求体；`/team/{teamId}/member/remove` 的 `targetUserId` 必须为当前有效成员。
+
 后端已存在 `GET /api/team/{teamId}/members`；阶段 1 前端新增调用，但不重复新增后端路由。
 
 ## 4. 关键 DTO/VO
@@ -88,6 +100,9 @@ taskIds
 ```
 
 `assigneeUserId=null` 表示解除分配。`expectedAssigneeUserId` 必须能区分“未提供并发条件”和“预期当前为空”；具体 JSON 表达由 PR4 在不歧义的前提下固定，可使用额外 `expectedVersion` 替代。
+
+PR4 固定采用 `expectedAssigneeProvided=true` 表示调用方明确预期当前无人受理；当
+`expectedAssigneeUserId` 为非空时视为已提供，未传两个字段则不启用受理人并发条件。
 
 ### `TaskVO.capabilities`
 

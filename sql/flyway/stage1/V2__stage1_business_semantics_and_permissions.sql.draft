@@ -1,0 +1,170 @@
+-- Stage 1 V2 migration draft skeleton.
+--
+-- This file is a non-executable design scaffold for Work Package 2.
+-- It is intentionally stored outside src/main/resources/db/migration and
+-- does not participate in Flyway discovery or schema history.
+--
+-- Before this draft can become the formal migration, every section below
+-- must be replaced with verified MySQL 8.0.41 SQL and covered by the V2
+-- migration static contract and isolated-database execution evidence.
+
+-- ============================================================================
+-- 0. Preconditions and migration boundary
+-- ============================================================================
+-- Input contract:
+--   - Frozen V1 schema.
+--   - sql/flyway/stage1/01_preflight_v2.sql has returned 25 PASS rows.
+--   - No V2 columns, indexes, constraints, or relation tables exist yet.
+--   - No production database or production credentials are used here.
+--
+-- This migration must not contain:
+--   - CREATE DATABASE, USE, DEFINER, GRANT, or account management;
+--   - foreign keys, triggers, procedures, or tenant-RBAC seed data;
+--   - AI, vector, Redis, deployment, or unrelated business changes;
+--   - DROP TABLE, TRUNCATE, or broad data deletion;
+--   - IF EXISTS / IF NOT EXISTS clauses that conceal schema drift.
+
+-- ============================================================================
+-- 1. System-role transition protection and normalization
+-- ============================================================================
+-- 1.1 Add a temporary transition check that allows exactly:
+--     user, admin, USER, SYSTEM_ADMIN
+--     Use BINARY comparisons so utf8mb4_0900_ai_ci cannot hide case errors.
+--
+-- 1.2 Normalize only the two legacy values:
+--     user  -> USER
+--     admin -> SYSTEM_ADMIN
+--     Unknown values must remain unmodified and cause the migration to fail.
+--
+-- 1.3 Change the column default to USER.
+--
+-- 1.4 Remove the transition check and add the final check allowing exactly:
+--     USER, SYSTEM_ADMIN
+
+-- ============================================================================
+-- 2. Task identity and current assignment columns
+-- ============================================================================
+-- 2.1 Rename the sole V1 assignee column:
+--     assignee_id -> assignee_user_id
+--     Do not create a second assignee column.
+--
+-- 2.2 Add nullable columns:
+--     assigned_by_user_id BIGINT NULL
+--     assigned_at         DATETIME NULL
+--
+-- 2.3 Remove idx_task_assignee_id.
+--
+-- 2.4 Add:
+--     idx_task_assignee_status
+--       (assignee_user_id, is_delete, status, due_date)
+--     idx_task_project_assignee
+--       (project_id, assignee_user_id, is_delete)
+
+-- ============================================================================
+-- 3. Deterministic task backfill
+-- ============================================================================
+-- Use the single frozen derivation rule for every task lifecycle:
+--     finalAssigneeUserId = COALESCE(assignee_user_id, user_id)
+--
+-- Backfill exactly:
+--     assignee_user_id    = COALESCE(assignee_user_id, user_id)
+--     assigned_by_user_id = user_id
+--     assigned_at         = create_time
+--
+-- Do not restrict this update to active tasks. Completed and logically
+-- deleted tasks retain historical responsibility facts.
+
+-- ============================================================================
+-- 4. Immutable task-assignment history
+-- ============================================================================
+-- 4.1 Create task_assignment_log with:
+--     id                      BIGINT NOT NULL
+--     task_id                 BIGINT NOT NULL
+--     from_assignee_user_id   BIGINT NULL
+--     to_assignee_user_id     BIGINT NULL
+--     assigned_by_user_id     BIGINT NOT NULL
+--     action                  VARCHAR(32) NOT NULL
+--     reason                  VARCHAR(200) NULL
+--     create_time             DATETIME NOT NULL
+--
+-- 4.2 Add the exact action check:
+--     INITIAL_ASSIGN, ASSIGN, REASSIGN, UNASSIGN,
+--     MEMBER_LEFT, MEMBER_REMOVED
+--
+-- 4.3 Add indexes:
+--     idx_assignment_log_task_time(task_id, create_time)
+--     idx_assignment_log_to_user_time(to_assignee_user_id, create_time)
+--     idx_assignment_log_actor_time(assigned_by_user_id, create_time)
+--
+-- 4.4 Write one INITIAL_ASSIGN row for every task whose final assignee is
+--     non-null. The deterministic mapping is:
+--     id                     = task.id
+--     task_id                = task.id
+--     from_assignee_user_id  = NULL
+--     to_assignee_user_id    = task.assignee_user_id
+--     assigned_by_user_id    = task.user_id
+--     action                 = INITIAL_ASSIGN
+--     reason                 = NULL
+--     create_time            = task.create_time
+--
+--     The insert must be set-based and must not use AUTO_INCREMENT, NOW(),
+--     CURRENT_TIMESTAMP, ROW_NUMBER(), or execution-order IDs.
+
+-- ============================================================================
+-- 5. Weekly-review visibility and stable associations
+-- ============================================================================
+-- 5.1 Add to weekly_review:
+--     visibility_scope VARCHAR(16) NOT NULL DEFAULT 'PRIVATE'
+--     team_id          BIGINT NULL
+--     focus_project_id BIGINT NULL
+--     shared_summary   TEXT NULL
+--
+-- 5.2 Add:
+--     chk_weekly_review_visibility_scope
+--       allowing exactly PRIVATE and TEAM, using BINARY comparison.
+--
+-- 5.3 Validate on MySQL 8.0.41 whether the full target invariant can be
+--     expressed safely as a CHECK:
+--     PRIVATE -> team_id IS NULL
+--     TEAM    -> team_id IS NOT NULL and shared_summary is nonblank
+--     If the expression is not supported, retain the enum check and record
+--     the limitation; PR6 remains responsible for the application invariant.
+--
+-- 5.4 Add indexes:
+--     idx_weekly_review_team_scope_time(team_id, visibility_scope, year, week_no)
+--     idx_weekly_review_focus_project(focus_project_id)
+--
+-- 5.5 Create weekly_review_task with:
+--     id, weekly_review_id, task_id, create_time
+--     PRIMARY KEY(id)
+--     UNIQUE(weekly_review_id, task_id)
+--     INDEX(task_id, weekly_review_id)
+--
+--     Do not create links for existing reviews. All existing reviews remain
+--     PRIVATE with NULL team_id, focus_project_id, and shared_summary.
+
+-- ============================================================================
+-- 6. Post-migration verification contract
+-- ============================================================================
+-- The executable post-verify will live separately at:
+--     sql/flyway/stage1/02_post_verify_v2.sql
+--
+-- It must verify, at minimum:
+--   - V1/V2 structure and indexes;
+--   - canonical system roles and final constraints;
+--   - task backfill completeness;
+--   - one-to-one INITIAL_ASSIGN reconciliation using task IDs;
+--   - all stored weekly reviews remaining PRIVATE and unlinked;
+--   - expected fixture counts from v1_to_v2_expected.json.
+
+-- ============================================================================
+-- 7. Promotion checklist for the formal V2 migration
+-- ============================================================================
+-- [ ] Replace this .sql.draft with a verified .sql under db/migration.
+-- [ ] Add FlywayV2MigrationStaticTest and update FlywayTestSupport.
+-- [ ] Run isolated MySQL 8.0.41 empty-database migration.
+-- [ ] Run isolated seeded V1 -> V2 migration.
+-- [ ] Run post-verify and expected-JSON reconciliation.
+-- [ ] Append the final V2 SHA-256 to published-migrations.sha256.
+-- [ ] Record the Work Package 2 acceptance evidence.
+-- [ ] Only then allow later work packages to modify CI or runtime code.

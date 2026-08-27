@@ -6,9 +6,9 @@
 |---|---|---|---|---|---|---|
 | S1-R-001 | OPEN | V1 已有 `assignee_id`，误新增同义列形成双真相 | V2 DDL 同时出现两个受理人列 | ADR-001 固定 rename；结构测试断言唯一受理人列 | V2 schema manifest 与 MySQL 验证 | PR2 |
 | S1-R-002 | OPEN | 存量未知 `user_role` 被错误归类 | preflight 发现非允许值 | 未知值阻断迁移，先人工分类 | preflight/post-verify 报告 | PR2 |
-| S1-R-003 | OPEN | 分配与成员退出竞争留下失效受理人 | 两事务并发操作同一成员/任务 | 行锁或 CAS；同事务解除任务与失效成员 | 并发测试 | PR4/PR5 |
-| S1-R-004 | OPEN | TEAM 周复盘泄漏私人正文 | 复用实体或同一 VO 返回 | DTO/VO 分离；共享 VO 类型不含私人字段 | 序列化与越权测试 | PR6 |
-| S1-R-005 | OPEN | 复盘没有共享目标导致跨团队泄漏 | TEAM 记录 teamId 为空或关联跨团队任务 | ADR-002 增加 team_id；保存时批量校验 | 数据约束和集成测试 | PR2/PR6 |
+| S1-R-003 | MITIGATED | 分配与成员退出竞争留下失效受理人 | 两事务并发操作同一成员/任务 | 行锁或 CAS；同事务解除任务与失效成员 | 任务锁定/CAS、事务编排测试；真实并发压力待阶段门禁 | PR4/PR5 |
+| S1-R-004 | MITIGATED | TEAM 周复盘泄漏私人正文 | 复用实体或同一 VO 返回 | DTO/VO 分离；共享 VO 类型不含私人字段 | 共享 VO 字段测试、作者完整视图测试、受保护 CI | PR6 |
+| S1-R-005 | MITIGATED | 复盘没有共享目标导致跨团队泄漏 | TEAM 记录 teamId 为空或关联跨团队任务 | ADR-002 增加 team_id；保存时校验团队成员、重点项目和关联任务归属 | TEAM 保存边界测试、V2 约束与受保护 CI | PR2/PR6 |
 | S1-R-006 | ACCEPTED_LIMITATION | 首版一份周复盘只能定向一个团队 | 用户需要向多个团队发布不同摘要 | 明确产品限制；未来用 share 表扩展时新增 ADR/迁移 | 文档和 UI 提示 | 后续阶段 |
 | S1-R-007 | OPEN | 权限检查逐条查询导致 N+1 | 任务列表、统计、AI 批量 ID | PermissionService 提供批量方法；查询次数门禁 | 100 资源查询测试 | PR3/PR4 |
 | S1-R-008 | OPEN | 普通接口已鉴权但 AI 入口可绕过 | AI 请求携带越权 projectId/taskId | 所有现有 AI 入口接入批量权限；确认时重新校验 | AI 越权回归测试 | PR3/PR6 |

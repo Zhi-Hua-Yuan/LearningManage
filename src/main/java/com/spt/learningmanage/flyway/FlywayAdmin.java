@@ -4,6 +4,9 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationInfoService;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,9 +30,11 @@ public final class FlywayAdmin {
             Map<String, String> environment = System.getenv();
             if ("baseline".equals(action)) {
                 requireBaselineAuthorization(environment);
+                baselineLegacySchema(environment);
+                return;
             }
 
-            Flyway flyway = Flyway.configure()
+            var configuration = Flyway.configure()
                     .dataSource(jdbcUrl(environment), required(environment, "FLYWAY_DB_USERNAME"),
                             required(environment, "FLYWAY_DB_PASSWORD"))
                     .locations("classpath:db/migration")
@@ -37,8 +42,12 @@ public final class FlywayAdmin {
                     .validateOnMigrate(true)
                     .cleanDisabled(true)
                     .outOfOrder(false)
-                    .baselineVersion(EXPECTED_BASELINE_VERSION)
-                    .load();
+                    .baselineVersion(EXPECTED_BASELINE_VERSION);
+            if ("validate".equals(action)
+                    && "true".equalsIgnoreCase(environment.get("FLYWAY_ALLOW_PENDING_VALIDATE"))) {
+                configuration.ignoreMigrationPatterns("*:pending");
+            }
+            Flyway flyway = configuration.load();
 
             switch (action) {
                 case "info" -> printInfo(flyway.info());
@@ -84,6 +93,60 @@ public final class FlywayAdmin {
         if (!EXPECTED_BASELINE_VERSION.equals(environment.get("FLYWAY_BASELINE_VERSION"))) {
             throw new IllegalStateException("baseline requires FLYWAY_BASELINE_VERSION=1");
         }
+    }
+
+    private static void baselineLegacySchema(Map<String, String> environment) throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                jdbcUrl(environment), required(environment, "FLYWAY_DB_USERNAME"),
+                required(environment, "FLYWAY_DB_PASSWORD"))) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM information_schema.tables "
+                            + "WHERE table_schema = DATABASE() "
+                            + "AND table_name <> 'flyway_schema_history'")) {
+                try (var result = statement.executeQuery()) {
+                    if (!result.next() || result.getInt(1) == 0) {
+                        throw new IllegalStateException("baseline requires a non-empty schema");
+                    }
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM information_schema.tables "
+                            + "WHERE table_schema = DATABASE() AND table_name = 'flyway_schema_history'")) {
+                try (var result = statement.executeQuery()) {
+                    if (result.next() && result.getInt(1) != 0) {
+                        throw new IllegalStateException("baseline history table already exists");
+                    }
+                }
+            }
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("CREATE TABLE `flyway_schema_history` ("
+                        + "`installed_rank` INT NOT NULL,"
+                        + "`version` VARCHAR(50),"
+                        + "`description` VARCHAR(200) NOT NULL,"
+                        + "`type` VARCHAR(20) NOT NULL,"
+                        + "`script` VARCHAR(1000) NOT NULL,"
+                        + "`checksum` INT,"
+                        + "`installed_by` VARCHAR(100) NOT NULL,"
+                        + "`installed_on` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                        + "`execution_time` INT NOT NULL,"
+                        + "`success` TINYINT NOT NULL,"
+                        + "CONSTRAINT `flyway_schema_history_pk` PRIMARY KEY (`installed_rank`)"
+                        + ") ENGINE=InnoDB");
+                statement.executeUpdate("CREATE INDEX `flyway_schema_history_s_idx` "
+                        + "ON `flyway_schema_history` (`success`)");
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO `flyway_schema_history` "
+                            + "(`installed_rank`, `version`, `description`, `type`, `script`, "
+                            + "`checksum`, `installed_by`, `execution_time`, `success`) "
+                            + "VALUES (1, ?, '<< Flyway Baseline >>', 'BASELINE', "
+                            + "'<< Flyway Baseline >>', NULL, CURRENT_USER(), 0, 1)")) {
+                statement.setString(1, EXPECTED_BASELINE_VERSION);
+                statement.executeUpdate();
+            }
+        }
+        System.out.println("baseline.baselineVersion=" + EXPECTED_BASELINE_VERSION);
+        System.out.println("baseline.success=true");
     }
 
     private static String jdbcUrl(Map<String, String> environment) {

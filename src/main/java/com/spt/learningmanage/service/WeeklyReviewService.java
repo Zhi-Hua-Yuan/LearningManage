@@ -1,6 +1,9 @@
 package com.spt.learningmanage.service;
 
 import com.spt.learningmanage.model.entity.WeeklyReview;
+import com.spt.learningmanage.model.dto.review.WeeklyReviewSaveRequest;
+import com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO;
+import com.spt.learningmanage.model.vo.review.WeeklyReviewVO;
 
 import java.util.List;
 
@@ -11,10 +14,14 @@ public interface WeeklyReviewService {
      */
     WeeklyReview getCurrentWeekReview();
 
+    WeeklyReviewVO getCurrentWeekReviewView();
+
     /**
      * 保存或更新周总结。
      */
     void saveReview(WeeklyReview weeklyReview);
+
+    void saveReview(WeeklyReviewSaveRequest request);
 
     /**
      * 根据ID获取周总结详情
@@ -23,10 +30,14 @@ public interface WeeklyReviewService {
      */
     WeeklyReview getReviewById(Long id);
 
+    WeeklyReviewVO getReviewViewById(Long id);
+
     /**
      * 更新周总结
      */
     void updateReview(WeeklyReview weeklyReview);
+
+    void updateReview(WeeklyReviewSaveRequest request);
 
     /**
      * 删除周总结
@@ -37,5 +48,9 @@ public interface WeeklyReviewService {
      * 获取历史周总结列表。
      */
     List<WeeklyReview> listHistory();
+
+    List<WeeklyReviewVO> listHistoryViews();
+
+    List<WeeklyReviewSharedVO> listTeamSharedReviews(Long teamId, Integer year, Integer weekNo);
 }
 
