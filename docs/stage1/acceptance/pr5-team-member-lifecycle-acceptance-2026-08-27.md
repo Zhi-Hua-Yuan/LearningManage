@@ -1,6 +1,6 @@
 # PR5 成员退出与移除验收记录
 
-日期：2026-08-27  
+日期：2026-08-28
 范围：成员主动退出、成员移除、未完成任务原子解除分配
 
 ## 1. 交付内容
@@ -33,6 +33,22 @@
 - 任务查询使用 `FOR UPDATE`，更新带当前受理人、状态和逻辑删除条件，避免覆盖并发变更。
 - 当前测试为服务层事务编排单元测试；真实 MySQL 并发压力与受保护 CI 证据留待阶段验收门禁补充。
 
-## 4. 未在本记录中宣称的内容
+## 4. 受保护 CI 实跑
+
+PR：[Stage 1: permissions and task assignment audit #40](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/40)
+
+Workflow run：[Backend CI 33090864163](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33090864163)
+
+| Gate | 结果 |
+|---|---|
+| Guard and migration immutability | PASS |
+| Maven verification and tested artifact | PASS（125 项测试） |
+| Flyway empty database gate | PASS |
+| Flyway existing database gate | PASS |
+| Docker runtime and migration gate | PASS |
+
+本次运行仅使用 CI 临时 MySQL 容器和受保护凭据，未接触生产数据库。
+
+## 5. 未在本记录中宣称的内容
 
 任务列表作用域查询、TEAM 周复盘发布/共享、AI 批量资源权限校验仍属于后续 PR6/PR7 工作包。
