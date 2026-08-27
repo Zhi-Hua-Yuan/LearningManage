@@ -15,8 +15,10 @@ run_flyway() {
     local action="$1"
     local output
     if ! output="$("${project_root}/scripts/flyway-admin.sh" "$action" 2>&1)"; then
+        printf '%s\n' "$output" >&2
         ci_fail "flyway_${action}_failed"
     fi
+    printf '%s\n' "$output" >&2
     printf '%s\n' "$output"
 }
 
