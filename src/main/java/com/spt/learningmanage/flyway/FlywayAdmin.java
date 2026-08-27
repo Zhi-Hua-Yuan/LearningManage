@@ -32,16 +32,15 @@ public final class FlywayAdmin {
             var configuration = Flyway.configure()
                     .dataSource(jdbcUrl(environment), required(environment, "FLYWAY_DB_USERNAME"),
                             required(environment, "FLYWAY_DB_PASSWORD"))
-                    .locations("classpath:db/migration")
-                    .baselineOnMigrate("baseline".equals(action))
-                    .validateOnMigrate(!"baseline".equals(action))
+                    .locations("baseline".equals(action)
+                            ? "classpath:db/migration-baseline"
+                            : "classpath:db/migration")
+                    .failOnMissingLocations(!"baseline".equals(action))
+                    .baselineOnMigrate(false)
+                    .validateOnMigrate(true)
                     .cleanDisabled(true)
                     .outOfOrder(false)
                     .baselineVersion(EXPECTED_BASELINE_VERSION);
-            if ("baseline".equals(action)) {
-                configuration.target(EXPECTED_BASELINE_VERSION);
-                configuration.ignoreMigrationPatterns("*:pending");
-            }
             Flyway flyway = configuration.load();
 
             switch (action) {
@@ -51,8 +50,8 @@ public final class FlywayAdmin {
                     System.out.println("validate.success=true");
                 }
                 case "baseline" -> {
-                    flyway.migrate();
-                    System.out.println("baseline.baselineVersion=" + EXPECTED_BASELINE_VERSION);
+                    var result = flyway.baseline();
+                    System.out.println("baseline.baselineVersion=" + result.baselineVersion);
                     System.out.println("baseline.success=true");
                 }
                 case "migrate" -> {
