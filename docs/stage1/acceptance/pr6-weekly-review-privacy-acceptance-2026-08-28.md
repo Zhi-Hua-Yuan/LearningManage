@@ -33,5 +33,13 @@
 
 ## 4. 受保护 CI
 
-推送后由 GitHub Actions 执行 `backend-ci` 和 `release-gate`。运行编号、五项门禁结果及链接在 CI 完成后回填；在回填前不视为阶段 1 最终发布验收完成。
+GitHub Actions 运行：
 
+- [Run 33094299668](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33094299668)
+- Maven verification and tested artifact：PASS（job 98595124487）
+- Guard and migration immutability：PASS（job 98595052341）
+- Flyway empty database gate：PASS（job 98595535022）
+- Flyway existing database gate：PASS（job 98595852039）
+- Docker runtime and migration gate：PASS（job 98596179094）
+
+五项受保护门禁全部通过，PR6 具备进入评审/合并流程的验收证据。
