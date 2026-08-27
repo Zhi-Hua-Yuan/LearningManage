@@ -1,4 +1,4 @@
-# PR4 任务分配与历史审计本地验收记录
+# PR4 任务分配与历史审计验收记录
 
 日期：2026-08-27
 范围：任务分配、转派、解除分配与不可变历史审计
@@ -22,6 +22,22 @@
 | CI/Flyway 静态合同 | PASS |
 | Bash 语法与 diff 检查 | PASS |
 
-## 3. 未在本记录中宣称的内容
+## 3. 受保护 CI 实跑
+
+PR：[Stage 1: permissions and task assignment audit #40](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/40)
+
+Workflow run：[Backend CI 33087391928](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33087391928)
+
+| Gate | 结果 |
+|---|---|
+| Guard and migration immutability | PASS |
+| Maven verification and tested artifact | PASS |
+| Flyway empty database gate | PASS |
+| Flyway existing database gate | PASS |
+| Docker runtime and migration gate | PASS |
+
+备注：existing database gate 使用受保护迁移账号创建标准 Flyway history baseline，随后由 Flyway validate/migrate 完成 V2 验证；未接触生产数据库。
+
+## 4. 未在本记录中宣称的内容
 
 受保护 CI 的正式实跑、成员退出/移除时的批量原子解除分配、任务列表作用域查询以及 AI 批量权限校验仍属于后续工作包或正式 CI 验收范围。
