@@ -72,6 +72,8 @@ taskIds
 | POST | `/api/team/{teamId}/member/remove` | OWNER 或受限 ADMIN | 移除成员 |
 | GET | `/api/review/team` | 指定团队有效成员 | 查询团队共享摘要 |
 
+`GET /api/review/team` 查询参数：`teamId`（必填）、`year` 和 `weekNo`（可选）。响应为 `WeeklyReviewSharedVO[]`，只返回指定团队中 `visibilityScope=TEAM` 的独立共享摘要，不返回 `reflection`、`nextPlan`、`taskIds` 或私人项目详情。
+
 成员移除请求体：
 
 ```json

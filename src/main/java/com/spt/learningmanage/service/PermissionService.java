@@ -28,6 +28,8 @@ public interface PermissionService {
 
     void requireWeeklyReviewSharedView(Long actorId, Long reviewId);
 
+    void requireActiveTeamMember(Long actorId, Long teamId);
+
     Map<Long, ProjectAccessScope> resolveProjectScopes(Long actorId, Collection<Long> projectIds);
 
     Set<Long> filterReadableTaskIds(Long actorId, Collection<Long> taskIds);

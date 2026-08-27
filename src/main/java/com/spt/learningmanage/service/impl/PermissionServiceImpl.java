@@ -113,7 +113,15 @@ public class PermissionServiceImpl implements PermissionService {
         if (!"TEAM".equals(review.getVisibilityScope()) || review.getTeamId() == null) {
             throw denied();
         }
-        requireActiveTeamMember(actorId, review.getTeamId());
+        requireActiveTeamMemberInternal(actorId, review.getTeamId());
+    }
+
+    @Override
+    public void requireActiveTeamMember(Long actorId, Long teamId) {
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "团队 ID 不合法");
+        }
+        requireActiveTeamMemberInternal(actorId, teamId);
     }
 
     @Override
@@ -257,7 +265,7 @@ public class PermissionServiceImpl implements PermissionService {
         return review;
     }
 
-    private void requireActiveTeamMember(Long actorId, Long teamId) {
+    private void requireActiveTeamMemberInternal(Long actorId, Long teamId) {
         requireActor(actorId);
         TeamMember membership = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
                 .eq(TeamMember::getTeamId, teamId)

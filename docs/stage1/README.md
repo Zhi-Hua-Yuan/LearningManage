@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR5 成员退出与移除实现完成；本地与受保护 CI 验收通过
+状态：PR6 周复盘隐私与团队共享实现完成；本地与受保护 CI 验收通过
 
 建立日期：2026-08-23
 
@@ -47,6 +47,7 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 16. [PR3 权限核心本地验收记录](acceptance/pr3-permission-core-acceptance-2026-08-27.md)
 17. [PR4 任务分配与历史审计本地验收记录](acceptance/pr4-task-assignment-acceptance-2026-08-27.md)
 18. [PR5 成员退出与移除本地验收记录](acceptance/pr5-team-member-lifecycle-acceptance-2026-08-27.md)
+19. [PR6 周复盘隐私与团队共享验收记录](acceptance/pr6-weekly-review-privacy-acceptance-2026-08-28.md)
 
 ## 3. 决策状态规则
 
