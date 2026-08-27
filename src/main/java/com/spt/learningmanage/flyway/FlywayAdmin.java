@@ -34,7 +34,7 @@ public final class FlywayAdmin {
                             required(environment, "FLYWAY_DB_PASSWORD"))
                     .locations("classpath:db/migration")
                     .baselineOnMigrate(false)
-                    .validateOnMigrate(true)
+                    .validateOnMigrate(!"baseline".equals(action))
                     .cleanDisabled(true)
                     .outOfOrder(false)
                     .baselineVersion(EXPECTED_BASELINE_VERSION)
