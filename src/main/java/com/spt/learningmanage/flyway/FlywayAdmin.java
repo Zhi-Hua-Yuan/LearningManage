@@ -39,6 +39,7 @@ public final class FlywayAdmin {
                     .outOfOrder(false)
                     .baselineVersion(EXPECTED_BASELINE_VERSION);
             if ("baseline".equals(action)) {
+                configuration.target(EXPECTED_BASELINE_VERSION);
                 configuration.ignoreMigrationPatterns("*:pending");
             }
             Flyway flyway = configuration.load();
