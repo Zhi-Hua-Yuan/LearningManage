@@ -29,7 +29,7 @@ public final class FlywayAdmin {
                 requireBaselineAuthorization(environment);
             }
 
-            Flyway flyway = Flyway.configure()
+            var configuration = Flyway.configure()
                     .dataSource(jdbcUrl(environment), required(environment, "FLYWAY_DB_USERNAME"),
                             required(environment, "FLYWAY_DB_PASSWORD"))
                     .locations("classpath:db/migration")
@@ -37,8 +37,11 @@ public final class FlywayAdmin {
                     .validateOnMigrate(!"baseline".equals(action))
                     .cleanDisabled(true)
                     .outOfOrder(false)
-                    .baselineVersion(EXPECTED_BASELINE_VERSION)
-                    .load();
+                    .baselineVersion(EXPECTED_BASELINE_VERSION);
+            if ("baseline".equals(action)) {
+                configuration.ignoreMigrationPatterns("*:pending");
+            }
+            Flyway flyway = configuration.load();
 
             switch (action) {
                 case "info" -> printInfo(flyway.info());
