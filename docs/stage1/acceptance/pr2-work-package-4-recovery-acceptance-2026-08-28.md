@@ -40,4 +40,4 @@ recovery.restored.business_rows=20
 
 - 临时 MySQL 实例、隔离数据库和临时 SQL 文件不纳入仓库；实例关闭后删除临时目录。
 - 该演练证明恢复路径可执行，不授权在正式数据库上执行恢复或覆盖原库。
-- GitHub Actions `flyway-existing` 仍需在 PR 分支上完成同一脚本的远程实跑，作为合并前保护门禁。
+- GitHub Actions workflow `33146658245` 的 `Flyway existing database gate` 已通过（含 recovery Gate）；其余 PR2 必需 job 也全部通过。PR #41 仍需人工评审后才能合并。
