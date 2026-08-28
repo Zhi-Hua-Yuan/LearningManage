@@ -58,9 +58,10 @@
       "id": "S1-A-005",
       "domain": "authorization",
       "requirement": "Unauthorized access allowed count equals zero for the frozen permission matrix",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR3",
-      "evidenceRequired": ["parameterized permission matrix test report"]
+      "evidenceRequired": ["parameterized permission matrix test report"],
+      "evidence": ["PR3 final acceptance record", "PermissionMatrixParameterizedTest (173 invocations)", "Backend CI expected test count 366"]
     },
     {
       "id": "S1-A-006",
