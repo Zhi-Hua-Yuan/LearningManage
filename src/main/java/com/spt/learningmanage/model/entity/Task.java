@@ -1,6 +1,7 @@
 package com.spt.learningmanage.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -17,9 +18,15 @@ public class Task {
 
     private Long projectId;
     private Long milestoneId;
-    private Long userId;
+    /** Task creator; the physical column remains task.user_id for compatibility. */
+    @TableField("user_id")
+    private Long createdByUserId;
     /** Current assignee; null means unassigned. */
     private Long assigneeUserId;
+    /** User who performed the latest effective assignment. */
+    private Long assignedByUserId;
+    /** Time of the latest effective assignment. */
+    private LocalDateTime assignedAt;
     private String title;
     private String description;
     private Integer status;

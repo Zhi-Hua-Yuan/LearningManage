@@ -13,6 +13,9 @@ import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskStatusIdempotency;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.utils.UserHolder;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -56,6 +59,8 @@ class TaskServiceImplTest {
     private TaskStatusIdempotencyMapper taskStatusIdempotencyMapper;
     @Mock
     private PermissionService permissionService;
+    @Mock
+    private TaskCreationService taskCreationService;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -98,6 +103,24 @@ class TaskServiceImplTest {
     }
 
     @Test
+    void create_shouldDelegateInitialAssignmentToSharedCreationService() {
+        UserHolder.set(1L);
+        TaskCreateRequest request = new TaskCreateRequest();
+        request.setProjectId(10L);
+        request.setTitle("  新任务  ");
+        request.setAssigneeUserId(2L);
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L,
+                com.spt.learningmanage.constant.TeamRoleEnum.OWNER);
+        when(permissionService.requireProjectCreateTask(1L, 10L)).thenReturn(scope);
+        when(taskCreationService.createTask(any(Task.class), any(ProjectAccessScope.class), org.mockito.ArgumentMatchers.eq(2L)))
+                .thenReturn(101L);
+
+        Assertions.assertEquals(101L, taskService.create(request));
+        verify(taskCreationService).createTask(any(Task.class), org.mockito.ArgumentMatchers.eq(scope), org.mockito.ArgumentMatchers.eq(2L));
+        verify(taskMapper, never()).insert(any(Task.class));
+    }
+
+    @Test
     void changeStatus_shouldThrowWhenConcurrentConflict() {
         UserHolder.set(1L);
         TaskStatusChangeRequest request = new TaskStatusChangeRequest();
@@ -107,7 +130,7 @@ class TaskServiceImplTest {
 
         Task task = new Task();
         task.setId(100L);
-        task.setUserId(1L);
+        task.setCreatedByUserId(1L);
         task.setStatus(0);
         when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
         when(taskMapper.selectOne(any())).thenReturn(task, taskWithStatus(0));
@@ -127,7 +150,7 @@ class TaskServiceImplTest {
 
         Task task = new Task();
         task.setId(100L);
-        task.setUserId(1L);
+        task.setCreatedByUserId(1L);
         task.setStatus(0);
         task.setCompletedAt(null);
         when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
@@ -145,7 +168,7 @@ class TaskServiceImplTest {
     private Task taskWithStatus(int status) {
         Task task = new Task();
         task.setId(100L);
-        task.setUserId(1L);
+        task.setCreatedByUserId(1L);
         task.setStatus(status);
         return task;
     }

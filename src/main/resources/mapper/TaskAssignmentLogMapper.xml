@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spt.learningmanage.mapper.TaskAssignmentLogMapper">
+
+    <resultMap id="TaskAssignmentHistoryRowMap"
+               type="com.spt.learningmanage.model.query.task.TaskAssignmentHistoryRow">
+        <id property="id" column="id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="action" column="action"/>
+
+        <result property="fromAssigneeUserId"
+                column="from_assignee_user_id"/>
+        <result property="fromAssigneeUsername"
+                column="from_assignee_username"/>
+
+        <result property="toAssigneeUserId"
+                column="to_assignee_user_id"/>
+        <result property="toAssigneeUsername"
+                column="to_assignee_username"/>
+
+        <result property="assignedByUserId"
+                column="assigned_by_user_id"/>
+        <result property="assignedByUsername"
+                column="assigned_by_username"/>
+
+        <result property="reason" column="reason"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <!--
+      One joined read supplies all three display names. Deleted or missing users
+      intentionally remain visible through LEFT JOIN; their log user IDs are
+      selected from task_assignment_log and their usernames resolve to NULL.
+      Authorization is deliberately performed by the caller before this query.
+    -->
+    <select id="selectAssignmentHistoryPage"
+            resultMap="TaskAssignmentHistoryRowMap">
+        SELECT
+            log_entry.id AS id,
+            log_entry.task_id AS task_id,
+            log_entry.action AS action,
+
+            log_entry.from_assignee_user_id AS from_assignee_user_id,
+            from_user.username AS from_assignee_username,
+
+            log_entry.to_assignee_user_id AS to_assignee_user_id,
+            to_user.username AS to_assignee_username,
+
+            log_entry.assigned_by_user_id AS assigned_by_user_id,
+            operator_user.username AS assigned_by_username,
+
+            log_entry.reason AS reason,
+            log_entry.create_time AS create_time
+        FROM task_assignment_log log_entry
+        LEFT JOIN `user` from_user
+            ON from_user.id = log_entry.from_assignee_user_id
+           AND from_user.is_delete = 0
+        LEFT JOIN `user` to_user
+            ON to_user.id = log_entry.to_assignee_user_id
+           AND to_user.is_delete = 0
+        LEFT JOIN `user` operator_user
+            ON operator_user.id = log_entry.assigned_by_user_id
+           AND operator_user.is_delete = 0
+        WHERE log_entry.task_id = #{taskId}
+        ORDER BY
+            log_entry.create_time DESC,
+            log_entry.id DESC
+    </select>
+
+</mapper>
