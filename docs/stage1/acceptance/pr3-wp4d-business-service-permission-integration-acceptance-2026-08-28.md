@@ -28,9 +28,17 @@
 | 完整非 MySQL 测试集 | PASS — 185 tests，0 failures/errors/skipped |
 | `git diff --check` | PASS |
 | Flyway migration diff | NONE |
-| CI 测试计数 | 两份 workflow 门槛由 188 更新为 193（本次新增 5 个权限矩阵用例；正式计数需在 CI MySQL 环境复核） |
+| CI 测试计数 | PASS — 两份 workflow 门槛为 193，PR #44 的 Maven verification 实际通过 |
 
-本机完整测试中 8 个 MySQL 集成用例因未提供 `${TEST_DB_USERNAME}` 等数据库凭据无法连接，未将该环境缺失计为代码失败；CI 必须继续执行完整 `./mvnw -B -ntp verify`，不得跳过集成测试。
+本机完整测试中 8 个 MySQL 集成用例因未提供 `${TEST_DB_USERNAME}` 等数据库凭据无法连接；PR #44 CI 已在托管 MySQL 环境完成正式复核，未跳过集成测试。
+
+正式 CI 证据：[Run 33172016005](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33172016005)
+
+- Guard and migration immutability：PASS
+- Maven verification and tested artifact：PASS（193 tests）
+- Flyway empty database gate：PASS
+- Flyway existing database gate：PASS
+- Docker runtime and migration gate：PASS
 
 ## 3. 权限安全结论
 
@@ -41,4 +49,4 @@
 
 ## 4. 验收结论
 
-WP4-D 的代码接入、能力提示、恢复语义和本地回归验证已完成，结论为 **PASS（实现验收）**。提交 PR 后必须在受保护 CI 中复核 193 测试计数、真实 MySQL 集成、Flyway 和 Docker runtime 全部门禁；通过后方可将 PR3 标记为正式完成。
+WP4-D 的代码接入、能力提示、恢复语义、本地回归和受保护 CI 验证均已完成，结论为 **PASS**。PR #44 的全部必需门禁通过，可进入 PR3 合并评审。
