@@ -8,5 +8,8 @@
 /scripts/**/*.sh text eol=lf
 /src/main/resources/db/migration/*.sql text eol=lf
 /src/test/resources/db/legacy/*.sql text eol=lf
+/src/test/resources/db/stage1/*.sql text eol=lf
+/src/test/resources/db/stage1/*.json text eol=lf
+/sql/flyway/stage1/*.sql text eol=lf
 /src/test/resources/flyway/*.sha256 text eol=lf
 /docs/stage0/flyway/*.sha256 text eol=lf

@@ -69,7 +69,7 @@ public class UserServiceImpl implements UserService {
         user.setAccount(userAccount);
         user.setUsername(StrUtil.isNotBlank(username) ? username.trim() : UUID.randomUUID().toString().substring(0, 10));
         user.setPassword(encryptedPwd);
-        user.setUserRole("user");
+        user.setUserRole("USER");
         int result = userMapper.insert(user);
         if (result <= 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "注册失败");

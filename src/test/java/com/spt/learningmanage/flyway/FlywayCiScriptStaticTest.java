@@ -24,6 +24,8 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/provision-ci-databases.sh",
             "scripts/ci/verify-empty-database.sh",
             "scripts/ci/verify-existing-database.sh",
+            "scripts/ci/verify-v2-negative-preflight.sh",
+            "scripts/ci/verify-v2-recovery.sh",
             "scripts/ci/verify-published-migrations.sh",
             "scripts/ci/verify-docker-runtime.sh",
             "scripts/ci/verify-runtime-api-contract.sh",
@@ -77,6 +79,8 @@ class FlywayCiScriptStaticTest {
                 "scripts/ci/provision-ci-databases.sh",
                 "scripts/ci/verify-empty-database.sh",
                 "scripts/ci/verify-existing-database.sh",
+                "scripts/ci/verify-v2-negative-preflight.sh",
+                "scripts/ci/verify-v2-recovery.sh",
                 "scripts/ci/verify-docker-runtime.sh")) {
             String script = read(relativePath);
             int guard = script.indexOf("ci_assert_ci_target");
@@ -181,6 +185,38 @@ class FlywayCiScriptStaticTest {
         assertTrue(stub.contains("/compatible-mode/v1/chat/completions"));
         assertFalse(stub.toLowerCase().contains("dashscope"));
         assertFalse(stub.toLowerCase().contains("authorization"));
+    }
+
+    @Test
+    void stage1FlywayGatesAreWiredIntoCiWithV2HistoryBaseline() throws IOException {
+        String backendWorkflow = read(".github/workflows/backend-ci.yml");
+        String releaseWorkflow = read(".github/workflows/release-gate.yml");
+
+        for (String workflow : List.of(backendWorkflow, releaseWorkflow)) {
+            assertTrue(workflow.contains("verify-v2-negative-preflight.sh"));
+            assertTrue(workflow.contains("verify-v2-recovery.sh"));
+            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '2'"));
+        }
+    }
+
+    @Test
+    void v2RecoveryGateBacksUpBeforeMigrationAndRestoresLegacyShape() throws IOException {
+        String script = read("scripts/ci/verify-v2-recovery.sh");
+
+        int backup = script.indexOf("mysqldump");
+        int migrate = script.indexOf("migrate \"$source_database\"");
+        int restore = script.indexOf("--database=\"$restore_database\" <\"$backup_file\"");
+
+        assertTrue(backup >= 0);
+        assertTrue(migrate > backup);
+        assertTrue(restore > migrate);
+        assertTrue(script.contains("ci_assert_ci_target"));
+        assertTrue(script.contains("ci_assert_ci_database_name \"$source_database\""));
+        assertTrue(script.contains("ci_assert_ci_database_name \"$restore_database\""));
+        assertTrue(script.contains("recovery.verify.success"));
+        assertTrue(script.contains("recovery.backup.sha256"));
+        assertTrue(script.contains("--skip-add-locks"));
+        assertFalse(script.contains("DROP DATABASE"));
     }
 
     private static String read(String relativePath) throws IOException {

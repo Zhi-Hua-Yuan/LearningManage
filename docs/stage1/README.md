@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1 设计评审中（`PROPOSED`）
+状态：PR1 设计已冻结；PR2 独立候选实施中
 
 建立日期：2026-08-23
 
@@ -41,7 +41,20 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 10. [机器可读验收合同](acceptance/stage1-acceptance-contract.json)
 11. [PR1 设计验收记录](acceptance/pr1-design-acceptance-2026-08-23.md)
 
-## 3. 决策状态规则
+## 3. PR2 独立候选范围
+
+PR2 只交付 V2 数据语义及数据库发布门禁，不引入 `PermissionService`、任务业务接口、周复盘业务实现或前端改动：
+
+1. V2 正式 Flyway migration、25 项 preflight 与 12 项 post-verify；
+2. 冻结 V1→V2 fixture、预期对账与 3 个负向 preflight 样本；
+3. 空库安装、legacy 升级、重复 migrate、checksum 和 Flyway history Gate；
+4. [V2 备份与恢复运行手册](database/v2-recovery-runbook.md)及隔离恢复演练 Gate；
+5. 注册默认角色写入从旧值 `user` 兼容为 V2 允许值 `USER`；
+6. backend CI 与 release gate 接线及 PR2 验收证据。
+
+PR3 才实现 `SystemRole` 和统一 `PermissionService`。综合实现分支或包含 PR3～PR6 代码的 PR 不得作为 PR2 合并。
+
+## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。
 - PR1 合并到受保护分支后，ADR 状态视为 `ACCEPTED`，机器合同状态进入 `FROZEN`。
@@ -49,7 +62,7 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 - 若合并后变更决策，必须新增 ADR 或显式 supersede 原 ADR，不能静默改写历史结论。
 - PR2 发布 `V2__*.sql` 后，V2 迁移文件不可修改；后续修正只能使用新版本迁移。
 
-## 4. 实施顺序
+## 5. 实施顺序
 
 ```text
 PR1 设计冻结
@@ -64,7 +77,7 @@ PR1 设计冻结
 
 每个时点只允许一个阶段 1 主目标处于 `in_progress`。阶段 1 不并行引入 Qdrant、RAG 或 Agent。
 
-## 5. 权威来源
+## 6. 权威来源
 
 发生冲突时，按以下顺序处理：
 
@@ -77,7 +90,7 @@ PR1 设计冻结
 
 当前代码不能覆盖已冻结的阶段 1 业务语义；代码与合同冲突时，应在对应实施 PR 中修改代码并补测试。
 
-## 6. 范围边界
+## 7. 范围边界
 
 阶段 1 不包含：
 
