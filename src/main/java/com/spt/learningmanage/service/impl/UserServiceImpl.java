@@ -3,6 +3,7 @@ package com.spt.learningmanage.service.impl;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.spt.learningmanage.constant.SystemRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.UserMapper;
@@ -69,7 +70,7 @@ public class UserServiceImpl implements UserService {
         user.setAccount(userAccount);
         user.setUsername(StrUtil.isNotBlank(username) ? username.trim() : UUID.randomUUID().toString().substring(0, 10));
         user.setPassword(encryptedPwd);
-        user.setUserRole("USER");
+        user.setUserRole(SystemRoleEnum.USER.getValue());
         int result = userMapper.insert(user);
         if (result <= 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "注册失败");

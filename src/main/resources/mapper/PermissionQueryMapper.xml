@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.spt.learningmanage.mapper.PermissionQueryMapper">
+
+    <!--
+      These statements deliberately return raw lifecycle facts.  PermissionService
+      performs the allow/deny decision so that a deleted project, team or membership
+      cannot disappear into a partial join and accidentally become authorized.
+    -->
+    <select id="selectActorPermissionRow"
+            resultType="com.spt.learningmanage.model.permission.ActorPermissionRow">
+        SELECT
+            u.id AS actor_user_id,
+            u.user_role AS actor_system_role,
+            u.is_delete AS actor_is_delete
+        FROM `user` u
+        WHERE u.id = #{actorUserId}
+    </select>
+
+    <select id="selectProjectPermissionRows"
+            resultType="com.spt.learningmanage.model.permission.ProjectPermissionRow">
+        SELECT
+            p.id AS project_id,
+            p.user_id AS project_owner_user_id,
+            p.team_id AS team_id,
+            p.is_delete AS project_is_delete,
+            p.deleted_at AS project_deleted_at,
+            t.owner_id AS team_owner_user_id,
+            t.is_delete AS team_is_delete,
+            t.deleted_at AS team_deleted_at,
+            actor_tm.id AS actor_team_member_id,
+            actor_tm.role AS actor_team_role,
+            actor_tm.is_delete AS actor_membership_is_delete,
+            actor_tm.deleted_at AS actor_membership_deleted_at
+        FROM project p
+        LEFT JOIN team t
+            ON t.id = p.team_id
+        LEFT JOIN team_member actor_tm
+            ON actor_tm.team_id = p.team_id
+           AND actor_tm.user_id = #{actorUserId}
+        <choose>
+            <when test="projectIds != null and projectIds.size() &gt; 0">
+                WHERE p.id IN
+                <foreach collection="projectIds" item="projectId" open="(" close=")" separator=",">
+                    #{projectId}
+                </foreach>
+            </when>
+            <otherwise>
+                WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectTaskPermissionRows"
+            resultType="com.spt.learningmanage.model.permission.TaskPermissionRow">
+        SELECT
+            task.id AS task_id,
+            task.user_id AS task_creator_user_id,
+            task.assignee_user_id AS assignee_user_id,
+            task.project_id AS project_id,
+            task.status AS task_status,
+            task.is_delete AS task_is_delete,
+            task.deleted_at AS task_deleted_at,
+            p.user_id AS project_owner_user_id,
+            p.is_delete AS project_is_delete,
+            p.deleted_at AS project_deleted_at,
+            p.team_id AS team_id,
+            t.owner_id AS team_owner_user_id,
+            t.is_delete AS team_is_delete,
+            t.deleted_at AS team_deleted_at,
+            actor_tm.id AS actor_team_member_id,
+            actor_tm.role AS actor_team_role,
+            actor_tm.is_delete AS actor_membership_is_delete,
+            actor_tm.deleted_at AS actor_membership_deleted_at
+        FROM task
+        LEFT JOIN project p
+            ON p.id = task.project_id
+        LEFT JOIN team t
+            ON t.id = p.team_id
+        LEFT JOIN team_member actor_tm
+            ON actor_tm.team_id = p.team_id
+           AND actor_tm.user_id = #{actorUserId}
+        <choose>
+            <when test="taskIds != null and taskIds.size() &gt; 0">
+                WHERE task.id IN
+                <foreach collection="taskIds" item="taskId" open="(" close=")" separator=",">
+                    #{taskId}
+                </foreach>
+            </when>
+            <otherwise>
+                WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectWeeklyReviewPermissionRows"
+            resultType="com.spt.learningmanage.model.permission.WeeklyReviewPermissionRow">
+        SELECT
+            wr.id AS review_id,
+            wr.user_id AS author_user_id,
+            wr.visibility_scope AS visibility_scope,
+            wr.team_id AS team_id,
+            t.owner_id AS team_owner_user_id,
+            t.is_delete AS team_is_delete,
+            t.deleted_at AS team_deleted_at,
+            actor_tm.id AS actor_team_member_id,
+            actor_tm.role AS actor_team_role,
+            actor_tm.is_delete AS actor_membership_is_delete,
+            actor_tm.deleted_at AS actor_membership_deleted_at
+        FROM weekly_review wr
+        LEFT JOIN team t
+            ON t.id = wr.team_id
+        LEFT JOIN team_member actor_tm
+            ON actor_tm.team_id = wr.team_id
+           AND actor_tm.user_id = #{actorUserId}
+        <choose>
+            <when test="reviewIds != null and reviewIds.size() &gt; 0">
+                WHERE wr.id IN
+                <foreach collection="reviewIds" item="reviewId" open="(" close=")" separator=",">
+                    #{reviewId}
+                </foreach>
+            </when>
+            <otherwise>
+                WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectTeamMemberPermissionRow"
+            resultType="com.spt.learningmanage.model.permission.TeamMemberPermissionRow">
+        SELECT
+            t.id AS team_id,
+            t.owner_id AS team_owner_user_id,
+            t.is_delete AS team_is_delete,
+            t.deleted_at AS team_deleted_at,
+            #{actorUserId} AS actor_user_id,
+            actor_tm.id AS actor_team_member_id,
+            actor_tm.role AS actor_team_role,
+            actor_tm.is_delete AS actor_membership_is_delete,
+            actor_tm.deleted_at AS actor_membership_deleted_at,
+            target_tm.user_id AS target_user_id,
+            target_tm.id AS target_team_member_id,
+            target_tm.role AS target_team_role,
+            target_tm.is_delete AS target_membership_is_delete,
+            target_tm.deleted_at AS target_membership_deleted_at
+        FROM team t
+        LEFT JOIN team_member actor_tm
+            ON actor_tm.team_id = t.id
+           AND actor_tm.user_id = #{actorUserId}
+        LEFT JOIN team_member target_tm
+            ON target_tm.team_id = t.id
+           AND target_tm.user_id = #{targetUserId}
+        WHERE t.id = #{teamId}
+    </select>
+
+</mapper>

@@ -1,6 +1,6 @@
 # 阶段 1 API 兼容合同
 
-状态：`PROPOSED`
+状态：`FROZEN`
 
 基线路径：`/api`
 

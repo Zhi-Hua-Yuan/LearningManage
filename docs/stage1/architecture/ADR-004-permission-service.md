@@ -1,6 +1,6 @@
 # ADR-004：统一 PermissionService
 
-状态：`PROPOSED`
+状态：`ACCEPTED`
 
 日期：2026-08-23
 
