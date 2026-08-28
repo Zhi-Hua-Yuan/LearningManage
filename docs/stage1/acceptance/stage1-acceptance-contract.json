@@ -74,9 +74,10 @@
       "id": "S1-A-007",
       "domain": "performance",
       "requirement": "Batch authorization for 100 resources does not execute per-resource authorization queries",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR3",
-      "evidenceRequired": ["query-count test or equivalent SQL evidence"]
+      "evidenceRequired": ["query-count test or equivalent SQL evidence"],
+      "evidence": ["PR3 WP4-C acceptance record", "CI run 33167613189"]
     },
     {
       "id": "S1-A-008",

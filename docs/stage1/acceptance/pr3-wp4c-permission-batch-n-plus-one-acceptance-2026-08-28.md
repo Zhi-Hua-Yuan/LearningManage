@@ -1,6 +1,6 @@
 # PR3 WP4-C：批量权限与 N+1 查询治理验收记录
 
-状态：`IN_PROGRESS`
+状态：`PASS`
 
 日期：2026-08-28
 
@@ -63,17 +63,17 @@ WP4-C 在 WP4-A 权限内核加固和 WP4-B 真实 MySQL Mapper 集成的基础�
 - 返回 Map/Set 不可修改；
 - 单条权限回归保持通过。
 
-已新增真实 MySQL 门禁测试：
+真实 MySQL 门禁测试：
 
 ```text
 PermissionServiceBatchMySqlTest
 ```
 
-该测试准备 100 个确定性任务，并使用测试专用 MyBatis 查询计数拦截器断言 actor 查询和任务批量查询各执行一次。本机当前未配置 CI 专用测试数据库凭据，因此该测试等待远程 CI 在隔离 MySQL 8.0.41 环境执行，不能以本地失败结果替代远程证据。
+该测试准备 100 个确定性任务，并使用测试专用 MyBatis 查询计数拦截器断言 actor 查询和任务批量查询各执行一次。PR #43 的隔离 MySQL 8.0.41 CI 已执行并通过，2 个测试全部通过。
 
 ## 5. CI 与迁移门禁
 
-backend CI 和 release gate 的 `CI_EXPECTED_TEST_COUNT` 已从 `178` 更新为预计的 `188`，必须以 Surefire 实际计数为准；不得跳过新增 MySQL 集成测试或降低门槛。
+backend CI 和 release gate 的 `CI_EXPECTED_TEST_COUNT` 已从 `178` 更新为 `188`，Surefire 实际计数为 `188`；未跳过新增 MySQL 集成测试，未降低门槛。
 
 WP4-C 仍要求：
 
@@ -83,6 +83,15 @@ WP4-C 仍要求：
 - Flyway migration diff 为空；
 - Docker runtime 与已有 WP4-B 门禁继续通过。
 
+PR #43 CI 证据：
+
+- [GitHub Actions run 33167613189](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33167613189)
+- Maven verification：188 passed，0 failures/errors/skipped；包含 `PermissionServiceBatchMySqlTest` 2 passed 和 `PermissionQueryMapperMySqlTest` 6 passed；
+- Guard and migration immutability：`pass`；
+- Flyway empty database gate：`pass`；
+- Flyway existing database gate：`pass`；
+- Docker runtime and migration gate：`pass`。
+
 ## 6. 未实现范围
 
 - Controller、业务 Service、Stats、AI 入口接入；
@@ -91,6 +100,6 @@ WP4-C 仍要求：
 - 权限缓存、审计事件和并发重新鉴权；
 - 完整 PR3 参数化权限矩阵最终验收（S1-A-005）。
 
-## 7. 当前结论
+## 7. 验收结论
 
-WP4-C 的 Java 批量接口、输入边界、单条/批量共享判定内核和单元查询预算证据已完成。真实 MySQL 100 资源查询次数门禁及远程 CI 证据待完成；在该证据通过前，WP4-C 状态保持 `IN_PROGRESS`，S1-A-007 和 S1-R-007 不提前标记为 `PASS/CLOSED`。
+WP4-C 的 Java 批量接口、输入边界、单条/批量共享判定内核、100 资源固定查询次数、真实 MySQL 集成测试、迁移不可变性和 Docker runtime 门禁均已通过。WP4-C 验收结论为最终 `PASS`；S1-A-007 可标记为 `PASS`，S1-R-007 可关闭。
