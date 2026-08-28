@@ -10,6 +10,7 @@ import com.spt.learningmanage.mapper.PermissionQueryMapper;
 import com.spt.learningmanage.model.permission.ActorPermissionRow;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.permission.ProjectPermissionRow;
+import com.spt.learningmanage.model.permission.TaskCapabilities;
 import com.spt.learningmanage.model.permission.TaskPermissionRow;
 import com.spt.learningmanage.model.permission.TeamMemberPermissionRow;
 import com.spt.learningmanage.model.permission.WeeklyReviewPermissionRow;
@@ -18,19 +19,26 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
- * 单资源授权判定骨架。
+ * 批量优先的资源授权判定服务。
  *
- * <p>所有查询都通过批量优先的 PermissionQueryMapper 执行 singleton 查询；
- * 后续批量授权可复用同一组 SQL 和规则，不会产生第二套判断路径。</p>
+ * <p>单条入口通过单元素集合复用批量查询和内存判定内核；批量入口不逐条
+ * 调用单条入口，从而保持固定的 actor + resource 查询预算。</p>
  */
 @Service
 public class PermissionServiceImpl implements PermissionService {
 
     private static final String PRIVATE_SCOPE = "PRIVATE";
     private static final String TEAM_SCOPE = "TEAM";
+    private static final int MAX_BATCH_RESOURCE_IDS = 500;
 
     @Resource
     private PermissionQueryMapper permissionQueryMapper;
@@ -180,19 +188,90 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
+    @Override
+    public Map<Long, ProjectAccessScope> resolveProjectScopes(
+            Long actorUserId,
+            Collection<Long> projectIds
+    ) {
+        List<Long> normalizedIds = normalizeBatchIds(actorUserId, projectIds);
+        requireActiveActor(actorUserId);
+        if (normalizedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, ProjectPermissionRow> rows = indexProjectRows(
+                permissionQueryMapper.selectProjectPermissionRows(actorUserId, normalizedIds),
+                normalizedIds
+        );
+        Map<Long, ProjectAccessScope> result = new LinkedHashMap<>();
+        for (Long projectId : normalizedIds) {
+            ProjectAccessScope scope = toProjectScope(actorUserId, rows.get(projectId));
+            if (scope != null) {
+                result.put(projectId, scope);
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    @Override
+    public Set<Long> filterReadableTaskIds(Long actorUserId, Collection<Long> taskIds) {
+        Map<Long, TaskPermissionDecision> decisions = resolveTaskDecisions(actorUserId, taskIds);
+        LinkedHashSet<Long> result = new LinkedHashSet<>();
+        decisions.forEach((taskId, decision) -> {
+            if (decision.readable()) {
+                result.add(taskId);
+            }
+        });
+        return Collections.unmodifiableSet(result);
+    }
+
+    @Override
+    public Set<Long> requireAllTasksReadable(Long actorUserId, Collection<Long> taskIds) {
+        List<Long> normalizedIds = normalizeBatchIds(actorUserId, taskIds);
+        Map<Long, TaskPermissionDecision> decisions = resolveTaskDecisions(actorUserId, normalizedIds);
+        LinkedHashSet<Long> result = new LinkedHashSet<>();
+        for (Long taskId : normalizedIds) {
+            TaskPermissionDecision decision = decisions.get(taskId);
+            if (decision == null || !decision.readable()) {
+                throw denied();
+            }
+            result.add(taskId);
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    @Override
+    public Map<Long, TaskCapabilities> resolveTaskCapabilities(
+            Long actorUserId,
+            Collection<Long> taskIds
+    ) {
+        Map<Long, TaskPermissionDecision> decisions = resolveTaskDecisions(actorUserId, taskIds);
+        Map<Long, TaskCapabilities> result = new LinkedHashMap<>();
+        decisions.forEach((taskId, decision) -> {
+            if (decision.readable()) {
+                result.put(taskId, decision.capabilities());
+            }
+        });
+        return Collections.unmodifiableMap(result);
+    }
+
     private ProjectAccessScope requireProjectScope(Long actorUserId, Long projectId) {
         validateActorAndResource(actorUserId, projectId);
-        requireActiveActor(actorUserId);
-        ProjectPermissionRow row = single(
-                permissionQueryMapper.selectProjectPermissionRows(actorUserId, List.of(projectId))
-        );
-        if (!isActiveProject(row)) {
+        ProjectAccessScope scope = resolveProjectScopes(actorUserId, List.of(projectId)).get(projectId);
+        if (scope == null) {
             throw denied();
+        }
+        return scope;
+    }
+
+    private ProjectAccessScope toProjectScope(Long actorUserId, ProjectPermissionRow row) {
+        if (!isActiveProject(row)) {
+            return null;
         }
 
         if (row.getTeamId() == null) {
             if (!Objects.equals(actorUserId, row.getProjectOwnerUserId())) {
-                throw denied();
+                return null;
             }
             return new ProjectAccessScope(
                     actorUserId,
@@ -207,7 +286,7 @@ public class PermissionServiceImpl implements PermissionService {
                 row.getActorMembershipIsDelete(), row.getActorMembershipDeletedAt(),
                 row.getTeamIsDelete(), row.getTeamDeletedAt(), actorUserId, row.getTeamOwnerUserId());
         if (role == null) {
-            throw denied();
+            return null;
         }
         return new ProjectAccessScope(
                 actorUserId,
@@ -224,39 +303,115 @@ public class PermissionServiceImpl implements PermissionService {
 
     private void requireTaskAction(Long actorUserId, Long taskId, PermissionActionEnum action) {
         validateActorAndResource(actorUserId, taskId);
-        requireActiveActor(actorUserId);
-        TaskPermissionRow row = single(
-                permissionQueryMapper.selectTaskPermissionRows(actorUserId, List.of(taskId))
-        );
-        if (!isActiveTask(row)) {
+        TaskPermissionDecision decision = resolveTaskDecisions(actorUserId, List.of(taskId)).get(taskId);
+        if (decision == null || !decision.allowed(action)) {
             throw denied();
+        }
+    }
+
+    private Map<Long, TaskPermissionDecision> resolveTaskDecisions(
+            Long actorUserId,
+            Collection<Long> taskIds
+    ) {
+        List<Long> normalizedIds = normalizeBatchIds(actorUserId, taskIds);
+        requireActiveActor(actorUserId);
+        if (normalizedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, TaskPermissionRow> rows = indexTaskRows(
+                permissionQueryMapper.selectTaskPermissionRows(actorUserId, normalizedIds),
+                normalizedIds
+        );
+        Map<Long, TaskPermissionDecision> result = new LinkedHashMap<>();
+        for (Long taskId : normalizedIds) {
+            result.put(taskId, evaluateTask(actorUserId, rows.get(taskId)));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    private TaskPermissionDecision evaluateTask(Long actorUserId, TaskPermissionRow row) {
+        if (!isActiveTask(row)) {
+            return TaskPermissionDecision.denied();
         }
 
         boolean personalOwner = row.getTeamId() == null
                 && Objects.equals(actorUserId, row.getProjectOwnerUserId());
         if (personalOwner) {
-            return;
+            return TaskPermissionDecision.personalOwner();
         }
 
         TeamRoleEnum role = activeTeamRole(row.getActorTeamMemberId(), row.getActorTeamRole(),
                 row.getActorMembershipIsDelete(), row.getActorMembershipDeletedAt(),
                 row.getTeamIsDelete(), row.getTeamDeletedAt(), actorUserId, row.getTeamOwnerUserId());
         if (role == null) {
-            throw denied();
+            return TaskPermissionDecision.denied();
         }
 
         boolean manager = role == TeamRoleEnum.OWNER || role == TeamRoleEnum.ADMIN;
         boolean assignee = role == TeamRoleEnum.MEMBER
                 && Objects.equals(actorUserId, row.getAssigneeUserId());
-        boolean allowed = switch (action.canonical()) {
-            case TASK_VIEW, TASK_ASSIGNMENT_HISTORY_VIEW -> true;
-            case TASK_EDIT_CONTENT, TASK_CHANGE_STATUS -> manager || assignee;
-            case TASK_REORGANIZE, TASK_ASSIGN, TASK_DELETE -> manager;
-            default -> false;
-        };
-        if (!allowed) {
-            throw denied();
+        return new TaskPermissionDecision(
+                true,
+                manager || assignee,
+                manager || assignee,
+                manager,
+                manager,
+                manager,
+                true,
+                true
+        );
+    }
+
+    private Map<Long, ProjectPermissionRow> indexProjectRows(
+            List<ProjectPermissionRow> rows,
+            List<Long> requestedIds
+    ) {
+        Map<Long, ProjectPermissionRow> indexed = new LinkedHashMap<>();
+        Set<Long> requested = new LinkedHashSet<>(requestedIds);
+        if (rows == null) {
+            return indexed;
         }
+        for (ProjectPermissionRow row : rows) {
+            if (row == null || row.getProjectId() == null || !requested.contains(row.getProjectId())
+                    || indexed.put(row.getProjectId(), row) != null) {
+                throw denied();
+            }
+        }
+        return indexed;
+    }
+
+    private Map<Long, TaskPermissionRow> indexTaskRows(
+            List<TaskPermissionRow> rows,
+            List<Long> requestedIds
+    ) {
+        Map<Long, TaskPermissionRow> indexed = new LinkedHashMap<>();
+        Set<Long> requested = new LinkedHashSet<>(requestedIds);
+        if (rows == null) {
+            return indexed;
+        }
+        for (TaskPermissionRow row : rows) {
+            if (row == null || row.getTaskId() == null || !requested.contains(row.getTaskId())
+                    || indexed.put(row.getTaskId(), row) != null) {
+                throw denied();
+            }
+        }
+        return indexed;
+    }
+
+    private List<Long> normalizeBatchIds(Long actorUserId, Collection<Long> resourceIds) {
+        validateActor(actorUserId);
+        if (resourceIds == null || resourceIds.size() > MAX_BATCH_RESOURCE_IDS) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+        LinkedHashSet<Long> normalized = new LinkedHashSet<>();
+        for (Long resourceId : resourceIds) {
+            if (resourceId == null || resourceId <= 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+            }
+            normalized.add(resourceId);
+        }
+        return List.copyOf(normalized);
     }
 
     private WeeklyReviewPermissionRow loadSingleReview(Long actorUserId, Long reviewId) {
@@ -389,11 +544,15 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private void validateActorAndResource(Long actorUserId, Long resourceId) {
-        if (actorUserId == null || actorUserId <= 0) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
-        }
+        validateActor(actorUserId);
         if (resourceId == null || resourceId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
+        }
+    }
+
+    private void validateActor(Long actorUserId) {
+        if (actorUserId == null || actorUserId <= 0) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
     }
 
@@ -412,6 +571,49 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private record ActiveActor(Long userId, SystemRoleEnum systemRole) {
+    }
+
+    private record TaskPermissionDecision(
+            boolean readable,
+            boolean canEditContent,
+            boolean canChangeStatus,
+            boolean canReorganize,
+            boolean canAssign,
+            boolean canDelete,
+            boolean canViewAssignmentHistory,
+            boolean canView
+    ) {
+
+        private static TaskPermissionDecision denied() {
+            return new TaskPermissionDecision(false, false, false, false, false, false, false, false);
+        }
+
+        private static TaskPermissionDecision personalOwner() {
+            return new TaskPermissionDecision(true, true, true, true, true, true, true, true);
+        }
+
+        private boolean allowed(PermissionActionEnum action) {
+            return switch (action.canonical()) {
+                case TASK_VIEW -> canView;
+                case TASK_EDIT_CONTENT -> canEditContent;
+                case TASK_CHANGE_STATUS -> canChangeStatus;
+                case TASK_REORGANIZE -> canReorganize;
+                case TASK_ASSIGN -> canAssign;
+                case TASK_DELETE -> canDelete;
+                case TASK_ASSIGNMENT_HISTORY_VIEW -> canViewAssignmentHistory;
+                default -> false;
+            };
+        }
+
+        private TaskCapabilities capabilities() {
+            return new TaskCapabilities(
+                    canEditContent,
+                    canChangeStatus,
+                    canReorganize,
+                    canAssign,
+                    canDelete
+            );
+        }
     }
 
     private PermissionDeniedException denied() {
