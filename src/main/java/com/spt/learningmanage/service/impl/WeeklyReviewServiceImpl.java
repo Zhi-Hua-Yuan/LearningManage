@@ -14,6 +14,7 @@ import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.WeeklyReviewService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,13 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     @Resource
     private ProjectMapper projectMapper;
 
+    @Resource
+    private PermissionService permissionService;
+
     @Override
     public WeeklyReview getCurrentWeekReview() {
         Long userId = getCurrentUserId();
+        permissionService.requireActiveActor(userId);
 
         DateTime now = DateUtil.date();
         int year = DateUtil.year(now);
@@ -77,10 +82,12 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     @Override
     public void saveReview(WeeklyReview weeklyReview) {
         Long userId = getCurrentUserId();
+        permissionService.requireActiveActor(userId);
         validateSaveRequest(weeklyReview);
 
         WeeklyReview existing = findByUserYearWeek(userId, weeklyReview.getYear(), weeklyReview.getWeekNo());
         if (existing != null) {
+            permissionService.requireWeeklyReviewUpdate(userId, existing.getId());
             applyUpdatableFields(existing, weeklyReview);
             int rows = weeklyReviewMapper.updateById(existing);
             if (rows != 1) {
@@ -112,14 +119,11 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的周总结ID");
         }
 
+        Long currentUserId = getCurrentUserId();
+        permissionService.requireWeeklyReviewFullView(currentUserId, id);
         WeeklyReview review = weeklyReviewMapper.selectById(id);
         if (review == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
-        }
-
-        Long currentUserId = getCurrentUserId();
-        if (!currentUserId.equals(review.getUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权查看他人的周总结");
         }
 
         return review;
@@ -131,14 +135,12 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "周总结ID不能为空");
         }
 
+        Long currentUserId = getCurrentUserId();
+        permissionService.requireWeeklyReviewUpdate(currentUserId, weeklyReview.getId());
         WeeklyReview oldReview = weeklyReviewMapper.selectById(weeklyReview.getId());
         if (oldReview == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
         }
-        if (!oldReview.getUserId().equals(getCurrentUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权修改他人的周总结");
-        }
-
         oldReview.setReflection(weeklyReview.getReflection());
         oldReview.setNextPlan(weeklyReview.getNextPlan());
         int rows = weeklyReviewMapper.updateById(oldReview);
@@ -153,14 +155,13 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的周总结ID");
         }
 
+        Long currentUserId = getCurrentUserId();
         WeeklyReview review = weeklyReviewMapper.selectById(id);
         if (review == null) {
             return;
         }
 
-        if (!review.getUserId().equals(getCurrentUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权删除他人的周总结");
-        }
+        permissionService.requireWeeklyReviewDelete(currentUserId, id);
 
         int rows = weeklyReviewMapper.deleteById(id);
         if (rows != 1) {
@@ -171,6 +172,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     @Override
     public List<WeeklyReview> listHistory() {
         Long userId = getCurrentUserId();
+        permissionService.requireActiveActor(userId);
         LambdaQueryWrapper<WeeklyReview> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WeeklyReview::getUserId, userId)
                 .orderByDesc(WeeklyReview::getYear)

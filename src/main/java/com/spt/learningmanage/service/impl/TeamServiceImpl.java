@@ -19,6 +19,7 @@ import com.spt.learningmanage.model.vo.team.TeamCreateVO;
 import com.spt.learningmanage.model.vo.team.TeamMemberVO;
 import com.spt.learningmanage.model.vo.team.TeamVO;
 import com.spt.learningmanage.service.TeamService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,10 +59,14 @@ public class TeamServiceImpl implements TeamService {
     @Resource
     private JdbcTemplate jdbcTemplate;
 
+    @Resource
+    private PermissionService permissionService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TeamCreateVO createTeam(TeamCreateRequest request) {
         Long userId = getLoginUserId();
+        permissionService.requireActiveActor(userId);
         User currentUser = userMapper.selectById(userId);
         if (currentUser == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "当前用户不存在");
@@ -108,6 +113,7 @@ public class TeamServiceImpl implements TeamService {
     @Transactional(rollbackFor = Exception.class)
     public void joinTeam(TeamJoinRequest request) {
         Long userId = getLoginUserId();
+        permissionService.requireActiveActor(userId);
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
@@ -162,6 +168,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public List<TeamVO> listMyTeams() {
         Long userId = getLoginUserId();
+        permissionService.requireActiveActor(userId);
 
         List<TeamMember> memberList = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
                 .eq(TeamMember::getUserId, userId)
@@ -212,8 +219,9 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public List<TeamMemberVO> listTeamMembers(Long teamId) {
         Long userId = getLoginUserId();
+        permissionService.requireActiveActor(userId);
+        permissionService.requireTeamMemberList(userId, teamId);
         getValidTeamById(teamId);
-        requireValidTeamMember(teamId, userId);
 
         List<TeamMember> memberList = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
                 .eq(TeamMember::getTeamId, teamId)
@@ -282,8 +290,8 @@ public class TeamServiceImpl implements TeamService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标角色不合法");
         }
 
+        permissionService.requireTeamMemberRoleUpdate(userId, teamId, targetUserId);
         getValidTeamById(teamId);
-        validateOwner(teamId, userId);
 
         TeamMember targetMember = requireValidTeamMember(teamId, targetUserId);
         if (TeamRoleEnum.isOwner(targetMember.getRole())) {
@@ -363,13 +371,6 @@ public class TeamServiceImpl implements TeamService {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你不是该团队成员");
         }
         return teamMember;
-    }
-
-    private void validateOwner(Long teamId, Long userId) {
-        TeamMember teamMember = requireValidTeamMember(teamId, userId);
-        if (!TeamRoleEnum.isOwner(teamMember.getRole())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "仅团队拥有者可执行该操作");
-        }
     }
 
     private Long getLoginUserId() {

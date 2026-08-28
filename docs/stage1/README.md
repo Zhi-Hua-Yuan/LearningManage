@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1 设计已冻结；PR2 已合并；PR3 SystemRole 与 PermissionService（WP4-C 批量权限与 N+1 治理）进行中
+状态：PR1 设计已冻结；PR2 已合并；PR3 SystemRole 与 PermissionService（WP4-D 业务接入）实现完成，待提交 PR 验收
 
 建立日期：2026-08-23
 
@@ -71,6 +71,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP4-A：权限内核加固](acceptance/pr3-wp4a-permission-core-hardening-acceptance-2026-08-28.md)
 - [WP4-B：PermissionQueryMapper MySQL 集成](acceptance/pr3-wp4b-permission-mapper-mysql-integration-acceptance-2026-08-28.md)
 - [WP4-C：批量权限与 N+1 治理](acceptance/pr3-wp4c-permission-batch-n-plus-one-acceptance-2026-08-28.md)
+- [WP4-D：业务 Service、Stats 与 AI 权限接入](acceptance/pr3-wp4d-business-service-permission-integration-acceptance-2026-08-28.md)
 
 ## 4. 决策状态规则
 

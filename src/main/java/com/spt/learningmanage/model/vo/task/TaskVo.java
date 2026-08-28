@@ -1,5 +1,6 @@
 package com.spt.learningmanage.model.vo.task;
 
+import com.spt.learningmanage.model.permission.TaskCapabilities;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -19,4 +20,5 @@ public class TaskVo {
     private LocalDateTime completedAt;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private TaskCapabilities capabilities;
 }

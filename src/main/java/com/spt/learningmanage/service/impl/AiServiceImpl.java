@@ -61,6 +61,7 @@ import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.AiService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -150,6 +151,9 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private AiInvocationPipeline aiInvocationPipeline;
+
+    @Resource
+    private PermissionService permissionService;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -250,7 +254,7 @@ public class AiServiceImpl implements AiService {
                 ? new ArrayList<>()
                 : taskIds.stream().filter(id -> id != null && id > 0).collect(Collectors.toCollection(ArrayList::new));
 
-        if (taskIds != null && !taskIds.isEmpty() && validTaskIds.isEmpty()) {
+        if (taskIds != null && taskIds.stream().anyMatch(id -> id == null || id <= 0)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 至少需要包含一个有效的正整数ID");
         }
 
@@ -260,10 +264,10 @@ public class AiServiceImpl implements AiService {
                     .toString();
         }
 
-        Set<Long> uniqueTaskIds = new LinkedHashSet<>(validTaskIds);
+        Set<Long> uniqueTaskIds = permissionService.requireAllTasksReadable(currentUserId, validTaskIds);
         List<Task> taskList = taskMapper.selectList(new LambdaQueryWrapper<Task>()
                 .in(Task::getId, uniqueTaskIds)
-                .eq(Task::getUserId, currentUserId)
+                .eq(Task::getIsDelete, 0)
                 .orderByDesc(Task::getCompletedAt, Task::getUpdateTime, Task::getId));
 
         if (taskList.isEmpty()) {
@@ -698,10 +702,11 @@ public class AiServiceImpl implements AiService {
         if (listId == null || listId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "listId 不合法");
         }
+        permissionService.requireProjectManage(currentUserId, listId);
 
         Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
                 .eq(Project::getId, listId)
-                .eq(Project::getUserId, currentUserId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt)
                 .last("limit 1"));
         if (project == null) {
@@ -709,7 +714,6 @@ public class AiServiceImpl implements AiService {
         }
 
         List<Task> allTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getUserId, currentUserId)
                 .eq(Task::getProjectId, listId)
                 .eq(Task::getIsDelete, 0)
                 .orderByDesc(Task::getPriority)
@@ -758,10 +762,11 @@ public class AiServiceImpl implements AiService {
         if (listId == null || listId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "listId 不合法");
         }
+        permissionService.requireProjectManage(currentUserId, listId);
 
         Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
                 .eq(Project::getId, listId)
-                .eq(Project::getUserId, currentUserId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt)
                 .last("limit 1"));
         if (project == null) {
@@ -769,7 +774,6 @@ public class AiServiceImpl implements AiService {
         }
 
         List<Task> allTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getUserId, currentUserId)
                 .eq(Task::getProjectId, listId)
                 .eq(Task::getIsDelete, 0)
                 .orderByDesc(Task::getPriority)
@@ -835,6 +839,7 @@ public class AiServiceImpl implements AiService {
         if (listId == null || listId <= 0 || StrUtil.isBlank(operationId)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(currentUserId, listId);
 
         String normalizedOperationId = operationId.trim();
         AiReplanOperation operation = aiReplanOperationMapper.selectOne(new LambdaQueryWrapper<AiReplanOperation>()
@@ -867,7 +872,7 @@ public class AiServiceImpl implements AiService {
 
         Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
                 .eq(Project::getId, listId)
-                .eq(Project::getUserId, currentUserId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt)
                 .last("limit 1"));
         if (project != null) {
@@ -1147,7 +1152,6 @@ public class AiServiceImpl implements AiService {
 
             int rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
                     .eq(Task::getId, item.getTaskId())
-                    .eq(Task::getUserId, userId)
                     .eq(Task::getStatus, TaskStatusEnum.TODO.getValue())
                     .eq(Task::getIsDelete, 0)
                     .set(Task::getTitle, item.getNewTitle())
@@ -1163,7 +1167,6 @@ public class AiServiceImpl implements AiService {
 
     private void syncProjectEndDateIfNeeded(Long listId, Long userId, LocalDate currentProjectEndDate) {
         List<Task> tasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getUserId, userId)
                 .eq(Task::getProjectId, listId)
                 .eq(Task::getIsDelete, 0));
 
@@ -1179,7 +1182,6 @@ public class AiServiceImpl implements AiService {
 
         projectMapper.update(null, new LambdaUpdateWrapper<Project>()
                 .eq(Project::getId, listId)
-                .eq(Project::getUserId, userId)
                 .isNull(Project::getDeletedAt)
                 .set(Project::getEndDate, maxDueDate));
     }
@@ -1450,16 +1452,14 @@ public class AiServiceImpl implements AiService {
 
     private List<Task> loadDailyReviewTasks(Long userId, List<Long> taskIds, LocalDate reviewDate) {
         if (taskIds != null && !taskIds.isEmpty()) {
-            Set<Long> uniqueIds = taskIds.stream()
-                    .filter(id -> id != null && id > 0)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            if (uniqueIds.isEmpty()) {
+            if (taskIds.stream().anyMatch(id -> id == null || id <= 0)) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 至少包含一个有效任务ID");
             }
+            Set<Long> uniqueIds = permissionService.requireAllTasksReadable(userId, taskIds);
 
             List<Task> selectedTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
                     .in(Task::getId, uniqueIds)
-                    .eq(Task::getUserId, userId)
+                    .eq(Task::getIsDelete, 0)
                     .eq(Task::getDueDate, reviewDate)
                     .orderByDesc(Task::getPriority)
                     .orderByAsc(Task::getCreateTime, Task::getId));
@@ -1677,16 +1677,14 @@ public class AiServiceImpl implements AiService {
     private List<Task> loadTodayTodoTasks(Long userId, AiTodayOrderRequest request, LocalDate today, int limit) {
         List<Long> taskIds = request.getTaskIds();
         if (taskIds != null && !taskIds.isEmpty()) {
-            Set<Long> uniqueIds = taskIds.stream()
-                    .filter(id -> id != null && id > 0)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            if (uniqueIds.isEmpty()) {
+            if (taskIds.stream().anyMatch(id -> id == null || id <= 0)) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 至少包含一个有效的正整数ID");
             }
+            Set<Long> uniqueIds = permissionService.requireAllTasksReadable(userId, taskIds);
 
             List<Task> selectedTasks = taskMapper.selectList(new LambdaQueryWrapper<Task>()
                     .in(Task::getId, uniqueIds)
-                    .eq(Task::getUserId, userId)
+                    .eq(Task::getIsDelete, 0)
                     .eq(Task::getDueDate, today)
                     .eq(Task::getStatus, 0)
                     .orderByDesc(Task::getPriority)

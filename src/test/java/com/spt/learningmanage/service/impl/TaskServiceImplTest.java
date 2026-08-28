@@ -12,6 +12,7 @@ import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskStatusIdempotency;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -53,6 +54,8 @@ class TaskServiceImplTest {
     private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
     @Mock
     private TaskStatusIdempotencyMapper taskStatusIdempotencyMapper;
+    @Mock
+    private PermissionService permissionService;
 
     @InjectMocks
     private TaskServiceImpl taskService;
