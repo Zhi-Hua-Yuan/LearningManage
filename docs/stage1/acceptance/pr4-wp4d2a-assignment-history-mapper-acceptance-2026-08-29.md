@@ -1,7 +1,7 @@
 # PR4-D2-A 负责人历史分页 Mapper 验收记录
 
 日期：2026-08-29
-状态：`IMPLEMENTED / MYSQL_GATE_PENDING`
+状态：`PASS / MYSQL_GATE_PASS`
 
 ## 1. 范围
 
@@ -26,18 +26,13 @@ D2-A 完成负责人历史查询的 Mapper 与分页 SQL，实现 D1 冻结的
 |---|---|---|
 | Java 编译 | PASS | `mvnw.cmd test -Dtest=TaskAssignmentLogMapperContractTest` 完成编译 |
 | Mapper XML 静态契约 | PASS | 4/4 tests passed |
-| MySQL 分页/排序/隔离/删除用户语义 | PENDING | 5 tests 在事务建立阶段被本机 `${TEST_DB_USERNAME}` 凭据阻塞 |
-| 完整 Surefire | PENDING | 404 tests：非数据库测试通过；14 个 MySQL 集成测试错误（其中 D2-A 新增 5 个） |
+| MySQL 分页/排序/隔离/删除用户语义 | PASS | [Backend CI Run #33194691315](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33194691315)，5/5 tests passed |
+| 完整 Surefire | PASS | [Backend CI Run #33194691315](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33194691315)，404 tests 通过 |
 | `git diff --check` | PASS | 无 whitespace error |
 | V1/V2 migration 不变 | PASS | 本工作包未修改 migration |
 
-MySQL 阻塞原始错误：
-
-```text
-Access denied for user '${TEST_DB_USERNAME}'@'localhost' (using password: YES)
-```
-
-该阻塞与此前 D1/WP4-C 的本机环境状态一致，不代表 SQL 或映射断言失败。CI/隔离数据库环境仍必须执行并记录 5 个 MySQL 测试的真实结果后，D2-A 才能升级为 `PASS`。完整测试门槛已按 Surefire 实际总数更新为 `404`。
+CI 使用真实 MySQL 和隔离数据库环境完成上述验证；本地缺少
+`${TEST_DB_USERNAME}` 的连接阻塞不作为 D2-A SQL 失败证据。D2-B 新增测试后，分支完整 Surefire 实际总数为 418，CI 门槛已同步更新。
 
 ## 4. 测试数据
 
@@ -53,10 +48,5 @@ Access denied for user '${TEST_DB_USERNAME}'@'localhost' (using password: YES)
 
 ## 5. 后续收口条件
 
-配置 `TEST_DB_USERNAME`、`TEST_DB_PASSWORD` 后执行：
-
-```text
-./mvnw test -Dtest=TaskAssignmentLogMapperMySqlTest
-```
-
-通过后再将 D2-A 状态更新为 `PASS`，并由后续 D2-B/D2-C 继续完成 Service、权限、接口和 VO 映射。
+D2-A 已通过真实 MySQL Gate。后续由 D2-B/D2-C 完成 Service、权限、接口和 VO 映射，
+并由 D2-E 完成并发、事务和审计对账。
