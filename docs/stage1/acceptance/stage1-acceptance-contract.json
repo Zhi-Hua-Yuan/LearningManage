@@ -26,7 +26,7 @@
       "id": "S1-A-001",
       "domain": "database",
       "requirement": "V2 installs on an empty MySQL 8.0.41 database and upgrades an installed V1 database",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR2",
       "evidenceRequired": ["empty database report", "V1 to V2 upgrade report", "Flyway history"]
     },
@@ -34,7 +34,7 @@
       "id": "S1-A-002",
       "domain": "database",
       "requirement": "Published V1 remains byte-identical and V2 is immutable after publication",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR2",
       "evidenceRequired": ["migration checksum test"]
     },

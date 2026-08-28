@@ -122,6 +122,23 @@ ci_assert_equals() {
     [[ "$actual" == "$expected" ]] || ci_fail "$code"
 }
 
+ci_assert_stage1_check_output() {
+    local output="$1"
+    local prefix="$2"
+    local expected_count="$3"
+    local label="$4"
+    local check_count
+    local failure_count
+
+    output="${output//$'\r'/}"
+
+    check_count="$(awk -F '\t' -v prefix="$prefix" '$1 ~ prefix { count++ } END { print count + 0 }' <<<"$output")"
+    failure_count="$(awk -F '\t' -v prefix="$prefix" '$1 ~ prefix && ($3 != "0" || $4 != "PASS") { count++ } END { print count + 0 }' <<<"$output")"
+
+    ci_assert_equals "$expected_count" "$check_count" "${label}_check_count_unexpected"
+    ci_assert_equals "0" "$failure_count" "${label}_check_failed"
+}
+
 ci_business_row_total() {
     local database_name="$1"
     local table_name
@@ -135,7 +152,7 @@ ci_business_row_total() {
             --execute="SELECT COUNT(*) FROM \`${table_name}\`;")"
         [[ "$row_count" =~ ^[0-9]+$ ]] || ci_fail "business_row_count_invalid"
         total=$((total + row_count))
-    done < <(ci_mysql_migrator --execute="SELECT table_name FROM information_schema.tables WHERE table_schema='${database_name}' AND table_name <> 'flyway_schema_history' ORDER BY table_name;")
+    done < <(ci_mysql_migrator --execute="SELECT table_name FROM information_schema.tables WHERE table_schema='${database_name}' AND table_name <> 'flyway_schema_history' ORDER BY table_name;" | tr -d '\r')
 
     printf '%s\n' "$total"
 }
