@@ -191,7 +191,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     private int countCompletedTasks(Long userId, LocalDateTime startDateTime, LocalDateTime endDateTimeExclusive) {
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Task::getUserId, userId)
+        wrapper.eq(Task::getCreatedByUserId, userId)
                 .in(Task::getStatus,
                         TaskStatusEnum.DONE_BASIC.getValue(),
                         TaskStatusEnum.DONE_STANDARD.getValue(),

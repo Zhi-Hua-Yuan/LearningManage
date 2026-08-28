@@ -7,15 +7,18 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
+import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
 import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
+import com.spt.learningmanage.service.TaskAssignmentService;
 import jakarta.annotation.Resource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,9 +36,17 @@ public class TaskController {
     @Resource
     private TaskService taskService;
 
+    @Resource
+    private TaskAssignmentService taskAssignmentService;
+
     @PostMapping("/add")
     public BaseResponse<Long> addTask(@RequestBody TaskCreateRequest taskCreateRequest) {
         return ResultUtils.success(taskService.create(taskCreateRequest));
+    }
+
+    @PostMapping("/assign")
+    public BaseResponse<TaskAssignVO> assignTask(@RequestBody TaskAssignRequest request) {
+        return ResultUtils.success(taskAssignmentService.assign(request));
     }
 
     @GetMapping("/get/{id}")

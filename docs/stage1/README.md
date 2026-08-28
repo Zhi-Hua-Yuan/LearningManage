@@ -75,6 +75,14 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [PR3：最终合同验收](acceptance/pr3-final-acceptance-2026-08-28.md)
 - [PR3：合并收口](acceptance/pr3-merge-closure-2026-08-28.md)
 
+当前 PR4 工作包证据：
+
+- [WP4-A：任务身份模型](acceptance/pr4-wp4a-task-identity-acceptance-2026-08-28.md)
+- [WP4-B：统一创建与初始分配](acceptance/pr4-wp4b-initial-assignment-acceptance-2026-08-28.md)
+- [WP4-C：任务负责人变更与并发安全](acceptance/pr4-wp4c-task-assignment-acceptance-2026-08-29.md)
+- [WP4-D1：负责人历史查询契约冻结](acceptance/pr4-wp4d1-assignment-history-contract-acceptance-2026-08-29.md)
+- [WP4-D2-A：负责人历史分页 Mapper](acceptance/pr4-wp4d2a-assignment-history-mapper-acceptance-2026-08-29.md)
+
 ## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。

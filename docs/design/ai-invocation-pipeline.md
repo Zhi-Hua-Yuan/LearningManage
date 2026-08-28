@@ -219,7 +219,7 @@ public record AiExecutionResult<T>(
 ### 7.1 权限和数据隔离
 
 - 继续由现有登录链路确定当前用户。
-- 今日任务查询必须保留 `Task.userId = currentUserId` 条件。
+- 今日任务查询在当前兼容口径下必须保留 `Task.createdByUserId = currentUserId` 条件；受理人维度查询由 PR4 后续任务列表工作包统一处理。
 - 模型返回的所有 `taskId` 必须来自本次传给模型的任务集合。
 - 公共管线不得自行接受或查询其他用户的业务数据。
 

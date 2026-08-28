@@ -214,7 +214,7 @@ class AiServiceImplTodayOrderTest {
     private Task task(Long id, String title, Integer priority, LocalDateTime createTime) {
         Task task = new Task();
         task.setId(id);
-        task.setUserId(USER_ID);
+        task.setCreatedByUserId(USER_ID);
         task.setTitle(title);
         task.setPriority(priority);
         task.setStatus(0);

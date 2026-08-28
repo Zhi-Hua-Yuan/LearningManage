@@ -338,7 +338,7 @@ class AiServiceImplDailyReviewRenameTest {
     private Task task(Long id, String title, Integer status, Integer priority) {
         Task task = new Task();
         task.setId(id);
-        task.setUserId(USER_ID);
+        task.setCreatedByUserId(USER_ID);
         task.setTitle(title);
         task.setStatus(status);
         task.setPriority(priority);

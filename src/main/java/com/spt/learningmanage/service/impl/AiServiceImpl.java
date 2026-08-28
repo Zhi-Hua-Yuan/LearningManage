@@ -62,6 +62,8 @@ import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -154,6 +156,9 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private PermissionService permissionService;
+
+    @Resource
+    private TaskCreationService taskCreationService;
 
     @Override
     public String chat(String systemPrompt, String userPrompt) {
@@ -426,6 +431,7 @@ public class AiServiceImpl implements AiService {
         if (projectRows != 1 || project.getId() == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建项目失败");
         }
+        ProjectAccessScope projectScope = permissionService.requireProjectCreateTask(userId, project.getId());
 
         int milestoneOrder = 1;
         for (MilestoneDraftVO milestoneDraft : milestoneDrafts) {
@@ -446,17 +452,13 @@ public class AiServiceImpl implements AiService {
                 Task task = new Task();
                 task.setProjectId(project.getId());
                 task.setMilestoneId(milestone.getId());
-                task.setUserId(userId);
                 task.setTitle(taskDraft.getName());
                 task.setPriority(taskDraft.getPriority());
                 task.setStatus(TaskStatusEnum.TODO.getValue());
                 task.setDueDate(LocalDate.parse(taskDraft.getDueDate()));
                 task.setIsDelete(0);
                 task.setDeleteSource(DeleteSourceConstant.NORMAL);
-                int taskRows = taskMapper.insert(task);
-                if (taskRows != 1) {
-                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建任务失败");
-                }
+                taskCreationService.createTask(task, projectScope, null);
             }
         }
 
@@ -1470,7 +1472,7 @@ public class AiServiceImpl implements AiService {
         }
 
         return taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getUserId, userId)
+                .eq(Task::getCreatedByUserId, userId)
                 .eq(Task::getDueDate, reviewDate)
                 .orderByDesc(Task::getPriority)
                 .orderByAsc(Task::getCreateTime, Task::getId));
@@ -1697,7 +1699,7 @@ public class AiServiceImpl implements AiService {
         }
 
         return taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getUserId, userId)
+                .eq(Task::getCreatedByUserId, userId)
                 .eq(Task::getDueDate, today)
                 .eq(Task::getStatus, 0)
                 .orderByDesc(Task::getPriority)

@@ -32,8 +32,10 @@ import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.permission.TaskCapabilities;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -74,8 +76,12 @@ public class TaskServiceImpl implements TaskService {
     @Resource
     private PermissionService permissionService;
 
+    @Resource
+    private TaskCreationService taskCreationService;
+
     /** 创建任务，返回任务 ID；项目范围由 PermissionService 判定。 */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long create(TaskCreateRequest request) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -87,7 +93,7 @@ public class TaskServiceImpl implements TaskService {
         if (request.getProjectId() == null || request.getProjectId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目 ID 不合法");
         }
-        permissionService.requireProjectCreateTask(userId, request.getProjectId());
+        ProjectAccessScope projectScope = permissionService.requireProjectCreateTask(userId, request.getProjectId());
         validateMilestoneBelongsToProject(request.getProjectId(), request.getMilestoneId());
         validateTitle(request.getTitle());
         validateDescription(request.getDescription());
@@ -98,7 +104,6 @@ public class TaskServiceImpl implements TaskService {
         task.setDescription(request.getDescription());
         task.setProjectId(request.getProjectId());
         task.setMilestoneId(request.getMilestoneId());
-        task.setUserId(userId);
         task.setStatus(0); // 默认未完成
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
@@ -106,17 +111,14 @@ public class TaskServiceImpl implements TaskService {
         task.setDeleteSource(DeleteSourceConstant.NORMAL);
         task.setDeletedAt(null);
 
-        int rows = taskMapper.insert(task);
-        if (rows != 1 || task.getId() == null) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建任务失败");
-        }
+        Long taskId = taskCreationService.createTask(task, projectScope, request.getAssigneeUserId());
 
         calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
-        return task.getId();
+        return taskId;
     }
 
     /**
-     * 根据ID查询任务详情，强制过滤 userId。
+     * 根据ID查询任务详情，先按统一权限范围判定可见性。
      */
     @Override
     public TaskVo getById(Long id) {
@@ -141,7 +143,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * 分页查询任务列表，强制过滤 userId。
+     * 分页查询任务列表，默认按创建人保持旧客户端行为。
      */
     @Override
     public Page<TaskVo> list(TaskQueryRequest request) {
@@ -160,7 +162,7 @@ public class TaskServiceImpl implements TaskService {
 
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
         if (projectScope == null || projectScope.isPersonalProject()) {
-            wrapper.eq(Task::getUserId, userId);
+            wrapper.eq(Task::getCreatedByUserId, userId);
         }
         wrapper.eq(Task::getIsDelete, 0);
         if (validRequest.getStatus() != null) {
@@ -459,7 +461,7 @@ public class TaskServiceImpl implements TaskService {
 
             Task currentTask = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
                     .eq(Task::getId, item.getTaskId())
-                    .eq(Task::getUserId, userId)
+                    .eq(Task::getCreatedByUserId, userId)
                     .last("limit 1"));
             if (currentTask == null || !oldTitle.equals(currentTask.getTitle())) {
                 skipCount++;
@@ -468,7 +470,7 @@ public class TaskServiceImpl implements TaskService {
 
             int updateRows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
                     .eq(Task::getId, item.getTaskId())
-                    .eq(Task::getUserId, userId)
+                    .eq(Task::getCreatedByUserId, userId)
                     .eq(Task::getTitle, oldTitle)
                     .set(Task::getTitle, newTitle));
             if (updateRows == 1) {
@@ -520,7 +522,7 @@ public class TaskServiceImpl implements TaskService {
             }
             int updateRows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
                     .eq(Task::getId, log.getTaskId())
-                    .eq(Task::getUserId, userId)
+                    .eq(Task::getCreatedByUserId, userId)
                     .eq(Task::getTitle, log.getNewTitle())
                     .set(Task::getTitle, log.getOldTitle()));
             if (updateRows == 1) {
