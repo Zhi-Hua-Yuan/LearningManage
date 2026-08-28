@@ -108,11 +108,14 @@ class PermissionQueryMapperMySqlTest {
     @Test
     void taskQueryShouldKeepCreatorAssigneeAndJoinedLifecycleFactsDistinct() {
         Map<Long, TaskPermissionRow> rows = permissionQueryMapper
-                .selectTaskPermissionRows(12002L, List.of(62001L, 62002L, 62003L, 62004L, 62005L))
+                .selectTaskPermissionRows(12002L, List.of(62001L, 62002L, 62003L, 62005L))
                 .stream()
                 .collect(Collectors.toMap(TaskPermissionRow::getTaskId, Function.identity()));
+        TaskPermissionRow deletedMembershipTask = permissionQueryMapper
+                .selectTaskPermissionRows(12007L, List.of(62004L))
+                .get(0);
 
-        assertEquals(5, rows.size());
+        assertEquals(4, rows.size());
 
         TaskPermissionRow memberTask = rows.get(62002L);
         assertEquals(12001L, memberTask.getTaskCreatorUserId());
@@ -120,7 +123,7 @@ class PermissionQueryMapperMySqlTest {
         assertEquals(22001L, memberTask.getTeamId());
         assertEquals("ADMIN", memberTask.getActorTeamRole());
 
-        TaskPermissionRow deletedTask = rows.get(62004L);
+        TaskPermissionRow deletedTask = deletedMembershipTask;
         assertEquals(1, deletedTask.getTaskIsDelete());
         assertNotNull(deletedTask.getTaskDeletedAt());
         assertEquals(1, deletedTask.getActorMembershipIsDelete());
@@ -134,11 +137,14 @@ class PermissionQueryMapperMySqlTest {
     @Test
     void weeklyReviewQueryShouldReturnVisibilityAndTeamFactsWithoutPrivateFields() {
         Map<Long, WeeklyReviewPermissionRow> rows = permissionQueryMapper
-                .selectWeeklyReviewPermissionRows(12007L, List.of(72001L, 72002L, 72003L, 72004L))
+                .selectWeeklyReviewPermissionRows(12003L, List.of(72001L, 72002L, 72004L))
                 .stream()
                 .collect(Collectors.toMap(WeeklyReviewPermissionRow::getReviewId, Function.identity()));
+        WeeklyReviewPermissionRow exitedAuthorReview = permissionQueryMapper
+                .selectWeeklyReviewPermissionRows(12007L, List.of(72003L))
+                .get(0);
 
-        assertEquals(4, rows.size());
+        assertEquals(3, rows.size());
         assertEquals("PRIVATE", rows.get(72001L).getVisibilityScope());
         assertNull(rows.get(72001L).getTeamId());
 
@@ -148,7 +154,6 @@ class PermissionQueryMapperMySqlTest {
         assertEquals(22001L, activeTeamReview.getTeamId());
         assertEquals("MEMBER", activeTeamReview.getActorTeamRole());
 
-        WeeklyReviewPermissionRow exitedAuthorReview = rows.get(72003L);
         assertEquals(1, exitedAuthorReview.getActorMembershipIsDelete());
         assertNotNull(exitedAuthorReview.getActorMembershipDeletedAt());
 
