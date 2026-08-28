@@ -8,6 +8,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.model.dto.task.TaskBatchRenameRequest;
 import com.spt.learningmanage.model.dto.task.TaskBatchRollbackRequest;
 import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
+import com.spt.learningmanage.model.dto.task.TaskAssignmentHistoryQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.dto.task.TaskQueryRequest;
 import com.spt.learningmanage.model.dto.task.TaskStatusChangeRequest;
@@ -15,6 +16,7 @@ import com.spt.learningmanage.model.dto.task.TaskUpdateRequest;
 import com.spt.learningmanage.model.vo.task.TaskBatchRenameVO;
 import com.spt.learningmanage.model.vo.task.TaskBatchRollbackVO;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentHistoryVO;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.service.TaskService;
@@ -47,6 +49,18 @@ public class TaskController {
     @PostMapping("/assign")
     public BaseResponse<TaskAssignVO> assignTask(@RequestBody TaskAssignRequest request) {
         return ResultUtils.success(taskAssignmentService.assign(request));
+    }
+
+    @GetMapping("/{taskId}/assignment-history")
+    public BaseResponse<Page<TaskAssignmentHistoryVO>> listAssignmentHistory(
+            @PathVariable Long taskId,
+            @RequestParam(value = "current", defaultValue = "1") Long current,
+            @RequestParam(value = "size", defaultValue = "50") Long size) {
+        TaskAssignmentHistoryQueryRequest request = new TaskAssignmentHistoryQueryRequest();
+        request.setTaskId(taskId);
+        request.setCurrent(current);
+        request.setSize(size);
+        return ResultUtils.success(taskAssignmentService.listAssignmentHistory(request));
     }
 
     @GetMapping("/get/{id}")

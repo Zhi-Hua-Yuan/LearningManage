@@ -83,6 +83,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP4-D1：负责人历史查询契约冻结](acceptance/pr4-wp4d1-assignment-history-contract-acceptance-2026-08-29.md)
 - [WP4-D2-A：负责人历史分页 Mapper](acceptance/pr4-wp4d2a-assignment-history-mapper-acceptance-2026-08-29.md)
 - [WP4-D2-B：负责人历史查询 Service](acceptance/pr4-wp4d2b-assignment-history-service-acceptance-2026-08-29.md)
+- [WP4-D2-C：负责人历史查询 Controller/API](acceptance/pr4-wp4d2c-assignment-history-controller-acceptance-2026-08-29.md)
 
 ## 4. 决策状态规则
 

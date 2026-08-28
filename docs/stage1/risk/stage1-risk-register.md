@@ -17,7 +17,7 @@
 | S1-R-011 | CLOSED | Flyway V2 失败后无法安全恢复 | DDL/回填中断或发布后发现问题 | 迁移前备份；隔离库恢复演练；发布后只前向修复 | PR2 工作包 4 恢复演练：备份、迁移、恢复、V1 对账全部 PASS | PR2 |
 | S1-R-012 | OPEN | 创建人与受理人口径混用导致统计错误 | 周复盘统计仍按 `task.user_id` 查询执行者 | Stats 已按 `assignee_user_id`；WeeklyReview 统计的 `countCompletedTasks` 与 `queryFocusProjectName` 仍保留 `task.user_id` 旧口径，剩余修正与回归由 PR6 完成 | 周统计回归测试 | PR6 |
 | S1-R-013 | OPEN | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 分配后失效详情/列表；服务端始终重鉴权 | 前端缓存测试 | PR7 |
-| S1-R-014 | OPEN | 分配历史包含敏感理由或越权用户信息 | reason 写入敏感正文或外部用户查询历史 | reason 限长和内容规则；历史沿用 TASK_VIEW 权限 | API/日志测试 | PR4 |
+| S1-R-014 | CLOSED | 分配历史包含敏感理由或越权用户信息 | reason 写入敏感正文或外部用户查询历史 | reason 限长和内容规则；历史沿用 TASK_VIEW 权限 | WP4-C reason 规则、D2-B 权限前置、D2-C HTTP 隐私字段与拒绝响应测试；Backend CI Run 33199646633 全部通过 | PR4 |
 
 ## 使用规则
 
