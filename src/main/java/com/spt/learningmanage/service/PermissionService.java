@@ -1,6 +1,11 @@
 package com.spt.learningmanage.service;
 
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
+import com.spt.learningmanage.model.permission.TaskCapabilities;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 统一资源权限服务。
@@ -45,4 +50,36 @@ public interface PermissionService {
     void requireTeamMemberRemove(Long actorUserId, Long teamId, Long targetUserId);
 
     void requireTeamLeave(Long actorUserId, Long teamId);
+
+    /**
+     * Resolve the projects visible to the actor in one batch. Missing or
+     * unauthorized projects are omitted from the returned map.
+     */
+    Map<Long, ProjectAccessScope> resolveProjectScopes(
+            Long actorUserId,
+            Collection<Long> projectIds
+    );
+
+    /**
+     * Filter a server-side candidate task set to tasks readable by the actor.
+     * This method intentionally has filtering semantics; callers handling
+     * client- or model-supplied IDs must use {@link #requireAllTasksReadable}.
+     */
+    Set<Long> filterReadableTaskIds(Long actorUserId, Collection<Long> taskIds);
+
+    /**
+     * Require every supplied task ID to be readable and return the normalized
+     * IDs. A missing, deleted, malformed or unauthorized ID rejects the whole
+     * request.
+     */
+    Set<Long> requireAllTasksReadable(Long actorUserId, Collection<Long> taskIds);
+
+    /**
+     * Resolve task write capabilities in one batch. Only readable tasks are
+     * present in the result map.
+     */
+    Map<Long, TaskCapabilities> resolveTaskCapabilities(
+            Long actorUserId,
+            Collection<Long> taskIds
+    );
 }

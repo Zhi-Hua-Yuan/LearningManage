@@ -10,7 +10,7 @@
 | S1-R-004 | OPEN | TEAM 周复盘泄漏私人正文 | 复用实体或同一 VO 返回 | DTO/VO 分离；共享 VO 类型不含私人字段 | 序列化与越权测试 | PR6 |
 | S1-R-005 | CLOSED | 复盘没有共享目标导致跨团队泄漏 | TEAM 记录 teamId 为空或关联跨团队任务 | ADR-002 增加 team_id；保存时批量校验 | V2 post-verify 复盘隐私与关联检查；PR2 工作包 2/4 记录 | PR2/PR6 |
 | S1-R-006 | ACCEPTED_LIMITATION | 首版一份周复盘只能定向一个团队 | 用户需要向多个团队发布不同摘要 | 明确产品限制；未来用 share 表扩展时新增 ADR/迁移 | 文档和 UI 提示 | 后续阶段 |
-| S1-R-007 | OPEN | 权限检查逐条查询导致 N+1 | 任务列表、统计、AI 批量 ID | PermissionService 提供批量方法；查询次数门禁 | 100 资源查询测试 | PR3/PR4 |
+| S1-R-007 | CLOSED | 权限检查逐条查询导致 N+1 | 任务列表、统计、AI 批量 ID | PermissionService 提供批量方法；查询次数门禁 | PR3 WP4-C：100 资源真实 MySQL 查询次数为固定 actor 1 次 + task 1 次；CI run 33167613189 | PR3 |
 | S1-R-008 | OPEN | 普通接口已鉴权但 AI 入口可绕过 | AI 请求携带越权 projectId/taskId | 所有现有 AI 入口接入批量权限；确认时重新校验 | AI 越权回归测试 | PR3/PR6 |
 | S1-R-009 | OPEN | SYSTEM_ADMIN 被实现为全局内容读取后门 | 代码按角色无条件 return allow | ADR-003 禁止默认绕过；私人复盘矩阵测试 | 参数化权限测试 | PR3/PR6 |
 | S1-R-010 | OPEN | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | 兼容子集门禁；新增字段默认可选 | 跨仓契约报告 | PR7/PR8 |
