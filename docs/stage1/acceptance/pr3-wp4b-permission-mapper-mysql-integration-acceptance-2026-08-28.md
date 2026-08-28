@@ -1,6 +1,6 @@
 # PR3 WP4-B：PermissionQueryMapper 真实 MySQL 集成测试验收记录
 
-状态：`READY_FOR_DATABASE_RUN`
+状态：`PASS`
 
 日期：2026-08-28
 
@@ -56,7 +56,22 @@ BUILD SUCCESS
 
 真实数据库测试必须在 MySQL 8.0.41、V2 schema 和 `TEST_DB_*` 环境变量已配置的环境执行。CI 复用 `backend-test` Job 在 Maven 前创建并迁移的 `learning_manage_ci_empty` 数据库；本地不得连接共享开发库或生产库。
 
-当前记录尚未填写真实数据库测试结果；完成数据库运行后，应补充实际 MySQL 版本、数据库名、定向测试数量、全量测试数量及 Surefire 报告摘要，并将状态改为 `PASS` 或 `BLOCKED`。
+CI 已完成真实数据库运行，结果如下：
+
+```yaml
+CI run: 33163865826
+MySQL: 8.0.41
+Database: learning_manage_ci_empty（CI 隔离数据库）
+定向 MySQL 集成测试: 6 passed
+全量测试: 178 passed
+Failures: 0
+Errors: 0
+Skipped: 0
+Maven verification: PASS
+Surefire expected test count gate: PASS (178)
+```
+
+CI 还通过了 Flyway empty/existing database gate、迁移不可变护栏和 Docker runtime gate。详见 [PR #42 CI run](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33163865826)。
 
 ## 4. 查询与隔离边界
 
@@ -75,4 +90,4 @@ BUILD SUCCESS
 
 ## 6. 验收结论
 
-WP4-B 的测试代码、V2 Fixture、数据库安全护栏和 CI 门槛已经实现并完成编译验证。真实 MySQL 运行证据仍需在配置好 `TEST_DB_*` 的隔离 V2 数据库上执行；在该证据补齐前，WP4-B 不标记为最终 `PASS`，WP4-C 批量权限 API 仍不放行。
+WP4-B 的测试代码、V2 Fixture、数据库安全护栏和 CI 门槛已在隔离 MySQL 8.0.41 数据库完成验证，178 项测试全部通过，迁移与 Docker runtime 门禁全部通过。WP4-B 验收结论为最终 `PASS`，可以进入 WP4-C 批量权限 API 方案评审；WP4-C 的实现仍需单独遵守其批量查询、N+1 和响应边界合同。
