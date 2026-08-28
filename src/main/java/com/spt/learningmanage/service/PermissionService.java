@@ -15,6 +15,8 @@ import java.util.Set;
  */
 public interface PermissionService {
 
+    void requireActiveActor(Long actorUserId);
+
     ProjectAccessScope requireProjectView(Long actorUserId, Long projectId);
 
     ProjectAccessScope requireProjectCreateTask(Long actorUserId, Long projectId);
@@ -22,6 +24,14 @@ public interface PermissionService {
     ProjectAccessScope requireProjectManage(Long actorUserId, Long projectId);
 
     ProjectAccessScope requireProjectMemberList(Long actorUserId, Long projectId);
+
+    ProjectAccessScope requireProjectRecover(Long actorUserId, Long projectId);
+
+    void requireTeamView(Long actorUserId, Long teamId);
+
+    void requireTeamManageProject(Long actorUserId, Long teamId);
+
+    void requireTeamMemberList(Long actorUserId, Long teamId);
 
     void requireTaskView(Long actorUserId, Long taskId);
 
@@ -73,6 +83,10 @@ public interface PermissionService {
      * request.
      */
     Set<Long> requireAllTasksReadable(Long actorUserId, Collection<Long> taskIds);
+
+    void requireAllTasksEditableContent(Long actorUserId, Collection<Long> taskIds);
+
+    void requireAllTasksReorganizable(Long actorUserId, Collection<Long> taskIds);
 
     /**
      * Resolve task write capabilities in one batch. Only readable tasks are

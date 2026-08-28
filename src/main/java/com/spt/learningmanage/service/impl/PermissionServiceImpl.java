@@ -80,6 +80,44 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    public ProjectAccessScope requireProjectRecover(Long actorUserId, Long projectId) {
+        validateActorAndResource(actorUserId, projectId);
+        requireActiveActor(actorUserId);
+        ProjectPermissionRow row = single(permissionQueryMapper
+                .selectProjectPermissionRows(actorUserId, List.of(projectId)));
+        if (row == null || row.getProjectId() == null
+                || !Objects.equals(row.getProjectId(), projectId)
+                || row.getProjectDeletedAt() == null) {
+            throw denied();
+        }
+        ProjectAccessScope scope = toProjectScope(actorUserId, row, true);
+        if (scope == null || !scope.canManage()) {
+            throw denied();
+        }
+        return scope;
+    }
+
+    @Override
+    public void requireTeamView(Long actorUserId, Long teamId) {
+        TeamMemberPermissionRow row = loadSingleTeamMember(actorUserId, teamId, actorUserId);
+        requireActiveActorTeamRole(row);
+    }
+
+    @Override
+    public void requireTeamManageProject(Long actorUserId, Long teamId) {
+        TeamMemberPermissionRow row = loadSingleTeamMember(actorUserId, teamId, actorUserId);
+        TeamRoleEnum role = requireActiveActorTeamRole(row);
+        if (role != TeamRoleEnum.OWNER && role != TeamRoleEnum.ADMIN) {
+            throw denied();
+        }
+    }
+
+    @Override
+    public void requireTeamMemberList(Long actorUserId, Long teamId) {
+        requireTeamView(actorUserId, teamId);
+    }
+
+    @Override
     public void requireTaskView(Long actorUserId, Long taskId) {
         requireTaskAction(actorUserId, taskId, PermissionActionEnum.TASK_VIEW);
     }
@@ -241,6 +279,16 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    public void requireAllTasksEditableContent(Long actorUserId, Collection<Long> taskIds) {
+        requireAllTaskAction(actorUserId, taskIds, PermissionActionEnum.TASK_EDIT_CONTENT);
+    }
+
+    @Override
+    public void requireAllTasksReorganizable(Long actorUserId, Collection<Long> taskIds) {
+        requireAllTaskAction(actorUserId, taskIds, PermissionActionEnum.TASK_REORGANIZE);
+    }
+
+    @Override
     public Map<Long, TaskCapabilities> resolveTaskCapabilities(
             Long actorUserId,
             Collection<Long> taskIds
@@ -265,7 +313,17 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private ProjectAccessScope toProjectScope(Long actorUserId, ProjectPermissionRow row) {
-        if (!isActiveProject(row)) {
+        return toProjectScope(actorUserId, row, false);
+    }
+
+    private ProjectAccessScope toProjectScope(
+            Long actorUserId,
+            ProjectPermissionRow row,
+            boolean allowDeletedProject
+    ) {
+        if (row == null || row.getProjectId() == null || row.getProjectOwnerUserId() == null
+                || (!allowDeletedProject && !isActiveProject(row))
+                || (allowDeletedProject && !isDeletedProject(row))) {
             return null;
         }
 
@@ -306,6 +364,21 @@ public class PermissionServiceImpl implements PermissionService {
         TaskPermissionDecision decision = resolveTaskDecisions(actorUserId, List.of(taskId)).get(taskId);
         if (decision == null || !decision.allowed(action)) {
             throw denied();
+        }
+    }
+
+    private void requireAllTaskAction(
+            Long actorUserId,
+            Collection<Long> taskIds,
+            PermissionActionEnum action
+    ) {
+        List<Long> normalizedIds = normalizeBatchIds(actorUserId, taskIds);
+        Map<Long, TaskPermissionDecision> decisions = resolveTaskDecisions(actorUserId, normalizedIds);
+        for (Long taskId : normalizedIds) {
+            TaskPermissionDecision decision = decisions.get(taskId);
+            if (decision == null || !decision.allowed(action)) {
+                throw denied();
+            }
         }
     }
 
@@ -470,6 +543,14 @@ public class PermissionServiceImpl implements PermissionService {
                 && isNotDeleted(row.getProjectIsDelete(), row.getProjectDeletedAt());
     }
 
+    private boolean isDeletedProject(ProjectPermissionRow row) {
+        return row != null
+                && row.getProjectId() != null
+                && row.getProjectOwnerUserId() != null
+                && row.getProjectIsDelete() != null
+                && row.getProjectDeletedAt() != null;
+    }
+
     private boolean isActiveTask(TaskPermissionRow row) {
         return row != null
                 && row.getTaskId() != null
@@ -556,7 +637,8 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
-    private ActiveActor requireActiveActor(Long actorUserId) {
+    @Override
+    public void requireActiveActor(Long actorUserId) {
         ActorPermissionRow row = permissionQueryMapper.selectActorPermissionRow(actorUserId);
         if (row == null
                 || !Objects.equals(row.getActorUserId(), actorUserId)
@@ -567,10 +649,6 @@ public class PermissionServiceImpl implements PermissionService {
         if (systemRole == null) {
             throw denied();
         }
-        return new ActiveActor(actorUserId, systemRole);
-    }
-
-    private record ActiveActor(Long userId, SystemRoleEnum systemRole) {
     }
 
     private record TaskPermissionDecision(

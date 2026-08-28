@@ -18,6 +18,8 @@ public class Task {
     private Long projectId;
     private Long milestoneId;
     private Long userId;
+    /** Current assignee; null means unassigned. */
+    private Long assigneeUserId;
     private String title;
     private String description;
     private Integer status;

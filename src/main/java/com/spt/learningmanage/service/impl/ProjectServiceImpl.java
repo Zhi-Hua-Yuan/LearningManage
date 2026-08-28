@@ -5,13 +5,11 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.constant.ProjectConstant;
-import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TeamMapper;
-import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
@@ -23,9 +21,10 @@ import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.Team;
-import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -37,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -56,7 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
     private TeamMapper teamMapper;
 
     @Resource
-    private TeamMemberMapper teamMemberMapper;
+    private PermissionService permissionService;
 
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
@@ -64,6 +64,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        permissionService.requireActiveActor(userId);
         if (projectCreateRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
@@ -108,8 +109,8 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
 
+        permissionService.requireTeamManageProject(userId, teamProjectCreateRequest.getTeamId());
         Team team = getValidTeamById(teamProjectCreateRequest.getTeamId());
-        validateCanManageTeamProject(team.getId(), userId);
 
         validateName(teamProjectCreateRequest.getName());
         validateIcon(teamProjectCreateRequest.getIcon());
@@ -146,10 +147,10 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectView(userId, id);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt);
         Project project = projectMapper.selectOne(wrapper);
         if (project == null) {
@@ -164,6 +165,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        permissionService.requireActiveActor(userId);
         ProjectQueryRequest validProjectQueryRequest =
                 projectQueryRequest == null ? new ProjectQueryRequest() : projectQueryRequest;
         long pageNum = safePageNum(validProjectQueryRequest.getPageNum());
@@ -202,8 +204,8 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
 
+        permissionService.requireTeamView(userId, validRequest.getTeamId());
         Team team = getValidTeamById(validRequest.getTeamId());
-        requireTeamMember(team.getId(), userId);
 
         long pageNum = safePageNum(validRequest.getPageNum());
         long pageSize = safePageSize(validRequest.getPageSize());
@@ -237,10 +239,10 @@ public class ProjectServiceImpl implements ProjectService {
         if (projectUpdateRequest == null || projectUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(userId, projectUpdateRequest.getId());
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, projectUpdateRequest.getId())
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt);
         Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
@@ -280,8 +282,6 @@ public class ProjectServiceImpl implements ProjectService {
         update.setStatus(newStatus);
         update.setStartDate(newStartDate);
         update.setEndDate(newEndDate);
-        update.setUserId(userId);
-
         int rows = projectMapper.updateById(update);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
@@ -316,10 +316,15 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
 
+        Map<Long, ProjectAccessScope> scopes = permissionService.resolveProjectScopes(userId, idSet);
+        if (scopes.size() != idSet.size() || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
+        }
+
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(Project::getId, idSet)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId);
+                .eq(Project::getIsDelete, 0)
+                .isNull(Project::getDeletedAt);
         List<Project> existingProjects = projectMapper.selectList(wrapper);
         if (existingProjects.size() != reorderRequests.size()) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND, "项目不存在");
@@ -328,7 +333,6 @@ public class ProjectServiceImpl implements ProjectService {
         for (ProjectReorderRequest reorderRequest : reorderRequests) {
             Project update = new Project();
             update.setId(reorderRequest.getId());
-            update.setUserId(userId);
             update.setOrderNo(reorderRequest.getOrderNo());
             int rows = projectMapper.updateById(update);
             if (rows != 1) {
@@ -352,10 +356,15 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
 
+        Map<Long, ProjectAccessScope> scopes = permissionService.resolveProjectScopes(userId, ids);
+        if (scopes.size() != new HashSet<>(ids).size()
+                || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
+        }
+
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(Project::getId, ids)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt);
         List<Project> existingProjects = projectMapper.selectList(wrapper);
         if (existingProjects.size() != ids.size()) {
@@ -370,8 +379,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.in(Project::getId, ids)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt)
                 .set(Project::getStatus, ProjectConstant.STATUS_ARCHIVED);
 
@@ -391,10 +399,10 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        permissionService.requireProjectManage(userId, id);
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Project::getId, id)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId);
+                .eq(Project::getIsDelete, 0);
         Project existing = projectMapper.selectOne(wrapper);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
@@ -406,8 +414,7 @@ public class ProjectServiceImpl implements ProjectService {
         LocalDateTime deleteTime = LocalDateTime.now();
 
         LambdaUpdateWrapper<Task> taskDeleteWrapper = new LambdaUpdateWrapper<>();
-        taskDeleteWrapper.eq(Task::getUserId, userId)
-                .eq(Task::getProjectId, id)
+        taskDeleteWrapper.eq(Task::getProjectId, id)
                 .eq(Task::getIsDelete, 0)
                 .set(Task::getIsDelete, 1)
                 .set(Task::getDeleteSource, DeleteSourceConstant.PROJECT_CASCADE)
@@ -415,8 +422,7 @@ public class ProjectServiceImpl implements ProjectService {
         taskMapper.update(null, taskDeleteWrapper);
 
         LambdaUpdateWrapper<Milestone> milestoneDeleteWrapper = new LambdaUpdateWrapper<>();
-        milestoneDeleteWrapper.eq(Milestone::getUserId, userId)
-                .eq(Milestone::getProjectId, id)
+        milestoneDeleteWrapper.eq(Milestone::getProjectId, id)
                 .eq(Milestone::getIsDelete, 0)
                 .set(Milestone::getIsDelete, 1)
                 .set(Milestone::getDeleteSource, DeleteSourceConstant.PROJECT_CASCADE)
@@ -425,8 +431,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         LambdaUpdateWrapper<Project> projectDeleteWrapper = new LambdaUpdateWrapper<>();
         projectDeleteWrapper.eq(Project::getId, id)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt)
                 .set(Project::getDeletedAt, deleteTime);
 
@@ -446,11 +451,8 @@ public class ProjectServiceImpl implements ProjectService {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getId, id)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId);
-        Project existing = projectMapper.selectOne(wrapper);
+        permissionService.requireProjectRecover(userId, id);
+        Project existing = projectMapper.selectDeletedById(id);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -463,8 +465,9 @@ public class ProjectServiceImpl implements ProjectService {
 
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Project::getId, id)
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
+                .in(Project::getIsDelete, List.of(0, 1))
+                .isNotNull(Project::getDeletedAt)
+                .set(Project::getIsDelete, 0)
                 .set(Project::getDeletedAt, null);
 
         int rows = projectMapper.update(null, updateWrapper);
@@ -593,26 +596,6 @@ public class ProjectServiceImpl implements ProjectService {
         return team;
     }
 
-    private TeamMember requireTeamMember(Long teamId, Long userId) {
-        if (teamId == null || teamId <= 0 || userId == null || userId <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
-        }
-        TeamMember teamMember = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
-                .eq(TeamMember::getTeamId, teamId)
-                .eq(TeamMember::getUserId, userId)
-                .eq(TeamMember::getIsDelete, 0));
-        if (teamMember == null) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限");
-        }
-        return teamMember;
-    }
-
-    private void validateCanManageTeamProject(Long teamId, Long userId) {
-        TeamMember teamMember = requireTeamMember(teamId, userId);
-        if (!TeamRoleEnum.canManageProject(teamMember.getRole())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限");
-        }
-    }
 }
 
 

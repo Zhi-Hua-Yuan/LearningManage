@@ -99,6 +99,55 @@ class PermissionServiceImplTest {
     }
 
     @Test
+    void teamAdminCanViewAndCreateWithinTeam() {
+        when(permissionQueryMapper.selectTeamMemberPermissionRow(20L, 200L, 20L))
+                .thenReturn(teamMember(200L, 10L, 20L, TeamRoleEnum.ADMIN, 20L, TeamRoleEnum.ADMIN));
+
+        permissionService.requireTeamView(20L, 200L);
+        permissionService.requireTeamMemberList(20L, 200L);
+        permissionService.requireTeamManageProject(20L, 200L);
+    }
+
+    @Test
+    void teamMemberCannotCreateTeamProject() {
+        when(permissionQueryMapper.selectTeamMemberPermissionRow(20L, 200L, 20L))
+                .thenReturn(teamMember(200L, 10L, 20L, TeamRoleEnum.MEMBER, 20L, TeamRoleEnum.MEMBER));
+
+        assertThrows(
+                PermissionDeniedException.class,
+                () -> permissionService.requireTeamManageProject(20L, 200L)
+        );
+    }
+
+    @Test
+    void ownerCanRecoverDeletedPersonalProject() {
+        ProjectPermissionRow row = personalProject(100L, 10L);
+        row.setProjectIsDelete(1);
+        row.setProjectDeletedAt(LocalDateTime.now());
+        when(permissionQueryMapper.selectProjectPermissionRows(10L, List.of(100L)))
+                .thenReturn(List.of(row));
+
+        ProjectAccessScope scope = permissionService.requireProjectRecover(10L, 100L);
+
+        assertTrue(scope.isPersonalProject());
+        assertTrue(scope.canManage());
+    }
+
+    @Test
+    void outsiderCannotRecoverDeletedProject() {
+        ProjectPermissionRow row = personalProject(100L, 10L);
+        row.setProjectIsDelete(1);
+        row.setProjectDeletedAt(LocalDateTime.now());
+        when(permissionQueryMapper.selectProjectPermissionRows(20L, List.of(100L)))
+                .thenReturn(List.of(row));
+
+        assertThrows(
+                PermissionDeniedException.class,
+                () -> permissionService.requireProjectRecover(20L, 100L)
+        );
+    }
+
+    @Test
     void assignedMemberCanEditAndChangeTaskStatus() {
         TaskPermissionRow row = teamTask(501L, 10L, 20L, 200L, TeamRoleEnum.MEMBER);
         when(permissionQueryMapper.selectTaskPermissionRows(20L, List.of(501L)))
@@ -110,6 +159,23 @@ class PermissionServiceImplTest {
         assertThrows(
                 PermissionDeniedException.class,
                 () -> permissionService.requireTaskAssign(20L, 501L)
+        );
+    }
+
+    @Test
+    void batchTaskActionIsAllOrNothing() {
+        TaskPermissionRow first = teamTask(501L, 10L, 20L, 200L, TeamRoleEnum.MEMBER);
+        TaskPermissionRow second = teamTask(502L, 10L, 30L, 200L, TeamRoleEnum.MEMBER);
+        when(permissionQueryMapper.selectTaskPermissionRows(20L, List.of(501L, 502L)))
+                .thenReturn(List.of(first, second));
+
+        assertThrows(
+                PermissionDeniedException.class,
+                () -> permissionService.requireAllTasksEditableContent(20L, List.of(501L, 502L))
+        );
+        assertThrows(
+                PermissionDeniedException.class,
+                () -> permissionService.requireAllTasksReorganizable(20L, List.of(501L, 502L))
         );
     }
 
