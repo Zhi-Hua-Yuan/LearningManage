@@ -1,6 +1,8 @@
 package com.spt.learningmanage.service.impl;
 
+import com.spt.learningmanage.constant.SystemRoleEnum;
 import com.spt.learningmanage.mapper.UserMapper;
+import com.spt.learningmanage.model.dto.user.UserUpdateRequest;
 import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.service.JwtTokenService;
 import org.junit.jupiter.api.Test;
@@ -10,7 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +41,15 @@ class UserServiceImplTest {
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userMapper).insert(captor.capture());
-        assertEquals("USER", captor.getValue().getUserRole());
+        assertEquals(SystemRoleEnum.USER.getValue(), captor.getValue().getUserRole());
+    }
+
+    @Test
+    void userUpdateRequestShouldNotExposeRoleFields() {
+        boolean exposesRoleField = Arrays.stream(UserUpdateRequest.class.getDeclaredFields())
+                .map(field -> field.getName().toLowerCase())
+                .anyMatch(name -> name.equals("role") || name.equals("userrole") || name.equals("systemrole"));
+
+        assertFalse(exposesRoleField);
     }
 }

@@ -1,6 +1,6 @@
 # V2 数据字典与迁移合同
 
-状态：`PROPOSED`；PR2 编写迁移 SQL 的冻结输入
+状态：`FROZEN / PUBLISHED`；V2 已发布，后续修正只能新增迁移
 
 目标迁移名：`V2__stage1_business_semantics_and_permissions.sql`
 

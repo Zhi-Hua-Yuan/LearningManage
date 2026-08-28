@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1 设计已冻结；PR2 独立候选实现与 CI 已完成，待评审
+状态：PR1 设计已冻结；PR2 已合并；PR3 SystemRole 与 PermissionService（WP4-A 权限内核加固）进行中
 
 建立日期：2026-08-23
 
@@ -41,7 +41,7 @@ PR1 只冻结设计输入，不修改 Java、前端、数据库迁移、CI、运
 10. [机器可读验收合同](acceptance/stage1-acceptance-contract.json)
 11. [PR1 设计验收记录](acceptance/pr1-design-acceptance-2026-08-23.md)
 
-## 3. PR2 独立候选范围
+## 3. PR2 已交付范围
 
 PR2 只交付 V2 数据语义及数据库发布门禁，不引入 `PermissionService`、任务业务接口、周复盘业务实现或前端改动：
 
@@ -54,6 +54,22 @@ PR2 只交付 V2 数据语义及数据库发布门禁，不引入 `PermissionSer
 
 PR3 才实现 `SystemRole` 和统一 `PermissionService`。综合实现分支或包含 PR3～PR6 代码的 PR 不得作为 PR2 合并。
 
+PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/41) 合并到 `develop`：
+
+- 合并时间：2026-08-28 14:22:22（Asia/Shanghai）；
+- Merge commit：`e6189a40fab25079105c8f86734116988fc45b47`；
+- 合并后 Backend CI：`33147698207`，全部必需 Job 通过；
+- V2 状态：`PUBLISHED / IMMUTABLE`。
+
+完整证据见 [PR2 合并收口记录](acceptance/pr2-merge-closure-2026-08-28.md)。
+
+当前 PR3 工作包证据：
+
+- [WP1：SystemRole](acceptance/pr3-wp1-system-role-acceptance-2026-08-28.md)
+- [WP2：权限基础类型](acceptance/pr3-wp2-permission-foundation-acceptance-2026-08-28.md)
+- [WP3：权限查询与单条判定](acceptance/pr3-wp3-permission-query-single-decision-acceptance-2026-08-28.md)
+- [WP4-A：权限内核加固](acceptance/pr3-wp4a-permission-core-hardening-acceptance-2026-08-28.md)
+
 ## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。
@@ -65,14 +81,14 @@ PR3 才实现 `SystemRole` 和统一 `PermissionService`。综合实现分支或
 ## 5. 实施顺序
 
 ```text
-PR1 设计冻结
-→ PR2 V2 迁移与数据库门禁
-→ PR3 SystemRole 与 PermissionService
-→ PR4 任务分配与历史
-→ PR5 成员退出和移除
-→ PR6 周复盘隐私模型
-→ PR7 前端任务分配与复盘隐私
-→ PR8 跨仓验收、证据、Tag 与 Release
+PR1 设计冻结                   completed
+→ PR2 V2 迁移与数据库门禁      completed
+→ PR3 SystemRole 与 PermissionService  in_progress
+→ PR4 任务分配与历史            pending
+→ PR5 成员退出和移除            pending
+→ PR6 周复盘隐私模型            pending
+→ PR7 前端任务分配与复盘隐私    pending
+→ PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
 
 每个时点只允许一个阶段 1 主目标处于 `in_progress`。阶段 1 不并行引入 Qdrant、RAG 或 Agent。

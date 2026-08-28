@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage1",
   "contractVersion": 1,
-  "status": "DRAFT",
+  "status": "FROZEN",
   "baseline": {
     "flywayPublishedVersion": "1",
     "frontendExistingOperationCount": 37,
