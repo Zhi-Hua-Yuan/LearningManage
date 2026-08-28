@@ -1,15 +1,21 @@
 package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.TaskAssignmentActionEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
+import com.spt.learningmanage.model.dto.task.TaskAssignmentHistoryQueryRequest;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
+import com.spt.learningmanage.model.query.task.TaskAssignmentHistoryRow;
+import com.spt.learningmanage.model.vo.task.AssignmentUserSummaryVO;
+import com.spt.learningmanage.model.vo.task.TaskAssignmentHistoryVO;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
@@ -92,6 +98,42 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         return toVo(task, true, targetAssigneeUserId, actorUserId, assignedAt);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TaskAssignmentHistoryVO> listAssignmentHistory(
+            TaskAssignmentHistoryQueryRequest request
+    ) {
+        Long actorUserId = UserHolder.get();
+        if (actorUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        validateHistoryQuery(request);
+
+        permissionService.requireTaskAssignmentHistoryView(
+                actorUserId,
+                request.getTaskId()
+        );
+
+        IPage<TaskAssignmentHistoryRow> result =
+                taskAssignmentLogMapper.selectAssignmentHistoryPage(
+                        new Page<>(request.getCurrent(), request.getSize()),
+                        request.getTaskId()
+                );
+        if (result == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "负责人历史查询失败");
+        }
+
+        Page<TaskAssignmentHistoryVO> response = new Page<>(
+                result.getCurrent(),
+                result.getSize(),
+                result.getTotal()
+        );
+        response.setRecords(result.getRecords().stream()
+                .map(row -> toHistoryVo(row, request.getTaskId()))
+                .toList());
+        return response;
+    }
+
     private void validateRequest(TaskAssignRequest request) {
         if (request == null || request.getTaskId() == null || request.getTaskId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
@@ -103,6 +145,60 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "assigneeUserId 不合法");
         }
         normalizeReason(request.getReason());
+    }
+
+    private void validateHistoryQuery(TaskAssignmentHistoryQueryRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+        }
+        if (request.getTaskId() == null || request.getTaskId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskId 不合法");
+        }
+        if (request.getCurrent() == null || request.getCurrent() < 1) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "current 必须大于等于1");
+        }
+        if (request.getSize() == null || request.getSize() < 1 || request.getSize() > 100) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "size 必须在1到100之间");
+        }
+    }
+
+    private TaskAssignmentHistoryVO toHistoryVo(
+            TaskAssignmentHistoryRow row,
+            Long requestedTaskId
+    ) {
+        if (row == null || row.getId() == null
+                || !Objects.equals(requestedTaskId, row.getTaskId())) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "负责人历史数据不合法");
+        }
+
+        TaskAssignmentActionEnum action = TaskAssignmentActionEnum.fromValue(row.getAction());
+        if (action == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "负责人历史动作不合法");
+        }
+
+        TaskAssignmentHistoryVO vo = new TaskAssignmentHistoryVO();
+        vo.setId(row.getId());
+        vo.setTaskId(row.getTaskId());
+        vo.setAction(action.getValue());
+        vo.setFromAssignee(toUserSummary(
+                row.getFromAssigneeUserId(), row.getFromAssigneeUsername()));
+        vo.setToAssignee(toUserSummary(
+                row.getToAssigneeUserId(), row.getToAssigneeUsername()));
+        vo.setAssignedBy(toUserSummary(
+                row.getAssignedByUserId(), row.getAssignedByUsername()));
+        vo.setReason(row.getReason());
+        vo.setCreateTime(row.getCreateTime());
+        return vo;
+    }
+
+    private AssignmentUserSummaryVO toUserSummary(Long userId, String username) {
+        if (userId == null) {
+            return null;
+        }
+        AssignmentUserSummaryVO summary = new AssignmentUserSummaryVO();
+        summary.setUserId(userId);
+        summary.setUsername(username);
+        return summary;
     }
 
     private String normalizeReason(String reason) {
