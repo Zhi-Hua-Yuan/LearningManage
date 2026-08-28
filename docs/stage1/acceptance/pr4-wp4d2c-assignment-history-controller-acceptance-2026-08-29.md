@@ -1,7 +1,7 @@
 # PR4-D2-C 负责人历史查询 Controller/API 验收记录
 
 日期：2026-08-29  
-状态：`IMPLEMENTED / LOCAL_GATE_PASS / CI_PENDING`
+状态：`COMPLETED / CI_PASS`
 
 ## 1. 范围
 
@@ -48,7 +48,7 @@ HTTP 适配层、JWT 登录链、统一响应、错误兼容和隐私序列化�
 | 参数错误兼容 | PASS | 业务校验 HTTP 200；类型绑定 HTTP 400；均为 `40000` |
 | 隐私字段白名单 | PASS | 历史记录 8 字段；用户摘要仅 `userId/username` |
 | null 语义 | PASS | 未分配整体 null；删除用户保留 ID、username 为 null |
-| 完整 Surefire | LOCAL_ENV_BLOCKED | 428 tests；414 通过，14 个 MySQL 测试因本机凭据阻塞 |
+| 完整 Surefire | PASS | Backend CI Run `33199646633`；测试计数 428 Gate 通过 |
 | CI expected count | UPDATED | `418 -> 428`，backend/release gate 同步 |
 | CI YAML 与 migration 静态 Gate | PASS | 15/15 tests passed |
 | V1/V2 migration | PASS | 未修改，published migration manifest 校验通过 |
@@ -67,7 +67,7 @@ Tests run: 40, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-完整 Surefire 本机结果：
+完整 Surefire 本机结果（环境说明）：
 
 ```text
 Tests run: 428, Failures: 0, Errors: 14, Skipped: 0
@@ -75,7 +75,8 @@ Tests run: 428, Failures: 0, Errors: 14, Skipped: 0
 
 14 个错误均发生在既有 MySQL 集成测试建立事务阶段，原始原因是本机未配置
 `${TEST_DB_USERNAME}`，与 D2-C 的 Controller/API 实现无关。D2-C 新增测试不连接数据库，
-全部通过。完整 Gate 等待 CI 隔离 MySQL 环境验证，当前不声明 CI PASS。
+全部通过。Backend CI 已在隔离 MySQL 环境完成完整验证，5 个 Job 全部 PASS：Guard/migration、
+Maven verification、Flyway empty database、Flyway existing database、Docker runtime/migration。
 
 ## 5. 安全证据链
 
@@ -84,18 +85,18 @@ Mapper 前执行 `requireTaskAssignmentHistoryView`，且权限拒绝时 Mapper 
 进一步证明拒绝响应只包含固定错误码、固定消息和空 data，不返回 reason、用户摘要、
 历史条数或资源存在性信息。
 
-`S1-R-014` 的关闭还需要本分支 CI 全绿，并同时引用 WP4-C reason 输入规则、D2-B
-权限前置测试和本记录的 HTTP 隐私测试；在 CI 证据产生前继续保持 OPEN。
+`S1-R-014` 的关闭同时引用 WP4-C reason 输入规则、D2-B 权限前置测试和本记录的 HTTP
+隐私测试；Backend CI Run `33199646633` 已全绿。
 
 ## 6. 合同状态
 
 - `S1-A-003`：保持 `PENDING`，等待 D2-E 并发、事务和审计对账；
-- `S1-R-014`：保持 `OPEN`，D2-C CI 全绿后按完整安全证据链关闭；
+- `S1-R-014`：`CLOSED`，WP4-C、D2-B、D2-C 安全证据链及 Backend CI 已通过；
 - `S1-R-003`：保持 `OPEN`，由 PR5 处理成员退出/移除并发语义；
 - `S1-R-008`、`S1-R-012`：保持 `OPEN`，由 PR6 处理；
 - V1/V2 migration：未修改。
 
 ## 7. 后续入口
 
-推送 D2-C 分支并取得 Backend CI 全绿证据后，更新本记录的 CI Run 和风险状态；随后
-进入 D2-E，完成双并发 CAS、真实事务回滚和任务负责人/审计日志账实对账。
+PR #48 Backend CI 已全绿；随后进入 D2-E，完成双并发 CAS、真实事务回滚和任务负责人/
+审计日志账实对账。`S1-A-003` 在 D2-E 完成前继续保持 `PENDING`。
