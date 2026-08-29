@@ -30,10 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(classes = LearningManageApplication.class)
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Sql(scripts = "/db/stage1/permission_mapper_v2_seed.sql",
+@Sql(scripts = "/db/stage1/task_assignment_d2e_concurrency_seed.sql",
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/db/stage1/permission_mapper_v2_cleanup.sql",
-        executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class TaskAssignmentConcurrencyMySqlTest {
 
     @Autowired
@@ -59,8 +57,8 @@ class TaskAssignmentConcurrencyMySqlTest {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<Outcome> toBob = submit(executor, ready, start, 12002L);
-            Future<Outcome> toCarol = submit(executor, ready, start, 12003L);
+            Future<Outcome> toBob = submit(executor, ready, start, 15002L);
+            Future<Outcome> toCarol = submit(executor, ready, start, 15003L);
 
             assertTrue(ready.await(10, TimeUnit.SECONDS));
             start.countDown();
@@ -71,18 +69,18 @@ class TaskAssignmentConcurrencyMySqlTest {
             assertEquals(1, (first.conflict() ? 1 : 0) + (second.conflict() ? 1 : 0));
 
             Long finalAssignee = jdbcTemplate.queryForObject(
-                    "SELECT assignee_user_id FROM task WHERE id = 62003", Long.class);
+                    "SELECT assignee_user_id FROM task WHERE id = 65001", Long.class);
             assertNotNull(finalAssignee);
-            assertTrue(finalAssignee.equals(12002L) || finalAssignee.equals(12003L));
+            assertTrue(finalAssignee.equals(15002L) || finalAssignee.equals(15003L));
             assertEquals(1, jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 62003", Integer.class));
+                    "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 65001", Integer.class));
 
             var log = jdbcTemplate.queryForMap(
                     "SELECT from_assignee_user_id, to_assignee_user_id, assigned_by_user_id, action "
-                            + "FROM task_assignment_log WHERE task_id = 62003");
-            assertEquals(12002L, ((Number) log.get("from_assignee_user_id")).longValue());
+                            + "FROM task_assignment_log WHERE task_id = 65001");
+            assertEquals(15001L, ((Number) log.get("from_assignee_user_id")).longValue());
             assertEquals(finalAssignee, ((Number) log.get("to_assignee_user_id")).longValue());
-            assertEquals(12001L, ((Number) log.get("assigned_by_user_id")).longValue());
+            assertEquals(15001L, ((Number) log.get("assigned_by_user_id")).longValue());
             assertEquals("REASSIGN", log.get("action"));
         } finally {
             executor.shutdownNow();
@@ -95,14 +93,14 @@ class TaskAssignmentConcurrencyMySqlTest {
                                    CountDownLatch start,
                                    Long targetAssignee) {
         return executor.submit(() -> {
-            UserHolder.set(12001L);
+            UserHolder.set(15001L);
             ready.countDown();
             try {
                 assertTrue(start.await(10, TimeUnit.SECONDS));
                 TaskAssignRequest request = new TaskAssignRequest();
-                request.setTaskId(62003L);
+                request.setTaskId(65001L);
                 request.setAssigneeUserId(targetAssignee);
-                request.setExpectedAssigneeUserId(12002L);
+                request.setExpectedAssigneeUserId(15001L);
                 request.setReason("concurrent handoff");
                 TaskAssignVO result = taskAssignmentService.assign(request);
                 return new Outcome(true, null, result);

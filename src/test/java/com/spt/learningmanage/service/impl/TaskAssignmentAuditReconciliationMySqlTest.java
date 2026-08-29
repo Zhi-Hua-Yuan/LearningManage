@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -23,10 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(classes = LearningManageApplication.class)
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Transactional
 @Sql(scripts = "/db/stage1/task_assignment_d2e_audit_seed.sql",
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
-@Sql(scripts = "/db/stage1/task_assignment_d2e_audit_cleanup.sql",
-        executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class TaskAssignmentAuditReconciliationMySqlTest {
 
     @Autowired
