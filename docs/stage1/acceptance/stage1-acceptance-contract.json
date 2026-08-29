@@ -47,6 +47,7 @@
       "evidenceRequired": ["assignment integration tests", "assignment reconciliation report"],
       "evidence": [
         "PR4 D2-E acceptance record",
+        "PR #49 merge commit 5d5c4a23dd01b5a272054862f936d32bb9ad5beb",
         "GitHub Actions run 33239260276",
         "Maven verification: 432 tests, 0 failures, 0 errors",
         "Flyway empty/existing database gates",
