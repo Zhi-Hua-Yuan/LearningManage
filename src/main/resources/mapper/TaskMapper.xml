@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spt.learningmanage.mapper.TaskMapper">
+
+    <select id="selectIncompleteAssignedTeamTasksForUpdate"
+            resultType="com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow">
+        SELECT
+            t.id AS task_id,
+            t.assignee_user_id AS assignee_user_id
+        FROM task t
+        INNER JOIN project p
+            ON p.id = t.project_id
+        WHERE p.team_id = #{teamId}
+          AND t.assignee_user_id = #{memberUserId}
+          AND t.status = 0
+        ORDER BY t.id ASC
+        FOR UPDATE
+    </select>
+
+    <update id="bulkUnassignIncompleteTeamTasks">
+        UPDATE task t
+        INNER JOIN project p
+            ON p.id = t.project_id
+        SET t.assignee_user_id = NULL,
+            t.assigned_by_user_id = #{assignedByUserId},
+            t.assigned_at = #{assignedAt}
+        WHERE p.team_id = #{teamId}
+          AND t.assignee_user_id = #{memberUserId}
+          AND t.status = 0
+        <choose>
+            <when test="taskIds != null and !taskIds.isEmpty()">
+                AND t.id IN
+                <foreach collection="taskIds"
+                         item="taskId"
+                         open="("
+                         separator=","
+                         close=")">
+                    #{taskId}
+                </foreach>
+            </when>
+            <otherwise>
+                AND 1 = 0
+            </otherwise>
+        </choose>
+    </update>
+
+</mapper>

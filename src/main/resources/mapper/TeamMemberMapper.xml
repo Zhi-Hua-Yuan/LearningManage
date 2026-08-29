@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spt.learningmanage.mapper.TeamMemberMapper">
+
+    <select id="selectActiveMembersForUpdate"
+            resultType="com.spt.learningmanage.model.entity.TeamMember">
+        SELECT
+            id,
+            team_id,
+            user_id,
+            role,
+            create_time,
+            update_time,
+            deleted_at,
+            is_delete
+        FROM team_member
+        WHERE team_id = #{teamId}
+          AND is_delete = 0
+          AND deleted_at IS NULL
+        <choose>
+            <when test="userIds != null and !userIds.isEmpty()">
+                AND user_id IN
+                <foreach collection="userIds"
+                         item="userId"
+                         open="("
+                         separator=","
+                         close=")">
+                    #{userId}
+                </foreach>
+            </when>
+            <otherwise>
+                AND 1 = 0
+            </otherwise>
+        </choose>
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
+    <update id="deactivateMembershipCas">
+        UPDATE team_member
+        SET is_delete = 1,
+            deleted_at = #{deletedAt}
+        WHERE id = #{membershipId}
+          AND team_id = #{teamId}
+          AND user_id = #{userId}
+          AND role = #{expectedRole}
+          AND is_delete = 0
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>

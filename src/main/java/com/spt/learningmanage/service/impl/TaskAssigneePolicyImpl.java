@@ -31,11 +31,10 @@ public class TaskAssigneePolicyImpl implements TaskAssigneePolicy {
         if (requestedAssigneeUserId == null) {
             return null;
         }
-        if (requestedAssigneeUserId <= 0
-                || taskAssigneeQueryMapper.countActiveTeamAssignee(
-                scope.teamId(), requestedAssigneeUserId) != 1) {
+        if (requestedAssigneeUserId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "负责人必须是团队有效成员");
         }
+        requireLockedActiveTeamAssignee(scope.teamId(), requestedAssigneeUserId);
         return requestedAssigneeUserId;
     }
 
@@ -56,9 +55,46 @@ public class TaskAssigneePolicyImpl implements TaskAssigneePolicy {
             }
             return;
         }
-        if (taskAssigneeQueryMapper.selectActiveTeamAssigneeForUpdate(
-                scope.teamId(), targetAssigneeUserId) == null) {
+        requireLockedActiveTeamAssignee(scope.teamId(), targetAssigneeUserId);
+    }
+
+    @Override
+    public void validateReopenAssignee(ProjectAccessScope scope, Long currentAssigneeUserId) {
+        if (scope == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "项目权限范围不能为空");
+        }
+        if (currentAssigneeUserId == null) {
+            return;
+        }
+        if (currentAssigneeUserId <= 0) {
+            throw reopenAssigneeInvalid();
+        }
+        if (scope.isPersonalProject()) {
+            if (!Objects.equals(scope.projectOwnerUserId(), currentAssigneeUserId)) {
+                throw reopenAssigneeInvalid();
+            }
+            return;
+        }
+        if (!hasLockedActiveTeamAssignee(scope.teamId(), currentAssigneeUserId)) {
+            throw reopenAssigneeInvalid();
+        }
+    }
+
+    private void requireLockedActiveTeamAssignee(Long teamId, Long assigneeUserId) {
+        if (!hasLockedActiveTeamAssignee(teamId, assigneeUserId)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "负责人必须是团队有效成员");
         }
+    }
+
+    private boolean hasLockedActiveTeamAssignee(Long teamId, Long assigneeUserId) {
+        Long lockedUserId = taskAssigneeQueryMapper.selectActiveTeamAssigneeForUpdate(teamId, assigneeUserId);
+        return Objects.equals(assigneeUserId, lockedUserId);
+    }
+
+    private BusinessException reopenAssigneeInvalid() {
+        return new BusinessException(
+                ErrorCode.OPERATION_ERROR,
+                "当前负责人已不具备任务受理资格，请先转派或取消分配后再重新打开"
+        );
     }
 }

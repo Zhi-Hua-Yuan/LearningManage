@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR4 已合并并完成合同收口；当前主目标为 PR5（待启动）
+状态：PR1～PR4 已合并并完成合同收口；PR5 WP5-A 已完成，WP5-B 已实现但 MySQL 门禁阻塞，WP5-C 开发完成待验收，WP5-D1/D2/D3 开发完成待验收
 
 建立日期：2026-08-23
 
@@ -88,6 +88,23 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [PR4：最终合同验收](acceptance/pr4-final-acceptance-2026-08-29.md)
 - [PR4：合并收口](acceptance/pr4-merge-closure-2026-08-29.md)
 
+当前 PR5 工作包设计证据：
+
+- [WP5-A：成员关系终止合同与并发设计](acceptance/pr5-wp5a-membership-termination-design-acceptance-2026-08-29.md)
+- [WP5-D1：负责人资格锁协议开发记录](acceptance/pr5-wp5d1-assignee-lock-development-record-2026-08-29.md)
+- [WP5-D2：任务写路径锁顺序开发记录](acceptance/pr5-wp5d2-task-mutation-lock-order-development-record-2026-08-29.md)
+- [WP5-D3：completed → TODO 负责人资格保护开发记录](acceptance/pr5-wp5d3-task-reopen-assignee-guard-development-record-2026-08-29.md)
+- [PR5：团队成员关系终止合同](api/pr5-team-membership-termination-contract.md)
+- [ADR-005：成员关系终止与任务分配并发协议](architecture/ADR-005-membership-termination-concurrency.md)
+
+当前 PR5 WP5-B 实现证据：
+
+- [WP5-B：成员终止 Mapper 实现验收记录](acceptance/pr5-wp5b-membership-termination-mapper-acceptance-2026-08-29.md)
+
+当前 PR5 WP5-C 实现证据：
+
+- [WP5-C：成员终止 Service/API 实现验收记录](acceptance/pr5-wp5c-membership-termination-service-acceptance-2026-08-29.md)
+
 ## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。
@@ -103,7 +120,7 @@ PR1 设计冻结                   completed
 → PR2 V2 迁移与数据库门禁      completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
-→ PR5 成员退出和移除            next
+→ PR5 成员退出和移除            in_progress（WP5-A accepted；WP5-B implemented/MySQL gate blocked；WP5-C development completed/acceptance pending；WP5-D1/D2/D3 development completed/acceptance pending）
 → PR6 周复盘隐私模型            pending
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending

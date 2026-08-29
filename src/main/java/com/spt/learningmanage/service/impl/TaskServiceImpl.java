@@ -35,6 +35,7 @@ import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.permission.TaskCapabilities;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.TaskService;
 import jakarta.annotation.Resource;
@@ -78,6 +79,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private TaskCreationService taskCreationService;
+
+    @Resource
+    private TaskAssigneePolicy taskAssigneePolicy;
 
     /** 创建任务，返回任务 ID；项目范围由 PermissionService 判定。 */
     @Override
@@ -314,12 +318,37 @@ public class TaskServiceImpl implements TaskService {
         LocalDateTime finalCompletedAt = task.getCompletedAt();
         if (!Objects.equals(oldStatus, targetStatus)) {
             LocalDateTime newCompletedAt = resolveCompletedAt(oldStatus, targetStatus, task.getCompletedAt());
-            int rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
-                    .eq(Task::getId, request.getTaskId())
-                    .eq(Task::getIsDelete, 0)
-                    .eq(Task::getStatus, oldStatus)
-                    .set(Task::getStatus, targetStatus)
-                    .set(Task::getCompletedAt, newCompletedAt));
+            boolean reopenTransition = TaskStatusEnum.isCompleted(oldStatus)
+                    && Objects.equals(targetStatus, TaskStatusEnum.TODO.getValue());
+            int rows;
+            if (reopenTransition) {
+                ProjectAccessScope projectScope = permissionService.requireProjectView(
+                        userId,
+                        task.getProjectId()
+                );
+                taskAssigneePolicy.validateReopenAssignee(
+                        projectScope,
+                        task.getAssigneeUserId()
+                );
+                rows = taskMapper.compareAndSetStatusForReopen(
+                        request.getTaskId(),
+                        oldStatus,
+                        task.getAssigneeUserId(),
+                        targetStatus,
+                        newCompletedAt
+                );
+                if (rows == 0) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "任务状态或负责人已被其他请求更新，请刷新后重试");
+                }
+            } else {
+                rows = taskMapper.update(null, new LambdaUpdateWrapper<Task>()
+                        .eq(Task::getId, request.getTaskId())
+                        .eq(Task::getIsDelete, 0)
+                        .eq(Task::getStatus, oldStatus)
+                        .set(Task::getStatus, targetStatus)
+                        .set(Task::getCompletedAt, newCompletedAt));
+            }
             if (rows == 1) {
                 changed = true;
                 finalStatus = targetStatus;
