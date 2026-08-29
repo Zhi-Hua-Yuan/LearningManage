@@ -84,6 +84,11 @@ PR #50 已将本记录及合并收口记录合并到 `develop`，最终合并提
 [run 33240816476](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33240816476)
 的 5 个必需 Job 全部成功。
 
+PR #51 已将后合并证据修订合并到 `develop`，最终验证提交为
+`eec04c6741e03a4b386ecd9f94f60ac97f0b237f`；其合并后 Backend CI
+[run 33241345632](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33241345632)
+的 5 个必需 Job 全部成功。
+
 本地缺少 `${TEST_DB_USERNAME}` 时，不能以本地连接失败替代 CI 结果；本记录只采信
 受保护 CI 的 432 项完整结果。
 
