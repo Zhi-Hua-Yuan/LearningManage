@@ -10,7 +10,7 @@ implementation: completed
 static_contract: passed
 mysql_execution: pending
 acceptance: pending
-ci_expected_test_count: 442
+ci_expected_test_count: 492
 ```
 
 本记录只证明 D4 测试夹具和静态合同的开发范围，不代表 WP5-D 或 PR5 已验收。
@@ -26,7 +26,8 @@ ci_expected_test_count: 442
 - 保留空负责人 (`NULL`) 的重新打开 CAS 夹具。
 - 所有异步线程显式设置并清理 `UserHolder`，所有 Future 使用有限超时。
 - 新增静态合同测试，检查场景覆盖、数据库范围和 Flyway 不变式。
-- 同步 `backend-ci.yml` 与 `release-gate.yml` 的测试总数门禁为 442（原 432 + D4 新增 10 个测试）。
+- 同步 `backend-ci.yml` 与 `release-gate.yml` 的测试总数门禁为 492（当前 WP5 分支实际完整 Surefire 总数）。
+- CI 测试应用账号补充 `DELETE` 权限，仅用于 `@Sql` 隔离夹具清理；未增加任何 DDL 权限。
 
 ## 允许的并发结果
 
