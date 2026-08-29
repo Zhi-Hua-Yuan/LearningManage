@@ -8,9 +8,11 @@
 scope: WP5-D4
 implementation: completed
 static_contract: passed
-mysql_execution: pending
+mysql_execution: passed_in_ci
 acceptance: pending
 ci_expected_test_count: 492
+ci_run_id: 33257167150
+ci_commit: 6d65e4337b4fea3fb942bca67af5e8b3f60a7bc8
 ```
 
 本记录只证明 D4 测试夹具和静态合同的开发范围，不代表 WP5-D 或 PR5 已验收。
@@ -38,13 +40,13 @@ ci_expected_test_count: 492
 
 ## 后置项
 
-- 当前测试环境仍使用字面量 `${TEST_DB_USERNAME}` 占位凭据，真实 MySQL 测试尚未执行。
-- WP5-B 真实锁验收、WP5-C 真实回滚验收仍未完成。
-- WP5-D 真实并发验收、WP5-E/F 对账及最终 PR5 合并验收仍未完成。
+- 本地测试环境仍使用字面量 `${TEST_DB_USERNAME}` 占位凭据；本地无法替代 CI 证据。
+- GitHub Actions 已使用隔离 CI 数据库完成真实 MySQL 测试，但 WP5-B 真实锁验收、WP5-C 真实回滚验收仍需按既定验收流程记录和确认。
+- WP5-D 真实并发测试已有 CI 通过证据，正式验收、WP5-E/F 对账及最终 PR5 合并验收仍未完成。
 
 ## 验证命令
 
-在真实 MySQL 凭据可用前，只执行测试源码编译和静态合同测试；不得将编译结果记为 MySQL 并发通过。
+本地占位凭据不可用时，仅执行测试源码编译和静态合同测试；真实 MySQL 并发结果以 GitHub Actions 隔离数据库门禁为准。
 
 ## 本次验证证据
 
@@ -55,10 +57,23 @@ static_contract:
   failures: 0
   errors: 0
 mysql_concurrency:
-  tests: 6
+  tests: 8
   failures: 0
-  errors: 6
-  reason: "Access denied for user '${TEST_DB_USERNAME}'@'localhost'"
+  errors: 0
+full_maven_suite:
+  tests: 492
+  failures: 0
+  errors: 0
+  skipped: 0
+ci:
+  run_id: 33257167150
+  result: success
+  checks:
+    - Guard and migration immutability
+    - Maven verification and tested artifact
+    - Flyway empty database gate
+    - Flyway existing database gate
+    - Docker runtime and migration gate
 ```
 
-真实 MySQL 测试已尝试启动，但在 `@Sql` 夹具执行前因占位凭据无法建立连接；因此没有任何并发场景获得通过证据，也没有将该结果记为 D4 验收失败或通过。
+本地运行仍会因字面量 `${TEST_DB_USERNAME}` 无法连接数据库而阻塞；CI 已在真实 MySQL 隔离数据库中完成上述 492 项测试并全部通过。该结果作为开发阶段证据保存，不改变 WP5-D 或 PR5 的正式验收状态。
