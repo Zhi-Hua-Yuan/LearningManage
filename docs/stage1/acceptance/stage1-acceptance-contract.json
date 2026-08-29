@@ -62,9 +62,20 @@
       "id": "S1-A-004",
       "domain": "team",
       "requirement": "Leaving or removing a member unassigns all incomplete team tasks atomically",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR5",
-      "evidenceRequired": ["transaction tests", "concurrency tests"]
+      "evidenceRequired": ["transaction tests", "concurrency tests"],
+      "evidence": [
+        "PR5 final acceptance record",
+        "PR #53 merge commit cf084eb7c7b7b663af623bf56c16f629f271407d",
+        "PR #54 merge commit 777f46a92665fbce057d9fbd1a498b6b700be58d",
+        "PR #55 merge commit c2798c26fcaf093e56419184850fa729c170aa64",
+        "GitHub Actions run 33262101089 (post-merge)",
+        "Maven verification: 507 tests, 0 failures, 0 errors, 0 skipped",
+        "WP5-D/E/F real MySQL concurrency, transaction, and reconciliation tests",
+        "Flyway empty/existing database gates",
+        "Docker runtime and migration gate"
+      ]
     },
     {
       "id": "S1-A-005",
