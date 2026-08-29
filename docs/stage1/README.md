@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR4 已合并并完成合同收口；PR5 已合并到 `develop`，WP5-A 已完成，WP5-B/C/D 已有 CI 执行证据但正式验收待收口，WP5-E 开发完成且验收待收口，WP5-F 尚未开始
+状态：PR1～PR4 已合并并完成合同收口；PR5 已合并到 `develop`，WP5-A 已完成，WP5-B/C/D 已有 CI 执行证据但正式验收待收口，WP5-E 开发完成且验收待收口，WP5-F 开发完成且验收待收口
 
 建立日期：2026-08-23
 
@@ -96,6 +96,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP5-D3：completed → TODO 负责人资格保护开发记录](acceptance/pr5-wp5d3-task-reopen-assignee-guard-development-record-2026-08-29.md)
 - [WP5-D4：任务变更与成员终止并发测试开发记录](acceptance/pr5-wp5d4-task-membership-concurrency-development-record-2026-08-29.md)
 - [WP5-E：成员终止事务回滚与对账开发记录](acceptance/pr5-wp5e-membership-termination-transaction-reconciliation-development-record-2026-08-29.md)
+- [WP5-F：最终并发门禁开发记录](acceptance/pr5-wp5f-final-concurrency-gate-development-record-2026-08-29.md)
 - [PR5：团队成员关系终止合同](api/pr5-team-membership-termination-contract.md)
 - [ADR-005：成员关系终止与任务分配并发协议](architecture/ADR-005-membership-termination-concurrency.md)
 
@@ -122,7 +123,7 @@ PR1 设计冻结                   completed
 → PR2 V2 迁移与数据库门禁      completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
-→ PR5 成员退出和移除            merged / final acceptance pending（WP5-A accepted；WP5-B/C/D CI evidence available；WP5-E development completed / acceptance pending；WP5-F pending）
+→ PR5 成员退出和移除            merged / final acceptance pending（WP5-A accepted；WP5-B/C/D CI evidence available；WP5-E development completed / acceptance pending；WP5-F development completed / acceptance pending）
 → PR6 周复盘隐私模型            pending
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending
