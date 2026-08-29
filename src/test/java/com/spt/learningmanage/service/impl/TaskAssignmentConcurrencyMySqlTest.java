@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Sql(scripts = "/db/stage1/task_assignment_d2e_concurrency_seed.sql",
-        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 class TaskAssignmentConcurrencyMySqlTest {
 
     @Autowired
