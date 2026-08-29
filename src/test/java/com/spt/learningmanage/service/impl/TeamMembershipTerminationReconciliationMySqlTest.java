@@ -16,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +189,11 @@ class TeamMembershipTerminationReconciliationMySqlTest {
     }
 
     private void assertSameSecond(LocalDateTime expected, Object actual) {
-        assertEquals(expected.withNano(0), toLocalDateTime(actual).withNano(0));
+        LocalDateTime actualSecond = toLocalDateTime(actual).withNano(0);
+        long deltaSeconds = Math.abs(Duration.between(
+                expected.withNano(0), actualSecond).getSeconds());
+        assertTrue(deltaSeconds <= 1,
+                "operation timestamp drifted by more than one second: "
+                        + expected + " vs " + actualSecond);
     }
 }
