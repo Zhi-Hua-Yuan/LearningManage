@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,15 +45,22 @@ class TaskAssigneePolicyImplTest {
     @Test
     void teamProject_requiresActiveMember() {
         ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.ADMIN);
-        when(queryMapper.countActiveTeamAssignee(20L, 2L)).thenReturn(1);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(2L);
         Assertions.assertEquals(2L, policy.resolveInitialAssignee(scope, 2L));
-        verify(queryMapper).countActiveTeamAssignee(20L, 2L);
+        verify(queryMapper).selectActiveTeamAssigneeForUpdate(20L, 2L);
     }
 
     @Test
     void teamProject_rejectsInactiveMember() {
         ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.OWNER);
-        when(queryMapper.countActiveTeamAssignee(20L, 2L)).thenReturn(0);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(null);
+        Assertions.assertThrows(BusinessException.class, () -> policy.resolveInitialAssignee(scope, 2L));
+    }
+
+    @Test
+    void teamProject_rejectsUnexpectedLockedMemberId() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.OWNER);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(3L);
         Assertions.assertThrows(BusinessException.class, () -> policy.resolveInitialAssignee(scope, 2L));
     }
 
@@ -68,5 +76,51 @@ class TaskAssigneePolicyImplTest {
         when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(2L);
         Assertions.assertDoesNotThrow(() -> policy.validateAssignmentTarget(scope, 2L));
         verify(queryMapper).selectActiveTeamAssigneeForUpdate(20L, 2L);
+    }
+
+    @Test
+    void assignmentTarget_rejectsUnexpectedLockedMemberId() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.ADMIN);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(3L);
+        Assertions.assertThrows(BusinessException.class,
+                () -> policy.validateAssignmentTarget(scope, 2L));
+    }
+
+    @Test
+    void reopen_allowsUnassignedWithoutMemberLock() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.MEMBER);
+
+        Assertions.assertDoesNotThrow(() -> policy.validateReopenAssignee(scope, null));
+        verify(queryMapper, never()).selectActiveTeamAssigneeForUpdate(org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void reopen_allowsActiveTeamMemberAfterLocking() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.MEMBER);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(2L);
+
+        Assertions.assertDoesNotThrow(() -> policy.validateReopenAssignee(scope, 2L));
+        verify(queryMapper).selectActiveTeamAssigneeForUpdate(20L, 2L);
+    }
+
+    @Test
+    void reopen_rejectsInactiveTeamMemberWithOperationError() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.MEMBER);
+        when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(null);
+
+        BusinessException ex = Assertions.assertThrows(BusinessException.class,
+                () -> policy.validateReopenAssignee(scope, 2L));
+        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+    }
+
+    @Test
+    void reopen_personalProject_allowsOwnerOnly() {
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, null, null);
+
+        Assertions.assertDoesNotThrow(() -> policy.validateReopenAssignee(scope, 1L));
+        BusinessException ex = Assertions.assertThrows(BusinessException.class,
+                () -> policy.validateReopenAssignee(scope, 2L));
+        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.OPERATION_ERROR, ex.getErrorCode());
     }
 }

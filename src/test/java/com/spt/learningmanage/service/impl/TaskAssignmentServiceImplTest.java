@@ -2,10 +2,12 @@ package com.spt.learningmanage.service.impl;
 
 import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
+import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.task.TaskAssignRequest;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.service.PermissionService;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,7 +41,7 @@ class TaskAssignmentServiceImplTest {
     void tearDown() { UserHolder.remove(); }
 
     @Test
-    void reassignWritesCasAndAuditLog() {
+    void reassignValidatesTargetBeforeCasAndAuditLog() {
         Task task = task(10L, 1L, 2L);
         when(taskMapper.selectOne(any())).thenReturn(task);
         when(permissionService.requireProjectManage(9L, 1L))
@@ -53,8 +56,37 @@ class TaskAssignmentServiceImplTest {
         assertTrue(result.getChanged());
         assertEquals(2L, result.getPreviousAssigneeUserId());
         assertEquals(3L, result.getAssigneeUserId());
-        verify(taskAssignmentLogMapper).insert(argThat((com.spt.learningmanage.model.entity.TaskAssignmentLog log) ->
-                "REASSIGN".equals(log.getAction()) && "handoff".equals(log.getReason())));
+        InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper, taskAssignmentLogMapper);
+        inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(3L));
+        inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), eq(2L), eq(3L), eq(9L), any());
+        inOrder.verify(taskAssignmentLogMapper).insert(argThat((TaskAssignmentLog log) ->
+                "REASSIGN".equals(log.getAction())
+                        && Long.valueOf(2L).equals(log.getFromAssigneeUserId())
+                        && Long.valueOf(3L).equals(log.getToAssigneeUserId())
+                        && "handoff".equals(log.getReason())));
+    }
+
+    @Test
+    void assignFromUnassigned_validatesTargetBeforeCasAndAssignLog() {
+        Task task = task(10L, 1L, null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectManage(9L, 1L))
+                .thenReturn(new ProjectAccessScope(9L, 1L, 9L, 20L, TeamRoleEnum.ADMIN));
+        when(taskMapper.compareAndSetAssignee(eq(10L), isNull(), eq(3L), eq(9L), any())).thenReturn(1);
+        when(taskAssignmentLogMapper.insert(any(TaskAssignmentLog.class))).thenReturn(1);
+
+        TaskAssignVO result = service.assign(request(10L, 3L, null));
+
+        assertTrue(result.getChanged());
+        assertNull(result.getPreviousAssigneeUserId());
+        assertEquals(3L, result.getAssigneeUserId());
+        InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper, taskAssignmentLogMapper);
+        inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(3L));
+        inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), isNull(), eq(3L), eq(9L), any());
+        inOrder.verify(taskAssignmentLogMapper).insert(argThat((TaskAssignmentLog log) ->
+                "ASSIGN".equals(log.getAction())
+                        && log.getFromAssigneeUserId() == null
+                        && Long.valueOf(3L).equals(log.getToAssigneeUserId())));
     }
 
     @Test
@@ -67,8 +99,27 @@ class TaskAssignmentServiceImplTest {
         TaskAssignVO result = service.assign(request(10L, 2L, 2L));
 
         assertFalse(result.getChanged());
+        verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(2L));
         verify(taskMapper, never()).compareAndSetAssignee(any(), any(), any(), any(), any());
         verify(taskAssignmentLogMapper, never()).insert(any(com.spt.learningmanage.model.entity.TaskAssignmentLog.class));
+    }
+
+    @Test
+    void invalidTarget_rejectsBeforeTaskCasAndAuditLog() {
+        Task task = task(10L, 1L, 2L);
+        ProjectAccessScope scope = new ProjectAccessScope(9L, 1L, 9L, 20L, TeamRoleEnum.ADMIN);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectManage(9L, 1L)).thenReturn(scope);
+        doThrow(new BusinessException(ErrorCode.PARAMS_ERROR, "负责人不是有效团队成员"))
+                .when(taskAssigneePolicy).validateAssignmentTarget(scope, 3L);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.assign(request(10L, 3L, 2L)));
+
+        assertEquals(ErrorCode.PARAMS_ERROR, ex.getErrorCode());
+        verify(taskAssigneePolicy).validateAssignmentTarget(scope, 3L);
+        verify(taskMapper, never()).compareAndSetAssignee(any(), any(), any(), any(), any());
+        verifyNoInteractions(taskAssignmentLogMapper);
     }
 
     @Test
@@ -81,7 +132,9 @@ class TaskAssignmentServiceImplTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.assign(request(10L, 3L, 1L)));
         assertEquals(50001, ex.getErrorCode().getCode());
+        verifyNoInteractions(taskAssigneePolicy);
         verify(taskMapper, never()).compareAndSetAssignee(any(), any(), any(), any(), any());
+        verifyNoInteractions(taskAssignmentLogMapper);
     }
 
     @Test
@@ -91,7 +144,47 @@ class TaskAssignmentServiceImplTest {
         request.setAssigneeUserId(2L);
         BusinessException ex = assertThrows(BusinessException.class, () -> service.assign(request));
         assertEquals(40000, ex.getErrorCode().getCode());
-        verifyNoInteractions(permissionService, taskMapper, taskAssignmentLogMapper);
+        verifyNoInteractions(permissionService, taskMapper, taskAssignmentLogMapper, taskAssigneePolicy);
+    }
+
+    @Test
+    void unassignValidatesNullTargetThenCasAndUnassignLog() {
+        Task task = task(10L, 1L, 2L);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectManage(9L, 1L))
+                .thenReturn(new ProjectAccessScope(9L, 1L, 9L, 20L, TeamRoleEnum.ADMIN));
+        when(taskMapper.compareAndSetAssignee(eq(10L), eq(2L), isNull(), eq(9L), any())).thenReturn(1);
+        when(taskAssignmentLogMapper.insert(any(TaskAssignmentLog.class))).thenReturn(1);
+
+        TaskAssignVO result = service.assign(request(10L, null, 2L));
+
+        assertTrue(result.getChanged());
+        assertNull(result.getAssigneeUserId());
+        InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper, taskAssignmentLogMapper);
+        inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), isNull());
+        inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), eq(2L), isNull(), eq(9L), any());
+        inOrder.verify(taskAssignmentLogMapper).insert(argThat((TaskAssignmentLog log) ->
+                "UNASSIGN".equals(log.getAction())
+                        && Long.valueOf(2L).equals(log.getFromAssigneeUserId())
+                        && log.getToAssigneeUserId() == null));
+    }
+
+    @Test
+    void casConflictDoesNotWriteAuditLog() {
+        Task task = task(10L, 1L, 2L);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectManage(9L, 1L))
+                .thenReturn(new ProjectAccessScope(9L, 1L, 9L, 20L, TeamRoleEnum.ADMIN));
+        when(taskMapper.compareAndSetAssignee(eq(10L), eq(2L), eq(3L), eq(9L), any())).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.assign(request(10L, 3L, 2L)));
+
+        assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper);
+        inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(3L));
+        inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), eq(2L), eq(3L), eq(9L), any());
+        verifyNoInteractions(taskAssignmentLogMapper);
     }
 
     @Test
@@ -106,6 +199,10 @@ class TaskAssignmentServiceImplTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.assign(request(10L, 3L, null)));
         assertEquals(50000, ex.getErrorCode().getCode());
+        InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper, taskAssignmentLogMapper);
+        inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(3L));
+        inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), isNull(), eq(3L), eq(9L), any());
+        inOrder.verify(taskAssignmentLogMapper).insert(any(TaskAssignmentLog.class));
     }
 
     @Test
@@ -114,7 +211,7 @@ class TaskAssignmentServiceImplTest {
         request.setReason("bad\nreason");
         BusinessException ex = assertThrows(BusinessException.class, () -> service.assign(request));
         assertEquals(40000, ex.getErrorCode().getCode());
-        verifyNoInteractions(permissionService, taskMapper, taskAssignmentLogMapper);
+        verifyNoInteractions(permissionService, taskMapper, taskAssignmentLogMapper, taskAssigneePolicy);
     }
 
     private TaskAssignRequest request(Long taskId, Long assignee, Long expected) {

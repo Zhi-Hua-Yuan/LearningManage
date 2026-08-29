@@ -13,6 +13,7 @@ import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskStatusIdempotency;
 import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
@@ -33,8 +34,10 @@ import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.InOrder;
 
 @ExtendWith(MockitoExtension.class)
 class TaskServiceImplTest {
@@ -61,6 +64,9 @@ class TaskServiceImplTest {
     private PermissionService permissionService;
     @Mock
     private TaskCreationService taskCreationService;
+
+    @Mock
+    private TaskAssigneePolicy taskAssigneePolicy;
 
     @InjectMocks
     private TaskServiceImpl taskService;
@@ -100,6 +106,7 @@ class TaskServiceImplTest {
         Assertions.assertTrue(result.getChanged());
         Assertions.assertEquals(1, result.getFinalStatus());
         verify(taskMapper, never()).update(any(), any());
+        verify(taskAssigneePolicy, never()).validateReopenAssignee(any(), any());
     }
 
     @Test
@@ -163,6 +170,126 @@ class TaskServiceImplTest {
         Assertions.assertTrue(result.getChanged());
         Assertions.assertEquals(1, result.getFinalStatus());
         Assertions.assertNotNull(result.getCompletedAt());
+    }
+
+    @Test
+    void changeStatus_shouldValidateCurrentAssigneeBeforeReopenCas() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = reopenRequest("reopen-1");
+        Task task = completedTask(2L);
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L,
+                com.spt.learningmanage.constant.TeamRoleEnum.MEMBER);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectView(1L, 10L)).thenReturn(scope);
+        when(taskMapper.compareAndSetStatusForReopen(100L, 1, 2L, 0, null)).thenReturn(1);
+        when(taskStatusIdempotencyMapper.insert(any(TaskStatusIdempotency.class))).thenReturn(1);
+
+        TaskStatusChangeVO result = taskService.changeStatus(request);
+
+        Assertions.assertTrue(result.getChanged());
+        Assertions.assertEquals(0, result.getFinalStatus());
+        Assertions.assertNull(result.getCompletedAt());
+        InOrder order = inOrder(taskAssigneePolicy, taskMapper, taskStatusIdempotencyMapper);
+        order.verify(taskAssigneePolicy).validateReopenAssignee(scope, 2L);
+        order.verify(taskMapper).compareAndSetStatusForReopen(100L, 1, 2L, 0, null);
+        order.verify(taskStatusIdempotencyMapper).insert(any(TaskStatusIdempotency.class));
+        verify(taskMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void changeStatus_shouldRejectReopenWhenCurrentAssigneeIsInvalid() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = reopenRequest("reopen-2");
+        Task task = completedTask(2L);
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L,
+                com.spt.learningmanage.constant.TeamRoleEnum.MEMBER);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectView(1L, 10L)).thenReturn(scope);
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.OPERATION_ERROR, "负责人已失效"))
+                .when(taskAssigneePolicy).validateReopenAssignee(scope, 2L);
+
+        BusinessException ex = Assertions.assertThrows(BusinessException.class,
+                () -> taskService.changeStatus(request));
+        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        verify(taskMapper, never()).compareAndSetStatusForReopen(any(), any(), any(), any(), any());
+        verify(taskMapper, never()).update(any(), any());
+        verify(taskStatusIdempotencyMapper, never()).insert(any(TaskStatusIdempotency.class));
+    }
+
+    @Test
+    void changeStatus_shouldRejectReopenCasConflictWithoutIdempotencyRecord() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = reopenRequest("reopen-3");
+        Task task = completedTask(null);
+        ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L,
+                com.spt.learningmanage.constant.TeamRoleEnum.MEMBER);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(permissionService.requireProjectView(1L, 10L)).thenReturn(scope);
+        when(taskMapper.compareAndSetStatusForReopen(100L, 1, null, 0, null)).thenReturn(0);
+
+        BusinessException ex = Assertions.assertThrows(BusinessException.class,
+                () -> taskService.changeStatus(request));
+        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        verify(taskStatusIdempotencyMapper, never()).insert(any(TaskStatusIdempotency.class));
+    }
+
+    @Test
+    void changeStatus_shouldKeepTodoToCompletedOnExistingPath() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = new TaskStatusChangeRequest();
+        request.setTaskId(100L);
+        request.setTargetStatus(1);
+        request.setClientRequestId("normal-1");
+        Task task = taskWithStatus(0);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(taskMapper.update(any(), any())).thenReturn(1);
+        when(taskStatusIdempotencyMapper.insert(any(TaskStatusIdempotency.class))).thenReturn(1);
+
+        taskService.changeStatus(request);
+
+        verify(taskMapper).update(any(), any());
+        verify(taskMapper, never()).compareAndSetStatusForReopen(any(), any(), any(), any(), any());
+        verify(taskAssigneePolicy, never()).validateReopenAssignee(any(), any());
+    }
+
+    @Test
+    void changeStatus_shouldNotProtectCompletedNoOp() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = new TaskStatusChangeRequest();
+        request.setTaskId(100L);
+        request.setTargetStatus(1);
+        request.setClientRequestId("no-op-1");
+        Task task = completedTask(2L);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(taskStatusIdempotencyMapper.insert(any(TaskStatusIdempotency.class))).thenReturn(1);
+
+        TaskStatusChangeVO result = taskService.changeStatus(request);
+
+        Assertions.assertFalse(result.getChanged());
+        verify(taskAssigneePolicy, never()).validateReopenAssignee(any(), any());
+        verify(taskMapper, never()).compareAndSetStatusForReopen(any(), any(), any(), any(), any());
+        verify(taskMapper, never()).update(any(), any());
+    }
+
+    private TaskStatusChangeRequest reopenRequest(String clientRequestId) {
+        TaskStatusChangeRequest request = new TaskStatusChangeRequest();
+        request.setTaskId(100L);
+        request.setTargetStatus(0);
+        request.setClientRequestId(clientRequestId);
+        return request;
+    }
+
+    private Task completedTask(Long assigneeUserId) {
+        Task task = taskWithStatus(1);
+        task.setProjectId(10L);
+        task.setAssigneeUserId(assigneeUserId);
+        task.setCompletedAt(LocalDateTime.now());
+        return task;
     }
 
     private Task taskWithStatus(int status) {
