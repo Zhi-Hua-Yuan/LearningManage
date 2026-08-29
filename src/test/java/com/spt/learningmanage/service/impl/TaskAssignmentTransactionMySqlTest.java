@@ -31,7 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 @SpringBootTest(classes = LearningManageApplication.class)
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Sql(scripts = "/db/stage1/permission_mapper_v2_seed.sql",
+@Sql(scripts = "/db/stage1/task_assignment_d2e_transaction_seed.sql",
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 class TaskAssignmentTransactionMySqlTest {
 
@@ -46,7 +46,7 @@ class TaskAssignmentTransactionMySqlTest {
 
     @BeforeEach
     void setActor() {
-        UserHolder.set(12001L);
+        UserHolder.set(16001L);
     }
 
     @AfterEach
@@ -61,41 +61,41 @@ class TaskAssignmentTransactionMySqlTest {
                 .thenThrow(new IllegalStateException("D2-E forced log failure"));
 
         assertThrows(IllegalStateException.class,
-                () -> taskAssignmentService.assign(request(12003L, 12002L)));
+                () -> taskAssignmentService.assign(request(16003L, 16002L)));
 
         Map<String, Object> task = jdbcTemplate.queryForMap(
                 "SELECT assignee_user_id, assigned_by_user_id, assigned_at "
-                        + "FROM task WHERE id = 62003");
-        assertEquals(12002L, ((Number) task.get("assignee_user_id")).longValue());
-        assertEquals(12001L, ((Number) task.get("assigned_by_user_id")).longValue());
-        assertTrue(task.get("assigned_at").toString().startsWith("2026-01-01 00:00"));
+                        + "FROM task WHERE id = 66001");
+        assertEquals(16002L, ((Number) task.get("assignee_user_id")).longValue());
+        assertEquals(16001L, ((Number) task.get("assigned_by_user_id")).longValue());
+        assertTrue(task.get("assigned_at").toString().startsWith("2026-01-01"));
         assertEquals(0, jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 62003", Integer.class));
+                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 66001", Integer.class));
     }
 
     @Test
     void noOpLeavesTaskSnapshotAndHistoryUnchanged() {
         Map<String, Object> before = jdbcTemplate.queryForMap(
                 "SELECT assignee_user_id, assigned_by_user_id, assigned_at, update_time "
-                        + "FROM task WHERE id = 62003");
+                        + "FROM task WHERE id = 66001");
         int beforeLogs = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 62003", Integer.class);
+                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 66001", Integer.class);
 
-        TaskAssignVO result = taskAssignmentService.assign(request(12002L, 12002L));
+        TaskAssignVO result = taskAssignmentService.assign(request(16002L, 16002L));
 
         assertFalse(result.getChanged());
         Map<String, Object> after = jdbcTemplate.queryForMap(
                 "SELECT assignee_user_id, assigned_by_user_id, assigned_at, update_time "
-                        + "FROM task WHERE id = 62003");
+                        + "FROM task WHERE id = 66001");
         assertEquals(before, after);
         assertEquals(beforeLogs, jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 62003", Integer.class));
+                "SELECT COUNT(*) FROM task_assignment_log WHERE task_id = 66001", Integer.class));
         Mockito.verifyNoInteractions(taskAssignmentLogMapper);
     }
 
     private TaskAssignRequest request(Long targetAssignee, Long expectedAssignee) {
         TaskAssignRequest request = new TaskAssignRequest();
-        request.setTaskId(62003L);
+        request.setTaskId(66001L);
         request.setAssigneeUserId(targetAssignee);
         request.setExpectedAssigneeUserId(expectedAssignee);
         request.setReason("D2-E transaction test");
