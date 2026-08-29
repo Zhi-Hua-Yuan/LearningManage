@@ -79,6 +79,11 @@ Errors:         0
 D2-E 的隔离 MySQL CI 已执行双并发 CAS、真实事务回滚、no-op 和审计对账。V1/V2
 Flyway migration 在 PR4 全程未修改，V2 继续保持 `PUBLISHED / IMMUTABLE`。
 
+PR #50 已将本记录及合并收口记录合并到 `develop`，最终合并提交为
+`f6951cc8d986a2bd30fc352f37e1bec7a773af17`。合并后 Backend CI
+[run 33240816476](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33240816476)
+的 5 个必需 Job 全部成功。
+
 本地缺少 `${TEST_DB_USERNAME}` 时，不能以本地连接失败替代 CI 结果；本记录只采信
 受保护 CI 的 432 项完整结果。
 
