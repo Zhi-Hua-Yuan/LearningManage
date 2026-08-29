@@ -25,6 +25,12 @@ f6951cc8d986a2bd30fc352f37e1bec7a773af17
 该提交是 PR4 收口后的最终 `develop` 基线。不得把 PR #49 的业务实现提交与
 PR #50 的文档收口提交混为一谈。
 
+PR #51 已将本记录的后合并证据修订合并到 `develop`，其合并提交为：
+
+```text
+eec04c6741e03a4b386ecd9f94f60ac97f0b237f
+```
+
 ## 2. 合并后验证
 
 | 项目 | 结果 |
@@ -42,6 +48,9 @@ PR #50 的文档收口提交混为一谈。
 D2-E 验收记录保存了 CI run `33239260276` 和隔离 MySQL 的完整结果。PR #50 合并后
 的 Backend CI 为 [run 33240816476](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33240816476)，
 5 个必需 Job 全部 `SUCCESS`。未使用本地未配置数据库凭据的结果替代受保护 CI。
+
+PR #51 合并后的 Backend CI 为 [run 33241345632](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33241345632)，
+5 个必需 Job 同样全部 `SUCCESS`。
 
 ## 3. 测试门槛
 
@@ -88,3 +97,5 @@ PR4 收口不代表阶段 1 完成。阶段 1 的下一主目标为 PR5；PR6 �
 - [x] V1/V2 migration 保持不可变；
 - [x] D2-F 收口 PR #50 已合并，最终 `develop` SHA 已补录；
 - [x] 收口 PR 合并后的 CI 链接和 5 个 Job 结果已补录。
+- [x] PR #51 后合并证据修订已合并，提交 `eec04c6741e03a4b386ecd9f94f60ac97f0b237f`；
+- [x] PR #51 合并后 CI run `33241345632` 已通过。
