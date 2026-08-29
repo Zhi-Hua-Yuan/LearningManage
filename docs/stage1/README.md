@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR5 已合并并完成合同收口；PR5 的成员终止、事务回滚、任务变更竞争和最终并发门禁已完成验收，当前主目标切换为 PR6
+状态：PR1～PR5 已合并并完成合同收口；PR5 的成员终止、事务回滚、任务变更竞争和最终并发门禁已完成验收；PR6/WP6-A 设计冻结候选已启动
 
 建立日期：2026-08-23
 
@@ -111,6 +111,10 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 
 - [WP5-C：成员终止 Service/API 实现验收记录](acceptance/pr5-wp5c-membership-termination-service-acceptance-2026-08-29.md)
 
+当前 PR6 设计证据：
+
+- [WP6-A：周复盘隐私与统计/AI 授权设计计划](acceptance/pr6-wp6a-weekly-review-privacy-design-plan-2026-08-30.md)
+
 ## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。
@@ -127,7 +131,7 @@ PR1 设计冻结                   completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
-→ PR6 周复盘隐私模型            pending
+→ PR6 周复盘隐私模型            in_progress（WP6-A 设计冻结候选）
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
