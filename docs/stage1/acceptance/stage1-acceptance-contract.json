@@ -42,9 +42,16 @@
       "id": "S1-A-003",
       "domain": "assignment",
       "requirement": "Invalid assignees written to the database equals zero and every real assignment change is auditable",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR4",
-      "evidenceRequired": ["assignment integration tests", "assignment reconciliation report"]
+      "evidenceRequired": ["assignment integration tests", "assignment reconciliation report"],
+      "evidence": [
+        "PR4 D2-E acceptance record",
+        "GitHub Actions run 33239260276",
+        "Maven verification: 432 tests, 0 failures, 0 errors",
+        "Flyway empty/existing database gates",
+        "Docker runtime and migration gate"
+      ]
     },
     {
       "id": "S1-A-004",

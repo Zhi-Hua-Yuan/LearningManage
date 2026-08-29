@@ -1,7 +1,7 @@
 # PR4-D2-E 负责人 CAS、事务与审计对账验收记录
 
 日期：2026-08-29
-状态：`IMPLEMENTED / MYSQL_VERIFICATION_PENDING`
+状态：`COMPLETED / CI_PASS`
 
 ## 1. 基线与范围
 
@@ -24,8 +24,8 @@ V1/V2 migration 或 PR5/PR6 范围。
 - `TaskAssignmentTransactionMySqlTest`：验证 no-op 不改变任务快照、不产生日志；
 - `TaskAssignmentAuditReconciliationMySqlTest`：验证当前负责人合法性、历史存在性、孤儿日志、
   动作转换、日志链、最新日志与任务负责人/操作者/时间的一致性；
-- 新增 D2-E 专用 fixture 与清理脚本，测试类不使用类级 `@Transactional`，避免掩盖真实提交、
-  锁等待和回滚行为。
+- 新增 D2-E 专用 fixture；并发测试使用类级一次性提交种子，读对账测试使用测试事务回滚，
+  事务测试使用服务自身事务验证回滚，避免测试账号缺少 DELETE 权限造成清理失败。
 
 ## 3. 验收断言
 
@@ -50,6 +50,8 @@ V1/V2 migration 或 PR5/PR6 范围。
 - `src/test/resources/db/stage1/permission_mapper_v2_cleanup.sql`
 - `src/test/resources/db/stage1/task_assignment_d2e_audit_seed.sql`
 - `src/test/resources/db/stage1/task_assignment_d2e_audit_cleanup.sql`
+- `src/test/resources/db/stage1/task_assignment_d2e_concurrency_seed.sql`
+- `src/test/resources/db/stage1/task_assignment_d2e_transaction_seed.sql`
 - `.github/workflows/backend-ci.yml`
 - `.github/workflows/release-gate.yml`
 - `docs/stage1/README.md`
@@ -67,6 +69,10 @@ Tests run: 4, Failures: 0, Errors: 4, Skipped: 0
 
 因此本地结果不能作为 D2-E PASS 证据。CI 必须在隔离 MySQL 8.0.41 环境实际执行这些测试。
 
+CI 验收已完成：GitHub Actions run `33239260276` 的 Maven verification 在隔离 MySQL 8.0.41
+执行 432 个 Surefire 测试，`Failures: 0, Errors: 0`；双并发 CAS、事务回滚、no-op 和审计
+对账测试均通过。Guard、Flyway empty/existing database 与 Docker runtime gates 全部通过。
+
 `git diff --check` 应作为提交前 Gate；V1/V2 migration 在本工作包中保持未修改。
 
 ## 6. 测试门槛
@@ -77,7 +83,7 @@ backend CI 和 release gate 的期望值更新为 `432`。最终仍以 CI Surefi
 
 ## 7. 合同状态
 
-- `S1-A-003`：保持 `PENDING`，等待隔离 MySQL 并发、回滚和审计对账全部通过；
+- `S1-A-003`：`PASS`，CI run `33239260276` 已完成隔离 MySQL 并发、回滚、no-op 和审计对账；
 - `S1-R-014`：保持 D2-C 已确认的 `CLOSED`；
 - `S1-R-003`：保持 `OPEN`，由 PR5 处理；
 - `S1-R-008`、`S1-R-012`：保持 `OPEN`，由 PR6 处理；
@@ -85,5 +91,4 @@ backend CI 和 release gate 的期望值更新为 `432`。最终仍以 CI Surefi
 
 ## 8. 完成条件
 
-CI MySQL Gate 全部通过、完整 Surefire 计数为 432、所有审计异常计数为 0 后，
-将本记录状态改为 `COMPLETED / CI_PASS`，并将 `S1-A-003` 更新为 `PASS`。
+CI MySQL Gate 全部通过、完整 Surefire 计数为 432、所有审计异常计数为 0，完成本工作包。
