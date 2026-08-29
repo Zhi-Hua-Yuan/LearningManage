@@ -1,0 +1,17 @@
+DELETE FROM `task_assignment_log`
+WHERE `id` IN (940001, 940002, 940003, 940004);
+
+DELETE FROM `task`
+WHERE `id` IN (64001, 64002);
+
+DELETE FROM `project`
+WHERE `id` = 44001;
+
+DELETE FROM `team_member`
+WHERE `id` IN (34001, 34002);
+
+DELETE FROM `team`
+WHERE `id` = 24001;
+
+DELETE FROM `user`
+WHERE `id` IN (14001, 14002);

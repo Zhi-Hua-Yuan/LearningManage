@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1 设计已冻结；PR2、PR3 已合并并完成合同收口；当前主目标为 PR4
+状态：PR1 设计已冻结；PR2、PR3 已合并并完成合同收口；PR4-D2-C 已合并，当前主目标为 PR4-D2-E
 
 建立日期：2026-08-23
 
@@ -84,6 +84,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP4-D2-A：负责人历史分页 Mapper](acceptance/pr4-wp4d2a-assignment-history-mapper-acceptance-2026-08-29.md)
 - [WP4-D2-B：负责人历史查询 Service](acceptance/pr4-wp4d2b-assignment-history-service-acceptance-2026-08-29.md)
 - [WP4-D2-C：负责人历史查询 Controller/API](acceptance/pr4-wp4d2c-assignment-history-controller-acceptance-2026-08-29.md)
+- [WP4-D2-E：负责人 CAS、事务与审计对账验收](acceptance/pr4-wp4d2e-assignment-consistency-acceptance-2026-08-29.md)
 
 ## 4. 决策状态规则
 
@@ -99,7 +100,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 PR1 设计冻结                   completed
 → PR2 V2 迁移与数据库门禁      completed
 → PR3 SystemRole 与 PermissionService  completed
-→ PR4 任务分配与历史            next/in_progress
+→ PR4 任务分配与历史            D2-E/ci_pass（PR #49 待合并）
 → PR5 成员退出和移除            pending
 → PR6 周复盘隐私模型            pending
 → PR7 前端任务分配与复盘隐私    pending
