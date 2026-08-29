@@ -25,7 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional
-@Sql(scripts = "/db/stage1/team_membership_cleanup_mapper_v2_seed.sql",
+@Sql(scripts = {
+        "/db/stage1/team_membership_cleanup_mapper_v2_cleanup.sql",
+        "/db/stage1/team_membership_cleanup_mapper_v2_seed.sql"
+},
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class MembershipCleanupMapperMySqlTest {
 
