@@ -24,9 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 
 /**
- * WP5-C real-transaction rollback gate. It intentionally requires the same
- * isolated MySQL test profile as WP5-B and is expected to remain blocked until
- * TEST_DB_USERNAME/TEST_DB_PASSWORD are supplied.
+ * WP5-E real-transaction rollback gate. It runs against the isolated MySQL
+ * profile used by the earlier membership-termination work packages.
  */
 @SpringBootTest(classes = LearningManageApplication.class)
 @ActiveProfiles("test")
@@ -83,5 +82,57 @@ class TeamMembershipTerminationTransactionMySqlTest {
         assertEquals(0, jdbcTemplate.queryForObject(
                 "SELECT is_delete FROM team_member "
                         + "WHERE team_id = 26001 AND user_id = 16003", Integer.class));
+    }
+
+    @Test
+    void leaveAuditFailureRollsBackRealTaskMutationAndMembershipTermination() {
+        Mockito.when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
+                .thenThrow(new IllegalStateException("WP5-E forced leave audit failure"));
+        UserHolder.set(16003L);
+
+        assertThrows(IllegalStateException.class,
+                () -> terminationService.leaveTeam(26001L));
+
+        Map<String, Object> task = jdbcTemplate.queryForMap(
+                "SELECT assignee_user_id, assigned_by_user_id, assigned_at "
+                        + "FROM task WHERE id = 66001");
+        assertEquals(16003L, ((Number) task.get("assignee_user_id")).longValue());
+        assertEquals(16001L, ((Number) task.get("assigned_by_user_id")).longValue());
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM task_assignment_log "
+                        + "WHERE action = 'MEMBER_LEFT' AND task_id IN "
+                        + "(66001,66002,66003,66004)", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT is_delete FROM team_member "
+                        + "WHERE team_id = 26001 AND user_id = 16003", Integer.class));
+    }
+
+    @Test
+    void auditCountMismatchRollsBackBeforeMembershipCas() {
+        Mockito.when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
+                .thenReturn(0);
+
+        assertThrows(Exception.class,
+                () -> terminationService.removeMember(removeRequest(26001L, 16003L)));
+
+        Map<String, Object> task = jdbcTemplate.queryForMap(
+                "SELECT assignee_user_id, assigned_by_user_id, assigned_at "
+                        + "FROM task WHERE id = 66001");
+        assertEquals(16003L, ((Number) task.get("assignee_user_id")).longValue());
+        assertEquals(16001L, ((Number) task.get("assigned_by_user_id")).longValue());
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM task_assignment_log "
+                        + "WHERE action = 'MEMBER_REMOVED' AND task_id IN "
+                        + "(66001,66002,66003,66004)", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT is_delete FROM team_member "
+                        + "WHERE team_id = 26001 AND user_id = 16003", Integer.class));
+    }
+
+    private TeamMemberRemoveRequest removeRequest(Long teamId, Long targetUserId) {
+        TeamMemberRemoveRequest request = new TeamMemberRemoveRequest();
+        request.setTeamId(teamId);
+        request.setTargetUserId(targetUserId);
+        return request;
     }
 }
