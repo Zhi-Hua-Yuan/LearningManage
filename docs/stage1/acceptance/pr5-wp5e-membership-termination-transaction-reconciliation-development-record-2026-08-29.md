@@ -8,10 +8,12 @@
 scope: WP5-E
 implementation: completed
 static_contract: passed
-mysql_execution: pending_ci
+mysql_execution: passed_in_ci
 acceptance: pending
 baseline: cf084eb7c7b7b663af623bf56c16f629f271407d
 expected_full_test_count: 500
+ci_run_id: 33260176999
+ci_commit: 75fd6b3
 ```
 
 本记录只证明 WP5-E 的回滚与对账测试开发完成，不代表 WP5-E、WP5-D 或 PR5 已验收。
@@ -65,15 +67,31 @@ static_and_unit:
   tests: 18
   failures: 0
   errors: 0
-mysql_transaction_and_reconciliation: pending_ci
-full_maven_suite: pending_ci
+mysql_transaction_and_reconciliation:
+  tests: 6
+  failures: 0
+  errors: 0
+full_maven_suite:
+  tests: 500
+  failures: 0
+  errors: 0
+  skipped: 0
+ci:
+  run_id: 33260176999
+  result: success
+  checks:
+    - Guard and migration immutability
+    - Maven verification and tested artifact
+    - Flyway empty database gate
+    - Flyway existing database gate
+    - Docker runtime and migration gate
 ```
 
-本地已通过静态合同、成员终止 Service/Policy/Controller 单元回归和测试编译；本地真实 MySQL 结果不作为 WP5-E 通过依据，完整真实事务与对账测试必须由 CI 隔离数据库执行。
+本地已通过静态合同、成员终止 Service/Policy/Controller 单元回归和测试编译；CI 已在隔离 MySQL 数据库执行事务回滚与对账测试，并完成 500 个 Maven 测试及全部工作流门禁。该证据只证明 WP5-E 开发验证完成，不改变正式验收状态。
 
 ## 后续门禁
 
-- CI Maven 全量测试必须按实际 Surefire 数量达到 500，且无失败、无错误、无跳过；
-- WP5-E 两个真实 MySQL 测试类必须全部通过；
-- Guard、Flyway empty/existing database 和 Docker runtime gates 必须全部通过；
+- CI Maven 全量测试已达到实际 Surefire 数量 500，且无失败、无错误、无跳过；
+- WP5-E 两个真实 MySQL 测试类共 6 个测试已全部通过；
+- Guard、Flyway empty/existing database 和 Docker runtime gates 已全部通过；
 - WP5-F 仍负责最终并发门禁、风险关闭和 PR5 最终验收。

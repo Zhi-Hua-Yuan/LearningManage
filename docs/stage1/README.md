@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR4 已合并并完成合同收口；PR5 已合并到 `develop`，WP5-A 已完成，WP5-B/C/D 已有 CI 执行证据但正式验收待收口，WP5-E 开发中，WP5-F 尚未开始
+状态：PR1～PR4 已合并并完成合同收口；PR5 已合并到 `develop`，WP5-A 已完成，WP5-B/C/D 已有 CI 执行证据但正式验收待收口，WP5-E 开发完成且验收待收口，WP5-F 尚未开始
 
 建立日期：2026-08-23
 
@@ -122,7 +122,7 @@ PR1 设计冻结                   completed
 → PR2 V2 迁移与数据库门禁      completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
-→ PR5 成员退出和移除            merged / final acceptance pending（WP5-A accepted；WP5-B/C/D CI evidence available；WP5-E development in progress；WP5-F pending）
+→ PR5 成员退出和移除            merged / final acceptance pending（WP5-A accepted；WP5-B/C/D CI evidence available；WP5-E development completed / acceptance pending；WP5-F pending）
 → PR6 周复盘隐私模型            pending
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending
