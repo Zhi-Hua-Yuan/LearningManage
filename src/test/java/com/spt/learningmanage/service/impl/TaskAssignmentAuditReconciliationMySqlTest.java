@@ -52,7 +52,7 @@ class TaskAssignmentAuditReconciliationMySqlTest {
                   ON member.team_id = p.team_id
                  AND member.user_id = t.assignee_user_id
                  AND member.is_delete = 0
-                WHERE t.id IN (63001, 63002)
+                WHERE t.id IN (64001, 64002)
                   AND t.is_delete = 0
                   AND t.assignee_user_id IS NOT NULL
                   AND ((p.team_id IS NULL AND t.assignee_user_id <> p.user_id)
@@ -62,7 +62,7 @@ class TaskAssignmentAuditReconciliationMySqlTest {
                 SELECT COUNT(*)
                 FROM task t
                 LEFT JOIN task_assignment_log log_entry ON log_entry.task_id = t.id
-                WHERE t.id IN (63001, 63002)
+                WHERE t.id IN (64001, 64002)
                   AND t.is_delete = 0
                   AND t.assignee_user_id IS NOT NULL
                   AND log_entry.id IS NULL
@@ -71,7 +71,7 @@ class TaskAssignmentAuditReconciliationMySqlTest {
                 SELECT COUNT(*)
                 FROM task_assignment_log log_entry
                 LEFT JOIN task t ON t.id = log_entry.task_id
-                WHERE log_entry.task_id IN (63001, 63002)
+                WHERE log_entry.task_id IN (64001, 64002)
                   AND t.id IS NULL
                 """);
 
@@ -79,7 +79,7 @@ class TaskAssignmentAuditReconciliationMySqlTest {
                 SELECT id, from_assignee_user_id, to_assignee_user_id,
                        assigned_by_user_id, action, create_time
                 FROM task_assignment_log
-                WHERE task_id = 63001
+                WHERE task_id = 64001
                 ORDER BY create_time ASC, id ASC
                 """);
 
@@ -104,7 +104,7 @@ class TaskAssignmentAuditReconciliationMySqlTest {
 
         Map<String, Object> task = jdbcTemplate.queryForMap(
                 "SELECT assignee_user_id, assigned_by_user_id, assigned_at "
-                        + "FROM task WHERE id = 63001");
+                        + "FROM task WHERE id = 64001");
         Map<String, Object> latest = logs.get(logs.size() - 1);
         long latestAssigneeMismatch = Objects.equals(
                 nullableLong(task.get("assignee_user_id")),
