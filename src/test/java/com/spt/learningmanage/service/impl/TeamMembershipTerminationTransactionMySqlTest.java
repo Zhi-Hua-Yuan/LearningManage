@@ -88,6 +88,7 @@ class TeamMembershipTerminationTransactionMySqlTest {
     void leaveAuditFailureRollsBackRealTaskMutationAndMembershipTermination() {
         Mockito.when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
                 .thenThrow(new IllegalStateException("WP5-E forced leave audit failure"));
+        UserHolder.set(16003L);
 
         assertThrows(IllegalStateException.class,
                 () -> terminationService.leaveTeam(26001L));
