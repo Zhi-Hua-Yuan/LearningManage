@@ -4,6 +4,47 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.spt.learningmanage.mapper.WeeklyReviewMapper">
 
+    <select id="selectByIdForUpdate"
+            resultType="com.spt.learningmanage.model.entity.WeeklyReview">
+        SELECT
+            id, user_id, year, week_no, start_date, end_date,
+            completed_task_count, visibility_scope, team_id,
+            focus_project_id, focus_project_name, shared_summary,
+            reflection, next_plan, create_time, update_time
+        FROM weekly_review
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByUserYearWeekForUpdate"
+            resultType="com.spt.learningmanage.model.entity.WeeklyReview">
+        SELECT
+            id, user_id, year, week_no, start_date, end_date,
+            completed_task_count, visibility_scope, team_id,
+            focus_project_id, focus_project_name, shared_summary,
+            reflection, next_plan, create_time, update_time
+        FROM weekly_review
+        WHERE user_id = #{userId}
+          AND year = #{year}
+          AND week_no = #{weekNo}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <update id="updateForWrite"
+            parameterType="com.spt.learningmanage.model.entity.WeeklyReview">
+        UPDATE weekly_review
+        SET visibility_scope = #{visibilityScope},
+            team_id = #{teamId},
+            focus_project_id = #{focusProjectId},
+            focus_project_name = #{focusProjectName},
+            shared_summary = #{sharedSummary},
+            reflection = #{reflection},
+            next_plan = #{nextPlan},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
     <resultMap id="weeklyReviewSharedResultMap"
                type="com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO">
         <id property="id" column="review_id"/>

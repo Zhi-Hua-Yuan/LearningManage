@@ -2,6 +2,7 @@ package com.spt.learningmanage.service.impl;
 
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,22 +10,30 @@ import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.constant.WeeklyReviewVisibilityScopeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewTaskMapper;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewSaveRequest;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewTeamQueryRequest;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewUpdateRequest;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.WeeklyReview;
+import com.spt.learningmanage.model.entity.WeeklyReviewTask;
+import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
 import com.spt.learningmanage.service.WeeklyReviewService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -34,8 +43,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.WeekFields;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
@@ -47,6 +59,12 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     private WeeklyReviewMapper weeklyReviewMapper;
 
     @Resource
+    private WeeklyReviewTaskMapper weeklyReviewTaskMapper;
+
+    @Resource
+    private TeamMemberMapper teamMemberMapper;
+
+    @Resource
     private TaskMapper taskMapper;
 
     @Resource
@@ -54,6 +72,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private PermissionService permissionService;
+
+    @Resource
+    private WeeklyReviewAssociationValidator associationValidator;
 
     @Override
     public WeeklyReviewDetailVO getCurrentWeekReview() {
@@ -98,16 +119,17 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
         WeeklyReviewVisibilityScopeEnum scope = normalizeScope(request.getVisibilityScope());
         validateVisibility(request.getTeamId(), request.getSharedSummary(), scope);
-        rejectAssociationsUntilWp6c(request.getFocusProjectId(), request.getTaskIds());
-        if (scope == WeeklyReviewVisibilityScopeEnum.TEAM) {
-            permissionService.requireTeamView(userId, request.getTeamId());
-        }
+        lockAndRequireTeamView(userId, request.getTeamId(), scope);
 
-        WeeklyReview existing = findByUserYearWeek(userId, request.getYear(), request.getWeekNo());
+        WeeklyReview existing = weeklyReviewMapper.selectByUserYearWeekForUpdate(
+                userId, request.getYear(), request.getWeekNo());
+        WeeklyReviewAssociationContext associations = associationValidator.validate(
+                userId, scope, request.getTeamId(), request.getFocusProjectId(), request.getTaskIds());
         if (existing != null) {
             permissionService.requireWeeklyReviewUpdate(userId, existing.getId());
-            applyRequest(existing, request, scope);
+            applyRequest(existing, request, scope, associations);
             updateReviewRow(existing);
+            replaceTaskAssociations(existing.getId(), associations.taskIds());
             return;
         }
 
@@ -121,16 +143,21 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         toSave.setCompletedTaskCount(0);
         toSave.setVisibilityScope(scope.getValue());
         toSave.setTeamId(scope == WeeklyReviewVisibilityScopeEnum.TEAM ? request.getTeamId() : null);
-        toSave.setFocusProjectId(null);
-        toSave.setFocusProjectName(null);
+        toSave.setFocusProjectId(associations.focusProjectId());
+        toSave.setFocusProjectName(associations.focusProjectName());
         toSave.setSharedSummary(scope == WeeklyReviewVisibilityScopeEnum.TEAM
                 ? request.getSharedSummary().trim() : null);
         toSave.setReflection(request.getReflection());
         toSave.setNextPlan(request.getNextPlan());
 
-        if (weeklyReviewMapper.insert(toSave) != 1) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存周总结失败");
+        try {
+            if (weeklyReviewMapper.insert(toSave) != 1) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存周总结失败");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该周总结已存在");
         }
+        replaceTaskAssociations(toSave.getId(), associations.taskIds());
     }
 
     @Override
@@ -155,23 +182,23 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
 
         Long userId = getCurrentUserId();
-        permissionService.requireWeeklyReviewUpdate(userId, request.getId());
         validateUpdateRequest(request);
-        WeeklyReview existing = weeklyReviewMapper.selectById(request.getId());
+        WeeklyReviewVisibilityScopeEnum scope = normalizeScope(request.getVisibilityScope());
+        validateVisibility(request.getTeamId(), request.getSharedSummary(), scope);
+        lockAndRequireTeamView(userId, request.getTeamId(), scope);
+        WeeklyReview existing = weeklyReviewMapper.selectByIdForUpdate(request.getId());
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
         }
+        permissionService.requireWeeklyReviewUpdate(userId, request.getId());
 
-        WeeklyReviewVisibilityScopeEnum scope = normalizeScope(request.getVisibilityScope());
-        validateVisibility(request.getTeamId(), request.getSharedSummary(), scope);
-        rejectAssociationsUntilWp6c(request.getFocusProjectId(), request.getTaskIds());
-        if (scope == WeeklyReviewVisibilityScopeEnum.TEAM) {
-            permissionService.requireTeamView(userId, request.getTeamId());
-        }
+        WeeklyReviewAssociationContext associations = associationValidator.validate(
+                userId, scope, request.getTeamId(), request.getFocusProjectId(), request.getTaskIds());
 
         existing.setVisibilityScope(scope.getValue());
         existing.setTeamId(scope == WeeklyReviewVisibilityScopeEnum.TEAM ? request.getTeamId() : null);
-        existing.setFocusProjectId(null);
+        existing.setFocusProjectId(associations.focusProjectId());
+        existing.setFocusProjectName(associations.focusProjectName());
         existing.setSharedSummary(scope == WeeklyReviewVisibilityScopeEnum.TEAM
                 ? request.getSharedSummary().trim() : null);
         if (request.getReflection() != null) {
@@ -181,6 +208,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             existing.setNextPlan(request.getNextPlan());
         }
         updateReviewRow(existing);
+        replaceTaskAssociations(existing.getId(), associations.taskIds());
     }
 
     @Override
@@ -190,11 +218,14 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "无效的周总结ID");
         }
         Long userId = getCurrentUserId();
-        WeeklyReview review = weeklyReviewMapper.selectById(id);
+        WeeklyReview review = weeklyReviewMapper.selectByIdForUpdate(id);
         if (review == null) {
             return;
         }
         permissionService.requireWeeklyReviewDelete(userId, id);
+        if (weeklyReviewTaskMapper.deleteByReviewId(id) < 0) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除周总结关联失败");
+        }
         if (weeklyReviewMapper.deleteById(id) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除周总结失败");
         }
@@ -208,7 +239,12 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
                 .eq(WeeklyReview::getUserId, userId)
                 .orderByDesc(WeeklyReview::getYear)
                 .orderByDesc(WeeklyReview::getWeekNo));
-        return reviews.stream().map(this::toDetailVO).toList();
+        if (reviews.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<Long>> taskIdsByReview = loadTaskIdsByReview(reviews);
+        return reviews.stream().map(review -> toDetailVO(review,
+                taskIdsByReview.getOrDefault(review.getId(), List.of()))).toList();
     }
 
     @Override
@@ -228,16 +264,18 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (review.getVisibilityScope() == null) {
             review.setVisibilityScope(PRIVATE_SCOPE);
         }
-        if (weeklyReviewMapper.updateById(review) != 1) {
+        if (weeklyReviewMapper.updateForWrite(review) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新周总结失败");
         }
     }
 
     private void applyRequest(WeeklyReview existing, WeeklyReviewSaveRequest request,
-                              WeeklyReviewVisibilityScopeEnum scope) {
+                              WeeklyReviewVisibilityScopeEnum scope,
+                              WeeklyReviewAssociationContext associations) {
         existing.setVisibilityScope(scope.getValue());
         existing.setTeamId(scope == WeeklyReviewVisibilityScopeEnum.TEAM ? request.getTeamId() : null);
-        existing.setFocusProjectId(null);
+        existing.setFocusProjectId(associations.focusProjectId());
+        existing.setFocusProjectName(associations.focusProjectName());
         existing.setSharedSummary(scope == WeeklyReviewVisibilityScopeEnum.TEAM
                 ? request.getSharedSummary().trim() : null);
         if (request.getReflection() != null) {
@@ -249,6 +287,11 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     }
 
     private WeeklyReviewDetailVO toDetailVO(WeeklyReview review) {
+        return toDetailVO(review, review.getId() == null
+                ? List.of() : loadTaskIdsByReview(List.of(review)).getOrDefault(review.getId(), List.of()));
+    }
+
+    private WeeklyReviewDetailVO toDetailVO(WeeklyReview review, List<Long> taskIds) {
         WeeklyReviewDetailVO vo = new WeeklyReviewDetailVO();
         vo.setId(review.getId());
         vo.setAuthorUserId(review.getUserId());
@@ -264,7 +307,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         vo.setSharedSummary(review.getSharedSummary());
         vo.setReflection(review.getReflection());
         vo.setNextPlan(review.getNextPlan());
-        vo.setTaskIds(Collections.emptyList());
+        vo.setTaskIds(taskIds == null ? List.of() : List.copyOf(taskIds));
         vo.setCreateTime(review.getCreateTime());
         vo.setUpdateTime(review.getUpdateTime());
         return vo;
@@ -301,10 +344,65 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
     }
 
-    private void rejectAssociationsUntilWp6c(Long focusProjectId, List<Long> taskIds) {
-        if (focusProjectId != null || (taskIds != null && !taskIds.isEmpty())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "周总结资源关联将在后续工作包启用");
+    private void lockAndRequireTeamView(Long userId, Long teamId,
+                                        WeeklyReviewVisibilityScopeEnum scope) {
+        if (scope != WeeklyReviewVisibilityScopeEnum.TEAM) {
+            return;
         }
+        if (teamMemberMapper != null) {
+            List<TeamMember> members = teamMemberMapper.selectActiveMembersForUpdate(
+                    teamId, List.of(userId));
+            if (members == null || members.size() != 1) {
+                throw new PermissionDeniedException();
+            }
+        }
+        permissionService.requireTeamView(userId, teamId);
+    }
+
+    private void replaceTaskAssociations(Long reviewId, List<Long> taskIds) {
+        int deleted = weeklyReviewTaskMapper.deleteByReviewId(reviewId);
+        if (deleted < 0) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新周总结关联失败");
+        }
+        if (taskIds == null || taskIds.isEmpty()) {
+            return;
+        }
+        List<WeeklyReviewTask> relations = taskIds.stream().map(taskId -> {
+            WeeklyReviewTask relation = new WeeklyReviewTask();
+            relation.setId(IdWorker.getId());
+            relation.setWeeklyReviewId(reviewId);
+            relation.setTaskId(taskId);
+            relation.setCreateTime(LocalDateTime.now());
+            return relation;
+        }).toList();
+        int inserted = weeklyReviewTaskMapper.batchInsert(relations);
+        if (inserted != relations.size()) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新周总结关联失败");
+        }
+    }
+
+    private Map<Long, List<Long>> loadTaskIdsByReview(List<WeeklyReview> reviews) {
+        Set<Long> reviewIds = new LinkedHashSet<>();
+        for (WeeklyReview review : reviews) {
+            if (review != null && review.getId() != null) {
+                reviewIds.add(review.getId());
+            }
+        }
+        if (reviewIds.isEmpty() || weeklyReviewTaskMapper == null) {
+            return Collections.emptyMap();
+        }
+        List<WeeklyReviewTask> relations = weeklyReviewTaskMapper.selectByReviewIds(reviewIds);
+        Map<Long, List<Long>> result = new LinkedHashMap<>();
+        if (relations != null) {
+            for (WeeklyReviewTask relation : relations) {
+                if (relation == null || relation.getWeeklyReviewId() == null || relation.getTaskId() == null) {
+                    throw new BusinessException(ErrorCode.SYSTEM_ERROR, "周总结关联数据异常");
+                }
+                result.computeIfAbsent(relation.getWeeklyReviewId(), ignored -> new java.util.ArrayList<>())
+                        .add(relation.getTaskId());
+            }
+        }
+        return result;
     }
 
     private void validateSaveRequest(WeeklyReviewSaveRequest request) {
