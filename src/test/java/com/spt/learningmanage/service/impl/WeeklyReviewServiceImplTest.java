@@ -7,10 +7,17 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewTaskMapper;
+import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewSaveRequest;
+import com.spt.learningmanage.model.dto.review.WeeklyReviewUpdateRequest;
 import com.spt.learningmanage.model.entity.WeeklyReview;
+import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.entity.WeeklyReviewTask;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
+import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyReviewServiceImplTest {
@@ -41,11 +51,17 @@ class WeeklyReviewServiceImplTest {
     @Mock
     private WeeklyReviewMapper weeklyReviewMapper;
     @Mock
+    private WeeklyReviewTaskMapper weeklyReviewTaskMapper;
+    @Mock
+    private TeamMemberMapper teamMemberMapper;
+    @Mock
     private TaskMapper taskMapper;
     @Mock
     private ProjectMapper projectMapper;
     @Mock
     private PermissionService permissionService;
+    @Mock
+    private WeeklyReviewAssociationValidator associationValidator;
     @InjectMocks
     private WeeklyReviewServiceImpl weeklyReviewService;
 
@@ -69,7 +85,16 @@ class WeeklyReviewServiceImplTest {
         WeeklyReviewSaveRequest request = request(2026, 35, "TEAM");
         request.setTeamId(10L);
         request.setSharedSummary("  本周完成核心交付  ");
-        when(weeklyReviewMapper.selectOne(any())).thenReturn(null);
+        TeamMember member = new TeamMember();
+        member.setId(100L);
+        member.setTeamId(10L);
+        member.setUserId(1L);
+        member.setRole("MEMBER");
+        member.setIsDelete(0);
+        when(teamMemberMapper.selectActiveMembersForUpdate(10L, List.of(1L)))
+                .thenReturn(List.of(member));
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(WeeklyReviewAssociationContext.empty());
         when(weeklyReviewMapper.insert(any(WeeklyReview.class))).thenReturn(1);
 
         weeklyReviewService.saveReview(request);
@@ -105,6 +130,97 @@ class WeeklyReviewServiceImplTest {
         assertEquals("next", result.getNextPlan());
         assertEquals("PRIVATE", result.getVisibilityScope());
         verify(permissionService).requireWeeklyReviewFullView(1L, 7L);
+    }
+
+    @Test
+    void save_shouldPersistFocusProjectAndTaskAssociationsAsOneBatch() {
+        UserHolder.set(1L);
+        WeeklyReviewSaveRequest request = request(2026, 35, "PRIVATE");
+        request.setFocusProjectId(55L);
+        request.setTaskIds(List.of(101L, 102L));
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(new WeeklyReviewAssociationContext(55L, "重点项目", List.of(101L, 102L)));
+        when(weeklyReviewMapper.selectByUserYearWeekForUpdate(1L, 2026, 35)).thenReturn(null);
+        when(weeklyReviewMapper.insert(any(WeeklyReview.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, WeeklyReview.class).setId(7001L);
+            return 1;
+        });
+        when(weeklyReviewTaskMapper.batchInsert(any())).thenReturn(2);
+
+        weeklyReviewService.saveReview(request);
+
+        ArgumentCaptor<WeeklyReview> reviewCaptor = ArgumentCaptor.forClass(WeeklyReview.class);
+        verify(weeklyReviewMapper).insert(reviewCaptor.capture());
+        assertEquals(55L, reviewCaptor.getValue().getFocusProjectId());
+        assertEquals("重点项目", reviewCaptor.getValue().getFocusProjectName());
+        ArgumentCaptor<List<WeeklyReviewTask>> relationsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(weeklyReviewTaskMapper).batchInsert(relationsCaptor.capture());
+        assertEquals(List.of(101L, 102L), relationsCaptor.getValue().stream()
+                .map(WeeklyReviewTask::getTaskId).toList());
+        assertEquals(List.of(7001L, 7001L), relationsCaptor.getValue().stream()
+                .map(WeeklyReviewTask::getWeeklyReviewId).toList());
+    }
+
+    @Test
+    void update_shouldReplaceAssociationCollectionAndClearWhenEmpty() {
+        UserHolder.set(1L);
+        WeeklyReview existing = new WeeklyReview();
+        existing.setId(7002L);
+        existing.setUserId(1L);
+        existing.setYear(2026);
+        existing.setWeekNo(35);
+        existing.setVisibilityScope("PRIVATE");
+        WeeklyReviewUpdateRequest request = new WeeklyReviewUpdateRequest();
+        request.setId(7002L);
+        request.setVisibilityScope("PRIVATE");
+        request.setTaskIds(List.of());
+        when(weeklyReviewMapper.selectByIdForUpdate(7002L)).thenReturn(existing);
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(WeeklyReviewAssociationContext.empty());
+        when(weeklyReviewMapper.updateForWrite(existing)).thenReturn(1);
+        when(weeklyReviewTaskMapper.deleteByReviewId(7002L)).thenReturn(2);
+
+        weeklyReviewService.updateReview(request);
+
+        verify(weeklyReviewTaskMapper).deleteByReviewId(7002L);
+        verify(weeklyReviewTaskMapper, times(0)).batchInsert(any());
+        assertEquals(null, existing.getFocusProjectId());
+    }
+
+    @Test
+    void delete_shouldRemoveRelationsBeforeReviewRow() {
+        UserHolder.set(1L);
+        WeeklyReview review = new WeeklyReview();
+        review.setId(7003L);
+        review.setUserId(1L);
+        when(weeklyReviewMapper.selectByIdForUpdate(7003L)).thenReturn(review);
+        when(weeklyReviewTaskMapper.deleteByReviewId(7003L)).thenReturn(3);
+        when(weeklyReviewMapper.deleteById(7003L)).thenReturn(1);
+
+        weeklyReviewService.deleteReview(7003L);
+
+        var inOrder = org.mockito.Mockito.inOrder(weeklyReviewTaskMapper, weeklyReviewMapper);
+        inOrder.verify(weeklyReviewTaskMapper).deleteByReviewId(7003L);
+        inOrder.verify(weeklyReviewMapper).deleteById(7003L);
+    }
+
+    @Test
+    void save_shouldFailWhenAssociationBatchIsNotFullyInserted() {
+        UserHolder.set(1L);
+        WeeklyReviewSaveRequest request = request(2026, 36, "PRIVATE");
+        request.setTaskIds(List.of(201L));
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(new WeeklyReviewAssociationContext(null, null, List.of(201L)));
+        when(weeklyReviewMapper.selectByUserYearWeekForUpdate(1L, 2026, 36)).thenReturn(null);
+        when(weeklyReviewMapper.insert(any(WeeklyReview.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, WeeklyReview.class).setId(7004L);
+            return 1;
+        });
+        when(weeklyReviewTaskMapper.batchInsert(any())).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> weeklyReviewService.saveReview(request));
+        verify(weeklyReviewTaskMapper).deleteByReviewId(7004L);
+        verify(weeklyReviewTaskMapper).batchInsert(any());
     }
 
     private WeeklyReviewSaveRequest request(int year, int weekNo, String scope) {

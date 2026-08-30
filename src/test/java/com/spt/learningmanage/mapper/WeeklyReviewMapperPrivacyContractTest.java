@@ -31,4 +31,25 @@ class WeeklyReviewMapperPrivacyContractTest {
         assertFalse(xml.contains("wr.next_plan"));
         assertFalse(xml.contains("weekly_review_task"));
     }
+
+    @Test
+    void writePath_shouldProvideExplicitReviewLocksWithoutLogicalDeletePredicate() throws IOException {
+        String xml;
+        try (InputStream input = getClass().getClassLoader()
+                .getResourceAsStream("mapper/WeeklyReviewMapper.xml")) {
+            if (input == null) {
+                throw new IOException("WeeklyReviewMapper.xml not found");
+            }
+            xml = new String(input.readAllBytes(), StandardCharsets.UTF_8).toLowerCase();
+        }
+        assertTrue(xml.contains("id=\"selectbyidforupdate\""));
+        assertTrue(xml.contains("id=\"selectbyuseryearweekforupdate\""));
+        assertTrue(xml.contains("id=\"updateforwrite\""));
+        assertTrue(xml.contains("team_id = #{teamid}"));
+        assertTrue(xml.contains("focus_project_id = #{focusprojectid}"));
+        assertTrue(xml.contains("shared_summary = #{sharedsummary}"));
+        assertTrue(xml.contains("for update"));
+        assertFalse(xml.contains("wr.is_delete"));
+        assertFalse(xml.contains("select *"));
+    }
 }

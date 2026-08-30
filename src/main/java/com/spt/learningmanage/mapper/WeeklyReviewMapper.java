@@ -10,6 +10,17 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface WeeklyReviewMapper extends BaseMapper<WeeklyReview> {
 
+    WeeklyReview selectByIdForUpdate(@Param("id") Long id);
+
+    WeeklyReview selectByUserYearWeekForUpdate(
+            @Param("userId") Long userId,
+            @Param("year") Integer year,
+            @Param("weekNo") Integer weekNo
+    );
+
+    /** Explicit write update; nullable scope/association fields must be cleared. */
+    int updateForWrite(WeeklyReview review);
+
     Page<WeeklyReviewSharedVO> selectTeamSharedPage(
             Page<WeeklyReviewSharedVO> page,
             @Param("teamId") Long teamId
