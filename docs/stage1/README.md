@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR5 已合并并完成合同收口；PR5 的成员终止、事务回滚、任务变更竞争和最终并发门禁已完成验收；PR6/WP6-A 设计冻结候选已启动
+状态：PR1～PR5 已合并并完成合同收口；PR5 的成员终止、事务回滚、任务变更竞争和最终并发门禁已完成验收；PR6/WP6-A 设计已合并，WP6-C1 关联 Mapper 已实现
 
 建立日期：2026-08-23
 
@@ -114,6 +114,11 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 当前 PR6 设计证据：
 
 - [WP6-A：周复盘隐私与统计/AI 授权设计计划](acceptance/pr6-wp6a-weekly-review-privacy-design-plan-2026-08-30.md)
+
+当前 PR6 实现证据：
+
+- [WP6-B：周复盘隐私读写开发记录](acceptance/pr6-wp6b-weekly-review-privacy-development-record-2026-08-30.md)
+- [WP6-C1：WeeklyReviewTask Mapper 开发记录](acceptance/pr6-wp6c-c1-weekly-review-task-mapper-development-record-2026-08-31.md)
 
 ## 4. 决策状态规则
 

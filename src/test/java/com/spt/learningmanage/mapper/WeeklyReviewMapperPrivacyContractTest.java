@@ -24,7 +24,8 @@ class WeeklyReviewMapperPrivacyContractTest {
 
         assertTrue(xml.contains("BINARY wr.visibility_scope = BINARY 'TEAM'"));
         assertTrue(xml.contains("wr.shared_summary"));
-        assertTrue(xml.contains("wr.is_delete = 0"));
+        // weekly_review is physically deleted in V1/V2; it has no is_delete column.
+        assertFalse(xml.contains("wr.is_delete"));
         assertTrue(xml.contains("u.is_delete = 0"));
         assertFalse(xml.contains("wr.reflection"));
         assertFalse(xml.contains("wr.next_plan"));

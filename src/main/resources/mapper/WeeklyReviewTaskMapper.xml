@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spt.learningmanage.mapper.WeeklyReviewTaskMapper">
+
+    <select id="selectByReviewIds"
+            resultType="com.spt.learningmanage.model.entity.WeeklyReviewTask">
+        SELECT
+            id,
+            weekly_review_id,
+            task_id,
+            create_time
+        FROM weekly_review_task
+        <choose>
+            <when test="reviewIds != null and reviewIds.size() > 0">
+                WHERE weekly_review_id IN
+                <foreach collection="reviewIds" item="reviewId"
+                         open="(" separator="," close=")">
+                    #{reviewId}
+                </foreach>
+            </when>
+            <otherwise>
+                WHERE 1 = 0
+            </otherwise>
+        </choose>
+        ORDER BY weekly_review_id ASC, id ASC
+    </select>
+
+    <delete id="deleteByReviewId">
+        DELETE FROM weekly_review_task
+        WHERE weekly_review_id = #{weeklyReviewId}
+    </delete>
+
+    <insert id="batchInsert">
+        INSERT INTO weekly_review_task (
+            id,
+            weekly_review_id,
+            task_id,
+            create_time
+        ) VALUES
+        <foreach collection="relations" item="relation" separator=",">
+            (
+                #{relation.id},
+                #{relation.weeklyReviewId},
+                #{relation.taskId},
+                #{relation.createTime}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

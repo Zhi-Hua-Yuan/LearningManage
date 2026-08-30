@@ -51,7 +51,6 @@
             ON u.id = wr.user_id
            AND u.is_delete = 0
         WHERE wr.team_id = #{teamId}
-          AND wr.is_delete = 0
           AND BINARY wr.visibility_scope = BINARY 'TEAM'
         ORDER BY wr.year DESC, wr.week_no DESC, wr.id DESC
     </select>
