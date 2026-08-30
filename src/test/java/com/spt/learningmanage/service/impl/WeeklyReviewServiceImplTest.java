@@ -16,8 +16,10 @@ import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.entity.WeeklyReviewTask;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
+import com.spt.learningmanage.model.review.WeeklyReviewReadableAssociations;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
+import com.spt.learningmanage.service.WeeklyReviewReadAssociationResolver;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -62,6 +64,8 @@ class WeeklyReviewServiceImplTest {
     private PermissionService permissionService;
     @Mock
     private WeeklyReviewAssociationValidator associationValidator;
+    @Mock
+    private WeeklyReviewReadAssociationResolver readAssociationResolver;
     @InjectMocks
     private WeeklyReviewServiceImpl weeklyReviewService;
 
@@ -130,6 +134,49 @@ class WeeklyReviewServiceImplTest {
         assertEquals("next", result.getNextPlan());
         assertEquals("PRIVATE", result.getVisibilityScope());
         verify(permissionService).requireWeeklyReviewFullView(1L, 7L);
+    }
+
+    @Test
+    void getById_shouldUseCurrentReadAssociationProjection() {
+        UserHolder.set(1L);
+        WeeklyReview review = new WeeklyReview();
+        review.setId(7L);
+        review.setUserId(1L);
+        review.setFocusProjectId(55L);
+        review.setFocusProjectName("已失权项目");
+        when(weeklyReviewMapper.selectById(7L)).thenReturn(review);
+        when(readAssociationResolver.resolve(1L, List.of(review)))
+                .thenReturn(new WeeklyReviewReadableAssociations(
+                        java.util.Map.of(7L, List.of(102L)), java.util.Set.of()));
+
+        WeeklyReviewDetailVO result = weeklyReviewService.getReviewById(7L);
+
+        assertEquals(List.of(102L), result.getTaskIds());
+        assertEquals(null, result.getFocusProjectId());
+        assertEquals(null, result.getFocusProjectName());
+    }
+
+    @Test
+    void history_shouldResolveAllReviewAssociationsAsOneProjection() {
+        UserHolder.set(1L);
+        WeeklyReview first = new WeeklyReview();
+        first.setId(7001L);
+        first.setUserId(1L);
+        first.setVisibilityScope("PRIVATE");
+        WeeklyReview second = new WeeklyReview();
+        second.setId(7002L);
+        second.setUserId(1L);
+        second.setVisibilityScope("PRIVATE");
+        when(weeklyReviewMapper.selectList(any())).thenReturn(List.of(first, second));
+        WeeklyReviewReadableAssociations associations = new WeeklyReviewReadableAssociations(
+                java.util.Map.of(7001L, List.of(101L), 7002L, List.of()), java.util.Set.of());
+        when(readAssociationResolver.resolve(1L, List.of(first, second))).thenReturn(associations);
+
+        List<WeeklyReviewDetailVO> result = weeklyReviewService.listHistory();
+
+        assertEquals(List.of(101L), result.get(0).getTaskIds());
+        assertEquals(List.of(), result.get(1).getTaskIds());
+        verify(readAssociationResolver, times(1)).resolve(1L, List.of(first, second));
     }
 
     @Test

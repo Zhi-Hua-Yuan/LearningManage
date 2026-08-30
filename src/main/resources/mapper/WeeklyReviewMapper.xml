@@ -82,8 +82,8 @@
             wr.week_no AS review_week_no,
             wr.start_date AS review_start_date,
             wr.end_date AS review_end_date,
-            wr.focus_project_id AS focus_project_id,
-            wr.focus_project_name AS focus_project_name,
+            fp.id AS focus_project_id,
+            fp.name AS focus_project_name,
             wr.shared_summary AS shared_summary,
             wr.create_time AS review_create_time,
             wr.update_time AS review_update_time
@@ -91,6 +91,11 @@
         LEFT JOIN `user` u
             ON u.id = wr.user_id
            AND u.is_delete = 0
+        LEFT JOIN project fp
+            ON fp.id = wr.focus_project_id
+           AND fp.team_id = wr.team_id
+           AND fp.is_delete = 0
+           AND fp.deleted_at IS NULL
         WHERE wr.team_id = #{teamId}
           AND BINARY wr.visibility_scope = BINARY 'TEAM'
         ORDER BY wr.year DESC, wr.week_no DESC, wr.id DESC

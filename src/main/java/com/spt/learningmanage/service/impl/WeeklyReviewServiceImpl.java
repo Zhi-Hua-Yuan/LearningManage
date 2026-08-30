@@ -25,10 +25,12 @@ import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.entity.WeeklyReviewTask;
 import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
+import com.spt.learningmanage.model.review.WeeklyReviewReadableAssociations;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
+import com.spt.learningmanage.service.WeeklyReviewReadAssociationResolver;
 import com.spt.learningmanage.service.WeeklyReviewService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
@@ -42,12 +44,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.WeekFields;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
@@ -76,6 +74,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     @Resource
     private WeeklyReviewAssociationValidator associationValidator;
 
+    @Resource
+    private WeeklyReviewReadAssociationResolver readAssociationResolver;
+
     @Override
     public WeeklyReviewDetailVO getCurrentWeekReview() {
         Long userId = getCurrentUserId();
@@ -95,7 +96,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             existing.setEndDate(endDate);
             existing.setCompletedTaskCount(countCompletedTasks(userId, startDateTime, endDateTimeExclusive));
             existing.setFocusProjectName(queryFocusProjectName(userId, startDateTime, endDateTimeExclusive));
-            return toDetailVO(existing);
+            return toDetailVO(existing, resolveReadableAssociations(userId, List.of(existing)));
         }
 
         WeeklyReview draft = new WeeklyReview();
@@ -171,7 +172,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (review == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "该周总结不存在");
         }
-        return toDetailVO(review);
+        return toDetailVO(review, resolveReadableAssociations(userId, List.of(review)));
     }
 
     @Override
@@ -242,9 +243,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (reviews.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<Long>> taskIdsByReview = loadTaskIdsByReview(reviews);
-        return reviews.stream().map(review -> toDetailVO(review,
-                taskIdsByReview.getOrDefault(review.getId(), List.of()))).toList();
+        WeeklyReviewReadableAssociations associations =
+                resolveReadableAssociations(userId, reviews);
+        return reviews.stream().map(review -> toDetailVO(review, associations)).toList();
     }
 
     @Override
@@ -287,11 +288,13 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
     }
 
     private WeeklyReviewDetailVO toDetailVO(WeeklyReview review) {
-        return toDetailVO(review, review.getId() == null
-                ? List.of() : loadTaskIdsByReview(List.of(review)).getOrDefault(review.getId(), List.of()));
+        return toDetailVO(review, WeeklyReviewReadableAssociations.empty());
     }
 
-    private WeeklyReviewDetailVO toDetailVO(WeeklyReview review, List<Long> taskIds) {
+    private WeeklyReviewDetailVO toDetailVO(
+            WeeklyReview review,
+            WeeklyReviewReadableAssociations associations
+    ) {
         WeeklyReviewDetailVO vo = new WeeklyReviewDetailVO();
         vo.setId(review.getId());
         vo.setAuthorUserId(review.getUserId());
@@ -302,12 +305,15 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         vo.setCompletedTaskCount(review.getCompletedTaskCount() == null ? 0 : review.getCompletedTaskCount());
         vo.setVisibilityScope(normalizeScopeValue(review.getVisibilityScope()));
         vo.setTeamId(review.getTeamId());
-        vo.setFocusProjectId(review.getFocusProjectId());
-        vo.setFocusProjectName(review.getFocusProjectName());
+        boolean focusProjectReadable = review.getFocusProjectId() == null
+                ? review.getId() == null
+                : associations.canReadFocusProject(review.getFocusProjectId());
+        vo.setFocusProjectId(focusProjectReadable ? review.getFocusProjectId() : null);
+        vo.setFocusProjectName(focusProjectReadable ? review.getFocusProjectName() : null);
         vo.setSharedSummary(review.getSharedSummary());
         vo.setReflection(review.getReflection());
         vo.setNextPlan(review.getNextPlan());
-        vo.setTaskIds(taskIds == null ? List.of() : List.copyOf(taskIds));
+        vo.setTaskIds(review.getId() == null ? List.of() : List.copyOf(associations.taskIdsFor(review.getId())));
         vo.setCreateTime(review.getCreateTime());
         vo.setUpdateTime(review.getUpdateTime());
         return vo;
@@ -381,28 +387,15 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
     }
 
-    private Map<Long, List<Long>> loadTaskIdsByReview(List<WeeklyReview> reviews) {
-        Set<Long> reviewIds = new LinkedHashSet<>();
-        for (WeeklyReview review : reviews) {
-            if (review != null && review.getId() != null) {
-                reviewIds.add(review.getId());
-            }
+    private WeeklyReviewReadableAssociations resolveReadableAssociations(
+            Long userId,
+            List<WeeklyReview> reviews
+    ) {
+        if (readAssociationResolver == null) {
+            return WeeklyReviewReadableAssociations.empty();
         }
-        if (reviewIds.isEmpty() || weeklyReviewTaskMapper == null) {
-            return Collections.emptyMap();
-        }
-        List<WeeklyReviewTask> relations = weeklyReviewTaskMapper.selectByReviewIds(reviewIds);
-        Map<Long, List<Long>> result = new LinkedHashMap<>();
-        if (relations != null) {
-            for (WeeklyReviewTask relation : relations) {
-                if (relation == null || relation.getWeeklyReviewId() == null || relation.getTaskId() == null) {
-                    throw new BusinessException(ErrorCode.SYSTEM_ERROR, "周总结关联数据异常");
-                }
-                result.computeIfAbsent(relation.getWeeklyReviewId(), ignored -> new java.util.ArrayList<>())
-                        .add(relation.getTaskId());
-            }
-        }
-        return result;
+        WeeklyReviewReadableAssociations resolved = readAssociationResolver.resolve(userId, reviews);
+        return resolved == null ? WeeklyReviewReadableAssociations.empty() : resolved;
     }
 
     private void validateSaveRequest(WeeklyReviewSaveRequest request) {

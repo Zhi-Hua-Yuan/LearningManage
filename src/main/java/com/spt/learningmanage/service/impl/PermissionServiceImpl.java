@@ -15,6 +15,7 @@ import com.spt.learningmanage.model.permission.TaskPermissionRow;
 import com.spt.learningmanage.model.permission.TeamMemberPermissionRow;
 import com.spt.learningmanage.model.permission.WeeklyReviewPermissionRow;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.PermissionBatchPolicy;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +39,6 @@ public class PermissionServiceImpl implements PermissionService {
 
     private static final String PRIVATE_SCOPE = "PRIVATE";
     private static final String TEAM_SCOPE = "TEAM";
-    private static final int MAX_BATCH_RESOURCE_IDS = 500;
 
     @Resource
     private PermissionQueryMapper permissionQueryMapper;
@@ -474,7 +474,7 @@ public class PermissionServiceImpl implements PermissionService {
 
     private List<Long> normalizeBatchIds(Long actorUserId, Collection<Long> resourceIds) {
         validateActor(actorUserId);
-        if (resourceIds == null || resourceIds.size() > MAX_BATCH_RESOURCE_IDS) {
+        if (resourceIds == null || resourceIds.size() > PermissionBatchPolicy.MAX_RESOURCE_IDS) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
         LinkedHashSet<Long> normalized = new LinkedHashSet<>();
