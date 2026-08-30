@@ -27,6 +27,9 @@ class WeeklyReviewMapperPrivacyContractTest {
         // weekly_review is physically deleted in V1/V2; it has no is_delete column.
         assertFalse(xml.contains("wr.is_delete"));
         assertTrue(xml.contains("u.is_delete = 0"));
+        assertTrue(xml.contains("fp.team_id = wr.team_id"));
+        assertTrue(xml.contains("fp.is_delete = 0"));
+        assertTrue(xml.contains("fp.deleted_at IS NULL"));
         assertFalse(xml.contains("wr.reflection"));
         assertFalse(xml.contains("wr.next_plan"));
         assertFalse(xml.contains("weekly_review_task"));
