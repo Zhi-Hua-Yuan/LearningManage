@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.spt.learningmanage.mapper.WeeklyReviewMapper">
+
+    <resultMap id="weeklyReviewSharedResultMap"
+               type="com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO">
+        <id property="id" column="review_id"/>
+        <result property="year" column="review_year"/>
+        <result property="weekNo" column="review_week_no"/>
+        <result property="startDate" column="review_start_date"/>
+        <result property="endDate" column="review_end_date"/>
+        <result property="sharedSummary" column="shared_summary"/>
+        <result property="createTime" column="review_create_time"/>
+        <result property="updateTime" column="review_update_time"/>
+        <association property="author"
+                     javaType="com.spt.learningmanage.model.vo.review.WeeklyReviewAuthorSummaryVO">
+            <id property="id" column="author_id"/>
+            <result property="username" column="author_username"/>
+        </association>
+        <association property="focusProject"
+                     javaType="com.spt.learningmanage.model.vo.review.WeeklyReviewFocusProjectSummaryVO">
+            <id property="id" column="focus_project_id"/>
+            <result property="name" column="focus_project_name"/>
+        </association>
+    </resultMap>
+
+    <!--
+      This projection intentionally does not select reflection, next_plan or
+      any private task data. Team authorization is performed by the service
+      before this query is executed.
+    -->
+    <select id="selectTeamSharedPage"
+            resultMap="weeklyReviewSharedResultMap">
+        SELECT
+            wr.id AS review_id,
+            wr.user_id AS author_id,
+            u.username AS author_username,
+            wr.year AS review_year,
+            wr.week_no AS review_week_no,
+            wr.start_date AS review_start_date,
+            wr.end_date AS review_end_date,
+            wr.focus_project_id AS focus_project_id,
+            wr.focus_project_name AS focus_project_name,
+            wr.shared_summary AS shared_summary,
+            wr.create_time AS review_create_time,
+            wr.update_time AS review_update_time
+        FROM weekly_review wr
+        LEFT JOIN `user` u
+            ON u.id = wr.user_id
+           AND u.is_delete = 0
+        WHERE wr.team_id = #{teamId}
+          AND wr.is_delete = 0
+          AND BINARY wr.visibility_scope = BINARY 'TEAM'
+        ORDER BY wr.year DESC, wr.week_no DESC, wr.id DESC
+    </select>
+
+</mapper>

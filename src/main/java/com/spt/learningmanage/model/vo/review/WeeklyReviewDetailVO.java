@@ -1,21 +1,16 @@
-package com.spt.learningmanage.model.entity;
+package com.spt.learningmanage.model.vo.review;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
-@TableName("weekly_review")
-public class WeeklyReview {
+public class WeeklyReviewDetailVO {
 
-    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
-
-    private Long userId;
+    private Long authorUserId;
     private Integer year;
     private Integer weekNo;
     private LocalDate startDate;
@@ -28,7 +23,7 @@ public class WeeklyReview {
     private String sharedSummary;
     private String reflection;
     private String nextPlan;
+    private List<Long> taskIds;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-
