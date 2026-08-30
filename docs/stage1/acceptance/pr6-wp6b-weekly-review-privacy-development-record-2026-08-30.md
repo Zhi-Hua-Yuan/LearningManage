@@ -40,6 +40,8 @@
 
 覆盖内容：可见性枚举白名单、共享 VO 私有字段排除、共享查询 SQL 投影/TEAM 过滤、PRIVATE/TEAM 保存边界和作者完整读取。
 
+本工作包新增 6 个测试，已同步 `backend-ci.yml` 与 `release-gate.yml` 的 `CI_EXPECTED_TEST_COUNT`：`507 → 513`。
+
 ### 3.3 全量测试环境说明
 
 全量 `mvn test` 已启动并执行；现有 MySQL 集成测试因测试配置仍使用占位符 `${TEST_DB_USERNAME}`，报 `Access denied`，未能建立数据库连接。该失败属于测试环境凭据阻塞，需在 WP6-E 使用真实测试数据库凭据重跑；不将其计为 WP6-B 业务断言失败。
