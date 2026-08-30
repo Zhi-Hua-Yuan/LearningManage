@@ -46,12 +46,12 @@
 
 ### 3.3 全量测试
 
-本机全量测试共发现 `528` 个测试；非 MySQL 测试通过。46 个 MySQL 集成测试因本机仍使用占位凭据 `${TEST_DB_USERNAME}`，报 `Access denied`，需在 CI 隔离 MySQL 环境重跑。
+本机全量测试报告为 `528` 个测试；非 MySQL 测试通过。46 个 MySQL 集成测试因本机仍使用占位凭据 `${TEST_DB_USERNAME}`，报 `Access denied`，导致其中一个 MySQL 测试类未完整计数。CI 隔离 MySQL 首轮实际计数为 `529`，因此门禁以 CI 可重复计数 `529` 为准。
 
 已同步：
 
-- `.github/workflows/backend-ci.yml`：`CI_EXPECTED_TEST_COUNT=528`；
-- `.github/workflows/release-gate.yml`：`CI_EXPECTED_TEST_COUNT=528`。
+- `.github/workflows/backend-ci.yml`：`CI_EXPECTED_TEST_COUNT=529`；
+- `.github/workflows/release-gate.yml`：`CI_EXPECTED_TEST_COUNT=529`。
 
 ## 4. 数据库与后续边界
 
