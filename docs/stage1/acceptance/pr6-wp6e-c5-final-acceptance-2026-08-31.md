@@ -17,7 +17,7 @@
 | AI 授权 | 本地通过：越权任务在模型调用前拒绝，模型调用为 0 |
 | 统计口径 | C4 统计测试已存在，等待 CI MySQL 证据 |
 | 本地非 MySQL 测试 | 501 passed |
-| Surefire 总计候选值 | 553 |
+| Surefire 总计候选值 | 554 |
 | Flyway | 未修改 migration；CI 待确认历史版本 2 和 checksum |
 
 ## 合同与风险
@@ -43,4 +43,3 @@ CI 通过后，另行提交 PR6 合并收口记录，填入真实合并提交、
 - `src/test/java/com/spt/learningmanage/service/impl/WeeklyReviewServiceImplTest.java`
 - `src/test/java/com/spt/learningmanage/service/impl/AiServiceImplWeeklyPolishAuthorizationTest.java`
 - `src/test/java/com/spt/learningmanage/service/impl/WeeklyReviewC5AcceptanceContractTest.java`
-

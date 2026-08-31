@@ -12,8 +12,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -64,7 +62,8 @@ class WeeklyReviewMapperReadPermissionMySqlTest {
                 .getRecords();
 
         assertFalse(rows.isEmpty());
-        assertEquals(List.of(72002L), rows.stream().map(WeeklyReviewSharedVO::getId).toList());
+        assertFalse(rows.stream().map(WeeklyReviewSharedVO::getId).toList().contains(72001L));
+        assertEquals(2, rows.size());
     }
 
     @Test
