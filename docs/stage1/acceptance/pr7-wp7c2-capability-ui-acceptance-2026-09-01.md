@@ -26,7 +26,7 @@ WP7-C2 已完成并完成前端受保护合并。本工作包将任务 capabilit
 - 任务标题、描述、截止日期由 `canEditContent` 控制；
 - 状态控件由 `canChangeStatus` 控制；
 - 优先级、里程碑由 `canReorganize` 控制；
-- 负责人事实和负责人权限由 `canAssign` 展示；
+- 负责人事实无条件按任务事实展示；负责人变更入口和写操作仅由 `canAssign` 控制；
 - 删除控件由 `canDelete` 控制；
 - 控件禁用之外，事件处理器保留 capability 二次守卫；
 - capability 变化导致的失权会清理对应弹层、菜单和过期交互；
