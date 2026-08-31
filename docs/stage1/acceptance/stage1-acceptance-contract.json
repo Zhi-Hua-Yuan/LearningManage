@@ -90,9 +90,19 @@
       "id": "S1-A-006",
       "domain": "privacy",
       "requirement": "Private weekly review content returned to non-authors equals zero",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR6",
-      "evidenceRequired": ["serialization tests", "multi-user authorization tests"]
+      "evidenceRequired": ["serialization tests", "multi-user authorization tests"],
+      "evidence": [
+        "PR6 C5 final acceptance record",
+        "PR #63 merge commit e284fffda9788627c7488c8cf633231a122abe6d",
+        "GitHub Actions run 33348660533 (post-merge)",
+        "WeeklyReviewSharedVOContractTest",
+        "WeeklyReviewMapperReadPermissionMySqlTest",
+        "Backend CI: 554 tests, 0 failures, 0 errors, 0 skipped",
+        "PRIVATE rows excluded from team shared projection",
+        "V1/V2 migration guard and Flyway gates passed"
+      ]
     },
     {
       "id": "S1-A-007",
@@ -107,9 +117,19 @@
       "id": "S1-A-008",
       "domain": "ai-security",
       "requirement": "Existing AI endpoints reject nonexistent or unauthorized business IDs before model invocation",
-      "status": "PENDING",
+      "status": "PASS",
       "targetPr": "PR6",
-      "evidenceRequired": ["AI authorization regression tests"]
+      "evidenceRequired": ["AI authorization regression tests"],
+      "evidence": [
+        "PR6 C5 final acceptance record",
+        "PR #63 merge commit e284fffda9788627c7488c8cf633231a122abe6d",
+        "GitHub Actions run 33348660533 (post-merge)",
+        "AiServiceImplWeeklyPolishAuthorizationTest: unauthorized and missing explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplTodayOrderTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplDailyReviewRenameTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplListReplanAuthorizationTest: preview/confirm/execute reject unauthorized or missing list IDs before model/operation access",
+        "Backend CI: 564 tests, 0 failures, 0 errors, 0 skipped"
+      ]
     },
     {
       "id": "S1-A-009",

@@ -51,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -344,6 +345,36 @@ class AiServiceImplDailyReviewRenameTest {
         Assertions.assertEquals("strategy 仅支持 balanced 或 clarity_first", exception.getMessage());
         verify(taskMapper, never()).selectList(any());
         verify(promptTemplateResolver, never()).resolve(any());
+        verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
+    }
+
+    @Test
+    void suggestDailyReviewRename_shouldRejectMissingExplicitTaskBeforeAi() {
+        DailyReviewSuggestRenameRequest request = request();
+        request.setTaskIds(List.of(999L));
+        when(permissionService.requireAllTasksReadable(USER_ID, request.getTaskIds()))
+                .thenReturn(new java.util.LinkedHashSet<>(request.getTaskIds()));
+        when(taskMapper.selectList(any())).thenReturn(List.of());
+
+        Assertions.assertThrows(BusinessException.class,
+                () -> aiService.suggestDailyReviewRename(request));
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiCallLogService, never()).createRunningLog(any());
+        verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
+    }
+
+    @Test
+    void suggestDailyReviewRename_shouldRejectUnauthorizedExplicitTaskBeforeAi() {
+        DailyReviewSuggestRenameRequest request = request();
+        request.setTaskIds(List.of(998L));
+        doThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权访问任务"))
+                .when(permissionService).requireAllTasksReadable(USER_ID, request.getTaskIds());
+
+        Assertions.assertThrows(BusinessException.class,
+                () -> aiService.suggestDailyReviewRename(request));
+        verify(taskMapper, never()).selectList(any());
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
 

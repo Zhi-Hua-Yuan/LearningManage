@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
@@ -227,6 +228,32 @@ class AiServiceImplTodayOrderTest {
                 LocalDateTime.of(2026, 8, 12, 9, 0))));
 
         assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiCallLogService, never()).createRunningLog(any());
+    }
+
+    @Test
+    void recommendTodayOrder_shouldRejectMissingExplicitTaskBeforeAi() {
+        AiTodayOrderRequest request = request();
+        request.setTaskIds(List.of(999L));
+        when(permissionService.requireAllTasksReadable(USER_ID, request.getTaskIds()))
+                .thenReturn(new java.util.LinkedHashSet<>(request.getTaskIds()));
+        when(taskMapper.selectList(any())).thenReturn(List.of());
+
+        assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiCallLogService, never()).createRunningLog(any());
+    }
+
+    @Test
+    void recommendTodayOrder_shouldRejectUnauthorizedExplicitTaskBeforeAi() {
+        AiTodayOrderRequest request = request();
+        request.setTaskIds(List.of(998L));
+        doThrow(new BusinessException(com.spt.learningmanage.exception.ErrorCode.NO_AUTH_ERROR, "无权访问任务"))
+                .when(permissionService).requireAllTasksReadable(USER_ID, request.getTaskIds());
+
+        assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
+        verify(taskMapper, never()).selectList(any());
         verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
         verify(aiCallLogService, never()).createRunningLog(any());
     }

@@ -9,6 +9,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
 import com.spt.learningmanage.mapper.AiDraftMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
+import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
 import com.spt.learningmanage.model.entity.WeeklyReview;
@@ -54,6 +55,8 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     private AiDraftConfirmLogMapper aiDraftConfirmLogMapper;
     @Mock
     private WeeklyReviewMapper weeklyReviewMapper;
+    @Mock
+    private TaskMapper taskMapper;
     @Mock
     private PermissionService permissionService;
     @Mock
@@ -105,6 +108,20 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
 
         assertThrows(BusinessException.class,
                 () -> aiService.polishWeeklyReview(List.of(101L, 202L), "本周反思"));
+
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verifyNoWrites();
+    }
+
+    @Test
+    void polish_shouldRejectMissingExplicitTaskBeforeModelInvocation() {
+        UserHolder.set(USER_ID);
+        when(permissionService.requireAllTasksReadable(USER_ID, List.of(999L)))
+                .thenReturn(new java.util.LinkedHashSet<>(List.of(999L)));
+        when(taskMapper.selectList(any())).thenReturn(List.of());
+
+        assertThrows(BusinessException.class,
+                () -> aiService.polishWeeklyReview(List.of(999L), "本周反思"));
 
         verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
         verifyNoWrites();
