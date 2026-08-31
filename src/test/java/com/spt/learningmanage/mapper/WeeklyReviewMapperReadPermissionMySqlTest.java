@@ -20,7 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional
-@Sql(scripts = "/db/stage1/permission_mapper_v2_seed.sql",
+@Sql(scripts = {
+        "/db/stage1/permission_mapper_v2_seed.sql",
+        "/db/stage1/weekly_review_task_mapper_v2_seed.sql"
+},
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class WeeklyReviewMapperReadPermissionMySqlTest {
 

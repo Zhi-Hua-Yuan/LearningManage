@@ -27,6 +27,7 @@ class WeeklyReviewC5AcceptanceContractTest {
 
         assertTrue(mapper.contains("teamSharedPageShouldNeverReturnPrivateReviewRows"));
         assertTrue(mapper.contains("v2FixtureShouldHaveNoInvalidVisibilityOrAssociationRows"));
+        assertTrue(mapper.contains("weekly_review_task_mapper_v2_seed.sql"));
         assertTrue(service.contains("save_shouldLockTeamMembershipBeforeAuthorizingTeamView"));
         assertTrue(service.contains("update_shouldRejectPartialAssociationReplacement"));
         assertTrue(ai.contains("polish_shouldRejectUnauthorizedExplicitTaskBeforeModelInvocation"));
