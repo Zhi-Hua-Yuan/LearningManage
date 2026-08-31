@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage1",
   "package": "PR7",
-  "status": "DRAFT",
+  "status": "FROZEN",
   "baseline": {
     "backendRepository": "Zhi-Hua-Yuan/LearningManage",
     "backendCommit": "e5b247c7ed7d3dd8994c9af5ff76ce95d9d0c79b",
@@ -39,7 +39,7 @@
     {
       "id": "WP7-A",
       "name": "前端范围与合同冻结",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "exitGate": "设计文档、机器合同和本地静态验收通过；合并后状态升级为 PASS"
     },
     {
@@ -77,7 +77,7 @@
     {
       "id": "PR7-A-001",
       "requirement": "PR7 范围、非范围、工作包顺序和退出条件无歧义",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["范围与开发计划"],
       "evidence": ["../frontend/pr7-scope-and-development-plan.md"]
@@ -85,7 +85,7 @@
     {
       "id": "PR7-A-002",
       "requirement": "7 个新增前端 operation 与当前后端 Controller 路径一致",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["API 与字段合同", "Controller 静态核对"],
       "evidence": ["../frontend/pr7-api-field-contract.md"]
@@ -93,7 +93,7 @@
     {
       "id": "PR7-A-003",
       "requirement": "现有 37 operation 被固定为不可回退兼容子集",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["基线数量", "基线合同 SHA-256"],
       "evidence": ["baseline.frontendOperationCount=37", "baseline.frontendOperationContractSha256"]
@@ -101,7 +101,7 @@
     {
       "id": "PR7-A-004",
       "requirement": "任务 UI 动作只由 TaskVO.capabilities 对应能力启用且能力缺失时默认拒绝",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["UI 权限合同"],
       "evidence": ["../frontend/pr7-ui-permission-contract.md"]
@@ -109,7 +109,7 @@
     {
       "id": "PR7-A-005",
       "requirement": "团队共享周复盘使用独立白名单类型且不能触发作者私有详情读取",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["周复盘隐私 UI 合同"],
       "evidence": ["../frontend/pr7-review-privacy-ui-contract.md"]
@@ -117,7 +117,7 @@
     {
       "id": "PR7-A-006",
       "requirement": "受理人、能力和敏感复盘缓存的失效与清理规则已冻结",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["状态、缓存与错误合同"],
       "evidence": ["../frontend/pr7-state-cache-error-contract.md"]
