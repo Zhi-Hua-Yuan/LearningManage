@@ -68,7 +68,7 @@ WP7-A 已完成设计交付并完成受保护 PR 合并：PR7 的范围、API �
 | Markdown 相对链接 | `PASS` | WP7-A 新增/修改文档的本地相对链接均可解析 |
 | 合并后 Backend CI | `PASS` | CI run `33353781042` 的 5 个必需 Job 全部成功 |
 | 前端实现、全量测试和 44 operation 导出 | `PENDING` | 由 WP7-B～F 完成 |
-| 受保护 PR、CI 与合并证据 | `PENDING` | 合并后补录 |
+| 受保护 PR、CI 与合并证据 | `PASS` | PR #66 已合并；PR #67 为本次验收记录收口，CI run `33354389975` 的 5 个必需 Job 全部成功 |
 
 ## 6. 风险状态
 

@@ -125,7 +125,7 @@
     {
       "id": "PR7-A-007",
       "requirement": "API、权限、隐私、缓存、错误和可访问性均有可执行测试编号",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "targetWorkPackage": "WP7-A",
       "evidenceRequired": ["PR7 测试矩阵"],
       "evidence": ["../frontend/pr7-test-matrix.md"]
