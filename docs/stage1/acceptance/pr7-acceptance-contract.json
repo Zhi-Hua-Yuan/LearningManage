@@ -1,0 +1,141 @@
+{
+  "$schema": "./pr7-acceptance-contract.schema.json",
+  "schemaVersion": 1,
+  "stage": "stage1",
+  "package": "PR7",
+  "status": "DRAFT",
+  "baseline": {
+    "backendRepository": "Zhi-Hua-Yuan/LearningManage",
+    "backendCommit": "e5b247c7ed7d3dd8994c9af5ff76ce95d9d0c79b",
+    "frontendRepository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "frontendCommit": "cdff8f777843ab18f0c01c08d5f2ac7a82ec23e9",
+    "frontendOperationCount": 37,
+    "frontendOperationContractSha256": "39CA49E63C1D1F3C6F7D232180F57B20A668B14573AC6C2792C65C4A53F69035"
+  },
+  "scope": {
+    "basePath": "/api",
+    "newFrontendOperationCount": 7,
+    "expectedFrontendOperationCount": 44,
+    "membershipTerminationUiIncluded": false,
+    "newFrontendOperations": [
+      { "method": "POST", "path": "/task/assign" },
+      { "method": "GET", "path": "/task/{taskId}/assignment-history" },
+      { "method": "GET", "path": "/team/my" },
+      { "method": "GET", "path": "/team/{teamId}/members" },
+      { "method": "GET", "path": "/project/team/list" },
+      { "method": "GET", "path": "/review/team" },
+      { "method": "POST", "path": "/task/status/change" }
+    ]
+  },
+  "designInputs": [
+    "../frontend/pr7-scope-and-development-plan.md",
+    "../frontend/pr7-api-field-contract.md",
+    "../frontend/pr7-ui-permission-contract.md",
+    "../frontend/pr7-review-privacy-ui-contract.md",
+    "../frontend/pr7-state-cache-error-contract.md",
+    "../frontend/pr7-test-matrix.md"
+  ],
+  "workPackages": [
+    {
+      "id": "WP7-A",
+      "name": "前端范围与合同冻结",
+      "status": "LOCAL_PASS",
+      "exitGate": "设计文档、机器合同和本地静态验收通过；合并后状态升级为 PASS"
+    },
+    {
+      "id": "WP7-B",
+      "name": "API 客户端、类型与状态基础",
+      "status": "PENDING",
+      "exitGate": "7 个新增调用进入导出合同且客户端、类型和错误归一化测试通过"
+    },
+    {
+      "id": "WP7-C",
+      "name": "任务权限与分配交互",
+      "status": "PENDING",
+      "exitGate": "能力驱动操作、受理人选择、CAS 冲突和历史抽屉测试通过"
+    },
+    {
+      "id": "WP7-D",
+      "name": "周复盘隐私界面",
+      "status": "PENDING",
+      "exitGate": "PRIVATE/TEAM 状态机、共享白名单和 500 条关联限制测试通过"
+    },
+    {
+      "id": "WP7-E",
+      "name": "缓存失效与跨页面回归",
+      "status": "PENDING",
+      "exitGate": "转派、成员变化、401 和登出场景不会残留旧受理人、旧能力或敏感数据"
+    },
+    {
+      "id": "WP7-F",
+      "name": "PR7 最终验收与合并收口",
+      "status": "PENDING",
+      "exitGate": "前端全量门禁、44 operation 合同、后端回归和合并后 CI 均通过"
+    }
+  ],
+  "gates": [
+    {
+      "id": "PR7-A-001",
+      "requirement": "PR7 范围、非范围、工作包顺序和退出条件无歧义",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["范围与开发计划"],
+      "evidence": ["../frontend/pr7-scope-and-development-plan.md"]
+    },
+    {
+      "id": "PR7-A-002",
+      "requirement": "7 个新增前端 operation 与当前后端 Controller 路径一致",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["API 与字段合同", "Controller 静态核对"],
+      "evidence": ["../frontend/pr7-api-field-contract.md"]
+    },
+    {
+      "id": "PR7-A-003",
+      "requirement": "现有 37 operation 被固定为不可回退兼容子集",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["基线数量", "基线合同 SHA-256"],
+      "evidence": ["baseline.frontendOperationCount=37", "baseline.frontendOperationContractSha256"]
+    },
+    {
+      "id": "PR7-A-004",
+      "requirement": "任务 UI 动作只由 TaskVO.capabilities 对应能力启用且能力缺失时默认拒绝",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["UI 权限合同"],
+      "evidence": ["../frontend/pr7-ui-permission-contract.md"]
+    },
+    {
+      "id": "PR7-A-005",
+      "requirement": "团队共享周复盘使用独立白名单类型且不能触发作者私有详情读取",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["周复盘隐私 UI 合同"],
+      "evidence": ["../frontend/pr7-review-privacy-ui-contract.md"]
+    },
+    {
+      "id": "PR7-A-006",
+      "requirement": "受理人、能力和敏感复盘缓存的失效与清理规则已冻结",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["状态、缓存与错误合同"],
+      "evidence": ["../frontend/pr7-state-cache-error-contract.md"]
+    },
+    {
+      "id": "PR7-A-007",
+      "requirement": "API、权限、隐私、缓存、错误和可访问性均有可执行测试编号",
+      "status": "LOCAL_PASS",
+      "targetWorkPackage": "WP7-A",
+      "evidenceRequired": ["PR7 测试矩阵"],
+      "evidence": ["../frontend/pr7-test-matrix.md"]
+    },
+    {
+      "id": "PR7-A-008",
+      "requirement": "PR7 最终导出的全部 44 个 operation 与运行时 OpenAPI 完全匹配",
+      "status": "PENDING",
+      "targetWorkPackage": "WP7-F",
+      "evidenceRequired": ["前端 operation 导出", "运行时 OpenAPI 对比报告", "missingOperationCount=0"]
+    }
+  ]
+}

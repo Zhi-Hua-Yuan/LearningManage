@@ -39,14 +39,17 @@
 
 ### `GET /api/task/list`
 
-新增可选参数：
+当前运行时支持的查询参数：
 
 ```text
-assigneeUserId
-assignmentScope=CREATED_BY_ME|ASSIGNED_TO_ME|ACCESSIBLE
+projectId
+status
+isOverdue
+current
+size
 ```
 
-未传 `assignmentScope` 时保持旧行为 `CREATED_BY_ME`，避免现有页面结果集突然扩大。团队页面必须显式使用 `ACCESSIBLE`，我的执行任务使用 `ASSIGNED_TO_ME`。
+当前接口不支持 `assigneeUserId` 或 `assignmentScope`，前端不得提前依赖未实现参数。未传 `projectId` 时保持按创建人过滤的旧行为；团队任务页面必须显式传入有权查看的团队项目 `projectId`，并根据返回的 `TaskVO.assigneeUserId` 展示负责人。若后续需要“分配给我”等跨项目筛选，必须另行修改后端、OpenAPI、兼容合同和自动化测试。
 
 ### 周复盘现有接口
 
@@ -69,7 +72,7 @@ taskIds
 | POST | `/api/task/assign` | `TASK_ASSIGN` | 分配、转派或解除受理人 |
 | GET | `/api/task/{taskId}/assignment-history` | `TASK_ASSIGNMENT_HISTORY_VIEW` | 查询任务分配历史 |
 | POST | `/api/team/{teamId}/leave` | 有效成员且非 OWNER | 主动退出团队 |
-| POST | `/api/team/{teamId}/member/remove` | OWNER 或受限 ADMIN | 移除成员 |
+| POST | `/api/team/member/remove` | OWNER 或受限 ADMIN | 移除成员，`teamId` 位于请求体 |
 | GET | `/api/review/team` | 指定团队有效成员 | 查询团队共享摘要 |
 
 后端已存在 `GET /api/team/{teamId}/members`；阶段 1 前端新增调用，但不重复新增后端路由。
@@ -87,7 +90,7 @@ taskIds
 }
 ```
 
-`assigneeUserId=null` 表示解除分配。`expectedAssigneeUserId` 必须能区分“未提供并发条件”和“预期当前为空”；具体 JSON 表达由 PR4 在不歧义的前提下固定，可使用额外 `expectedVersion` 替代。
+`assigneeUserId=null` 表示解除分配。`expectedAssigneeUserId` 必须作为显式 JSON 属性发送：非空值表示预期当前负责人，`null` 表示预期当前未分配；省略该属性属于非法请求。该语义已由 PR4 固定，前端不得以缺字段代替显式 `null`。
 
 ### `TaskVO.capabilities`
 
@@ -151,3 +154,19 @@ reflection, nextPlan, private task list, private project data
 - 阶段 1 前端导出的全部 operation 在运行时存在；
 - `missingOperationCount=0`；
 - 旧客户端不传新增可选字段时，个人项目/任务/PRIVATE 周复盘仍可运行。
+
+## 7. PR7 前端调用增量
+
+PR7 在阶段 0 的 37 个 operation 兼容子集上新增 7 个前端调用，预期总数为 44，最终以契约导出器结果为准：
+
+| Method | Path |
+|---|---|
+| POST | `/api/task/assign` |
+| GET | `/api/task/{taskId}/assignment-history` |
+| GET | `/api/team/my` |
+| GET | `/api/team/{teamId}/members` |
+| GET | `/api/project/team/list` |
+| GET | `/api/review/team` |
+| POST | `/api/task/status/change` |
+
+`POST /api/team/{teamId}/leave` 与 `POST /api/team/member/remove` 是已存在的后端 operation，但成员关系终止 UI 不属于 PR7，不能计入上述 7 个新增前端调用。详细字段、权限和错误合同见 [PR7 API 与字段合同](../frontend/pr7-api-field-contract.md)。

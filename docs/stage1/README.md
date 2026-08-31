@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR6 已合并并完成合同收口；PR6 的周复盘隐私、关联、统计和 AI 授权已通过真实 MySQL 与完整 CI；当前主目标为 PR7
+状态：PR1～PR6 已合并并完成合同收口；PR7/WP7-A 设计合同已达到本地静态验收，等待 CI 与合并
 
 建立日期：2026-08-23
 
@@ -126,6 +126,17 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [PR6：最终验收](acceptance/pr6-final-acceptance-2026-08-31.md)
 - [PR6：合并收口](acceptance/pr6-merge-closure-2026-08-31.md)
 
+当前 PR7 / WP7-A 设计证据：
+
+- [PR7 范围与开发计划](frontend/pr7-scope-and-development-plan.md)
+- [PR7 API 与字段合同](frontend/pr7-api-field-contract.md)
+- [PR7 UI 权限合同](frontend/pr7-ui-permission-contract.md)
+- [PR7 周复盘隐私 UI 合同](frontend/pr7-review-privacy-ui-contract.md)
+- [PR7 状态、缓存与错误合同](frontend/pr7-state-cache-error-contract.md)
+- [PR7 测试矩阵](frontend/pr7-test-matrix.md)
+- [PR7 机器可读验收合同](acceptance/pr7-acceptance-contract.json)
+- [WP7-A 设计验收记录](acceptance/pr7-wp7a-design-acceptance-2026-08-31.md)
+
 ## 4. 决策状态规则
 
 - PR 评审期间，ADR 和阶段合同状态为 `PROPOSED` / `DRAFT`。
@@ -143,7 +154,7 @@ PR1 设计冻结                   completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
 → PR6 周复盘隐私模型            completed（PR #64 已合并，S1-A-006/S1-A-008 PASS）
-→ PR7 前端任务分配与复盘隐私    pending
+→ PR7 前端任务分配与复盘隐私    in_progress（WP7-A 本地静态验收通过，等待 CI 与合并）
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
 
