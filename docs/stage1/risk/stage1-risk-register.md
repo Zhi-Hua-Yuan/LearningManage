@@ -1,6 +1,6 @@
 # 阶段 1 风险登记表
 
-状态：阶段 1 执行中；PR6 已完成；PR7/WP7-A 已达到本地静态验收，等待 CI 与合并
+状态：阶段 1 执行中；PR6 已完成；PR7/WP7-A 已合并；当前主目标为 WP7-B
 
 | ID | 状态 | 风险 | 触发条件 | 缓解措施 | 关闭证据 | 目标 PR |
 |---|---|---|---|---|---|---|
@@ -13,10 +13,10 @@
 | S1-R-007 | CLOSED | 权限检查逐条查询导致 N+1 | 任务列表、统计、AI 批量 ID | PermissionService 提供批量方法；查询次数门禁 | PR3 WP4-C：100 资源真实 MySQL 查询次数为固定 actor 1 次 + task 1 次；CI run 33167613189 | PR3 |
 | S1-R-008 | CLOSED | 普通接口已鉴权但 AI 入口可绕过 | AI 请求携带越权 projectId/taskId | C4 已补齐自动候选过滤、显式 ID 全量校验、周复盘润色草稿确认重授权 | PR6 C5 AI 授权回归；越权/不存在 ID 在模型调用前拒绝；Backend CI run 33350232099 | PR6 |
 | S1-R-009 | CLOSED | SYSTEM_ADMIN 被实现为全局内容读取后门 | 代码按角色无条件 return allow | ADR-003 禁止默认绕过；PR3 冻结权限矩阵覆盖 SYSTEM_ADMIN 的项目、任务、团队和复盘拒绝组合 | `PermissionMatrixParameterizedTest` 173 项通过，unauthorizedAllowedCount=0；PR3 最终合同验收记录 | PR3 |
-| S1-R-010 | OPEN | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | WP7-A 固定 37 operation 数量与合同 SHA-256；PR7 预计新增 7 个、总计 44 个；PR7/PR8 执行兼容子集和运行时 OpenAPI 门禁 | WP7-A 机器合同已建立；最终前端导出与跨仓 OpenAPI 报告待补 | PR7/PR8 |
+| S1-R-010 | OPEN | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | WP7-A 已合并并固定 37 operation 数量与合同 SHA-256；PR7 预计新增 7 个、总计 44 个；PR7/PR8 执行兼容子集和运行时 OpenAPI 门禁 | PR #66 合并、WP7-A 机器合同；最终前端导出与跨仓 OpenAPI 报告待补 | PR7/PR8 |
 | S1-R-011 | CLOSED | Flyway V2 失败后无法安全恢复 | DDL/回填中断或发布后发现问题 | 迁移前备份；隔离库恢复演练；发布后只前向修复 | PR2 工作包 4 恢复演练：备份、迁移、恢复、V1 对账全部 PASS | PR2 |
 | S1-R-012 | CLOSED | 创建人与受理人口径混用导致统计错误 | 周复盘统计仍按 `task.user_id` 查询执行者 | C4 已将周复盘完成数/重点项目统一改为 `assignee_user_id`，并新增 Mapper SQL 合同与 MySQL 回归 | PR6 C5/C4 周统计真实 MySQL 回归；Backend CI run 33350232099；564 项测试通过 | PR6 |
-| S1-R-013 | OPEN | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 受理人、任务详情、任务列表、成员和能力采用内存态与统一失效链；401、登出和身份切换清空敏感状态；服务端始终重鉴权 | WP7-A 缓存合同已建立；分配、并发、401、登出和跨用户自动化测试待补 | PR7 |
+| S1-R-013 | OPEN | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 受理人、任务列表、成员和能力采用内存态与统一失效链；401、登出和身份切换清空敏感状态；服务端始终重鉴权 | WP7-A 已合并并冻结缓存合同；分配、并发、401、登出和跨用户自动化测试待补 | PR7 |
 | S1-R-014 | CLOSED | 分配历史包含敏感理由或越权用户信息 | reason 写入敏感正文或外部用户查询历史 | reason 限长和内容规则；历史沿用 TASK_VIEW 权限 | WP4-C reason 规则、D2-B 权限前置、D2-C HTTP 隐私字段与拒绝响应测试；Backend CI Run 33199646633 全部通过 | PR4 |
 
 ## 使用规则

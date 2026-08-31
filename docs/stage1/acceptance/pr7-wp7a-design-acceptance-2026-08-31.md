@@ -1,14 +1,24 @@
 # PR7 / WP7-A 前端合同冻结验收记录
 
-状态：`IMPLEMENTED / LOCAL_STATIC_PASS / CI_PENDING / MERGE_PENDING`
+状态：`ACCEPTED / MERGED / CI_PASS`
 
 验收日期：2026-08-31
 
 ## 1. 验收结论
 
-WP7-A 已完成本地设计交付：PR7 的范围、API 与字段、UI 权限、周复盘隐私、状态与缓存、错误处理和测试矩阵均已形成可审查合同，并由机器可读合同固定基线与后续工作包门禁。
+WP7-A 已完成设计交付并完成受保护 PR 合并：PR7 的范围、API 与字段、UI 权限、周复盘隐私、状态与缓存、错误处理和测试矩阵均已形成冻结合同，并由机器可读合同固定基线与后续工作包门禁。
 
-本记录不宣称 PR7 功能已经实现，也不提前关闭 `S1-A-009`、`S1-A-010`、`S1-R-010` 或 `S1-R-013`。WP7-A 只有在受保护 PR 合并且 CI 通过后，才能从 `LOCAL_STATIC_PASS` 升级为 `PASS / MERGED / CI_PASS`。
+本记录不宣称 PR7 功能已经实现，也不提前关闭 `S1-A-009`、`S1-A-010`、`S1-R-010` 或 `S1-R-013`；这些门禁和风险仍由 WP7-B～F 负责。
+
+## 1.1 合并证据
+
+| 项目 | 结果 |
+|---|---|
+| Pull Request | [PR #66](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/66) |
+| Merge commit | `f911095aeca583b61a62fbbfdfde8fc3b153bc75` |
+| 合并时间 | 2026-08-31 11:31:59（Asia/Shanghai） |
+| CI run | `33353781042` |
+| CI 结果 | Guard、Maven、Flyway empty、Flyway existing、Docker runtime/migration 全部 `SUCCESS` |
 
 ## 2. 固定基线
 
@@ -48,17 +58,17 @@ WP7-A 已完成本地设计交付：PR7 的范围、API 与字段、UI 权限、
 
 | 门禁 | 结果 | 说明 |
 |---|---|---|
-| 范围和非范围完整 | `LOCAL_PASS` | WP7-A～F 的职责、顺序和退出条件已固定 |
-| API 路径与字段静态核对 | `LOCAL_PASS` | 7 个新增调用与当前 Controller/DTO 对齐；两处历史漂移已修正 |
-| 37 operation 兼容基线固定 | `LOCAL_PASS` | 数量与 SHA-256 已写入机器合同 |
-| 权限与隐私边界 | `LOCAL_PASS` | 能力映射、失败关闭、共享白名单和禁止详情回读已固定 |
-| 缓存与错误处理 | `LOCAL_PASS` | `S1-R-013` 的实现与关闭证据要求已固定 |
-| 测试矩阵 | `LOCAL_PASS` | 38 个分域编号场景已分配到后续工作包；编号覆盖 `PR7-T-001`～`PR7-T-045` 并保留领域间号段 |
-| JSON Schema 与合同不变量 | `LOCAL_PASS` | Schema 校验通过；`37 + 7 = 44`；工作包和门禁 ID 唯一 |
-| Markdown 相对链接 | `LOCAL_PASS` | WP7-A 新增/修改文档的本地相对链接均可解析 |
-| 后端完整 Maven 回归 | `ENV_BLOCKED` | `563 tests / 0 failures / 52 errors / 0 skipped`；52 项均因本机未注入测试库凭据，MySQL 以字面量用户 `${TEST_DB_USERNAME}` 连接被拒绝；不计为回归通过 |
+| 范围和非范围完整 | `PASS` | WP7-A～F 的职责、顺序和退出条件已固定 |
+| API 路径与字段静态核对 | `PASS` | 7 个新增调用与当前 Controller/DTO 对齐；两处历史漂移已修正 |
+| 37 operation 兼容基线固定 | `PASS` | 数量与 SHA-256 已写入机器合同 |
+| 权限与隐私边界 | `PASS` | 能力映射、失败关闭、共享白名单和禁止详情回读已固定 |
+| 缓存与错误处理 | `PASS` | `S1-R-013` 的实现与关闭证据要求已固定 |
+| 测试矩阵 | `PASS` | 38 个分域编号场景已分配到后续工作包；编号覆盖 `PR7-T-001`～`PR7-T-045` 并保留领域间号段 |
+| JSON Schema 与合同不变量 | `PASS` | Schema 校验通过；`37 + 7 = 44`；工作包和门禁 ID 唯一 |
+| Markdown 相对链接 | `PASS` | WP7-A 新增/修改文档的本地相对链接均可解析 |
+| 合并后 Backend CI | `PASS` | CI run `33353781042` 的 5 个必需 Job 全部成功 |
 | 前端实现、全量测试和 44 operation 导出 | `PENDING` | 由 WP7-B～F 完成 |
-| 受保护 PR、CI 与合并证据 | `PENDING` | 合并后补录 |
+| 受保护 PR、CI 与合并证据 | `PASS` | PR #66 已合并；PR #67 为本次验收记录收口，CI run `33354389975` 的 5 个必需 Job 全部成功 |
 
 ## 6. 风险状态
 
@@ -69,10 +79,6 @@ WP7-A 已完成本地设计交付：PR7 的范围、API 与字段、UI 权限、
 
 WP7-A 只修改 `docs/stage1/**`。未修改 Java、Vue/TypeScript、数据库迁移、CI、运行配置或部署文件。
 
-## 8. 合并后补录项
+## 8. 后续准入
 
-1. PR 编号、合并 commit 与合并时间；
-2. CI run ID 与各必需 Job 结果；
-3. 将机器合同的 `status` 从 `DRAFT` 更新为 `FROZEN`；
-4. 将 WP7-A 状态从 `LOCAL_PASS` 更新为 `PASS`；
-5. 将阶段总览的当前主目标推进到 WP7-B。
+WP7-B 可以开始实现，但不得改变本记录已冻结的 operation 范围、字段白名单、权限失败关闭和隐私状态机。
