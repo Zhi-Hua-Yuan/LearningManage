@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pr7-acceptance-contract.schema.json",
+  "title": "LearningManage Stage 1 PR7 Acceptance Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "stage",
+    "package",
+    "status",
+    "baseline",
+    "scope",
+    "designInputs",
+    "workPackages",
+    "gates"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "stage": { "const": "stage1" },
+    "package": { "const": "PR7" },
+    "status": { "enum": ["DRAFT", "FROZEN", "PASS", "FAIL"] },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backendRepository",
+        "backendCommit",
+        "frontendRepository",
+        "frontendCommit",
+        "frontendOperationCount",
+        "frontendOperationContractSha256"
+      ],
+      "properties": {
+        "backendRepository": { "const": "Zhi-Hua-Yuan/LearningManage" },
+        "backendCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "frontendRepository": { "const": "Zhi-Hua-Yuan/learning-manage-frontend" },
+        "frontendCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "frontendOperationCount": { "const": 37 },
+        "frontendOperationContractSha256": { "type": "string", "pattern": "^[0-9A-F]{64}$" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basePath",
+        "newFrontendOperationCount",
+        "expectedFrontendOperationCount",
+        "membershipTerminationUiIncluded",
+        "newFrontendOperations"
+      ],
+      "properties": {
+        "basePath": { "const": "/api" },
+        "newFrontendOperationCount": { "const": 7 },
+        "expectedFrontendOperationCount": { "const": 44 },
+        "membershipTerminationUiIncluded": { "const": false },
+        "newFrontendOperations": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["method", "path"],
+            "properties": {
+              "method": { "enum": ["GET", "POST"] },
+              "path": { "type": "string", "pattern": "^/[a-z]" }
+            }
+          }
+        }
+      }
+    },
+    "designInputs": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "workPackages": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "status", "exitGate"],
+        "properties": {
+          "id": { "pattern": "^WP7-[A-F]$" },
+          "name": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PENDING", "IN_PROGRESS", "LOCAL_PASS", "PASS", "FAIL"] },
+          "exitGate": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "requirement", "status", "targetWorkPackage", "evidenceRequired"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^PR7-A-[0-9]{3}$" },
+          "requirement": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PENDING", "LOCAL_PASS", "PASS", "FAIL"] },
+          "targetWorkPackage": { "pattern": "^WP7-[A-F]$" },
+          "evidenceRequired": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
