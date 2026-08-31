@@ -8,8 +8,8 @@
 
 ```text
 PR #64：docs: close PR6 final acceptance
-最终 C5 修正提交：0e248798dc1206a9dc14cbe594fb24eabd893fb1
-develop 合并提交：e284fffda9788627c7488c8cf633231a122abe6d
+最终 C5/授权覆盖提交：cab23093af8052b36a72da46ca991df13c2fbf3f
+develop 合并提交：e78af187eb95b91bd7635a9b55da84daaa5b8781
 ```
 
 ## 2. 合并前和合并后门禁
