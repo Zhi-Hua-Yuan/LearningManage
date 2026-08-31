@@ -45,7 +45,7 @@
     {
       "id": "WP7-B",
       "name": "API 客户端、类型与状态基础",
-      "status": "PENDING",
+      "status": "PASS",
       "exitGate": "7 个新增调用进入导出合同且客户端、类型和错误归一化测试通过"
     },
     {
