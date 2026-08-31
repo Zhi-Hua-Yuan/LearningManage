@@ -17,6 +17,9 @@ import com.spt.learningmanage.model.entity.WeeklyReviewTask;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
 import com.spt.learningmanage.model.review.WeeklyReviewReadableAssociations;
+import com.spt.learningmanage.model.query.review.WeeklyReviewFocusProjectRow;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
+import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
 import com.spt.learningmanage.service.WeeklyReviewReadAssociationResolver;
@@ -35,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -154,6 +158,28 @@ class WeeklyReviewServiceImplTest {
         assertEquals(List.of(102L), result.getTaskIds());
         assertEquals(null, result.getFocusProjectId());
         assertEquals(null, result.getFocusProjectName());
+    }
+
+    @Test
+    void current_shouldUseAssigneeStatisticsAndKeepFocusIdNameConsistent() {
+        UserHolder.set(1L);
+        WeeklyReviewFocusProjectRow focus = new WeeklyReviewFocusProjectRow();
+        focus.setProjectId(55L);
+        focus.setProjectName("团队重点项目");
+        focus.setCompletedCount(3);
+        when(taskMapper.countWeeklyCompletedTasksByAssignee(any(), any(), any())).thenReturn(3L);
+        when(taskMapper.selectWeeklyFocusProjectByAssignee(any(), any(), any())).thenReturn(focus);
+        when(permissionService.resolveProjectScopes(eq(1L), any()))
+                .thenReturn(java.util.Map.of(55L,
+                        new ProjectAccessScope(1L, 55L, 9L, 10L, TeamRoleEnum.MEMBER)));
+
+        WeeklyReviewDetailVO result = weeklyReviewService.getCurrentWeekReview();
+
+        assertEquals(3, result.getCompletedTaskCount());
+        assertEquals(55L, result.getFocusProjectId());
+        assertEquals("团队重点项目", result.getFocusProjectName());
+        verify(taskMapper).countWeeklyCompletedTasksByAssignee(eq(1L), any(), any());
+        verify(taskMapper).selectWeeklyFocusProjectByAssignee(eq(1L), any(), any());
     }
 
     @Test

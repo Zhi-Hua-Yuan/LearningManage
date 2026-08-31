@@ -34,7 +34,8 @@
     <update id="updateForWrite"
             parameterType="com.spt.learningmanage.model.entity.WeeklyReview">
         UPDATE weekly_review
-        SET visibility_scope = #{visibilityScope},
+        SET completed_task_count = #{completedTaskCount},
+            visibility_scope = #{visibilityScope},
             team_id = #{teamId},
             focus_project_id = #{focusProjectId},
             focus_project_name = #{focusProjectName},

@@ -4,14 +4,11 @@ import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.constant.WeeklyReviewVisibilityScopeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.exception.PermissionDeniedException;
-import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
@@ -19,13 +16,12 @@ import com.spt.learningmanage.mapper.WeeklyReviewTaskMapper;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewSaveRequest;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewTeamQueryRequest;
 import com.spt.learningmanage.model.dto.review.WeeklyReviewUpdateRequest;
-import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.entity.WeeklyReviewTask;
 import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.review.WeeklyReviewAssociationContext;
 import com.spt.learningmanage.model.review.WeeklyReviewReadableAssociations;
+import com.spt.learningmanage.model.query.review.WeeklyReviewFocusProjectRow;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO;
 import com.spt.learningmanage.service.PermissionService;
@@ -45,7 +41,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.WeekFields;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 @Service
 public class WeeklyReviewServiceImpl implements WeeklyReviewService {
@@ -64,9 +60,6 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private TaskMapper taskMapper;
-
-    @Resource
-    private ProjectMapper projectMapper;
 
     @Resource
     private PermissionService permissionService;
@@ -94,8 +87,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (existing != null) {
             existing.setStartDate(startDate);
             existing.setEndDate(endDate);
-            existing.setCompletedTaskCount(countCompletedTasks(userId, startDateTime, endDateTimeExclusive));
-            existing.setFocusProjectName(queryFocusProjectName(userId, startDateTime, endDateTimeExclusive));
+            applyCurrentExecutionStats(existing, userId, startDateTime, endDateTimeExclusive);
             return toDetailVO(existing, resolveReadableAssociations(userId, List.of(existing)));
         }
 
@@ -105,10 +97,12 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         draft.setWeekNo(weekNo);
         draft.setStartDate(startDate);
         draft.setEndDate(endDate);
-        draft.setCompletedTaskCount(countCompletedTasks(userId, startDateTime, endDateTimeExclusive));
-        draft.setFocusProjectName(queryFocusProjectName(userId, startDateTime, endDateTimeExclusive));
+        applyCurrentExecutionStats(draft, userId, startDateTime, endDateTimeExclusive);
         draft.setVisibilityScope(PRIVATE_SCOPE);
-        return toDetailVO(draft);
+        Set<Long> readableFocusProjectIds = draft.getFocusProjectId() == null
+                ? Set.of() : Set.of(draft.getFocusProjectId());
+        return toDetailVO(draft, new WeeklyReviewReadableAssociations(
+                java.util.Map.of(), readableFocusProjectIds));
     }
 
     @Override
@@ -126,9 +120,14 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
                 userId, request.getYear(), request.getWeekNo());
         WeeklyReviewAssociationContext associations = associationValidator.validate(
                 userId, scope, request.getTeamId(), request.getFocusProjectId(), request.getTaskIds());
+        WeeklyReviewExecutionStats stats = queryExecutionStats(
+                userId,
+                startOfIsoWeek(request.getYear(), request.getWeekNo()).atStartOfDay(),
+                startOfIsoWeek(request.getYear(), request.getWeekNo()).plusDays(7).atStartOfDay());
         if (existing != null) {
             permissionService.requireWeeklyReviewUpdate(userId, existing.getId());
             applyRequest(existing, request, scope, associations);
+            existing.setCompletedTaskCount(stats.completedTaskCount());
             updateReviewRow(existing);
             replaceTaskAssociations(existing.getId(), associations.taskIds());
             return;
@@ -141,7 +140,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         LocalDate startDate = startOfIsoWeek(request.getYear(), request.getWeekNo());
         toSave.setStartDate(startDate);
         toSave.setEndDate(startDate.plusDays(6));
-        toSave.setCompletedTaskCount(0);
+        toSave.setCompletedTaskCount(stats.completedTaskCount());
         toSave.setVisibilityScope(scope.getValue());
         toSave.setTeamId(scope == WeeklyReviewVisibilityScopeEnum.TEAM ? request.getTeamId() : null);
         toSave.setFocusProjectId(associations.focusProjectId());
@@ -424,47 +423,39 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
                 .last("limit 1"));
     }
 
-    private int countCompletedTasks(Long userId, LocalDateTime startDateTime,
-                                    LocalDateTime endDateTimeExclusive) {
-        Long count = taskMapper.selectCount(new LambdaQueryWrapper<Task>()
-                .eq(Task::getCreatedByUserId, userId)
-                .in(Task::getStatus,
-                        TaskStatusEnum.DONE_BASIC.getValue(),
-                        TaskStatusEnum.DONE_STANDARD.getValue(),
-                        TaskStatusEnum.DONE_EXCELLENT.getValue())
-                .ge(Task::getCompletedAt, startDateTime)
-                .lt(Task::getCompletedAt, endDateTimeExclusive));
-        return count == null ? 0 : Math.toIntExact(count);
+    private WeeklyReviewExecutionStats queryExecutionStats(Long userId,
+                                                            LocalDateTime startDateTime,
+                                                            LocalDateTime endDateTimeExclusive) {
+        Long count = taskMapper.countWeeklyCompletedTasksByAssignee(
+                userId, startDateTime, endDateTimeExclusive);
+        WeeklyReviewFocusProjectRow focus = taskMapper.selectWeeklyFocusProjectByAssignee(
+                userId, startDateTime, endDateTimeExclusive);
+        if (focus == null || focus.getProjectId() == null) {
+            return new WeeklyReviewExecutionStats(count == null ? 0 : Math.toIntExact(count), null, null);
+        }
+        Set<Long> readableProjectIds = permissionService.resolveProjectScopes(
+                userId, List.of(focus.getProjectId())).keySet();
+        if (!readableProjectIds.contains(focus.getProjectId())) {
+            return new WeeklyReviewExecutionStats(count == null ? 0 : Math.toIntExact(count), null, null);
+        }
+        return new WeeklyReviewExecutionStats(
+                count == null ? 0 : Math.toIntExact(count),
+                focus.getProjectId(),
+                focus.getProjectName());
     }
 
-    private String queryFocusProjectName(Long userId, LocalDateTime startDateTime,
-                                         LocalDateTime endDateTimeExclusive) {
-        QueryWrapper<Task> wrapper = new QueryWrapper<>();
-        wrapper.select("project_id", "COUNT(*) AS completed_count")
-                .eq("user_id", userId)
-                .in("status", TaskStatusEnum.DONE_BASIC.getValue(),
-                        TaskStatusEnum.DONE_STANDARD.getValue(),
-                        TaskStatusEnum.DONE_EXCELLENT.getValue())
-                .ge("completed_at", startDateTime)
-                .lt("completed_at", endDateTimeExclusive)
-                .groupBy("project_id")
-                .orderByDesc("completed_count")
-                .orderByAsc("project_id")
-                .last("limit 1");
-        List<Map<String, Object>> rows = taskMapper.selectMaps(wrapper);
-        if (rows == null || rows.isEmpty()) {
-            return null;
-        }
-        Object value = rows.get(0).get("project_id");
-        Long projectId = value instanceof Number number ? number.longValue() : null;
-        if (projectId == null) {
-            return null;
-        }
-        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
-                .eq(Project::getId, projectId)
-                .eq(Project::getUserId, userId)
-                .last("limit 1"));
-        return project == null ? null : project.getName();
+    private void applyCurrentExecutionStats(WeeklyReview review, Long userId,
+                                            LocalDateTime startDateTime,
+                                            LocalDateTime endDateTimeExclusive) {
+        WeeklyReviewExecutionStats stats = queryExecutionStats(userId, startDateTime, endDateTimeExclusive);
+        review.setCompletedTaskCount(stats.completedTaskCount());
+        review.setFocusProjectId(stats.focusProjectId());
+        review.setFocusProjectName(stats.focusProjectName());
+    }
+
+    private record WeeklyReviewExecutionStats(int completedTaskCount,
+                                              Long focusProjectId,
+                                              String focusProjectName) {
     }
 
     private LocalDate startOfIsoWeek(int year, int weekNo) {

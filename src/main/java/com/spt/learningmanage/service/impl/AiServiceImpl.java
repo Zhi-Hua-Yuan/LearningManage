@@ -282,6 +282,10 @@ public class AiServiceImpl implements AiService {
 
         Set<Long> foundIds = taskList.stream().map(Task::getId).collect(Collectors.toSet());
         List<Long> missingIds = uniqueTaskIds.stream().filter(id -> !foundIds.contains(id)).toList();
+        if (!missingIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                    "传入的任务均须满足当前业务条件，不能部分放行");
+        }
 
         int actualTaskCount = taskList.size();
         List<Task> limitedTaskList = taskList.stream().limit(MAX_POLISH_TASK_COUNT).toList();
@@ -291,11 +295,13 @@ public class AiServiceImpl implements AiService {
                 .filter(id -> id != null && id > 0)
                 .collect(Collectors.toSet());
 
-        Map<Long, Project> projectMap = projectIds.isEmpty()
+        Set<Long> readableProjectIds = permissionService.resolveProjectScopes(currentUserId, projectIds).keySet();
+        Map<Long, Project> projectMap = readableProjectIds.isEmpty()
                 ? Map.of()
                 : projectMapper.selectList(new LambdaQueryWrapper<Project>()
-                        .in(Project::getId, projectIds)
-                        .eq(Project::getUserId, currentUserId))
+                        .in(Project::getId, readableProjectIds)
+                        .eq(Project::getIsDelete, 0)
+                        .isNull(Project::getDeletedAt))
                 .stream()
                 .collect(Collectors.toMap(Project::getId, Function.identity(), (a, b) -> a));
 
@@ -516,17 +522,28 @@ public class AiServiceImpl implements AiService {
     public AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId) {
         Long userId = getCurrentUserId();
         AiDraft draft = getDraftByUserAndScene(userId, draftId, AiSceneEnum.WEEKLY_POLISH.getCode());
+        if (reviewId == null || reviewId <= 0 || StrUtil.isBlank(operationId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "确认参数不合法");
+        }
+        validateDraftCanConfirm(draft);
+
+        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
+        JSONArray payloadTaskIds = payload.getJSONArray("taskIds");
+        if (payloadTaskIds != null && !payloadTaskIds.isEmpty()) {
+            List<Long> taskIds = JSONUtil.toList(payloadTaskIds, Long.class);
+            permissionService.requireAllTasksReadable(userId, taskIds);
+        }
+        permissionService.requireWeeklyReviewUpdate(userId, reviewId);
+
         AiDraftConfirmLog replay = getConfirmLog(userId, draftId, operationId);
         if (replay != null) {
             return buildConfirmVO(true, replay.getBusinessId());
         }
-        validateDraftCanConfirm(draft);
 
-        WeeklyReview review = weeklyReviewMapper.selectById(reviewId);
+        WeeklyReview review = weeklyReviewMapper.selectByIdForUpdate(reviewId);
         if (review == null || !Objects.equals(review.getUserId(), userId)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权操作该周总结");
         }
-        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
         String polished = payload.getStr("polished");
         String reviewText = extractReviewText(polished);
         if (StrUtil.isBlank(reviewText)) {
@@ -1468,14 +1485,24 @@ public class AiServiceImpl implements AiService {
             if (selectedTasks.isEmpty()) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "未找到与 reviewDate 和 taskIds 匹配的任务");
             }
+            Set<Long> selectedIds = selectedTasks.stream().map(Task::getId).collect(Collectors.toSet());
+            if (!selectedIds.containsAll(uniqueIds) || selectedIds.size() != uniqueIds.size()) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                        "taskIds 中存在不满足 reviewDate 的任务，不能部分放行");
+            }
             return selectedTasks;
         }
 
-        return taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getCreatedByUserId, userId)
+        List<Task> candidates = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getAssigneeUserId, userId)
                 .eq(Task::getDueDate, reviewDate)
                 .orderByDesc(Task::getPriority)
                 .orderByAsc(Task::getCreateTime, Task::getId));
+        Set<Long> readableIds = candidates.isEmpty()
+                ? Set.of()
+                : permissionService.filterReadableTaskIds(userId,
+                        candidates.stream().map(Task::getId).toList());
+        return candidates.stream().filter(task -> readableIds.contains(task.getId())).toList();
     }
 
     private String buildDailyReviewRenameUserPrompt(LocalDate reviewDate,
@@ -1695,16 +1722,28 @@ public class AiServiceImpl implements AiService {
             if (selectedTasks.isEmpty()) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "taskIds 中无可推荐的今日到期未完成任务");
             }
+            Set<Long> selectedIds = selectedTasks.stream().map(Task::getId).collect(Collectors.toSet());
+            if (!selectedIds.containsAll(uniqueIds) || selectedIds.size() != uniqueIds.size()) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                        "taskIds 中存在不满足今日未完成条件的任务，不能部分放行");
+            }
             return selectedTasks.stream().limit(limit).toList();
         }
 
-        return taskMapper.selectList(new LambdaQueryWrapper<Task>()
-                .eq(Task::getCreatedByUserId, userId)
+        List<Task> candidates = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                .eq(Task::getAssigneeUserId, userId)
                 .eq(Task::getDueDate, today)
                 .eq(Task::getStatus, 0)
                 .orderByDesc(Task::getPriority)
-                .orderByAsc(Task::getCreateTime, Task::getId)
-                .last("limit " + limit));
+                .orderByAsc(Task::getCreateTime, Task::getId));
+        Set<Long> readableIds = candidates.isEmpty()
+                ? Set.of()
+                : permissionService.filterReadableTaskIds(userId,
+                        candidates.stream().map(Task::getId).toList());
+        return candidates.stream()
+                .filter(task -> readableIds.contains(task.getId()))
+                .limit(limit)
+                .toList();
     }
 
     private String buildTodayOrderUserPrompt(List<Task> tasks, String strategy, LocalDateTime now, LocalDate today, ZoneId zoneId) {
