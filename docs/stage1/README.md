@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR5 已合并并完成合同收口；PR5 的成员终止、事务回滚、任务变更竞争和最终并发门禁已完成验收；PR6/WP6-A 设计已合并，WP6-C1 关联 Mapper 已实现
+状态：PR1～PR6 已合并并完成合同收口；PR6 的周复盘隐私、关联、统计和 AI 授权已通过真实 MySQL 与完整 CI；当前主目标为 PR7
 
 建立日期：2026-08-23
 
@@ -119,6 +119,12 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 
 - [WP6-B：周复盘隐私读写开发记录](acceptance/pr6-wp6b-weekly-review-privacy-development-record-2026-08-30.md)
 - [WP6-C1：WeeklyReviewTask Mapper 开发记录](acceptance/pr6-wp6c-c1-weekly-review-task-mapper-development-record-2026-08-31.md)
+- [WP6-C2：周复盘项目/任务关联与事务开发记录](acceptance/pr6-wp6c-c2-weekly-review-association-development-record-2026-08-31.md)
+- [WP6-C3：周复盘历史读取权限开发记录](acceptance/pr6-wp6c-c3-history-read-permission-development-record-2026-08-31.md)
+- [WP6-D/C4：统计执行人口径与 AI 授权开发记录](acceptance/pr6-wp6d-c4-statistics-ai-authorization-development-record-2026-08-31.md)
+- [WP6-E/C5：最终验收开发记录](acceptance/pr6-wp6e-c5-final-acceptance-development-record-2026-08-31.md)
+- [PR6：最终验收](acceptance/pr6-final-acceptance-2026-08-31.md)
+- [PR6：合并收口](acceptance/pr6-merge-closure-2026-08-31.md)
 
 ## 4. 决策状态规则
 
@@ -136,7 +142,7 @@ PR1 设计冻结                   completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
-→ PR6 周复盘隐私模型            in_progress（WP6-A 设计冻结候选）
+→ PR6 周复盘隐私模型            completed（PR #63 已合并，S1-A-006/S1-A-008 PASS）
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
