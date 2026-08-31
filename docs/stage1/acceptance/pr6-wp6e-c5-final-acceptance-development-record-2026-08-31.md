@@ -26,7 +26,7 @@ C5 不增加新的业务协议，针对 WP6-B～WP6-D 已实现的周复盘隐�
 - `WeeklyReviewStatisticsMapperMySqlTest`：真实 MySQL 统计口径、边界和稳定排序；
 - `WeeklyReviewTaskMapperMySqlTest`：批量关联、删除和唯一约束。
 
-本地非 MySQL 测试：`501` 项通过；PR #63 的 CI 权威 Surefire 计数为 `554`。本机 MySQL 使用占位账号，连接被拒绝，未将该结果伪装为集成测试通过。
+本地非 MySQL 测试：`501` 项通过；PR #63 的历史 CI 权威 Surefire 计数为 `554`。随后 PR #64 补充完整 AI 授权回归，合并后权威 CI `33350232099` 的 Surefire 计数为 `564`。本机 MySQL 使用占位账号，连接被拒绝，未将该结果伪装为集成测试通过。
 
 ## 3. 验收门禁
 

@@ -9,13 +9,13 @@
 PR6 WP6-E/C5 已通过审查和五项 Backend CI 门禁，并合并到 `develop`：
 
 ```text
-PR #63
-Merge commit: e284fffda9788627c7488c8cf633231a122abe6d
+PR #64
+Merge commit: e78af187eb95b91bd7635a9b55da84daaa5b8781
 ```
 
 ## 2. CI 证据
 
-PR #63 修正提交后的五项门禁全部通过；合并后 `develop` 的 Backend CI [run 33348660533](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33348660533) 也全部通过：
+PR #64 修正提交后的五项门禁全部通过；合并后 `develop` 的 Backend CI [run 33350232099](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33350232099) 也全部通过：
 
 - Guard and migration immutability；
 - Maven verification and tested artifact；
