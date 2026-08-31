@@ -13,6 +13,7 @@ import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @ExtendWith(MockitoExtension.class)
 class AiServiceImplWeeklyPolishAuthorizationTest {
@@ -54,6 +56,8 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     private WeeklyReviewMapper weeklyReviewMapper;
     @Mock
     private PermissionService permissionService;
+    @Mock
+    private AiModelClient aiModelClient;
 
     @InjectMocks
     private AiServiceImpl aiService;
@@ -90,6 +94,24 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
 
         verify(permissionService).requireWeeklyReviewUpdate(eq(USER_ID), eq(7001L));
         verify(weeklyReviewMapper, never()).selectByIdForUpdate(any());
+        verify(weeklyReviewMapper, never()).updateById(any(WeeklyReview.class));
+    }
+
+    @Test
+    void polish_shouldRejectUnauthorizedExplicitTaskBeforeModelInvocation() {
+        UserHolder.set(USER_ID);
+        doThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权访问任务"))
+                .when(permissionService).requireAllTasksReadable(USER_ID, List.of(101L, 202L));
+
+        assertThrows(BusinessException.class,
+                () -> aiService.polishWeeklyReview(List.of(101L, 202L), "本周反思"));
+
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verifyNoWrites();
+    }
+
+    private void verifyNoWrites() {
+        verify(aiDraftMapper, never()).insert(any(AiDraft.class));
         verify(weeklyReviewMapper, never()).updateById(any(WeeklyReview.class));
     }
 
