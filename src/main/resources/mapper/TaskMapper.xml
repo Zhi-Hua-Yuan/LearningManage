@@ -5,6 +5,37 @@
 
 <mapper namespace="com.spt.learningmanage.mapper.TaskMapper">
 
+    <select id="countWeeklyCompletedTasksByAssignee" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM task t
+        WHERE t.assignee_user_id = #{assigneeUserId}
+          AND t.status IN (1, 2, 3)
+          AND t.completed_at &gt;= #{startDateTime}
+          AND t.completed_at &lt; #{endDateTimeExclusive}
+          AND t.is_delete = 0
+    </select>
+
+    <select id="selectWeeklyFocusProjectByAssignee"
+            resultType="com.spt.learningmanage.model.query.review.WeeklyReviewFocusProjectRow">
+        SELECT
+            t.project_id AS project_id,
+            p.name AS project_name,
+            COUNT(*) AS completed_count
+        FROM task t
+        INNER JOIN project p
+            ON p.id = t.project_id
+           AND p.is_delete = 0
+           AND p.deleted_at IS NULL
+        WHERE t.assignee_user_id = #{assigneeUserId}
+          AND t.status IN (1, 2, 3)
+          AND t.completed_at &gt;= #{startDateTime}
+          AND t.completed_at &lt; #{endDateTimeExclusive}
+          AND t.is_delete = 0
+        GROUP BY t.project_id, p.name
+        ORDER BY completed_count DESC, t.project_id ASC
+        LIMIT 1
+    </select>
+
     <select id="selectIncompleteAssignedTeamTasksForUpdate"
             resultType="com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow">
         SELECT

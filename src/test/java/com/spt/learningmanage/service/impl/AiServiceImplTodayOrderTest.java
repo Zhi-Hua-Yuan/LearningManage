@@ -8,6 +8,7 @@ import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.constant.AiPromptSourceEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
+import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
@@ -17,6 +18,7 @@ import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +30,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -41,6 +45,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
 class AiServiceImplTodayOrderTest {
@@ -69,6 +76,8 @@ class AiServiceImplTodayOrderTest {
     private AiModelClient aiModelClient;
     @Mock
     private PromptTemplateResolver promptTemplateResolver;
+    @Mock
+    private PermissionService permissionService;
 
     @InjectMocks
     private AiServiceImpl aiService;
@@ -81,6 +90,8 @@ class AiServiceImplTodayOrderTest {
                 aiCallLogService
         );
         ReflectionTestUtils.setField(aiService, "aiInvocationPipeline", pipeline);
+        lenient().when(permissionService.filterReadableTaskIds(eq(USER_ID), any()))
+                .thenAnswer(invocation -> new java.util.LinkedHashSet<>(invocation.getArgument(1)));
         UserHolder.set(USER_ID);
     }
 
@@ -193,6 +204,31 @@ class AiServiceImplTodayOrderTest {
                 eq("AI 今日任务排序结果格式异常"),
                 anyLong()
         );
+    }
+
+    @Test
+    void recommendTodayOrder_shouldUseAssigneeForAutomaticCandidates() {
+        stubAiCall(fallbackTasks(), validResponse(102L, 101L));
+
+        aiService.recommendTodayOrder(request());
+
+        ArgumentCaptor<Wrapper<Task>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(taskMapper).selectList(captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("assignee_user_id"));
+    }
+
+    @Test
+    void recommendTodayOrder_shouldRejectPartialExplicitSelectionBeforeAi() {
+        AiTodayOrderRequest request = request();
+        request.setTaskIds(List.of(101L, 102L));
+        when(permissionService.requireAllTasksReadable(USER_ID, request.getTaskIds()))
+                .thenReturn(new java.util.LinkedHashSet<>(request.getTaskIds()));
+        when(taskMapper.selectList(any())).thenReturn(List.of(task(101L, "普通任务", 1,
+                LocalDateTime.of(2026, 8, 12, 9, 0))));
+
+        assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
+        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiCallLogService, never()).createRunningLog(any());
     }
 
     private AiTodayOrderRequest request() {

@@ -3,6 +3,7 @@ package com.spt.learningmanage.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow;
+import com.spt.learningmanage.model.query.review.WeeklyReviewFocusProjectRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
@@ -13,6 +14,18 @@ import java.util.List;
 
 @Mapper
 public interface TaskMapper extends BaseMapper<Task> {
+
+	Long countWeeklyCompletedTasksByAssignee(
+			@Param("assigneeUserId") Long assigneeUserId,
+			@Param("startDateTime") LocalDateTime startDateTime,
+			@Param("endDateTimeExclusive") LocalDateTime endDateTimeExclusive
+	);
+
+	WeeklyReviewFocusProjectRow selectWeeklyFocusProjectByAssignee(
+			@Param("assigneeUserId") Long assigneeUserId,
+			@Param("startDateTime") LocalDateTime startDateTime,
+			@Param("endDateTimeExclusive") LocalDateTime endDateTimeExclusive
+	);
 
 	/**
 	 * Lock all incomplete tasks currently assigned to a member in one team.

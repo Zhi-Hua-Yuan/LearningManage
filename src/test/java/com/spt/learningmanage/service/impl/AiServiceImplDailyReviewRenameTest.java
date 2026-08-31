@@ -24,6 +24,7 @@ import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +37,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -51,6 +54,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
 class AiServiceImplDailyReviewRenameTest {
@@ -80,6 +84,8 @@ class AiServiceImplDailyReviewRenameTest {
     private AiModelClient aiModelClient;
     @Mock
     private PromptTemplateResolver promptTemplateResolver;
+    @Mock
+    private PermissionService permissionService;
 
     @InjectMocks
     private AiServiceImpl aiService;
@@ -92,6 +98,8 @@ class AiServiceImplDailyReviewRenameTest {
                 aiCallLogService
         );
         ReflectionTestUtils.setField(aiService, "aiInvocationPipeline", pipeline);
+        lenient().when(permissionService.filterReadableTaskIds(eq(USER_ID), any()))
+                .thenAnswer(invocation -> new java.util.LinkedHashSet<>(invocation.getArgument(1)));
         UserHolder.set(USER_ID);
     }
 
@@ -309,6 +317,18 @@ class AiServiceImplDailyReviewRenameTest {
         Assertions.assertEquals(1, result.getItems().size());
         Assertions.assertEquals(101L, result.getItems().get(0).getTaskId());
         verify(taskTitleRenameLogMapper).insert(any(TaskTitleRenameLog.class));
+    }
+
+    @Test
+    void suggestDailyReviewRename_shouldUseAssigneeForAutomaticCandidates() {
+        List<Task> tasks = List.of(task(101L, "背单词", TaskStatusEnum.TODO.getValue(), 3));
+        stubAiCall(tasks, validResponse(itemJson(101L, "完成词汇复习", "具体化", 80)));
+
+        aiService.suggestDailyReviewRename(request());
+
+        ArgumentCaptor<Wrapper<Task>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(taskMapper).selectList(captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("assignee_user_id"));
     }
 
     @Test
