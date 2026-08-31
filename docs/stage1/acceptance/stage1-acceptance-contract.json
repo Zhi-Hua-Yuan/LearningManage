@@ -124,9 +124,11 @@
         "PR6 C5 final acceptance record",
         "PR #63 merge commit e284fffda9788627c7488c8cf633231a122abe6d",
         "GitHub Actions run 33348660533 (post-merge)",
-        "AiServiceImplWeeklyPolishAuthorizationTest",
-        "explicit unauthorized task rejected before AiModelClient invocation",
-        "Backend CI: 554 tests, 0 failures, 0 errors, 0 skipped"
+        "AiServiceImplWeeklyPolishAuthorizationTest: unauthorized and missing explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplTodayOrderTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplDailyReviewRenameTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
+        "AiServiceImplListReplanAuthorizationTest: preview/confirm/execute reject unauthorized or missing list IDs before model/operation access",
+        "Backend CI: 564 tests, 0 failures, 0 errors, 0 skipped"
       ]
     },
     {

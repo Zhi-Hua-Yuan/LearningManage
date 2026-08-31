@@ -23,14 +23,14 @@ PR #63 修正提交后的五项门禁全部通过；合并后 `develop` 的 Back
 - Flyway existing database gate；
 - Docker runtime and migration gate。
 
-合并后 Maven/Surefire 结果：`554 tests / 0 failures / 0 errors / 0 skipped`。
+文档分支新增完整 AI 入口授权回归后，Maven/Surefire 门禁目标更新为 `564 tests / 0 failures / 0 errors / 0 skipped`；合并后的 CI 以该数量为准。
 
 ## 3. PR6 合同结果
 
 | Gate | 结果 | 证据 |
 |---|---|---|
 | S1-A-006 私人周复盘不泄漏 | PASS | 共享 VO 序列化、PRIVATE 排除、MySQL 共享查询测试 |
-| S1-A-008 AI 入口授权 | PASS | 越权显式任务在模型调用前拒绝，模型调用为 0 |
+| S1-A-008 AI 入口授权 | PASS | 今日排序、日报改名、周复盘润色、清单重排 preview/confirm/execute 均覆盖不存在或越权 ID，且模型/写操作调用为 0 |
 | S1-A-007 批量权限/N+1 | PASS | 既有 PR3 批量查询证据，PR6 历史读取继续使用批量解析 |
 | V1/V2 migration | PASS | guard、Flyway 空库/已有库恢复、Docker gate |
 
@@ -56,4 +56,3 @@ S1-A-012 = PENDING
 ```
 
 下一主目标为 PR7 前端任务分配与周复盘隐私界面。
-

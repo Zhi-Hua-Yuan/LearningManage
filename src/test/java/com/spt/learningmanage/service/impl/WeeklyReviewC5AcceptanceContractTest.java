@@ -22,6 +22,9 @@ class WeeklyReviewC5AcceptanceContractTest {
         String mapper = read("test/java/com/spt/learningmanage/mapper/WeeklyReviewMapperReadPermissionMySqlTest.java");
         String service = read("test/java/com/spt/learningmanage/service/impl/WeeklyReviewServiceImplTest.java");
         String ai = read("test/java/com/spt/learningmanage/service/impl/AiServiceImplWeeklyPolishAuthorizationTest.java");
+        String today = read("test/java/com/spt/learningmanage/service/impl/AiServiceImplTodayOrderTest.java");
+        String daily = read("test/java/com/spt/learningmanage/service/impl/AiServiceImplDailyReviewRenameTest.java");
+        String replan = read("test/java/com/spt/learningmanage/service/impl/AiServiceImplListReplanAuthorizationTest.java");
         String vo = read("test/java/com/spt/learningmanage/model/vo/review/WeeklyReviewSharedVOContractTest.java");
         String implementation = read("main/java/com/spt/learningmanage/service/impl/WeeklyReviewServiceImpl.java");
 
@@ -31,6 +34,16 @@ class WeeklyReviewC5AcceptanceContractTest {
         assertTrue(service.contains("save_shouldLockTeamMembershipBeforeAuthorizingTeamView"));
         assertTrue(service.contains("update_shouldRejectPartialAssociationReplacement"));
         assertTrue(ai.contains("polish_shouldRejectUnauthorizedExplicitTaskBeforeModelInvocation"));
+        assertTrue(ai.contains("polish_shouldRejectMissingExplicitTaskBeforeModelInvocation"));
+        assertTrue(today.contains("recommendTodayOrder_shouldRejectMissingExplicitTaskBeforeAi"));
+        assertTrue(today.contains("recommendTodayOrder_shouldRejectUnauthorizedExplicitTaskBeforeAi"));
+        assertTrue(daily.contains("suggestDailyReviewRename_shouldRejectMissingExplicitTaskBeforeAi"));
+        assertTrue(daily.contains("suggestDailyReviewRename_shouldRejectUnauthorizedExplicitTaskBeforeAi"));
+        assertTrue(replan.contains("preview_shouldRejectUnauthorizedProjectBeforeModelInvocation"));
+        assertTrue(replan.contains("preview_shouldRejectMissingProjectBeforeModelInvocation"));
+        assertTrue(replan.contains("confirm_shouldRejectUnauthorizedProjectBeforeReadingOperation"));
+        assertTrue(replan.contains("execute_shouldRejectUnauthorizedProjectBeforeModelInvocation"));
+        assertTrue(replan.contains("execute_shouldRejectMissingProjectBeforeModelInvocation"));
         assertTrue(ai.contains("verify(aiModelClient, never()).invoke"));
         assertTrue(vo.contains("teamProjection_jsonMustNotContainPrivateMarkers"));
         assertTrue(implementation.contains("@Transactional(rollbackFor = Exception.class)"));
