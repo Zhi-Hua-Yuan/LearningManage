@@ -7,14 +7,14 @@
 ## 1. 合并和提交
 
 ```text
-PR #63：test(stage1): complete PR6 C5 acceptance evidence
+PR #64：docs: close PR6 final acceptance
 最终 C5 修正提交：0e248798dc1206a9dc14cbe594fb24eabd893fb1
 develop 合并提交：e284fffda9788627c7488c8cf633231a122abe6d
 ```
 
 ## 2. 合并前和合并后门禁
 
-PR #63 和合并后的 `develop` 均通过以下五项门禁：
+PR #64 和合并后的 `develop` 均通过以下五项门禁：
 
 1. Guard and migration immutability；
 2. Maven verification and tested artifact；
@@ -22,10 +22,10 @@ PR #63 和合并后的 `develop` 均通过以下五项门禁：
 4. Flyway existing database gate；
 5. Docker runtime and migration gate。
 
-合并后权威 CI：[Backend CI run 33348660533](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33348660533)。
+合并后权威 CI：[Backend CI run 33350232099](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33350232099)。
 
 ```text
-Surefire: 554 tests
+Surefire: 564 tests
 Failures: 0
 Errors: 0
 Skipped: 0
@@ -55,4 +55,3 @@ PR6：IN_PROGRESS → COMPLETED / MERGED / CI_PASS
 - 未记录数据库密码、Token 或私人复盘正文。
 
 PR6 收口完成后，下一阶段进入 PR7；RAG、Agent 和跨仓 Release 仍需等待后续合同验收。
-

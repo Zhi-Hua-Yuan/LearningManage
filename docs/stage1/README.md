@@ -142,7 +142,7 @@ PR1 设计冻结                   completed
 → PR3 SystemRole 与 PermissionService  completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
-→ PR6 周复盘隐私模型            completed（PR #63 已合并，S1-A-006/S1-A-008 PASS）
+→ PR6 周复盘隐私模型            completed（PR #64 已合并，S1-A-006/S1-A-008 PASS）
 → PR7 前端任务分配与复盘隐私    pending
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```

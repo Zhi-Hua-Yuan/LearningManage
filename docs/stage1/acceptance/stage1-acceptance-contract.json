@@ -95,11 +95,11 @@
       "evidenceRequired": ["serialization tests", "multi-user authorization tests"],
       "evidence": [
         "PR6 C5 final acceptance record",
-        "PR #63 merge commit e284fffda9788627c7488c8cf633231a122abe6d",
-        "GitHub Actions run 33348660533 (post-merge)",
+        "PR #64 merge commit e78af187eb95b91bd7635a9b55da84daaa5b8781",
+        "GitHub Actions run 33350232099 (post-merge)",
         "WeeklyReviewSharedVOContractTest",
         "WeeklyReviewMapperReadPermissionMySqlTest",
-        "Backend CI: 554 tests, 0 failures, 0 errors, 0 skipped",
+        "Backend CI: 564 tests, 0 failures, 0 errors, 0 skipped",
         "PRIVATE rows excluded from team shared projection",
         "V1/V2 migration guard and Flyway gates passed"
       ]
@@ -122,8 +122,8 @@
       "evidenceRequired": ["AI authorization regression tests"],
       "evidence": [
         "PR6 C5 final acceptance record",
-        "PR #63 merge commit e284fffda9788627c7488c8cf633231a122abe6d",
-        "GitHub Actions run 33348660533 (post-merge)",
+        "PR #64 merge commit e78af187eb95b91bd7635a9b55da84daaa5b8781",
+        "GitHub Actions run 33350232099 (post-merge)",
         "AiServiceImplWeeklyPolishAuthorizationTest: unauthorized and missing explicit task IDs rejected before AiModelClient invocation",
         "AiServiceImplTodayOrderTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
         "AiServiceImplDailyReviewRenameTest: missing and unauthorized explicit task IDs rejected before AiModelClient invocation",
