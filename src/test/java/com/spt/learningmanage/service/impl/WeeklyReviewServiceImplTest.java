@@ -120,6 +120,31 @@ class WeeklyReviewServiceImplTest {
     }
 
     @Test
+    void save_shouldLockTeamMembershipBeforeAuthorizingTeamView() {
+        UserHolder.set(1L);
+        WeeklyReviewSaveRequest request = request(2026, 37, "TEAM");
+        request.setTeamId(10L);
+        request.setSharedSummary("shared");
+        TeamMember member = new TeamMember();
+        member.setId(101L);
+        member.setTeamId(10L);
+        member.setUserId(1L);
+        member.setRole("MEMBER");
+        member.setIsDelete(0);
+        when(teamMemberMapper.selectActiveMembersForUpdate(10L, List.of(1L)))
+                .thenReturn(List.of(member));
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(WeeklyReviewAssociationContext.empty());
+        when(weeklyReviewMapper.insert(any(WeeklyReview.class))).thenReturn(1);
+
+        weeklyReviewService.saveReview(request);
+
+        var inOrder = org.mockito.Mockito.inOrder(teamMemberMapper, permissionService);
+        inOrder.verify(teamMemberMapper).selectActiveMembersForUpdate(10L, List.of(1L));
+        inOrder.verify(permissionService).requireTeamView(1L, 10L);
+    }
+
+    @Test
     void getById_shouldReturnPrivateFieldsOnlyToFullViewPath() {
         UserHolder.set(1L);
         WeeklyReview review = new WeeklyReview();
@@ -294,6 +319,34 @@ class WeeklyReviewServiceImplTest {
         assertThrows(BusinessException.class, () -> weeklyReviewService.saveReview(request));
         verify(weeklyReviewTaskMapper).deleteByReviewId(7004L);
         verify(weeklyReviewTaskMapper).batchInsert(any());
+    }
+
+    @Test
+    void update_shouldRejectPartialAssociationReplacement() {
+        UserHolder.set(1L);
+        WeeklyReview existing = new WeeklyReview();
+        existing.setId(7005L);
+        existing.setUserId(1L);
+        existing.setYear(2026);
+        existing.setWeekNo(37);
+        existing.setVisibilityScope("PRIVATE");
+        WeeklyReviewUpdateRequest request = new WeeklyReviewUpdateRequest();
+        request.setId(7005L);
+        request.setVisibilityScope("PRIVATE");
+        request.setTaskIds(List.of(201L, 202L));
+        when(weeklyReviewMapper.selectByIdForUpdate(7005L)).thenReturn(existing);
+        when(associationValidator.validate(any(), any(), any(), any(), any()))
+                .thenReturn(new WeeklyReviewAssociationContext(null, null, List.of(201L, 202L)));
+        when(weeklyReviewMapper.updateForWrite(existing)).thenReturn(1);
+        when(weeklyReviewTaskMapper.deleteByReviewId(7005L)).thenReturn(2);
+        when(weeklyReviewTaskMapper.batchInsert(any())).thenReturn(1);
+
+        assertThrows(BusinessException.class, () -> weeklyReviewService.updateReview(request));
+
+        var inOrder = org.mockito.Mockito.inOrder(weeklyReviewMapper, weeklyReviewTaskMapper);
+        inOrder.verify(weeklyReviewMapper).updateForWrite(existing);
+        inOrder.verify(weeklyReviewTaskMapper).deleteByReviewId(7005L);
+        inOrder.verify(weeklyReviewTaskMapper).batchInsert(any());
     }
 
     private WeeklyReviewSaveRequest request(int year, int weekNo, String scope) {
