@@ -11,7 +11,7 @@
 3. PR head 为 `d276387274ac4ccf325ff9881e82a82371aadde2`，merge SHA 为 `57d9ff56bd8ce79b52101c6cfc99fb18ef7addf6`。
 4. PR required checks 3 项全部通过。
 5. 合并后的 Frontend CI run [33495271342](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33495271342) 的 guard、tests/static 和 production build 3 个 job 全部通过。
-6. 前端本地 `develop` 已快进到 `57d9ff5…`，工作树干净；后端 `develop` 保持 `81ad2d3…`，工作树干净。
+6. 前端本地 `develop` 已快进到 `57d9ff5…`，工作树干净；后端 `develop` 已快进到本次合并提交 `374d32b…`，工作树干净。
 
 ## 关闭判定
 
