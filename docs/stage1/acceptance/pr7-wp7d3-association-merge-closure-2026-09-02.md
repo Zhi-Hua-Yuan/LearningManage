@@ -12,6 +12,8 @@
 4. D3-2 分支 `codex/wp7-d3-2-association-ui` 已在 D3-1 合并后合入前端 `develop`。
 5. 前端 [PR #30](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/30) 受保护合并，Merge SHA 为 `a9412cfc76ce824e33c3a46fe0822bc5e6ba275a`。
 6. Merge SHA `a9412cfc76ce824e33c3a46fe0822bc5e6ba275a` 的合并后 CI [33531717598](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33531717598) 成功。
+7. 后端证据 [PR #74](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/74) 已受保护合并，Merge SHA 为 `0c7cb6ead675f4496f74c46c7e694a1e8a5a4df3`。
+8. Merge SHA `0c7cb6ead675f4496f74c46c7e694a1e8a5a4df3` 的后端 develop CI [33533555616](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33533555616) 成功，五项门禁全部通过。
 
 ## 关闭判定
 
@@ -20,6 +22,7 @@
 - type-check、lint、build、合同测试和合同校验全部通过；
 - 前端 API 合同保持 44 operations，SHA-256 保持 `4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6`；
 - 无数据库迁移、后端接口或运行配置变更。
+- 后端证据 PR #74 的合并后 CI 已通过，确认 develop 工作树在 D3 收口后保持可构建、可迁移、可运行。
 
 因此 WP7-D3 可标记为 `PASS / COMPLETED / MERGED / CI_PASS`。
 
