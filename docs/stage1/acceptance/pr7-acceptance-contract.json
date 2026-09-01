@@ -51,7 +51,7 @@
     {
       "id": "WP7-C",
       "name": "任务权限与分配交互",
-      "status": "PENDING",
+      "status": "PASS",
       "exitGate": "能力驱动操作、受理人选择、CAS 冲突和历史抽屉测试通过"
     },
     {
