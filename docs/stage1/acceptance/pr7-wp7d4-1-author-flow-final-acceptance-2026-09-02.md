@@ -29,6 +29,18 @@ D4-1 不处理 D4-2 的服务端统计事实修正，不处理 D4-3 的 AI 任�
 
 PR CI 与 post-merge CI 的 guard、tests/static verification 和 production build 三项门禁全部通过，且 develop push 的 head SHA 与 Merge SHA 完全匹配。
 
+### 后端证据收口
+
+| 子项 | 证据 |
+|---|---|
+| 后端证据 PR | [#76](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/76) |
+| Head SHA | `46a506b64752420f58a66a4d692d65441a4b58cd` |
+| Merge SHA | `d433161c6db3ff2ee776767ca7152a1fe0e0479f` |
+| PR CI | [33537875434](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33537875434)：`SUCCESS` |
+| develop post-merge CI | [33538484082](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33538484082)：`SUCCESS` |
+
+后端 PR 与 develop push 的 Guard、Maven、Flyway 空库、Flyway 存量库和 Docker runtime 五项门禁全部通过，且 post-merge head SHA 与 Merge SHA 完全匹配。
+
 ## 3. 实现结果
 
 ### 3.1 Legacy 收口
