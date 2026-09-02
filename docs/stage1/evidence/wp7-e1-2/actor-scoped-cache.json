@@ -1,0 +1,48 @@
+{
+  "workPackage": "WP7-E1-2",
+  "date": "2026-09-03",
+  "status": "PASS_COMPLETED_MERGED_CI_PASS",
+  "actorKeySuffix": ":actor-{encodeURIComponent(actorId)}",
+  "protectedAssets": [
+    "S7-CACHE-005",
+    "S7-CACHE-006",
+    "S7-CACHE-007",
+    "S7-CACHE-008",
+    "S7-CACHE-009",
+    "S7-CACHE-010",
+    "S7-CACHE-011",
+    "S7-CACHE-012"
+  ],
+  "failClosedWithoutActor": true,
+  "legacyBusinessKeysRead": false,
+  "legacyBusinessKeysUpgraded": false,
+  "multiActorIsolation": "PASS",
+  "operationCount": 44,
+  "operationContractSha256": "4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6",
+  "localValidation": {
+    "vitestFiles": 53,
+    "vitestTests": 388,
+    "storagePolicyTests": 14,
+    "storagePolicyProductionAccesses": 52,
+    "typeCheck": "PASS",
+    "productionBuild": "PASS"
+  },
+  "pullRequest": {
+    "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "number": 43,
+    "mergeSha": "134994685f53287f4c4919259894dfb4d4c86180",
+    "prCiRun": "33665054286",
+    "postMergeCiRun": "33665308048",
+    "postMergeRunUrl": "https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33665308048",
+    "postMergeConclusion": "success",
+    "postMergeJobs": {
+      "guardAndSecretScan": "100365470531",
+      "frontendTestsAndStaticVerification": "100365532366",
+      "frontendProductionBuild": "100365931045"
+    }
+  },
+  "risk": {
+    "S1-R-013": "OPEN"
+  },
+  "nextTarget": "WP7-E1-3"
+}
