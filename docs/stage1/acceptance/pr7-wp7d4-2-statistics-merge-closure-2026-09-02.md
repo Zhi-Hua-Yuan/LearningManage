@@ -12,7 +12,9 @@
 4. 前端 Merge SHA 为 `c6bb5cbdbd820e5227279e893b9a8a3447191180`。
 5. 前端 PR CI [33587108792](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33587108792) 三项门禁全部成功。
 6. Merge SHA 对应的 develop post-merge CI [33587275741](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33587275741) 三项门禁全部成功。
-7. 本次后端变更仅包含阶段证据、总览、风险登记和机器合同状态，不包含业务代码、数据库迁移或 API 合同变更。
+7. 后端证据 [PR #78](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/78) 受保护合并，Head SHA 为 `e2b89d59e6e6c1b3d9e64a7fafebbff02b40e9d4`，Merge SHA 为 `effd9c3bab11042f9cc7b433535f87f614efe019`。
+8. 后端 PR CI [33587737550](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33587737550) 与 develop post-merge CI [33588088956](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33588088956) 全部成功。
+9. 本次后端变更仅包含阶段证据、总览、风险登记和机器合同状态，不包含业务代码、数据库迁移或 API 合同变更。
 
 ## 关闭判定
 
@@ -31,4 +33,3 @@
 ## 阶段边界
 
 WP7-D 整体继续执行，下一主目标切换为 `WP7-D4-3`。D4-3 负责 AI 任务上下文治理；D5 负责团队共享白名单界面；WP7-E 负责全局缓存、401、登出和多账号隔离。`S1-R-013` 保持 `OPEN`。
-
