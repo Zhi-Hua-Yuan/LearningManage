@@ -1,0 +1,38 @@
+{
+  "workPackage": "WP7-E1-1.5",
+  "date": "2026-09-03",
+  "status": "LOCAL_VALIDATED_UNMERGED",
+  "assetCount": 26,
+  "persistentAssetCount": 15,
+  "sensitiveMemoryAssetCount": 11,
+  "gapCount": 13,
+  "validationViolations": 0,
+  "storagePolicyProductionAccesses": 60,
+  "operationCount": 44,
+  "runtimeCacheBehaviorChanged": false,
+  "primaryRoutes": {
+    "S7-GAP-001": "KEEP",
+    "S7-GAP-002": "KEEP",
+    "S7-GAP-003": "E1-2",
+    "S7-GAP-004": "E1-2",
+    "S7-GAP-005": "E1-3",
+    "S7-GAP-006": "E1-3",
+    "S7-GAP-007": "E2",
+    "S7-GAP-008": "E2",
+    "S7-GAP-009": "E2",
+    "S7-GAP-010": "E3",
+    "S7-GAP-011": "E3",
+    "S7-GAP-012": "E2",
+    "S7-GAP-013": "KEEP"
+  },
+  "negativeCases": [
+    "unknown asset rejected",
+    "invalid primary target rejected",
+    "unowned implementation target rejected",
+    "unknown dependency rejected",
+    "duplicate gap id rejected"
+  ],
+  "risk": {
+    "S1-R-013": "OPEN"
+  }
+}
