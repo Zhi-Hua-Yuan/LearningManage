@@ -1,0 +1,352 @@
+{
+  "generatedAt": "2026-09-02T13:38:41.347Z",
+  "root": "D:\\ajavacode\\learning-manage-frontend",
+  "sourceRoots": [
+    "src",
+    "scripts"
+  ],
+  "counts": {
+    "total": 56,
+    "localStorage": 16,
+    "sessionStorage": 4,
+    "cacheHelper": 36
+  },
+  "assets": [
+    {
+      "storage": "localStorage",
+      "expression": "localStorage.getItem(",
+      "file": "src/layout/BasicLayout.vue",
+      "line": 686
+    },
+    {
+      "storage": "localStorage",
+      "expression": "localStorage.setItem(",
+      "file": "src/layout/BasicLayout.vue",
+      "line": 1134
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "readRawStorage(",
+      "file": "src/utils/appCache.ts",
+      "line": 5
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 23
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 30
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 33
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 37
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 47
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 52
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "readRawStorage(",
+      "file": "src/utils/appCache.ts",
+      "line": 60
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 65
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 73
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 77
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "readRawStorage(",
+      "file": "src/utils/appCache.ts",
+      "line": 85
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 90
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 98
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 102
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "readRawStorage(",
+      "file": "src/utils/appCache.ts",
+      "line": 110
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 115
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 123
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/appCache.ts",
+      "line": 127
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.getItem(",
+      "file": "src/utils/authToken.ts",
+      "line": 76
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.removeItem(",
+      "file": "src/utils/authToken.ts",
+      "line": 80
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.removeItem(",
+      "file": "src/utils/authToken.ts",
+      "line": 95
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.setItem(",
+      "file": "src/utils/authToken.ts",
+      "line": 99
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.removeItem(",
+      "file": "src/utils/authToken.ts",
+      "line": 108
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.getItem(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 37
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.setItem(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 46
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.removeItem(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 55
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "readRawStorage(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 113
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 129
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeRawStorage(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 164
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeRawStorage(",
+      "file": "src/utils/cacheClient.ts",
+      "line": 169
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.removeItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 85
+    },
+    {
+      "storage": "sessionStorage",
+      "expression": "window.sessionStorage.getItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 90
+    },
+    {
+      "storage": "sessionStorage",
+      "expression": "window.sessionStorage.setItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 92
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.getItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 112
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.setItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 114
+    },
+    {
+      "storage": "localStorage",
+      "expression": "window.localStorage.setItem(",
+      "file": "src/utils/cacheVersion.ts",
+      "line": 133
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 31
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 36
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 37
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 40
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 60
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 65
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/projectCache.ts",
+      "line": 72
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/taskCache.ts",
+      "line": 46
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "listStorageKeys(",
+      "file": "src/utils/taskCache.ts",
+      "line": 51
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeRawStorage(",
+      "file": "src/utils/taskCache.ts",
+      "line": 53
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/taskCache.ts",
+      "line": 54
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "removeCache(",
+      "file": "src/utils/taskCache.ts",
+      "line": 58
+    },
+    {
+      "storage": "cacheHelper",
+      "expression": "writeCache(",
+      "file": "src/utils/taskCache.ts",
+      "line": 70
+    },
+    {
+      "storage": "sessionStorage",
+      "expression": "window.sessionStorage.getItem(",
+      "file": "src/views/ai/AiDraftDetail.vue",
+      "line": 530
+    },
+    {
+      "storage": "sessionStorage",
+      "expression": "window.sessionStorage.setItem(",
+      "file": "src/views/ai/AiDraftDetail.vue",
+      "line": 570
+    },
+    {
+      "storage": "localStorage",
+      "expression": "localStorage.getItem(",
+      "file": "src/views/task/TaskList.vue",
+      "line": 2256
+    },
+    {
+      "storage": "localStorage",
+      "expression": "localStorage.setItem(",
+      "file": "src/views/task/TaskList.vue",
+      "line": 3138
+    }
+  ]
+}
