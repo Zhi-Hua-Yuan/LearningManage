@@ -34,7 +34,18 @@
 
 PR CI 与合并后 CI 的 Guard and secret scan、Frontend tests and static verification、Frontend production build 三项 job 全部成功；post-merge HEAD 与 Merge SHA 完全一致。
 
-## 3. 实现与聚焦测试
+## 3. 后端证据 PR 与合并后门禁
+
+| 子项 | 证据 |
+|---|---|
+| 后端证据 PR | [#83](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/83) |
+| 后端 Merge SHA | `7599bc197d07c96837ce370d3e0657875dc18a19` |
+| PR CI | [33624083571](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33624083571)：`SUCCESS` |
+| develop post-merge CI | [33625160529](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625160529)：`SUCCESS` |
+
+后端 PR CI 与 develop post-merge CI 的 Guard、Maven、空库 Flyway、存量库 Flyway 和 Docker runtime/migration 五项门禁全部成功；post-merge HEAD 与后端 Merge SHA 一致。
+
+## 4. 实现与聚焦测试
 
 核心变更位于：
 
@@ -58,7 +69,7 @@ D5-4 聚焦测试覆盖 5 个场景：默认我的复盘、团队切换保留草
 | Contract test / verify | PASS / PASS |
 | `git diff --check` | PASS |
 
-## 4. API 合同与阶段边界
+## 5. API 合同与阶段边界
 
 ```text
 operations: 44
@@ -69,7 +80,7 @@ sha256: 4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6
 
 D5-1、D5-2、D5-3 与 D5-4 共同完成 WP7-D 的共享复盘白名单、状态机、只读卡片和页面集成。全局缓存失效、401、登出和多账号隔离继续由 WP7-E 负责，`S1-R-013` 在 WP7-E 完成前保持 `OPEN`。
 
-## 5. 结论
+## 6. 结论
 
 WP7-D5-4 的实现、自动化测试、受保护合并和合并后 CI 均已完成，可标记为：
 

@@ -1,6 +1,6 @@
 # PR7 / WP7-D5-4 页面集成合并收口记录
 
-状态：`READY_FOR_EVIDENCE_PR`
+状态：`COMPLETED / MERGED / CI_PASS`
 
 日期：2026-09-02
 
@@ -15,11 +15,13 @@
 
 ## 后端证据 PR
 
-本记录随后端证据 PR 提交；该 PR 通过 Backend CI 并合并后，将本状态更新为：
+后端证据 PR [#83](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/83) 已通过保护规则合并：
 
 ```text
 COMPLETED / MERGED / CI_PASS
 ```
+
+Merge SHA 为 `7599bc197d07c96837ce370d3e0657875dc18a19`；develop post-merge Backend CI 为 [33625160529](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625160529)，五项必需门禁全部成功。
 
 后端证据 PR 覆盖：
 
