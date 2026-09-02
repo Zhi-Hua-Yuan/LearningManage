@@ -19,6 +19,8 @@ WP7-D 聚合完成 D5-1 至 D5-4：团队共享白名单、共享列表状态机
 
 四个 PR 均通过受保护分支规则；各 PR CI 与 develop post-merge CI 的必需 job 全部成功。
 
+WP7-D 后端证据 PR [#83](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/83) 已合并，Merge SHA 为 `7599bc197d07c96837ce370d3e0657875dc18a19`；Backend CI [33624083571](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33624083571) 与 develop post-merge CI [33625160529](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625160529) 的全部必需门禁成功。
+
 ## 3. 聚合验收判定
 
 - 共享响应采用独立白名单类型，禁止私人正文和任务关联字段泄漏；
