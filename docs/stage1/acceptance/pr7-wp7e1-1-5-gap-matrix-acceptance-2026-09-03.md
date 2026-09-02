@@ -2,7 +2,7 @@
 
 日期：2026-09-03
 
-状态：`PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
 
 ## 1. 范围
 
@@ -20,6 +20,10 @@
 | 重复 gap ID 和未知依赖负例 | PASS |
 | storage policy scanner | 60 个生产访问全部覆盖 |
 | operation 合同 | 未修改，仍为 44 项 |
+| E1-1.4 受保护合并 | PR #41，Merge SHA `776cbaad5364d8c8987ad37a43835336528c6e27` |
+| E1-1.4 post-merge CI | run `33657251137`，三项门禁全部成功 |
+| E1-1.5 受保护合并 | PR #42，Merge SHA `148faf1177b4c8150788fce0d57224b145b17d4b` |
+| E1-1.5 post-merge CI | run `33660575729`，三项门禁全部成功 |
 
 ## 3. 自动化命令
 
@@ -51,9 +55,10 @@ Storage policy check passed: 60 production access(es) covered.
 WP7-E1-1.1：PASS / COMPLETED / MERGED / CI_PASS
 WP7-E1-1.2：PASS / COMPLETED / MERGED / CI_PASS
 WP7-E1-1.3：PASS / COMPLETED / MERGED / CI_PASS
-WP7-E1-1.4：LOCAL_VALIDATED，待受保护合并
-WP7-E1-1.5：PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS
-WP7-E1-1：IN_PROGRESS
+WP7-E1-1.4：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E1-1.5：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E1-1：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E1：IN_PROGRESS
 S1-R-013：OPEN
 下一主目标：WP7-E1-2
 ```

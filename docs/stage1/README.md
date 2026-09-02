@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR6 已合并并完成合同收口；PR7/WP7-A 已通过受保护 PR #66 合并，WP7-B 已通过受保护 PR #17 合并并完成收口，WP7-C1～C5、WP7-D1～D5-4 已通过前端受保护 PR 合并并完成 post-merge CI，WP7-D 已完成，WP7-E1-1.1～1.5 已完成本地验证，当前主目标为 WP7-E1-2
+状态：PR1～PR6 已合并并完成合同收口；PR7/WP7-A 已通过受保护 PR #66 合并，WP7-B 已通过受保护 PR #17 合并并完成收口，WP7-C1～C5、WP7-D1～D5-4 已通过前端受保护 PR 合并并完成 post-merge CI，WP7-D 已完成，WP7-E1-1.1～1.5 已通过受保护 PR 合并并完成 post-merge CI，当前主目标为 WP7-E1-2
 
 建立日期：2026-08-23
 
@@ -218,7 +218,7 @@ PR1 设计冻结                   completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
 → PR6 周复盘隐私模型            completed（PR #64 已合并，S1-A-006/S1-A-008 PASS）
-→ PR7 前端任务分配与复盘隐私    in_progress（WP7-A、WP7-B、WP7-C1～C5、WP7-D1～D5-4、WP7-D 已合并；WP7-E1-1 已完成本地验证，当前主目标 WP7-E1-2）
+→ PR7 前端任务分配与复盘隐私    in_progress（WP7-A、WP7-B、WP7-C1～C5、WP7-D1～D5-4、WP7-D、WP7-E1-1 已合并；当前主目标 WP7-E1-2）
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
 

@@ -1,10 +1,12 @@
 # WP7-E1-1.5 缓存与会话差距矩阵
 
-状态：`LOCAL_VALIDATED（待受保护 PR 合并）`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
 
 日期：2026-09-03
 
-前置：WP7-E1-1.1、E1-1.2、E1-1.3 已合并；WP7-E1-1.4 前端静态门禁已完成本地验证，待受保护合并。
+前置：WP7-E1-1.1、E1-1.2、E1-1.3 已合并；WP7-E1-1.4 与 E1-1.5 已通过前端受保护 PR 合并，并完成 PR CI 与 develop post-merge CI。
+
+合并证据：E1-1.4 由前端 PR #41 合并（`776cbaad5364d8c8987ad37a43835336528c6e27`）；E1-1.5 由前端 PR #42 合并（`148faf1177b4c8150788fce0d57224b145b17d4b`）。
 
 ## 1. 目的与边界
 
@@ -101,3 +103,12 @@ E1-1.5 不关闭 `S1-R-013`；该风险必须等待 E1-2、E1-3、E2、E3 的运
 - 文档与机器矩阵的 gap 数量、资产 ID 和主责任一致；
 - 没有修改缓存运行时语义或 API operation 合同；
 - 前端 `test:storage-policy`、`lint:storage-policy` 通过。
+
+## 7. 受保护合并与 post-merge CI
+
+| 工作项 | PR | Merge SHA | PR CI | develop post-merge CI |
+|---|---:|---|---:|---:|
+| E1-1.4 storage policy 静态门禁 | [#41](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/41) | `776cbaad5364d8c8987ad37a43835336528c6e27` | `33656784513` | `33657251137` |
+| E1-1.5 gap matrix | [#42](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/42) | `148faf1177b4c8150788fce0d57224b145b17d4b` | `33660278904` | `33660575729` |
+
+两次 post-merge run 均为 `completed / success`，且均通过 Guard and secret scan、Frontend tests and static verification、Frontend production build 三项受保护门禁。

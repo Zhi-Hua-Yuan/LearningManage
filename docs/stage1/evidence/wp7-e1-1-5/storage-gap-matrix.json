@@ -1,7 +1,7 @@
 {
   "workPackage": "WP7-E1-1.5",
   "date": "2026-09-03",
-  "status": "LOCAL_VALIDATED_UNMERGED",
+  "status": "PASS_COMPLETED_MERGED_CI_PASS",
   "assetCount": 26,
   "persistentAssetCount": 15,
   "sensitiveMemoryAssetCount": 11,
@@ -34,5 +34,39 @@
   ],
   "risk": {
     "S1-R-013": "OPEN"
+  },
+  "pullRequests": [
+    {
+      "workPackage": "WP7-E1-1.4",
+      "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+      "number": 41,
+      "mergeSha": "776cbaad5364d8c8987ad37a43835336528c6e27",
+      "prCiRun": "33656784513",
+      "postMergeCiRun": "33657251137",
+      "postMergeConclusion": "success"
+    },
+    {
+      "workPackage": "WP7-E1-1.5",
+      "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+      "number": 42,
+      "mergeSha": "148faf1177b4c8150788fce0d57224b145b17d4b",
+      "prCiRun": "33660278904",
+      "postMergeCiRun": "33660575729",
+      "postMergeConclusion": "success"
+    }
+  ],
+  "requiredChecks": [
+    "Guard and secret scan",
+    "Frontend tests and static verification",
+    "Frontend production build"
+  ],
+  "postMergeCiEvidence": {
+    "runUrl": "https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33660575729",
+    "headSha": "148faf1177b4c8150788fce0d57224b145b17d4b",
+    "jobs": {
+      "guardAndSecretScan": "100349832913",
+      "frontendTestsAndStaticVerification": "100349904667",
+      "frontendProductionBuild": "100350318077"
+    }
   }
 }
