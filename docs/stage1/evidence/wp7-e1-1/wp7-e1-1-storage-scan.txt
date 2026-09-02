@@ -1,0 +1,63 @@
+WP7-E1-1 storage asset scan
+generatedAt: 2026-09-02T13:38:41.347Z
+total: 56
+localStorage: 16
+sessionStorage: 4
+cacheHelper: 36
+
+localStorage	src/layout/BasicLayout.vue:686	localStorage.getItem(
+localStorage	src/layout/BasicLayout.vue:1134	localStorage.setItem(
+cacheHelper	src/utils/appCache.ts:5	readRawStorage(
+cacheHelper	src/utils/appCache.ts:23	writeCache(
+cacheHelper	src/utils/appCache.ts:30	removeCache(
+cacheHelper	src/utils/appCache.ts:33	writeCache(
+cacheHelper	src/utils/appCache.ts:37	removeCache(
+cacheHelper	src/utils/appCache.ts:47	writeCache(
+cacheHelper	src/utils/appCache.ts:52	writeCache(
+cacheHelper	src/utils/appCache.ts:60	readRawStorage(
+cacheHelper	src/utils/appCache.ts:65	writeCache(
+cacheHelper	src/utils/appCache.ts:73	writeCache(
+cacheHelper	src/utils/appCache.ts:77	removeCache(
+cacheHelper	src/utils/appCache.ts:85	readRawStorage(
+cacheHelper	src/utils/appCache.ts:90	writeCache(
+cacheHelper	src/utils/appCache.ts:98	writeCache(
+cacheHelper	src/utils/appCache.ts:102	removeCache(
+cacheHelper	src/utils/appCache.ts:110	readRawStorage(
+cacheHelper	src/utils/appCache.ts:115	writeCache(
+cacheHelper	src/utils/appCache.ts:123	writeCache(
+cacheHelper	src/utils/appCache.ts:127	removeCache(
+localStorage	src/utils/authToken.ts:76	window.localStorage.getItem(
+localStorage	src/utils/authToken.ts:80	window.localStorage.removeItem(
+localStorage	src/utils/authToken.ts:95	window.localStorage.removeItem(
+localStorage	src/utils/authToken.ts:99	window.localStorage.setItem(
+localStorage	src/utils/authToken.ts:108	window.localStorage.removeItem(
+localStorage	src/utils/cacheClient.ts:37	window.localStorage.getItem(
+localStorage	src/utils/cacheClient.ts:46	window.localStorage.setItem(
+localStorage	src/utils/cacheClient.ts:55	window.localStorage.removeItem(
+cacheHelper	src/utils/cacheClient.ts:113	readRawStorage(
+cacheHelper	src/utils/cacheClient.ts:129	writeCache(
+cacheHelper	src/utils/cacheClient.ts:164	writeRawStorage(
+cacheHelper	src/utils/cacheClient.ts:169	removeRawStorage(
+localStorage	src/utils/cacheVersion.ts:85	window.localStorage.removeItem(
+sessionStorage	src/utils/cacheVersion.ts:90	window.sessionStorage.getItem(
+sessionStorage	src/utils/cacheVersion.ts:92	window.sessionStorage.setItem(
+localStorage	src/utils/cacheVersion.ts:112	window.localStorage.getItem(
+localStorage	src/utils/cacheVersion.ts:114	window.localStorage.setItem(
+localStorage	src/utils/cacheVersion.ts:133	window.localStorage.setItem(
+cacheHelper	src/utils/projectCache.ts:31	writeCache(
+cacheHelper	src/utils/projectCache.ts:36	removeCache(
+cacheHelper	src/utils/projectCache.ts:37	removeCache(
+cacheHelper	src/utils/projectCache.ts:40	removeCache(
+cacheHelper	src/utils/projectCache.ts:60	writeCache(
+cacheHelper	src/utils/projectCache.ts:65	removeCache(
+cacheHelper	src/utils/projectCache.ts:72	writeCache(
+cacheHelper	src/utils/taskCache.ts:46	writeCache(
+cacheHelper	src/utils/taskCache.ts:51	listStorageKeys(
+cacheHelper	src/utils/taskCache.ts:53	removeRawStorage(
+cacheHelper	src/utils/taskCache.ts:54	removeCache(
+cacheHelper	src/utils/taskCache.ts:58	removeCache(
+cacheHelper	src/utils/taskCache.ts:70	writeCache(
+sessionStorage	src/views/ai/AiDraftDetail.vue:530	window.sessionStorage.getItem(
+sessionStorage	src/views/ai/AiDraftDetail.vue:570	window.sessionStorage.setItem(
+localStorage	src/views/task/TaskList.vue:2256	localStorage.getItem(
+localStorage	src/views/task/TaskList.vue:3138	localStorage.setItem(
