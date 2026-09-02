@@ -57,7 +57,7 @@
     {
       "id": "WP7-D",
       "name": "周复盘隐私界面",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "exitGate": "PRIVATE/TEAM 状态机、共享白名单和 500 条关联限制测试通过"
     },
     {
