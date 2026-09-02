@@ -1,6 +1,6 @@
 # 阶段 1：业务语义与统一权限
 
-状态：PR1～PR6 已合并并完成合同收口；PR7/WP7-A 已通过受保护 PR #66 合并，WP7-B 已通过受保护 PR #17 合并并完成收口，WP7-C1～C5 已通过前端受保护 PR 合并并完成 post-merge CI，WP7-D3、WP7-D4-1、WP7-D4-2、WP7-D4-3 与 WP7-D5-1～D5-4 已完成合并收口，WP7-D 已完成，当前主目标为 WP7-E
+状态：PR1～PR6 已合并并完成合同收口；PR7/WP7-A 已通过受保护 PR #66 合并，WP7-B 已通过受保护 PR #17 合并并完成收口，WP7-C1～C5、WP7-D1～D5-4 已通过前端受保护 PR 合并并完成 post-merge CI，WP7-D 已完成，当前主目标为 WP7-E
 
 建立日期：2026-08-23
 
@@ -168,6 +168,10 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP7-D3 关联资源最终验收记录](acceptance/pr7-wp7d3-association-final-acceptance-2026-09-02.md)
 - [WP7-D3 合并收口记录](acceptance/pr7-wp7d3-association-merge-closure-2026-09-02.md)
 
+当前 PR7 / WP7-D1～D2 作者边界与可见性追溯证据：
+
+- [WP7-D1～D2 追溯验收记录](acceptance/pr7-wp7d1-d2-retrospective-acceptance-2026-09-02.md)
+
 当前 PR7 / WP7-D4-1 作者周复盘读写链路证据：
 
 - [WP7-D4-1 最终验收记录](acceptance/pr7-wp7d4-1-author-flow-final-acceptance-2026-09-02.md)
@@ -195,6 +199,7 @@ PR2 已通过受保护 PR [#41](https://github.com/Zhi-Hua-Yuan/LearningManage/p
 - [WP7-D5-4 页面集成最终验收记录](acceptance/pr7-wp7d5-4-review-page-integration-final-acceptance-2026-09-02.md)
 - [WP7-D5-4 页面集成合并收口记录](acceptance/pr7-wp7d5-4-review-page-integration-merge-closure-2026-09-02.md)
 - [WP7-D 周复盘隐私界面最终验收记录](acceptance/pr7-wp7d-final-acceptance-2026-09-02.md)
+- [WP7-D 整体合并收口记录](acceptance/pr7-wp7d-merge-closure-2026-09-02.md)
 
 ## 4. 决策状态规则
 
@@ -213,7 +218,7 @@ PR1 设计冻结                   completed
 → PR4 任务分配与历史            completed（PR #49 已合并）
 → PR5 成员退出和移除            completed（WP5-A/B/C/D/E/F accepted；S1-A-004 PASS；S1-R-003 CLOSED；ADR-005 ACCEPTED）
 → PR6 周复盘隐私模型            completed（PR #64 已合并，S1-A-006/S1-A-008 PASS）
-→ PR7 前端任务分配与复盘隐私    in_progress（WP7-A、WP7-B、WP7-C1～C5、WP7-D3、WP7-D4-1、WP7-D4-2、WP7-D4-3、WP7-D5-1～D5-4、WP7-D 已合并，当前主目标 WP7-E）
+→ PR7 前端任务分配与复盘隐私    in_progress（WP7-A、WP7-B、WP7-C1～C5、WP7-D1～D5-4、WP7-D 已合并，当前主目标 WP7-E）
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
 
