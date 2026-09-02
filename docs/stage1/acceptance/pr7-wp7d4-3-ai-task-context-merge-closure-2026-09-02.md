@@ -12,7 +12,10 @@
 4. 前端 Merge SHA 为 `863fb22313c082631f9a67362c0f27de612c193d`。
 5. 前端 PR CI [33603426591](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33603426591) 三项门禁全部成功。
 6. Merge SHA 对应的 `develop` post-merge CI [33603612513](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33603612513) 三项 job 全部成功，且 `develop` HEAD 与 Merge SHA 一致。
-7. 本次 D4-3 不需要后端业务代码、数据库迁移或 API 合同变更；后端仓库仅补充本验收记录、合并收口记录及阶段索引。
+7. 后端证据 [PR #80](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/80) 受保护合并，Head SHA 为 `b96983a8042b02ab8065f1641faa4248d11dc432`，Merge SHA 为 `4d2a16b51d023840ea38f963cc4e6363ade11bcc`。
+8. 后端 PR CI [33605140132](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33605140132) 的 Guard、Maven、Flyway 空库、Flyway 现有库和 Docker runtime 五项门禁全部成功。
+9. Merge SHA 对应的 `develop` post-merge CI [33605710000](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33605710000) 五项 job 全部成功，且本地 `develop` 已同步到 `4d2a16b51d023840ea38f963cc4e6363ade11bcc`，工作树干净。
+10. 本次 D4-3 不需要后端业务代码、数据库迁移或 API 合同变更；后端 PR 仅补充验收记录、合并收口记录及阶段索引。
 
 ## 关闭判定
 
@@ -26,6 +29,7 @@
 - 覆盖率、Type-check、Lint、Build、合同测试和合同校验全部通过；
 - API 合同保持 44 operations 和 SHA-256 `4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6`；
 - Frontend post-merge CI [33603612513](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33603612513) 成功。
+- Backend post-merge CI [33605710000](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33605710000) 成功。
 
 因此 WP7-D4-3 可标记为 `PASS / COMPLETED / MERGED / CI_PASS`。
 
