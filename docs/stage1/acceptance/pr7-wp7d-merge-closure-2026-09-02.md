@@ -1,6 +1,6 @@
 # PR7 / WP7-D：周复盘隐私界面整体合并收口记录
 
-状态：`READY_FOR_FINAL_BINDING`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
 
 日期：2026-09-02
 
@@ -69,10 +69,10 @@ WP7-D 不新增 operation，不修改既有 method、path 或必填字段，不�
 
 ## 5. 后端证据链
 
-后端证据 PR [#84](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/84) 已合并，Merge SHA 为 `b77c4e1b10018e6715dfd0f72b0519c2d098187d`；PR CI [33625778479](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625778479) 与 develop post-merge CI [33626304839](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33626304839) 的五项必需门禁全部成功。
+后端实现 PR [#84](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/84) 已合并，Merge SHA 为 `b77c4e1b10018e6715dfd0f72b0519c2d098187d`；PR CI [33625778479](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625778479) 与 develop post-merge CI [33626304839](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33626304839) 的五项必需门禁全部成功。
 
-本记录将在本次证据修复 PR 合并及其 post-merge CI 成功后，补写该 PR 的真实 Merge SHA 和 CI run，并将状态升级为 `PASS / COMPLETED / MERGED / CI_PASS`。
+证据修复 PR [#85](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/85) 已通过受保护分支规则合并，Merge SHA 为 `7416934ccefe1b7637c5768a36338ac5616295e5`；PR CI [33630265645](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33630265645) 与 develop post-merge CI [33631501971](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33631501971) 的五项必需门禁全部成功。该 PR 补齐了 D1/D2 追溯证据索引，并将本记录纳入 develop 的可审计证据链。
 
 ## 6. 最终判定
 
-WP7-D 的实现与自动化门禁已经完成；当前只剩本记录及 D1/D2 证据索引的受保护证据修复合并和最终绑定。
+WP7-D 的实现、测试、受保护合并、证据修复和 post-merge CI 均已完成，可正式关闭 WP7-D，下一主目标为 WP7-E。

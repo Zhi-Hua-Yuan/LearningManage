@@ -27,6 +27,8 @@ WP7-D1～D5-4 的所有前端 PR 均通过受保护分支规则；各 PR CI 与 
 
 WP7-D 后端证据 PR [#84](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/84) 已合并，Merge SHA 为 `b77c4e1b10018e6715dfd0f72b0519c2d098187d`；Backend CI [33625778479](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33625778479) 与 develop post-merge CI [33626304839](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33626304839) 的全部必需门禁成功。
 
+证据修复 PR [#85](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/85) 已通过受保护分支规则合并，Merge SHA 为 `7416934ccefe1b7637c5768a36338ac5616295e5`；PR CI [33630265645](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33630265645) 与 develop post-merge CI [33631501971](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33631501971) 全部成功，最终验收与 D1/D2 追溯证据已在 develop 分支完成绑定。
+
 ## 3. 聚合验收判定
 
 - 作者完整模型、PRIVATE/TEAM 状态机和关联选择均已通过冻结合同；
