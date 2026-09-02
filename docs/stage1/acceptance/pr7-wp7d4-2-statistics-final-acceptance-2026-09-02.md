@@ -30,6 +30,18 @@ D4-2 不处理 AI 任务来源治理（D4-3）、团队共享卡片（D5）或�
 
 合并后 Frontend CI 的 Guard and secret scan、Frontend tests and static verification、Frontend production build 三项 job 全部成功，develop push 的 head SHA 与 Merge SHA 完全匹配。
 
+## 3.1 后端证据合并门禁
+
+| 子项 | 证据 |
+|---|---|
+| 后端证据 PR | [#78](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/78) |
+| Head SHA | `e2b89d59e6e6c1b3d9e64a7fafebbff02b40e9d4` |
+| Merge SHA | `effd9c3bab11042f9cc7b433535f87f614efe019` |
+| PR CI | [33587737550](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33587737550)：`SUCCESS` |
+| develop post-merge CI | [33588088956](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33588088956)：`SUCCESS` |
+
+后端证据 PR 仅更新阶段文档、风险登记和机器合同状态，不包含业务代码、数据库迁移或 API 合同变更。
+
 ## 3. 实现结果
 
 ### 3.1 服务端事实边界
@@ -103,4 +115,3 @@ WP7-D4-2：PASS / COMPLETED / MERGED / CI_PASS
 ```
 
 WP7-D 整体仍保持 `IN_PROGRESS`，下一主目标为 WP7-D4-3。
-
