@@ -1,0 +1,33 @@
+WP7-E1-1.5 storage gap matrix evidence
+date: 2026-09-03
+assets: 26
+persistent assets: 15
+sensitive memory assets: 11
+gaps: 13
+validation violations: 0
+storage policy production accesses: 60
+negative tests: unknown asset, invalid target, duplicate gap id and unknown dependency all rejected
+runtime cache behavior changed: no
+operation contract changed: no (44 operations retained)
+status: PASS / COMPLETED / MERGED / CI_PASS
+
+Protected merge evidence:
+E1-1.4 -> PR #41, merge SHA 776cbaad5364d8c8987ad37a43835336528c6e27, PR CI 33656784513, post-merge CI 33657251137
+E1-1.5 -> PR #42, merge SHA 148faf1177b4c8150788fce0d57224b145b17d4b, PR CI 33660278904, post-merge CI 33660575729
+post-merge required checks: Guard and secret scan; Frontend tests and static verification; Frontend production build
+post-merge job ids (run 33660575729): 100349832913, 100349904667, 100350318077
+
+Primary routes:
+S7-GAP-001 -> KEEP
+S7-GAP-002 -> KEEP
+S7-GAP-003 -> E1-2
+S7-GAP-004 -> E1-2
+S7-GAP-005 -> E1-3
+S7-GAP-006 -> E1-3
+S7-GAP-007 -> E2
+S7-GAP-008 -> E2
+S7-GAP-009 -> E2
+S7-GAP-010 -> E3
+S7-GAP-011 -> E3
+S7-GAP-012 -> E2
+S7-GAP-013 -> KEEP
