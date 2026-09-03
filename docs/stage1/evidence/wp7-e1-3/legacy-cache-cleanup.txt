@@ -1,0 +1,18 @@
+WP7-E1-3 legacy cache cleanup evidence
+date: 2026-09-03
+status: PASS / COMPLETED / MERGED / CI_PASS
+legacy CACHE-005..012: deleted; not read/upgraded/migrated
+backend version invalidation: actor-scoped backend-derived keys only
+preserved: token, theme, sidebarWidth, detailWidth, AI planner draft, backend version metadata, CACHE-015
+storage enumeration failure: fail-closed
+focused tests: 3 files / 38 tests passed
+full Vitest: 54 files / 414 tests passed
+coverage: statements 84.25%; branches 75.00%; functions 84.64%; lines 88.15%
+operation contract: 44 operations; sha256 4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6
+local gates: contract test/verify, lint, cache-view lint, type-check, production build, diff check PASS
+PR #45: merge 01ddeacca9c82b28868ff3cfe9925fd6cd893b32
+post-merge CI: 33710958405 (success)
+S7-GAP-005: CLOSED_BY_E1-3
+S7-GAP-006: CLOSED_BY_E1-3
+S1-R-013: OPEN
+next target: WP7-E2
