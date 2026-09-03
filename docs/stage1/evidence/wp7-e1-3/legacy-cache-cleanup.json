@@ -1,0 +1,54 @@
+{
+  "workPackage": "WP7-E1-3",
+  "date": "2026-09-03",
+  "status": "PASS_COMPLETED_MERGED_CI_PASS",
+  "legacyBusinessKeys": "deleted_and_not_read_or_upgraded",
+  "backendVersionInvalidation": "actor_scoped_backend_derived_keys_only",
+  "preservedKeys": [
+    "token",
+    "theme",
+    "sidebarWidth",
+    "detailWidth",
+    "aiPlannerDraft",
+    "backendVersionMetadata",
+    "CACHE-015"
+  ],
+  "storageEnumerationFailure": "fail_closed",
+  "fullVitest": {
+    "files": 54,
+    "tests": 414
+  },
+  "coverage": {
+    "statements": 84.25,
+    "branches": 75.0,
+    "functions": 84.64,
+    "lines": 88.15
+  },
+  "operationCount": 44,
+  "operationContractSha256": "4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6",
+  "localGates": {
+    "focusedTests": "3 files / 38 tests passed",
+    "contractTest": "PASS",
+    "contractVerify": "PASS",
+    "lintCi": "PASS",
+    "cacheViewLint": "PASS",
+    "typeCheck": "PASS",
+    "productionBuild": "PASS",
+    "diffCheck": "PASS"
+  },
+  "pullRequest": {
+    "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "number": 45,
+    "mergeSha": "01ddeacca9c82b28868ff3cfe9925fd6cd893b32",
+    "prCi": "PASS",
+    "postMergeCiRun": "33710958405",
+    "postMergeRunUrl": "https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/33710958405",
+    "postMergeConclusion": "success"
+  },
+  "risk": {
+    "S7-GAP-005": "CLOSED_BY_E1-3",
+    "S7-GAP-006": "CLOSED_BY_E1-3",
+    "S1-R-013": "OPEN"
+  },
+  "nextTarget": "WP7-E2"
+}
