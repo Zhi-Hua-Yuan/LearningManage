@@ -63,7 +63,7 @@
     {
       "id": "WP7-E",
       "name": "缓存失效与跨页面回归",
-      "status": "LOCAL_PASS",
+      "status": "PASS",
       "exitGate": "转派、成员变化、401 和登出场景不会残留旧受理人、旧能力或敏感数据"
     },
     {

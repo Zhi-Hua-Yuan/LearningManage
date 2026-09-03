@@ -4,7 +4,7 @@
   "date": "2026-09-04",
   "status": "PASS",
   "validation": "COMPLETED",
-  "mergeStatus": "LOCAL_PASS",
+  "mergeStatus": "MERGED",
   "frontendBaselineCommit": "fa5d0e4",
   "frontendMerge": {
     "pullRequest": 53,
@@ -12,6 +12,15 @@
     "postMergeCiRun": "33783390301",
     "postMergeCiStatus": "success",
     "requiredJobs": 3
+  },
+  "backendMerge": {
+    "pullRequest": 100,
+    "mergeSha": "4bfece30bb10cadae2bb4701cbbfa5b7896eca75",
+    "pullRequestCiRun": "33785157037",
+    "pullRequestCiStatus": "success",
+    "postMergeCiRun": "33785800984",
+    "postMergeCiStatus": "success",
+    "requiredJobs": 5
   },
   "scope": [
     "全量前端回归",
@@ -69,8 +78,8 @@
     "S7-GAP-011": "RUNTIME_CLOSED"
   },
   "risk": {
-    "S1-R-013": "LOCAL_CLOSURE_READY_PENDING_BACKEND_EVIDENCE_CI",
-    "remainingEvidence": ["backend evidence PR merge", "backend post-merge CI on develop"]
+    "S1-R-013": "CLOSED",
+    "remainingEvidence": []
   },
   "commands": [
     "npm run test:ci -- src/views/task/TaskList.assignment-dialog.test.ts src/stores/collaboration.test.ts src/utils/sessionLifecycle.test.ts --reporter=dot",
@@ -85,5 +94,5 @@
     ".\\mvnw.cmd \"-Dtest=!**/*MySqlTest\" -DfailIfNoTests=false test",
     ".\\mvnw.cmd test"
   ],
-  "deferredScope": ["protected PR merge", "post-merge CI", "WP7-F final cross-repository acceptance"]
+  "deferredScope": ["WP7-F final cross-repository acceptance"]
 }
