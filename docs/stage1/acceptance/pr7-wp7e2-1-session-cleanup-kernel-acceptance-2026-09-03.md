@@ -65,7 +65,7 @@ ai:draft:confirm-operation:{draftId}:actor-{actorId}
 
 ```text
 WP7-E2-1：PASS / MERGED / CI_PASS
-WP7-E2：PENDING
+WP7-E2：PASS / COMPLETED / MERGED / CI_PASS
 S1-R-013：OPEN
-下一主目标：WP7-E2-2
+下一主目标：WP7-E3
 ```

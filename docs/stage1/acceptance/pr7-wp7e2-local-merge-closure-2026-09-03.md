@@ -1,7 +1,7 @@
 # PR7 WP7-E2 本地收口记录
 
 日期：2026-09-03  
-状态：`CI_PASS / MERGE_PENDING`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
 
 ## 1. 收口范围
 
@@ -10,8 +10,9 @@ WP7-E2-1 清理内核、E2-2 敏感内存 reset、E2-3 主动登出/重新登录
 ## 2. 本地门禁摘要
 
 - Vitest：`58 files / 447 tests passed`；
-- 受保护 PR：前端 [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，backend 证据 [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)；当前均为 OPEN；
-- PR CI：前端 run `33754055921`（3/3 PASS）；backend run `33754086756`（5/5 PASS）；
+- 受保护 PR：前端 [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，merge commit `04127319c3829e98c8b0331f4beff7a364a37083`；backend 证据 [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)，merge commit `c4f1fe09b331c142f563b280cdcf1b6a426e721e`；
+- PR CI：前端 run `33754055921`（3/3 PASS）；backend run `33754724715`（5/5 PASS）；
+- Develop post-merge CI：前端 run `33755415089`（success）；backend run `33755426428`（success）；
 - E2-4 focused：`2 files / 29 tests passed`；
 - coverage：Statements `84.76%`、Branches `75.12%`、Functions `85.66%`、Lines `88.43%`；
 - storage scan/policy：`55` 生产访问、`14` 策略测试通过；
@@ -20,14 +21,13 @@ WP7-E2-1 清理内核、E2-2 敏感内存 reset、E2-3 主动登出/重新登录
 
 ## 3. 受保护合并待办
 
-1. 合并前端 PR #49 并回填 merge SHA 与 post-merge CI；
-2. 合并 backend 证据 PR #96 并回填 merge SHA 与 post-merge CI；
-3. 完成后再把 WP7-E2 标为 `MERGED / CI_PASS`。
+1. 归档前端 PR #49、backend PR #96 的合并和 post-merge CI 证据；
+2. 进入 WP7-E3，继续保留 `S1-R-013` 直到多账号、focus 和迟到响应证据完成。
 
 ```text
 WP7-E2-1：已有 MERGED / CI_PASS
-WP7-E2-2：PASS / LOCAL_VALIDATED / MERGE_PENDING
-WP7-E2-3：PASS / LOCAL_VALIDATED / MERGE_PENDING
-WP7-E2-4：PASS / LOCAL_VALIDATED / MERGE_PENDING
-下一主目标：WP7-E3（待 E2 受保护合并收口后）
+WP7-E2-2：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E2-3：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E2-4：PASS / COMPLETED / MERGED / CI_PASS
+下一主目标：WP7-E3
 ```

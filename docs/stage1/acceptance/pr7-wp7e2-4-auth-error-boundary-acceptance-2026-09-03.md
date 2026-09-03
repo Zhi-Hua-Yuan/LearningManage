@@ -1,9 +1,11 @@
 # PR7 WP7-E2-4 认证错误边界与 401/403 回归验收
 
 日期：2026-09-03  
-状态：`PASS / CI_PASS / MERGE_PENDING`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
 
-受保护 PR：前端 [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，backend 证据 [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)。两边 PR 当前均为 `OPEN`，尚未合并。
+受保护合并：前端 PR [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，merge commit `04127319c3829e98c8b0331f4beff7a364a37083`；backend 证据 PR [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)，merge commit `c4f1fe09b331c142f563b280cdcf1b6a426e721e`。
+
+Develop post-merge CI：前端 run `33755415089`、backend run `33755426428`，均为 `completed / success`。
 
 ## 1. 范围
 
@@ -40,12 +42,12 @@
 
 ## 4. 验收结论与边界
 
-E2-4 本地实现、测试和构建门禁全部通过；前端 PR #49、backend PR #96 的受保护 CI 均已通过。跨账号切换、focus refresh、迟到响应及 `S1-R-013` 最终关闭属于 E3，未在本工作包提前宣称完成；merge SHA 仍待 PR 合并后回填。
+E2-4 实现、测试、受保护合并和 develop post-merge CI 全部通过。跨账号切换、focus refresh、迟到响应及 `S1-R-013` 最终关闭属于 E3，未在本工作包提前宣称完成。
 
 ```text
 PR7-T-043：PASS（本地）
-WP7-E2-4：PASS / CI_PASS / MERGE_PENDING
-WP7-E2：LOCAL_VALIDATED
+WP7-E2-4：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E2：PASS / COMPLETED / MERGED / CI_PASS
 S1-R-013：OPEN
 下一主目标：WP7-E3
 ```
