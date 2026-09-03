@@ -1,6 +1,8 @@
 WP7-E2-1 session cleanup kernel evidence
 date: 2026-09-03
-status: PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS
+status: PASS / MERGED / CI_PASS
+merge: frontend PR #46 @ 48af8bb687962c54de0c1840bc362152aa89a9c7; backend evidence PR #94 @ fbd612eb00719298718509f69a9f2b80c5d5be12
+post-merge CI: frontend 33729041995 PASS; backend 33729072385 PASS
 
 implementation:
 - sessionStorageCleanup.ts: protected actor resource and session operation cleanup

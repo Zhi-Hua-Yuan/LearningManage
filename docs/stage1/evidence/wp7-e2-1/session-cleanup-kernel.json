@@ -5,8 +5,16 @@
   "title": "统一受保护状态清理内核",
   "date": "2026-09-03",
   "status": "PASS",
-  "mergeStatus": "UNMERGED",
-  "ciStatus": "LOCAL_CI_PASS",
+  "mergeStatus": "MERGED",
+  "ciStatus": "CI_PASS",
+  "mergeEvidence": {
+    "frontendPr": 46,
+    "frontendMergeCommit": "48af8bb687962c54de0c1840bc362152aa89a9c7",
+    "backendEvidencePr": 94,
+    "backendMergeCommit": "fbd612eb00719298718509f69a9f2b80c5d5be12",
+    "frontendPostMergeCi": 33729041995,
+    "backendPostMergeCi": 33729072385
+  },
   "implementation": {
     "sessionStorageCleanup": "src/utils/sessionStorageCleanup.ts",
     "sessionLifecycle": "src/utils/sessionLifecycle.ts",

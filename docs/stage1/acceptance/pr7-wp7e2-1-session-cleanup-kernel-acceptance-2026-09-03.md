@@ -1,7 +1,11 @@
 # PR7 WP7-E2-1 统一受保护状态清理内核验收
 
 日期：2026-09-03  
-状态：`PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS`
+状态：`PASS / MERGED / CI_PASS`
+
+受保护合并：前端 PR [#46](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/46)，merge commit `48af8bb687962c54de0c1840bc362152aa89a9c7`；后端证据 PR [#94](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/94)，merge commit `fbd612eb00719298718509f69a9f2b80c5d5be12`。
+
+Post-merge CI：前端 run `33729041995`、后端 run `33729072385`，全部门禁通过。
 
 ## 1. 范围
 
@@ -60,7 +64,7 @@ ai:draft:confirm-operation:{draftId}:actor-{actorId}
 - `S1-R-013` 继续保持 `OPEN`。
 
 ```text
-WP7-E2-1：PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS
+WP7-E2-1：PASS / MERGED / CI_PASS
 WP7-E2：PENDING
 S1-R-013：OPEN
 下一主目标：WP7-E2-2
