@@ -1,6 +1,6 @@
 WP7-E3-4 final regression and risk-closure evidence
 Date: 2026-09-04
-Status: PASS / COMPLETED / LOCAL_PASS
+Status: PASS / COMPLETED / MERGED / CI_PASS
 Frontend baseline: fa5d0e4
 Frontend protected PR #53 merged; merge SHA=2ef907f292fbbacecf8a68f7d24c4701a555aa8a
 Frontend post-merge CI run=33783390301; 3 required jobs=success
