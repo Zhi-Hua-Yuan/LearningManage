@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage1",
   "package": "PR7",
-  "status": "FROZEN",
+  "status": "PASS",
   "baseline": {
     "backendRepository": "Zhi-Hua-Yuan/LearningManage",
     "backendCommit": "e5b247c7ed7d3dd8994c9af5ff76ce95d9d0c79b",
@@ -69,7 +69,7 @@
     {
       "id": "WP7-F",
       "name": "PR7 最终验收与合并收口",
-      "status": "PENDING",
+      "status": "PASS",
       "exitGate": "前端全量门禁、44 operation 合同、后端回归和合并后 CI 均通过"
     }
   ],
@@ -133,9 +133,15 @@
     {
       "id": "PR7-A-008",
       "requirement": "PR7 最终导出的全部 44 个 operation 与运行时 OpenAPI 完全匹配",
-      "status": "PENDING",
+      "status": "PASS",
       "targetWorkPackage": "WP7-F",
-      "evidenceRequired": ["前端 operation 导出", "运行时 OpenAPI 对比报告", "missingOperationCount=0"]
+      "evidenceRequired": ["前端 operation 导出", "运行时 OpenAPI 对比报告", "missingOperationCount=0"],
+      "evidence": [
+        "evidence/wp7-f/frontend-api-contract.json",
+        "evidence/wp7-f/api-contract-report.json",
+        "evidence/wp7-f/final-acceptance.json",
+        "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33790707384"
+      ]
     }
   ]
 }

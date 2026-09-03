@@ -1,0 +1,13 @@
+{
+  "workflowRunId": "33790707384",
+  "workflowUrl": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33790707384",
+  "artifacts": {
+    "frontendDist": "release-frontend-dist-wp7-f-20260904-001-33790707384-1",
+    "frontendCoverage": "release-frontend-coverage-33790707384-1",
+    "backendJar": "release-backend-jar-wp7-f-20260904-001-33790707384-1",
+    "surefire": "release-surefire-33790707384-1",
+    "apiContract": "release-api-contract-wp7-f-20260904-001-33790707384-1",
+    "candidate": "release-candidate-wp7-f-20260904-001-33790707384-1"
+  },
+  "retentionPolicy": "GitHub Actions artifacts are retained for 30 or 90 days according to workflow configuration; normalized reports and hashes are committed here."
+}

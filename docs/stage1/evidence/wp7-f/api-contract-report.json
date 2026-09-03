@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "runtimeOpenapiVersion": "3.0.1",
+  "frontendOperationCount": 44,
+  "runtimeOperationCount": 65,
+  "matchedOperationCount": 44,
+  "missingOperationCount": 0,
+  "missingOperations": [],
+  "frontendContractSha256": "4F8CB8D3B92252E4375B49DD102E7CDE75F819827713060D6E521BED19F0B2F6",
+  "runtimeDocumentSha256": "B0E898DD8B6535BBA962C5B267E30E7961299B17D9BBCF1515A7865F82674FD2"
+}

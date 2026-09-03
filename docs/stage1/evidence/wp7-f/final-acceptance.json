@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage1",
+  "package": "PR7",
+  "workPackage": "WP7-F",
+  "status": "PASS",
+  "candidate": {
+    "candidateId": "wp7-f-20260904-001",
+    "backendCommit": "4fa217fcdc8ea11c13aa463a7d95cb680171863f",
+    "frontendCommit": "2ef907f292fbbacecf8a68f7d24c4701a555aa8a",
+    "workflowRunId": "33790707384",
+    "workflowRunUrl": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33790707384"
+  },
+  "frontend": {
+    "testFiles": 58,
+    "tests": 459,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "coverage": {
+      "statements": 84.83,
+      "branches": 75.13,
+      "functions": 85.71,
+      "lines": 88.49
+    },
+    "storagePolicy": "PASS",
+    "storageProductionAccessesCovered": 55,
+    "lint": "PASS",
+    "typeCheck": "PASS",
+    "build": "PASS",
+    "buildModulesTransformed": 766,
+    "contractSchemaVersion": 1,
+    "contractBasePath": "/api",
+    "contractOperationCount": 44,
+    "contractSha256": "4F8CB8D3B92252E4375B49DD102E7CDE75F819827713060D6E521BED19F0B2F6"
+  },
+  "backend": {
+    "tests": 564,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "mavenVerification": "PASS",
+    "flywayEmptyDatabase": "PASS",
+    "flywayExistingDatabase": "PASS",
+    "dockerRuntime": "PASS",
+    "aiBreakdownFlow": "PASS",
+    "idempotentReplay": "PASS"
+  },
+  "runtimeContract": {
+    "runtimeOpenapiVersion": "3.0.1",
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "frontendContractSha256": "4F8CB8D3B92252E4375B49DD102E7CDE75F819827713060D6E521BED19F0B2F6",
+    "runtimeDocumentSha256": "B0E898DD8B6535BBA962C5B267E30E7961299B17D9BBCF1515A7865F82674FD2",
+    "comparisonReportSha256": "595D70320FD4023DB37853734EA8B4CDAEEA614122D35CCF67EC8C1E6AD2EE03",
+    "status": "PASS"
+  },
+  "jobs": {
+    "freezeCandidate": "100766353335",
+    "guardBackend": "100766406981",
+    "guardRepositories": "100766492677",
+    "backendVerification": "100766589315",
+    "frontendTests": "100767348925",
+    "frontendBuild": "100767791145",
+    "flywayEmpty": "100767961105",
+    "flywayExisting": "100768397321",
+    "fullStackRuntime": "100768943426",
+    "candidateManifest": "100769496434"
+  },
+  "scopeBoundary": {
+    "stage1Release": "NOT_STARTED",
+    "stageLevelGates": "DEFERRED_TO_PR8",
+    "s1R010": "OPEN_PENDING_PR8_FINAL_CLOSURE"
+  }
+}
