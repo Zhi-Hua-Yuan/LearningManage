@@ -1,0 +1,44 @@
+{
+  "workPackage": "WP7-E2-4",
+  "title": "认证错误边界与 401/403 回归",
+  "date": "2026-09-03",
+  "status": "PASS",
+  "validation": "CI_PASS",
+  "mergeStatus": "MERGE_PENDING",
+  "frontendBaseCommit": "289e515",
+  "pullRequests": {
+    "frontend": "https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49",
+    "backendEvidence": "https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96"
+  },
+  "ci": {
+    "frontendRun": "33754055921",
+    "frontendChecks": "3/3 PASS",
+    "backendRun": "33754086756",
+    "backendChecks": "5/5 PASS"
+  },
+  "tests": {
+    "focused": { "files": 2, "passed": 29, "failed": 0 },
+    "fullVitest": { "files": 58, "passed": 447, "failed": 0 },
+    "coverage": {
+      "statements": 84.76,
+      "branches": 75.12,
+      "functions": 85.66,
+      "lines": 88.43
+    }
+  },
+  "gates": {
+    "storageScan": { "total": 55, "localStorage": 17, "sessionStorage": 7, "cacheHelper": 31 },
+    "storagePolicyTests": "14 passed",
+    "taskCacheConsistency": "PASS",
+    "apiContract": { "operations": 44, "sha256": "4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6" },
+    "oxlint": "0 warnings / 0 errors",
+    "eslint": "PASS",
+    "typeCheck": "PASS",
+    "productionBuild": { "status": "PASS", "modulesTransformed": 766 }
+  },
+  "testIds": ["PR7-T-043"],
+  "risk": { "S1-R-013": "OPEN" },
+  "deferredTo": "WP7-E3",
+  "deferredScope": ["cross-account isolation", "focus refresh", "late response", "final S1-R-013 closure"],
+  "remoteMergeEvidence": "PRs open with pre-merge CI PASS; merge SHA and post-merge CI pending"
+}
