@@ -38,4 +38,4 @@ deferred:
 - cross-account late response and focus refresh: WP7-E3
 - S1-R-013: OPEN
 
-next target: WP7-E2-2
+next target: WP7-E3

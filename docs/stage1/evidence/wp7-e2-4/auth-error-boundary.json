@@ -3,9 +3,11 @@
   "title": "认证错误边界与 401/403 回归",
   "date": "2026-09-03",
   "status": "PASS",
-  "validation": "CI_PASS",
-  "mergeStatus": "MERGE_PENDING",
+  "validation": "COMPLETED",
+  "mergeStatus": "MERGED",
   "frontendBaseCommit": "289e515",
+  "frontendMergeCommit": "04127319c3829e98c8b0331f4beff7a364a37083",
+  "backendEvidenceMergeCommit": "c4f1fe09b331c142f563b280cdcf1b6a426e721e",
   "pullRequests": {
     "frontend": "https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49",
     "backendEvidence": "https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96"
@@ -14,7 +16,11 @@
     "frontendRun": "33754055921",
     "frontendChecks": "3/3 PASS",
     "backendRun": "33754086756",
-    "backendChecks": "5/5 PASS"
+    "backendChecks": "5/5 PASS",
+    "frontendPostMergeRun": "33755415089",
+    "frontendPostMergeStatus": "completed / success",
+    "backendPostMergeRun": "33755426428",
+    "backendPostMergeStatus": "completed / success"
   },
   "tests": {
     "focused": { "files": 2, "passed": 29, "failed": 0 },
@@ -40,5 +46,5 @@
   "risk": { "S1-R-013": "OPEN" },
   "deferredTo": "WP7-E3",
   "deferredScope": ["cross-account isolation", "focus refresh", "late response", "final S1-R-013 closure"],
-  "remoteMergeEvidence": "PRs open with pre-merge CI PASS; merge SHA and post-merge CI pending"
+  "remoteMergeEvidence": "frontend PR #49 and backend PR #96 merged; develop post-merge CI passed"
 }
