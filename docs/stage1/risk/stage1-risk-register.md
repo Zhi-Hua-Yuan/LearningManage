@@ -1,6 +1,6 @@
 # 阶段 1 风险登记表
 
-状态：阶段 1 执行中；PR6 已完成；PR7/WP7-A、WP7-B、WP7-C1～WP7-C5、WP7-D3、WP7-D4-1、WP7-D4-2、WP7-D4-3、WP7-D5-1～D5-4、WP7-D、WP7-E1-1～E1-3、WP7-E2-1 已合并并完成 post-merge CI；当前主目标为 WP7-E2-2
+状态：阶段 1 执行中；PR6 已完成；PR7/WP7-A、WP7-B、WP7-C1～WP7-C5、WP7-D3、WP7-D4-1、WP7-D4-2、WP7-D4-3、WP7-D5-1～D5-4、WP7-D、WP7-E1-1～E1-3、WP7-E2-1 已合并并完成 post-merge CI；WP7-E2-2～E2-4 已本地验证，待受保护合并；当前主目标为 WP7-E2-4
 
 | ID | 状态 | 风险 | 触发条件 | 缓解措施 | 关闭证据 | 目标 PR |
 |---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | S1-R-010 | OPEN | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | WP7-A 已合并并固定 37 operation 数量与合同 SHA-256；PR7 预计新增 7 个、总计 44 个；PR7/PR8 执行兼容子集和运行时 OpenAPI 门禁 | PR #66 合并、WP7-A 机器合同；最终前端导出与跨仓 OpenAPI 报告待补 | PR7/PR8 |
 | S1-R-011 | CLOSED | Flyway V2 失败后无法安全恢复 | DDL/回填中断或发布后发现问题 | 迁移前备份；隔离库恢复演练；发布后只前向修复 | PR2 工作包 4 恢复演练：备份、迁移、恢复、V1 对账全部 PASS | PR2 |
 | S1-R-012 | CLOSED | 创建人与受理人口径混用导致统计错误 | 周复盘统计仍按 `task.user_id` 查询执行者 | C4 已将周复盘完成数/重点项目统一改为 `assignee_user_id`，并新增 Mapper SQL 合同与 MySQL 回归 | PR6 C5/C4 周统计真实 MySQL 回归；Backend CI run 33350232099；564 项测试通过 | PR6 |
-| S1-R-013 | OPEN | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 受理人、任务列表、成员和能力采用内存态与统一失效链；401、登出和身份切换清空敏感状态；服务端始终重鉴权 | WP7-A 合并并冻结缓存合同；WP7-C 已证明任务级刷新、stale response 和当前页面状态隔离；WP7-D3 已证明关联候选 stale response 与失权 ID 不恢复；WP7-D4-3 已证明 AI 任务上下文 stale response、授权失败刷新和 malformed response 正文保护；WP7-E1-1.1～1.5 已通过前端受保护 PR #41/#42 合并并完成 post-merge CI（runs 33657251137、33660575729），WP7-E1-2 已通过前端受保护 PR #43 合并并完成 post-merge CI run 33665308048，WP7-E1-3 已通过前端受保护 PR #45 合并并完成 post-merge CI run 33710958405，完成旧 key 删除、backend-version 精确清理和 CACHE-015 保留验证；全局缓存、401/登出和多账号运行时证据待 WP7-E2～E3 | PR7 |
+| S1-R-013 | OPEN | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 受理人、任务列表、成员和能力采用内存态与统一失效链；401、登出和身份切换清空敏感状态；服务端始终重鉴权 | WP7-A 合并并冻结缓存合同；WP7-C 已证明任务级刷新、stale response 和当前页面状态隔离；WP7-D3 已证明关联候选 stale response 与失权 ID 不恢复；WP7-D4-3 已证明 AI 任务上下文 stale response、授权失败刷新和 malformed response 正文保护；WP7-E1-1.1～1.5 已通过前端受保护 PR #41/#42 合并并完成 post-merge CI（runs 33657251137、33660575729），WP7-E1-2 已通过前端受保护 PR #43 合并并完成 post-merge CI run 33665308048，WP7-E1-3 已通过前端受保护 PR #45 合并并完成 post-merge CI run 33710958405，完成旧 key 删除、backend-version 精确清理和 CACHE-015 保留验证；WP7-E2-2～E2-4 已完成本地 401/登出/403 回归与全量门禁，机器证据见 `evidence/wp7-e2-4/auth-error-boundary.json`；跨账号、focus 与迟到响应证据待 WP7-E3 | PR7 |
 | S1-R-014 | CLOSED | 分配历史包含敏感理由或越权用户信息 | reason 写入敏感正文或外部用户查询历史 | reason 限长和内容规则；历史沿用 TASK_VIEW 权限 | WP4-C reason 规则、D2-B 权限前置、D2-C HTTP 隐私字段与拒绝响应测试；Backend CI Run 33199646633 全部通过 | PR4 |
 
 ## 使用规则
