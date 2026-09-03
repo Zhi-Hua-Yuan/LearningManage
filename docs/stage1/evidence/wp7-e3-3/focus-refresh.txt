@@ -1,0 +1,26 @@
+WP7-E3-3 focus/visibility refresh local evidence
+Date: 2026-09-04
+Status: PASS / COMPLETED / LOCAL_PASS
+
+Frontend working tree baseline: 8c88a45
+
+Focused Vitest: 25 passed
+Full Vitest: 58 files / 459 passed
+Coverage: statements 84.83%; branches 75.13%; functions 85.71%; lines 88.49%
+Storage policy tests: 14 passed
+API contract: 44 operations; sha256=4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6
+Task cache consistency: PASS
+Oxlint: 0 warnings / 0 errors
+ESLint: PASS
+TypeScript: PASS
+Production build: PASS; 766 modules transformed
+
+PR7-T-045: PASS
+S7-GAP-011: RUNTIME_CLOSED
+WP7-E3: LOCAL_PASS
+S1-R-013: OPEN pending protected PR and post-merge CI
+
+Covered: focus/visibility debounce and single-flight; capability fail-closed;
+team context force revalidation; latest assignee/capability replacement;
+removed-task detail closure; dirty editor/write-operation queue; stale guard;
+unmount/session cleanup.
