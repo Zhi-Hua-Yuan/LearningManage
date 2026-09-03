@@ -1,0 +1,39 @@
+WP7-E2-1 session cleanup kernel evidence
+date: 2026-09-03
+status: PASS / LOCAL_VALIDATED / UNMERGED / LOCAL_CI_PASS
+
+implementation:
+- sessionStorageCleanup.ts: protected actor resource and session operation cleanup
+- sessionLifecycle.ts: reset handler registry, state reset and credential termination
+- sessionOperation.ts: actor-scoped operationId key and fail-closed access
+- AiDraftDetail.vue: migrated from unscoped operation key
+
+verification:
+- targeted Vitest: 3 files / 10 tests passed
+- full Vitest: 57 files / 424 tests passed
+- coverage: statements 84.48%; branches 75.21%; functions 85.02%; lines 88.35%
+- storage scan: 55 production accesses
+- storage policy: 55/55 covered
+- storage policy tests: 14 passed
+- task cache consistency: PASS
+- Oxlint: 0 warnings / 0 errors
+- ESLint: PASS
+- TypeScript: PASS
+- API contract: 44 operations; sha256 4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6
+- production build: PASS
+
+preserved:
+- tick_themeMode
+- tick_sidebarWidth
+- tick_detailWidth
+- tick_backend_cache_version
+- tick_backend_cache_reload_lock
+
+deferred:
+- logout and HTTP 401 integration: WP7-E2-2/E2-3
+- Pinia/page reset wiring: WP7-E2-2
+- HTTP 403 classification: WP7-E2-3
+- cross-account late response and focus refresh: WP7-E3
+- S1-R-013: OPEN
+
+next target: WP7-E2-2
