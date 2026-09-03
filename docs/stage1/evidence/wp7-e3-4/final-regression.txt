@@ -1,0 +1,36 @@
+WP7-E3-4 final regression and risk-closure evidence
+Date: 2026-09-04
+Status: PASS / COMPLETED / LOCAL_PASS
+Frontend baseline: fa5d0e4
+Frontend protected PR #53 merged; merge SHA=2ef907f292fbbacecf8a68f7d24c4701a555aa8a
+Frontend post-merge CI run=33783390301; 3 required jobs=success
+
+Focused Vitest: 3 files / 54 passed / 0 failed / 0 skipped
+Full Vitest: 58 files / 459 passed / 0 failed / 0 skipped
+Coverage: statements 84.83%; branches 75.13%; functions 85.71%; lines 88.49%
+API contract: 3 contract tests passed; 44 operations valid; sha256=4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6
+Storage policy: 14 passed; 55 production storage accesses covered
+Task cache consistency: PASS
+Oxlint: 0 warnings / 0 errors
+ESLint: PASS
+TypeScript: PASS
+Production build: PASS; 766 modules transformed
+
+Backend non-MySQL regression: 511 passed / 0 failures / 0 errors / 0 skipped
+Backend full Maven attempt: 563 tests / 0 failures / 52 errors / 0 skipped.
+All 52 errors are MySQL connection precondition failures caused by literal
+${TEST_DB_USERNAME}; no business assertion failure was observed.
+
+PR7-T-040: PASS
+PR7-T-041: PASS
+PR7-T-042: PASS
+PR7-T-043: PASS
+PR7-T-044: PASS
+PR7-T-045: PASS
+S7-GAP-010: RUNTIME_CLOSED
+S7-GAP-011: RUNTIME_CLOSED
+S1-R-013: LOCAL_CLOSURE_READY_PENDING_BACKEND_EVIDENCE_CI
+
+This evidence closes the local E3-4 regression scope. Final risk closure still
+requires the backend evidence PR and develop post-merge CI; WP7-F remains the
+next cross-repository acceptance target.
