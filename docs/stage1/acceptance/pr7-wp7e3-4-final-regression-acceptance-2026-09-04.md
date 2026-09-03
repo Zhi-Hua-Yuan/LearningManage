@@ -1,7 +1,7 @@
 # PR7 / WP7-E3-4 回归、证据与风险关闭验收
 
 日期：2026-09-04  
-状态：PASS / COMPLETED（前端受保护 PR 已合并；待 backend 证据 PR 收口）
+状态：PASS / COMPLETED / MERGED / CI_PASS
 
 ## 1. 收口范围
 
@@ -49,9 +49,9 @@ Access denied for user '${TEST_DB_USERNAME}'@'localhost'
 | `PR7-T-040`～`PR7-T-045` | PASS |
 | `S7-GAP-010` 团队项目跨页面访问裁剪 | RUNTIME_CLOSED |
 | `S7-GAP-011` capability reset/stale guard | RUNTIME_CLOSED |
-| `S1-R-013` 前端缓存保留旧受理人或旧能力 | 前端受保护合并已完成，待 backend 证据 PR 与 post-merge CI 后关闭 |
+| `S1-R-013` 前端缓存保留旧受理人或旧能力 | CLOSED；前端 PR #53、backend PR #100 及两端 post-merge CI 均成功 |
 
-E3-4 的本地回归与证据责任已完成，前端受保护合并和 post-merge CI 也已完成。按仓库验收规则，`S1-R-013` 还需 backend 证据 PR 合并并取得 develop post-merge CI 后完成最后状态迁移。WP7-F 继续负责跨仓最终验收、Artifact 和 release 收口。
+E3-4 的回归、证据和风险关闭责任已完成。前端 PR #53 的 post-merge CI 为 `33783390301`，backend PR #100 的 post-merge CI 为 `33785800984`，两者均成功。WP7-F 继续负责跨仓最终验收、Artifact 和 release 收口。
 
 ## 5. 证据索引
 
@@ -61,10 +61,10 @@ E3-4 的本地回归与证据责任已完成，前端受保护合并和 post-mer
 - [PR7 测试矩阵](../frontend/pr7-test-matrix.md)
 
 ```text
-WP7-E3-4：PASS / COMPLETED（LOCAL_PASS）
-WP7-E3：LOCAL_PASS
+WP7-E3-4：PASS / COMPLETED / MERGED / CI_PASS
+WP7-E3：PASS / COMPLETED / MERGED / CI_PASS
 S7-GAP-010：RUNTIME_CLOSED
 S7-GAP-011：RUNTIME_CLOSED
-S1-R-013：LOCAL_CLOSURE_READY_PENDING_BACKEND_EVIDENCE_CI
+S1-R-013：CLOSED
 下一主目标：WP7-F / PR7 最终验收
 ```

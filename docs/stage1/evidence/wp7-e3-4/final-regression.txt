@@ -29,8 +29,8 @@ PR7-T-044: PASS
 PR7-T-045: PASS
 S7-GAP-010: RUNTIME_CLOSED
 S7-GAP-011: RUNTIME_CLOSED
-S1-R-013: LOCAL_CLOSURE_READY_PENDING_BACKEND_EVIDENCE_CI
+S1-R-013: CLOSED
 
-This evidence closes the local E3-4 regression scope. Final risk closure still
-requires the backend evidence PR and develop post-merge CI; WP7-F remains the
-next cross-repository acceptance target.
+Frontend PR #53 and backend evidence PR #100 are merged. Frontend post-merge
+CI 33783390301 and backend post-merge CI 33785800984 are successful.
+S1-R-013 is formally CLOSED. WP7-F remains the next cross-repository target.
