@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "sourceMatrix": "docs/stage1/frontend/pr7-test-matrix.md",
+  "scenarioCount": 38,
+  "scenarioStatus": {"pass": 38, "fail": 0, "blocked": 0},
+  "groups": [
+    {"range":"PR7-T-001..006","area":"API/contract","status":"PASS","evidence":["frontend-api-contract.json","api-contract-report.json"]},
+    {"range":"PR7-T-010..017","area":"capability and permission UI","status":"PASS","evidence":["frontend CI test and coverage artifacts"]},
+    {"range":"PR7-T-020..027","area":"assignment and concurrency","status":"PASS","evidence":["frontend CI test and coverage artifacts","backend CI run 33790707384"]},
+    {"range":"PR7-T-030..039","area":"review privacy and shared feed","status":"PASS","evidence":["frontend CI test and coverage artifacts","backend CI run 33790707384"]},
+    {"range":"PR7-T-040..045","area":"cache and session lifecycle","status":"PASS","evidence":["frontend CI test and coverage artifacts","backend CI run 33790707384"]}
+  ],
+  "frontendTestRun": {"testFiles":58,"tests":459,"failures":0,"errors":0,"skipped":0},
+  "backendTestRun": {"tests":564,"failures":0,"errors":0,"skipped":0}
+}
