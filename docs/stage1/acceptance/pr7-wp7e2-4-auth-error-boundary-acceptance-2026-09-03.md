@@ -1,7 +1,9 @@
 # PR7 WP7-E2-4 认证错误边界与 401/403 回归验收
 
 日期：2026-09-03  
-状态：`PASS / LOCAL_VALIDATED / MERGE_PENDING`
+状态：`PASS / CI_PASS / MERGE_PENDING`
+
+受保护 PR：前端 [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，backend 证据 [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)。两边 PR 当前均为 `OPEN`，尚未合并。
 
 ## 1. 范围
 
@@ -38,11 +40,11 @@
 
 ## 4. 验收结论与边界
 
-E2-4 本地实现、测试和构建门禁全部通过。跨账号切换、focus refresh、迟到响应及 `S1-R-013` 最终关闭属于 E3，未在本工作包提前宣称完成。远端受保护合并和 post-merge CI 仍需单独执行并回填 merge SHA/run ID。
+E2-4 本地实现、测试和构建门禁全部通过；前端 PR #49、backend PR #96 的受保护 CI 均已通过。跨账号切换、focus refresh、迟到响应及 `S1-R-013` 最终关闭属于 E3，未在本工作包提前宣称完成；merge SHA 仍待 PR 合并后回填。
 
 ```text
 PR7-T-043：PASS（本地）
-WP7-E2-4：PASS / LOCAL_VALIDATED / MERGE_PENDING
+WP7-E2-4：PASS / CI_PASS / MERGE_PENDING
 WP7-E2：LOCAL_VALIDATED
 S1-R-013：OPEN
 下一主目标：WP7-E3

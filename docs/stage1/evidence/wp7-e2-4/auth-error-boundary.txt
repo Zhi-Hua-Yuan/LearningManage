@@ -1,6 +1,11 @@
 WP7-E2-4 auth error boundary local evidence
 Date: 2026-09-03
-Status: PASS / LOCAL_VALIDATED / MERGE_PENDING
+Status: PASS / CI_PASS / MERGE_PENDING
+
+Frontend PR #49: https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49
+Backend evidence PR #96: https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96
+Frontend CI run 33754055921: 3/3 PASS
+Backend CI run 33754086756: 5/5 PASS
 
 Focused Vitest: 2 files / 29 passed
 Full Vitest: 58 files / 447 passed
@@ -17,4 +22,4 @@ Production build: PASS; 766 modules transformed
 PR7-T-043: PASS
 S1-R-013: OPEN
 Deferred: cross-account isolation, focus refresh, late response and final risk closure (WP7-E3)
-Remote protected merge/post-merge CI evidence: pending
+Remote merge SHA and post-merge CI evidence: pending (both PRs remain OPEN)
