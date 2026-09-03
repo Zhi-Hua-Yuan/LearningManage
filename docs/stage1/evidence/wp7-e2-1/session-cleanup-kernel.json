@@ -1,0 +1,62 @@
+{
+  "stage": "stage1",
+  "pr": "PR7",
+  "workPackage": "WP7-E2-1",
+  "title": "统一受保护状态清理内核",
+  "date": "2026-09-03",
+  "status": "PASS",
+  "mergeStatus": "UNMERGED",
+  "ciStatus": "LOCAL_CI_PASS",
+  "implementation": {
+    "sessionStorageCleanup": "src/utils/sessionStorageCleanup.ts",
+    "sessionLifecycle": "src/utils/sessionLifecycle.ts",
+    "sessionOperation": "src/utils/sessionOperation.ts",
+    "aiDraftDetailUpdated": true,
+    "actorScopedOperationKey": "ai:draft:confirm-operation:{draftId}:actor-{actorId}",
+    "failClosedWithoutActor": true,
+    "preservesGlobalPreferences": true,
+    "preservesInfrastructureMetadata": true,
+    "clearsLegacyBusinessKeys": true,
+    "resetHandlerRegistry": true
+  },
+  "tests": {
+    "targetedFiles": 3,
+    "targetedTests": 10,
+    "fullTestFiles": 57,
+    "fullTests": 424,
+    "storagePolicyTests": 14,
+    "coverage": {
+      "statements": 84.48,
+      "branches": 75.21,
+      "functions": 85.02,
+      "lines": 88.35
+    },
+    "storageProductionAccesses": 55,
+    "storagePolicyCovered": 55,
+    "apiOperations": 44,
+    "contractDigest": "sha256sum 4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6"
+  },
+  "gates": {
+    "storageAssetScan": "PASS",
+    "storagePolicy": "PASS",
+    "taskCacheConsistency": "PASS",
+    "oxlint": "PASS",
+    "eslint": "PASS",
+    "typeCheck": "PASS",
+    "contractTest": "PASS",
+    "contractVerify": "PASS",
+    "productionBuild": "PASS"
+  },
+  "deferred": [
+    "logout and HTTP 401 integration",
+    "Pinia and page reset handler wiring",
+    "HTTP 403 classification",
+    "cross-account late response protection",
+    "window focus refresh",
+    "S1-R-013 closure"
+  ],
+  "risk": {
+    "S1-R-013": "OPEN"
+  },
+  "nextTarget": "WP7-E2-2"
+}
