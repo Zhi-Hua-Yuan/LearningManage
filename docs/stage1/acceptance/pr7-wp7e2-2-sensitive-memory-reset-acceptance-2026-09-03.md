@@ -1,7 +1,11 @@
 # PR7 WP7-E2-2 敏感内存与页面状态清理验收
 
 日期：2026-09-03  
-状态：`PASS / LOCAL_VALIDATED / MERGE_PENDING`
+状态：`PASS / COMPLETED / MERGED / CI_PASS`
+
+受保护合并：前端 PR [#49](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/pull/49)，merge commit `04127319c3829e98c8b0331f4beff7a364a37083`；backend 证据 PR [#96](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/96)，merge commit `c4f1fe09b331c142f563b280cdcf1b6a426e721e`。
+
+Develop post-merge CI：前端 run `33755415089`、backend run `33755426428`，均为 `completed / success`。
 
 ## 1. 范围
 
@@ -30,6 +34,6 @@
 E2-2 的实现和本地回归已完成；受保护分支合并及 post-merge CI 仍需在前端/后端证据 PR 中补录，不能以本地结果替代远端收口。
 
 ```text
-WP7-E2-2：PASS / LOCAL_VALIDATED / MERGE_PENDING
+WP7-E2-2：PASS / COMPLETED / MERGED / CI_PASS
 S1-R-013：OPEN（等待 E2-4、E3 证据）
 ```
