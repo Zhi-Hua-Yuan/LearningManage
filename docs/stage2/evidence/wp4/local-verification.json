@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "workPackage": "WP4",
-  "generatedAt": "2026-09-04T12:13:05Z",
+  "generatedAt": "2026-09-04T13:06:25Z",
   "branch": "develop",
-  "baseCommit": "8e703393837c1e4dfb8ae546a09a311b5d880521",
-  "status": "READY_FOR_CANDIDATE_CI",
+  "baseCommit": "d3a9c673e2e79709f2cd140be9c24cad874957bd",
+  "status": "PASS",
   "verification": {
     "facade": {"lines": 137, "collaborators": 7, "businessDependencies": 0, "status": "PASS"},
     "sceneServices": {"interfaces": 6, "supportInterfaces": 3, "crossSceneDependencies": 0, "status": "PASS"},
@@ -14,7 +14,7 @@
     "fullRegression": {
       "nonMySqlTests": {"tests": 596, "failures": 0, "errors": 0, "status": "PASS"},
       "mysqlDependentTests": {"tests": 57, "failures": 0, "errors": 0, "status": "PASS"},
-      "fullVerify": {"tests": 645, "failures": 0, "errors": 0, "status": "PASS", "command": ".\\mvnw.cmd verify", "note": "既有隔离 Docker MySQL 验证；本轮新增 8 项纯单元测试已在非 MySQL 回归中通过，待候选 CI 汇总为 653 项"}
+      "fullVerify": {"tests": 653, "failures": 0, "errors": 0, "status": "PASS", "command": "candidate release gate 33875362611"}
     },
     "frontend": {
       "testFiles": 58,
@@ -26,9 +26,9 @@
     },
     "publicControllerChanges": 0,
     "businessDirectModelCalls": 0,
-    "candidateCi": {"status": "PENDING"},
-    "dockerStub": {"status": "PENDING_CANDIDATE_CI"},
-    "runtimeApiComparison": {"status": "PENDING_CANDIDATE_CI", "expectedFrontendOperations": 44},
+    "candidateCi": {"status": "PASS", "runId": "33875362611", "headSha": "d3a9c673e2e79709f2cd140be9c24cad874957bd", "url": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33875362611"},
+    "dockerStub": {"status": "PASS", "runId": "33875362611", "jobId": "101033036043"},
+    "runtimeApiComparison": {"status": "PASS", "expectedFrontendOperations": 44, "matchedOperations": 44, "runtimeOperations": 65, "missingOperations": 0, "reportSha256": "595D70320FD4023DB37853734EA8B4CDAEEA614122D35CCF67EC8C1E6AD2EE03"},
     "acceptanceContract": {
       "jsonSchemaValidation": "PASS",
       "bashSyntax": "PASS",
@@ -51,6 +51,6 @@
     "draftStateMachineEnhanced": false,
     "resilienceEnhanced": false
   },
-  "gate": {"id": "S2-A-008", "status": "PENDING_CANDIDATE_CI"},
+  "gate": {"id": "S2-A-008", "status": "PASS", "candidateId": "stage2-wp4-20260904-merge-d3a9c67", "candidateManifestSha256": "0EF33880ABB7AE6A7B75AF748C5234095227153B47AA4A9179091F5EC3829257"},
   "risk": {"id": "S2-R-008", "status": "OPEN"}
 }

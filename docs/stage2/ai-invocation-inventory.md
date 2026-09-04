@@ -51,7 +51,7 @@
 - 场景之间直接依赖数为 0；业务直接模型调用数仍为 0。
 - 任务拆解与周复盘的当前确认逻辑已进入对应场景服务；上表中的专用 Draft Handler 仍按 WP5 计划保持 `OPEN`。
 
-本轮本地非 MySQL 回归已通过 596 个后端测试；结合此前 57 个 MySQL 依赖测试证据，当前候选基线为 653 个后端测试和 459 个前端测试。正式状态将在保护分支候选 CI、Docker Stub 与运行时 OpenAPI 比对完成后由 `WP4_SCENE_IMPLEMENTED` 封存为 WP4 `PASS`。
+WP4 候选发布门禁已在合并后的 `develop` 精确提交 `d3a9c673e2e79709f2cd140be9c24cad874957bd` 上通过：后端 653 个测试、前端 459 个测试、Docker Stub 全链路通过，运行时 API 与前端 44/44 匹配（运行时共 65 个 operation，缺失 0）。候选工作流为 [33875362611](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33875362611)，候选清单 SHA-256 为 `0EF33880ABB7AE6A7B75AF748C5234095227153B47AA4A9179091F5EC3829257`。WP4 已由 `WP4_SCENE_IMPLEMENTED` 封存为 `PASS`；`S2-R-008` 仍保持 `OPEN`，直到 WP8 完成最终跨仓兼容验收。
 
 ## WP1 冻结的数据模型
 
