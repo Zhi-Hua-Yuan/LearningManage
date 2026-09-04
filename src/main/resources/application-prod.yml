@@ -23,7 +23,7 @@ logging:
     root: info
 
 ai:
-  api-key: ${ALIYUN_API_KEY}
+  api-key: ${ALIYUN_API_KEY:}
   base-url: ${AI_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
   model: ${AI_MODEL:qwen-plus}
   breakdown-model: ${AI_BREAKDOWN_MODEL:qwen-plus}
@@ -33,7 +33,7 @@ ai:
 rate-limit:
   ai:
     enabled: ${AI_RATE_LIMIT_ENABLED:true}
-    fail-open: ${AI_RATE_LIMIT_FAIL_OPEN:true}
+    fail-open: ${AI_RATE_LIMIT_FAIL_OPEN:false}
     default-rule:
       window-seconds: ${AI_RATE_LIMIT_WINDOW_SECONDS:60}
       max-requests: ${AI_RATE_LIMIT_MAX_REQUESTS:5}

@@ -2,6 +2,7 @@ package com.spt.learningmanage.interceptor;
 
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.ai.governance.AiFeatureGate;
 import com.spt.learningmanage.service.RateLimitService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
@@ -30,6 +31,9 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
     @Resource
     private RateLimitService rateLimitService;
 
+    @Resource
+    private AiFeatureGate aiFeatureGate;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!POST_METHOD.equalsIgnoreCase(request.getMethod())) {
@@ -39,6 +43,9 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
         String scene = resolveScene(request);
         if (scene == null) {
             return true;
+        }
+        if (!aiFeatureGate.isChatEnabled()) {
+            throw new BusinessException(ErrorCode.AI_DISABLED);
         }
 
         Long userId = UserHolder.get();

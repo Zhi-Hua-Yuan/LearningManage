@@ -31,6 +31,7 @@ import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
 import com.spt.learningmanage.service.impl.ai.support.AiSceneSupport;
+import com.spt.learningmanage.trace.TraceContext;
 import com.spt.learningmanage.utils.UserHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -172,7 +172,7 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
 
     @Override
     public AiPolishPreviewVO previewWeeklyPolish(AiPolishRequest request) {
-        String traceId = UUID.randomUUID().toString().replace("-", "");
+        String traceId = TraceContext.explicitOrCurrent(null);
         String polished = polishWeeklyReview(request.getTaskIds(), request.getReflection(), traceId);
         Long userId = currentUserId();
         JSONObject payload = JSONUtil.createObj()

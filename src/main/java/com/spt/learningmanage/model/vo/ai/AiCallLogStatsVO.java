@@ -28,6 +28,20 @@ public class AiCallLogStatsVO {
 
     private Long minCostTimeMs;
 
+    private Long totalPromptTokens;
+
+    private Long totalCompletionTokens;
+
+    private Long totalTokens;
+
+    private BigDecimal totalEstimatedCost;
+
+    private Long unknownUsageCount;
+
+    private Long fallbackCount;
+
+    private Long degradedCount;
+
     private List<AiCallLogSceneStatsVO> sceneStats;
 
     private List<AiCallLogStatusStatsVO> statusStats;

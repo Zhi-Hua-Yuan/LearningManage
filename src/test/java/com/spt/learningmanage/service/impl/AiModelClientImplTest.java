@@ -66,6 +66,82 @@ class AiModelClientImplTest {
     }
 
     @Test
+    void chat_shouldRejectWhenFeatureIsDisabledWithoutCallingProvider() {
+        aiProperties.getChat().setEnabled(false);
+
+        AiInvocationException exception = Assertions.assertThrows(
+                AiInvocationException.class,
+                () -> aiModelClient.chat(new AiChatCommand(
+                        "primary-model", List.of(AiChatMessage.user("hello")),
+                        List.of(), AiToolChoice.none(), null, null
+                ))
+        );
+
+        Assertions.assertEquals(AiFailureTypeEnum.FEATURE_DISABLED, exception.getFailureType());
+        verify(aiHttpTransport, times(0))
+                .postChat(anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    void chat_shouldSanitizeSecretsBeforeCallingProvider() {
+        when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(successResponse("ok"));
+
+        aiModelClient.chat(new AiChatCommand(
+                "primary-model",
+                List.of(AiChatMessage.user("password=plain-secret")),
+                List.of(), AiToolChoice.none(), null, null
+        ));
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(aiHttpTransport).postChat(anyString(), anyString(), body.capture(), anyInt(), anyInt());
+        Assertions.assertFalse(body.getValue().contains("plain-secret"));
+        Assertions.assertTrue(body.getValue().contains("REDACTED"));
+    }
+
+    @Test
+    void chat_shouldNotCallProviderWhenLogicalDeadlineAlreadyExpired() {
+        aiProperties.getResilience().setTotalTimeoutMs(0);
+        aiModelClient = new AiModelClientImpl(aiProperties, aiHttpTransport);
+
+        AiInvocationException exception = Assertions.assertThrows(
+                AiInvocationException.class,
+                () -> aiModelClient.chat(new AiChatCommand(
+                        "primary-model", List.of(AiChatMessage.user("hello")),
+                        List.of(), AiToolChoice.none(), null, null
+                ))
+        );
+
+        Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getFailureType());
+        verify(aiHttpTransport, times(0))
+                .postChat(anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    void chat_shouldKeepFallbackCircuitIndependentFromPrimaryCircuit() {
+        aiProperties.getResilience().setSlidingWindowSize(2);
+        aiProperties.getResilience().setMinimumNumberOfCalls(1);
+        aiProperties.getResilience().setFailureRateThreshold(50);
+        aiModelClient = new AiModelClientImpl(aiProperties, aiHttpTransport);
+        when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(new AiHttpResponse(500, "primary failed"))
+                .thenReturn(successResponse("fallback-1"))
+                .thenReturn(successResponse("fallback-2"));
+
+        AiChatResult first = aiModelClient.chat(new AiChatCommand(
+                "primary-model", List.of(AiChatMessage.user("one")),
+                List.of(), AiToolChoice.none(), null, null));
+        AiChatResult second = aiModelClient.chat(new AiChatCommand(
+                "primary-model", List.of(AiChatMessage.user("two")),
+                List.of(), AiToolChoice.none(), null, null));
+
+        Assertions.assertEquals("fallback-1", first.content());
+        Assertions.assertEquals("fallback-2", second.content());
+        verify(aiHttpTransport, times(3))
+                .postChat(anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    @Test
     void invoke_shouldUseFallbackModelAfterPrimaryTimeout() {
         RuntimeException timeout = new RuntimeException(new SocketTimeoutException("read timed out"));
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))

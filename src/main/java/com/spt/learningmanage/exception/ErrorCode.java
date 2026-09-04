@@ -41,7 +41,10 @@ public enum ErrorCode {
     AI_DRAFT_NOT_CONFIRMABLE(30005, "AI 草稿当前不可确认"),
     AI_DRAFT_EXPIRED(30006, "AI 草稿已过期"),
     AI_DRAFT_SCHEMA_UNSUPPORTED(30007, "AI 草稿版本不受支持"),
-    AI_DRAFT_CONFLICT(30008, "AI 草稿状态冲突");
+    AI_DRAFT_CONFLICT(30008, "AI 草稿状态冲突"),
+    AI_DISABLED(30009, "AI 生成功能已关闭"),
+    AI_CONCURRENCY_LIMIT(30010, "AI 服务当前请求较多"),
+    AI_CONTENT_BLOCKED(30011, "请求包含禁止发送的敏感信息");
 
     private final int code;
     private final String message;

@@ -35,7 +35,8 @@ case "$mode" in
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
       ($wp5_status == "PENDING" or $wp5_status == "PASS") and
-      ([.gates[] | select(.id | IN("S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id | IN("S2-A-010","S2-A-011")) | .status] | all(. == "PENDING" or . == "PASS")) and
+      ([.gates[] | select(.id == "S2-A-012") | .status] | all(. == "PENDING")) and
       ([.gates[] | select(.id == "S2-A-008") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-006") | .status] | all(. == "PENDING" or . == "PASS")) and
@@ -134,6 +135,29 @@ if [[ "$wp3_gate_status" == "PASS" ]]; then
     .verification.fullMySqlCiStatus == "PASS" and
     .gate.status == "PASS"
   ' "$wp3_verification" >/dev/null || ci_fail "stage2_wp3_pass_without_full_ci"
+fi
+
+wp6_security_status="$(jq -r '.gates[] | select(.id == "S2-A-010") | .status' "$contract")"
+wp6_resilience_status="$(jq -r '.gates[] | select(.id == "S2-A-011") | .status' "$contract")"
+if [[ "$wp6_security_status" == "PASS" || "$wp6_resilience_status" == "PASS" ]]; then
+  [[ "$wp6_security_status" == "PASS" && "$wp6_resilience_status" == "PASS" ]] \
+    || ci_fail "stage2_wp6_gates_must_advance_together"
+  wp6_verification="${project_root}/docs/stage2/evidence/wp6/local-verification.json"
+  [[ -s "$wp6_verification" ]] || ci_fail "stage2_wp6_verification_missing"
+  jq -e '
+    .verification.trace.status == "PASS" and
+    .verification.sanitization.status == "PASS" and
+    .verification.cost.status == "PASS" and
+    .verification.resilience.status == "PASS" and
+    .verification.accessBoundary.status == "PASS" and
+    .verification.fullRegression.status == "PASS" and
+    .verification.fullRegression.tests >= 674 and
+    .verification.publishedMigrations.status == "PASS" and
+    .verification.candidateCi.status == "PASS" and
+    .verification.dockerStub.status == "PASS" and
+    .verification.runtimeApiComparison.status == "PASS" and
+    .gate.security.status == "PASS" and .gate.resilience.status == "PASS"
+  ' "$wp6_verification" >/dev/null || ci_fail "stage2_wp6_pass_without_candidate_ci"
 fi
 
 printf 'stage2.acceptance.mode=%s\n' "$mode"

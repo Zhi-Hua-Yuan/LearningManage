@@ -4,6 +4,9 @@ import com.spt.learningmanage.constant.AiCallFailureTypeEnum;
 import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.model.dto.ai.chat.AiUsage;
+import com.spt.learningmanage.model.dto.ai.chat.AiAttemptSummary;
+
+import java.util.List;
 
 /**
  * AI 调用日志的唯一终态写入命令。
@@ -25,9 +28,11 @@ public record AiCallLogCompletionCommand(
         String traceId,
         AiCallFailureTypeEnum failureType,
         boolean degraded,
-        String degradationReason
+        String degradationReason,
+        List<AiAttemptSummary> attempts
 ) {
     public AiCallLogCompletionCommand {
+        attempts = attempts == null ? List.of() : List.copyOf(attempts);
         if (logId == null || logId <= 0) {
             throw new IllegalArgumentException("日志 ID 必须为正整数");
         }
@@ -78,6 +83,28 @@ public record AiCallLogCompletionCommand(
                 && status != AiCallLogStatusEnum.PARSE_FAILED) {
             throw new IllegalArgumentException("协议、解析或业务校验失败必须使用解析失败终态");
         }
+    }
+
+    public AiCallLogCompletionCommand(Long logId,
+                                      AiCallLogStatusEnum status,
+                                      String responseText,
+                                      String errorMessage,
+                                      Long costTimeMs,
+                                      String requestedModel,
+                                      String actualModel,
+                                      Integer retryCount,
+                                      String finishReason,
+                                      AiUsage usage,
+                                      String providerRequestId,
+                                      boolean modelFallbackUsed,
+                                      AiFailureTypeEnum modelFallbackReason,
+                                      String traceId,
+                                      AiCallFailureTypeEnum failureType,
+                                      boolean degraded,
+                                      String degradationReason) {
+        this(logId, status, responseText, errorMessage, costTimeMs, requestedModel, actualModel,
+                retryCount, finishReason, usage, providerRequestId, modelFallbackUsed,
+                modelFallbackReason, traceId, failureType, degraded, degradationReason, List.of());
     }
 
     private static boolean isParseFailure(AiCallFailureTypeEnum failureType) {

@@ -20,6 +20,9 @@ public abstract class AiSceneSupport {
             case CONFIG_ERROR -> ErrorCode.AI_CONFIG_ERROR;
             case TIMEOUT -> ErrorCode.AI_REQUEST_TIMEOUT;
             case INVALID_RESPONSE -> ErrorCode.AI_RESPONSE_INVALID;
+            case FEATURE_DISABLED -> ErrorCode.AI_DISABLED;
+            case CONCURRENCY_LIMIT -> ErrorCode.AI_CONCURRENCY_LIMIT;
+            case CONTENT_BLOCKED -> ErrorCode.AI_CONTENT_BLOCKED;
             default -> ErrorCode.AI_SERVICE_UNAVAILABLE;
         };
         return new BusinessException(errorCode, exception.getSafeMessage());
