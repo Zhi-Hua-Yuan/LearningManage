@@ -92,6 +92,7 @@ class AiModelClientImplTest {
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.UPSTREAM_REJECTED, exception.getFailureType());
+        Assertions.assertEquals(401, exception.getHttpStatusCode());
         Assertions.assertEquals(0, exception.getRetryCount());
         Assertions.assertFalse(exception.getSafeMessage().contains("sensitive upstream response"));
         Assertions.assertFalse(exception.getMessage().contains("sensitive upstream response"));
@@ -111,9 +112,31 @@ class AiModelClientImplTest {
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getFailureType());
+        Assertions.assertEquals("primary-model", exception.getRequestedModel());
         Assertions.assertEquals("fallback-model", exception.getModelName());
         Assertions.assertEquals(1, exception.getRetryCount());
+        Assertions.assertTrue(exception.isModelFallbackUsed());
+        Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getModelFallbackReason());
         Assertions.assertEquals(1, exception.getSuppressed().length);
+    }
+
+    @Test
+    void chat_shouldKeepPrimaryFailureAsFallbackReasonWhenFallbackFailsDifferently() {
+        when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(new AiHttpResponse(500, "primary server error"))
+                .thenReturn(new AiHttpResponse(504, "fallback timeout"));
+
+        AiInvocationException exception = Assertions.assertThrows(
+                AiInvocationException.class,
+                () -> aiModelClient.chat(textCommand())
+        );
+
+        Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getFailureType());
+        Assertions.assertEquals(AiFailureTypeEnum.UPSTREAM_SERVER_ERROR,
+                exception.getModelFallbackReason());
+        Assertions.assertTrue(exception.isModelFallbackUsed());
+        Assertions.assertEquals("primary-model", exception.getRequestedModel());
+        Assertions.assertEquals("fallback-model", exception.getModelName());
     }
 
     @Test

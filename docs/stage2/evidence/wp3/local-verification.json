@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP3",
+  "generatedAt": "2026-09-04T10:58:00Z",
+  "branch": "codex/stage2-wp3-invocation-pipeline",
+  "baseCommit": "d611180",
+  "status": "LOCAL_PASS_CI_PENDING",
+  "verification": {
+    "coreTests": {"tests": 35, "failures": 0, "errors": 0, "status": "PASS"},
+    "architectureGate": {
+      "tests": 3,
+      "businessDirectModelCalls": 0,
+      "businessDirectTransportDependencies": 0,
+      "status": "PASS"
+    },
+    "sourceBoundaryGate": {
+      "modelClientCallSites": 1,
+      "businessDirectModelCalls": 0,
+      "businessDirectTransportDependencies": 0,
+      "status": "PASS"
+    },
+    "wp2ProtocolTests": {"tests": 38, "failures": 0, "errors": 0, "status": "PASS"},
+    "wp2StubRegression": {
+      "scenarios": 16,
+      "status": "INHERITED_PASS",
+      "source": "docs/stage2/evidence/wp2/local-verification.json",
+      "localRerun": "BLOCKED_MISSING_JQ"
+    },
+    "sceneCompatibilityTests": {"status": "PASS"},
+    "fullRegression": {
+      "status": "PASS_LOCAL",
+      "nonMySqlTests": {"tests": 572, "failures": 0, "errors": 0, "status": "PASS"},
+      "mysqlDependentTests": {
+        "tests": 57,
+        "status": "PASS",
+        "reason": "在隔离 Docker MySQL 上执行"
+      }
+    },
+    "wp3MySqlTests": {
+      "tests": 4,
+      "status": "PASS",
+      "coverage": ["main model success", "model fallback success", "rule degradation", "terminal CAS idempotency"]
+    },
+    "fullVerify": {"tests": 629, "failures": 0, "errors": 0, "status": "PASS", "command": ".\\mvnw.cmd verify", "flywayEnabled": true},
+    "dockerRuntime": {"status": "PASS", "healthStatus": 200, "healthBody": {"code": 0, "message": "ok", "data": "ok"}},
+    "ciExpectedBackendTests": 629,
+    "fullMySqlCiStatus": "PENDING",
+    "jsonSchemaValidation": "PASS",
+    "acceptanceEquivalentCheck": "PASS",
+    "bashGateLocalStatus": "BLOCKED_MISSING_JQ",
+    "diffCheck": "PASS",
+    "publicControllerChanges": 0,
+    "publicApiCounts": {"legacy": 37, "frontend": 44, "runtimeBaseline": 65}
+  },
+  "migrationIntegrity": {
+    "unchangedFromOriginDevelop": true,
+    "V1": "E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9",
+    "V2": "B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1",
+    "V3": "A626B41B40EFB8EDC2D72F57454A738B6196A11DEA9C6E14070F07E6CFAC4177"
+  },
+  "scope": {
+    "databaseMigrationAdded": false,
+    "ragImplemented": false,
+    "agentImplemented": false,
+    "businessToolExecuted": false,
+    "costCalculationImplemented": false,
+    "resilience4jImplemented": false
+  },
+  "gate": {"id": "S2-A-007", "status": "PENDING"},
+  "risk": {"id": "S2-R-002", "status": "OPEN_PENDING_CI"}
+}

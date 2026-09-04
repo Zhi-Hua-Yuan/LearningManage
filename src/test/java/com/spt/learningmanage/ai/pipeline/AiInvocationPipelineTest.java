@@ -1,7 +1,7 @@
 package com.spt.learningmanage.ai.pipeline;
 
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
+import com.spt.learningmanage.constant.AiCallFailureTypeEnum;
+import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.constant.AiPromptSourceEnum;
@@ -9,8 +9,12 @@ import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.exception.AiResponseProcessingException;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCompletionCommand;
 import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiToolCall;
+import com.spt.learningmanage.model.dto.ai.chat.AiUsage;
 import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
@@ -19,345 +23,327 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AiInvocationPipelineTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long CALL_LOG_ID = 100L;
-    private static final String PRIMARY_MODEL = "primary-model";
+    private static final long USER_ID = 1L;
+    private static final long LOG_ID = 100L;
+    private static final String REQUESTED_MODEL = "primary-model";
     private static final String ACTUAL_MODEL = "fallback-model";
-    private static final String SYSTEM_PROMPT = "你是今日任务排序助手";
-    private static final String USER_PROMPT = "请对今日任务进行排序";
-    private static final String RAW_RESPONSE = "{\"items\":[]}";
-    private static final String PROCESSED_RESULT = "已解析结果";
-    private static final String PARSE_FAILURE_MESSAGE = "AI 今日任务排序结果格式异常";
+    private static final String RAW = "{\"items\":[]}";
+    private static final String TRACE_ID = "trace-wp3-001";
 
-    @Mock
-    private PromptTemplateResolver promptTemplateResolver;
-    @Mock
-    private AiModelClient aiModelClient;
-    @Mock
-    private AiCallLogService aiCallLogService;
-    @Mock
-    private AiResponseProcessor<String> responseProcessor;
+    @Mock private PromptTemplateResolver promptTemplateResolver;
+    @Mock private AiModelClient aiModelClient;
+    @Mock private AiCallLogService aiCallLogService;
 
     private AiInvocationPipeline pipeline;
 
     @BeforeEach
     void setUp() {
-        pipeline = new AiInvocationPipeline(
-                promptTemplateResolver,
-                aiModelClient,
-                aiCallLogService
-        );
+        pipeline = new AiInvocationPipeline(promptTemplateResolver, aiModelClient, aiCallLogService);
+        lenient().when(promptTemplateResolver.resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT)).thenReturn(template());
+        lenient().when(aiCallLogService.createRunningLog(any())).thenReturn(LOG_ID);
+        lenient().when(aiCallLogService.complete(any())).thenReturn(true);
     }
 
     @Test
-    void execute_shouldReturnProcessedResultAndCompleteCallLog() {
-        stubSuccessfulInvocation();
+    void execute_shouldUseChatAndReturnAllProtocolMetadata() {
+        AiUsage usage = new AiUsage(12, 8, 20);
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                RAW, List.of(), "stop", usage, "req-1", REQUESTED_MODEL,
+                ACTUAL_MODEL, 1, true, AiFailureTypeEnum.RATE_LIMITED
+        ));
 
-        AiExecutionResult<String> result = pipeline.execute(command(), responseProcessor);
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID), raw -> "ok");
 
-        Assertions.assertEquals(PROCESSED_RESULT, result.data());
-        Assertions.assertEquals(CALL_LOG_ID, result.callLogId());
+        Assertions.assertEquals("ok", result.data());
+        Assertions.assertEquals(REQUESTED_MODEL, result.requestedModel());
         Assertions.assertEquals(ACTUAL_MODEL, result.actualModel());
-        Assertions.assertEquals(1, result.retryCount());
-        Assertions.assertTrue(result.costTimeMs() >= 0);
+        Assertions.assertEquals(usage, result.usage());
+        Assertions.assertTrue(result.modelFallbackUsed());
+        Assertions.assertFalse(result.degraded());
+        Assertions.assertEquals(TRACE_ID, result.traceId());
 
-        ArgumentCaptor<AiCallLogCreateCommand> logCommandCaptor =
-                ArgumentCaptor.forClass(AiCallLogCreateCommand.class);
-        verify(aiCallLogService).createRunningLog(logCommandCaptor.capture());
-        AiCallLogCreateCommand logCommand = logCommandCaptor.getValue();
-        Assertions.assertEquals(USER_ID, logCommand.userId());
-        Assertions.assertEquals("today-order", logCommand.scene());
-        Assertions.assertEquals(PRIMARY_MODEL, logCommand.modelName());
-        Assertions.assertEquals("today-order.default", logCommand.promptCode());
-        Assertions.assertEquals(10L, logCommand.promptTemplateId());
-        Assertions.assertEquals(2, logCommand.promptVersion());
-        Assertions.assertEquals("database", logCommand.promptSource());
-        Assertions.assertEquals(0, logCommand.retryCount());
+        ArgumentCaptor<AiChatCommand> chatCaptor = ArgumentCaptor.forClass(AiChatCommand.class);
+        verify(aiModelClient).chat(chatCaptor.capture());
+        Assertions.assertEquals(2, chatCaptor.getValue().messages().size());
+        Assertions.assertTrue(chatCaptor.getValue().tools().isEmpty());
+        Assertions.assertEquals(com.spt.learningmanage.model.dto.ai.chat.AiToolChoice.Mode.NONE,
+                chatCaptor.getValue().toolChoice().mode());
 
-        JSONObject requestText = JSONUtil.parseObj(logCommand.requestText());
-        Assertions.assertEquals(SYSTEM_PROMPT, requestText.getStr("systemPrompt"));
-        Assertions.assertEquals(USER_PROMPT, requestText.getStr("userPrompt"));
-
-        verify(aiCallLogService).updateExecutionMetadata(CALL_LOG_ID, ACTUAL_MODEL, 1);
-        verify(aiCallLogService).markSuccess(eq(CALL_LOG_ID), eq(RAW_RESPONSE), anyLong());
-        verify(aiCallLogService, never()).markFailed(anyLong(), anyString(), anyLong());
-        verify(aiCallLogService, never()).markTimeout(anyLong(), anyString(), anyLong());
-        verify(aiCallLogService, never()).markParseFailed(anyLong(), any(), anyString(), anyLong());
+        ArgumentCaptor<AiCallLogCompletionCommand> completionCaptor =
+                ArgumentCaptor.forClass(AiCallLogCompletionCommand.class);
+        verify(aiCallLogService).complete(completionCaptor.capture());
+        AiCallLogCompletionCommand completion = completionCaptor.getValue();
+        Assertions.assertEquals(AiCallLogStatusEnum.SUCCESS, completion.status());
+        Assertions.assertEquals("req-1", completion.providerRequestId());
+        Assertions.assertEquals(20, completion.usage().totalTokens());
+        Assertions.assertTrue(completion.modelFallbackUsed());
+        Assertions.assertFalse(completion.degraded());
+        Assertions.assertNull(completion.failureType());
     }
 
     @Test
-    void execute_shouldPropagatePromptResolutionFailureWithoutStartingInvocation() {
-        BusinessException promptFailure = new BusinessException(
-                ErrorCode.OPERATION_ERROR,
-                "提示词解析失败"
-        );
-        when(promptTemplateResolver.resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT))
-                .thenThrow(promptFailure);
+    void execute_shouldGenerateTraceWhenMissing() {
+        stubSuccess();
 
-        BusinessException actual = Assertions.assertThrows(
-                BusinessException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
+        AiExecutionResult<String> result = pipeline.execute(command(null), raw -> "ok");
 
-        Assertions.assertSame(promptFailure, actual);
-        verifyNoInteractions(aiModelClient, aiCallLogService, responseProcessor);
+        Assertions.assertTrue(result.traceId().matches("[a-f0-9]{32}"));
+        ArgumentCaptor<AiCallLogCreateCommand> captor = ArgumentCaptor.forClass(AiCallLogCreateCommand.class);
+        verify(aiCallLogService).createRunningLog(captor.capture());
+        Assertions.assertEquals(result.traceId(), captor.getValue().traceId());
     }
 
     @Test
-    void execute_shouldMarkTimeoutAndRethrowInvocationException() {
-        stubBeforeModelInvocation();
-        AiInvocationException timeout = invocationFailure(
-                AiFailureTypeEnum.TIMEOUT,
-                ACTUAL_MODEL,
-                1,
-                "AI 服务响应超时，请稍后重试"
-        );
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenThrow(timeout);
+    void execute_shouldClassifyTimeoutAndKeepOriginalException() {
+        AiInvocationException timeout = failure(AiFailureTypeEnum.TIMEOUT, "AI 服务响应超时");
+        when(aiModelClient.chat(any())).thenThrow(timeout);
 
-        AiInvocationException actual = Assertions.assertThrows(
-                AiInvocationException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
+        AiInvocationException actual = Assertions.assertThrows(AiInvocationException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> "never"));
 
         Assertions.assertSame(timeout, actual);
-        verify(aiCallLogService).updateExecutionMetadata(CALL_LOG_ID, ACTUAL_MODEL, 1);
-        verify(aiCallLogService).markTimeout(
-                eq(CALL_LOG_ID),
-                eq("AI 服务响应超时，请稍后重试"),
-                anyLong()
-        );
-        verify(responseProcessor, never()).process(anyString());
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertEquals(AiCallLogStatusEnum.TIMEOUT, completion.status());
+        Assertions.assertEquals(AiCallFailureTypeEnum.TIMEOUT, completion.failureType());
+        Assertions.assertFalse(completion.degraded());
     }
 
     @Test
-    void execute_shouldMarkFailedForOrdinaryInvocationFailure() {
-        stubBeforeModelInvocation();
-        AiInvocationException rejected = invocationFailure(
-                AiFailureTypeEnum.UPSTREAM_REJECTED,
-                PRIMARY_MODEL,
-                0,
-                "AI 请求被上游服务拒绝"
+    void execute_shouldClassifyUnauthorizedUpstreamAsAuth() {
+        AiInvocationException unauthorized = new AiInvocationException(
+                AiFailureTypeEnum.UPSTREAM_REJECTED, REQUESTED_MODEL, 0,
+                "AI 服务请求被拒绝，请联系管理员", "upstream status=401", null, 401
         );
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenThrow(rejected);
+        when(aiModelClient.chat(any())).thenThrow(unauthorized);
 
-        AiInvocationException actual = Assertions.assertThrows(
-                AiInvocationException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
+        Assertions.assertThrows(AiInvocationException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> "never"));
 
-        Assertions.assertSame(rejected, actual);
-        verify(aiCallLogService).markFailed(
-                eq(CALL_LOG_ID),
-                eq("AI 请求被上游服务拒绝"),
-                anyLong()
-        );
-        verify(responseProcessor, never()).process(anyString());
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertEquals(AiCallFailureTypeEnum.AUTH, completion.failureType());
+        Assertions.assertEquals(AiCallLogStatusEnum.FAILED, completion.status());
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelFailureMappings")
+    void execute_shouldMapModelFailures(AiFailureTypeEnum clientType,
+                                        AiCallFailureTypeEnum logType) {
+        when(aiModelClient.chat(any())).thenThrow(failure(clientType, "safe failure"));
+
+        Assertions.assertThrows(AiInvocationException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> "never"));
+
+        Assertions.assertEquals(logType, captureCompletion().failureType());
     }
 
     @Test
-    void execute_shouldMarkParseFailedForInvalidProviderResponse() {
-        stubBeforeModelInvocation();
-        AiInvocationException invalidResponse = invocationFailure(
-                AiFailureTypeEnum.INVALID_RESPONSE,
-                ACTUAL_MODEL,
-                1,
-                "AI 返回结果格式异常，请重试"
-        );
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenThrow(invalidResponse);
+    void execute_shouldWrapUnknownModelExceptionAsInternal() {
+        when(aiModelClient.chat(any())).thenThrow(new IllegalStateException("unexpected"));
 
-        AiInvocationException actual = Assertions.assertThrows(
-                AiInvocationException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
-
-        Assertions.assertSame(invalidResponse, actual);
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(null),
-                eq("AI 返回结果格式异常，请重试"),
-                anyLong()
-        );
-        verify(responseProcessor, never()).process(anyString());
-    }
-
-    @Test
-    void execute_shouldWrapUnexpectedModelExceptionWithChineseMessage() {
-        stubBeforeModelInvocation();
-        IllegalStateException unexpected = new IllegalStateException("底层客户端异常");
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenThrow(unexpected);
-
-        AiInvocationException actual = Assertions.assertThrows(
-                AiInvocationException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
+        AiInvocationException actual = Assertions.assertThrows(AiInvocationException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> "never"));
 
         Assertions.assertEquals(AiFailureTypeEnum.INTERNAL_ERROR, actual.getFailureType());
-        Assertions.assertEquals(PRIMARY_MODEL, actual.getModelName());
-        Assertions.assertEquals(0, actual.getRetryCount());
-        Assertions.assertEquals("AI 服务暂时不可用，请稍后重试", actual.getSafeMessage());
-        Assertions.assertTrue(actual.getMessage().startsWith("AI 调用发生未分类异常"));
-        Assertions.assertSame(unexpected, actual.getCause());
-        verify(aiCallLogService).markFailed(
-                eq(CALL_LOG_ID),
-                eq("AI 服务暂时不可用，请稍后重试"),
-                anyLong()
-        );
-        verify(responseProcessor, never()).process(anyString());
+        Assertions.assertEquals(AiCallFailureTypeEnum.INTERNAL, captureCompletion().failureType());
     }
 
     @Test
-    void execute_shouldWrapProcessorFailureAndMarkParseFailed() {
-        stubBeforeResponseProcessing();
-        IllegalArgumentException parseFailure = new IllegalArgumentException("缺少 items 字段");
-        when(responseProcessor.process(RAW_RESPONSE)).thenThrow(parseFailure);
+    void execute_shouldRejectToolOnlyResultAsProtocolFailure() {
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                null, List.of(AiToolCall.function("call-1", "query", "{}")),
+                "tool_calls", null, "req-tool", REQUESTED_MODEL, REQUESTED_MODEL, 0, false, null
+        ));
 
-        AiResponseProcessingException actual = Assertions.assertThrows(
-                AiResponseProcessingException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
+        AiInvocationException actual = Assertions.assertThrows(AiInvocationException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> "never"));
 
-        Assertions.assertEquals(PARSE_FAILURE_MESSAGE, actual.getSafeMessage());
-        Assertions.assertSame(parseFailure, actual.getCause());
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(RAW_RESPONSE),
-                eq(PARSE_FAILURE_MESSAGE),
-                anyLong()
-        );
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+        Assertions.assertEquals(AiFailureTypeEnum.INVALID_RESPONSE, actual.getFailureType());
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertEquals(AiCallLogStatusEnum.PARSE_FAILED, completion.status());
+        Assertions.assertEquals(AiCallFailureTypeEnum.PROTOCOL, completion.failureType());
     }
 
     @Test
-    void execute_shouldTreatNullProcessorResultAsResponseProcessingFailure() {
-        stubBeforeResponseProcessing();
-        when(responseProcessor.process(RAW_RESPONSE)).thenReturn(null);
-
-        AiResponseProcessingException actual = Assertions.assertThrows(
-                AiResponseProcessingException.class,
-                () -> pipeline.execute(command(), responseProcessor)
-        );
-
-        Assertions.assertEquals(PARSE_FAILURE_MESSAGE, actual.getSafeMessage());
-        Assertions.assertNotNull(actual.getCause());
-        Assertions.assertEquals("AI 响应处理结果不能为空", actual.getCause().getMessage());
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(RAW_RESPONSE),
-                eq(PARSE_FAILURE_MESSAGE),
-                anyLong()
-        );
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+    void execute_shouldDistinguishParseAndBusinessValidation() {
+        stubSuccess();
+        Assertions.assertThrows(AiResponseProcessingException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> { throw new IllegalArgumentException("bad json"); }));
+        Assertions.assertEquals(AiCallFailureTypeEnum.RESPONSE_PARSE, captureCompletion().failureType());
     }
 
     @Test
-    void execute_shouldContinueWhenCallLogCreationFails() {
-        when(promptTemplateResolver.resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT))
-                .thenReturn(promptTemplate());
-        when(aiCallLogService.createRunningLog(any()))
-                .thenThrow(new IllegalStateException("调用日志数据库不可用"));
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenReturn(new AiInvocationResult(RAW_RESPONSE, ACTUAL_MODEL, 1));
-        when(responseProcessor.process(RAW_RESPONSE)).thenReturn(PROCESSED_RESULT);
-
-        AiExecutionResult<String> result = pipeline.execute(command(), responseProcessor);
-
-        Assertions.assertEquals(PROCESSED_RESULT, result.data());
-        Assertions.assertNull(result.callLogId());
-        verify(aiCallLogService, never()).updateExecutionMetadata(anyLong(), anyString(), any());
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
-        verify(aiCallLogService, never()).markFailed(anyLong(), anyString(), anyLong());
-        verify(aiCallLogService, never()).markTimeout(anyLong(), anyString(), anyLong());
-        verify(aiCallLogService, never()).markParseFailed(anyLong(), any(), anyString(), anyLong());
+    void execute_shouldClassifyBusinessExceptionAsBusinessValidation() {
+        stubSuccess();
+        Assertions.assertThrows(AiResponseProcessingException.class,
+                () -> pipeline.execute(command(TRACE_ID), raw -> {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "unknown task id");
+                }));
+        Assertions.assertEquals(AiCallFailureTypeEnum.BUSINESS_VALIDATION, captureCompletion().failureType());
     }
 
     @Test
-    void execute_shouldReturnResultWhenLogUpdatesFail() {
-        stubSuccessfulInvocation();
-        doThrow(new IllegalStateException("执行元数据更新失败"))
-                .when(aiCallLogService)
-                .updateExecutionMetadata(CALL_LOG_ID, ACTUAL_MODEL, 1);
-        doThrow(new IllegalStateException("成功状态更新失败"))
-                .when(aiCallLogService)
-                .markSuccess(eq(CALL_LOG_ID), eq(RAW_RESPONSE), anyLong());
+    void execute_shouldRecordRuleDegradationAfterModelFailure() {
+        when(aiModelClient.chat(any())).thenThrow(failure(AiFailureTypeEnum.RATE_LIMITED, "请求过于频繁"));
 
-        AiExecutionResult<String> result = pipeline.execute(command(), responseProcessor);
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID), raw -> "never", failure -> "rule-result");
 
-        Assertions.assertEquals(PROCESSED_RESULT, result.data());
-        Assertions.assertEquals(CALL_LOG_ID, result.callLogId());
+        Assertions.assertEquals("rule-result", result.data());
+        Assertions.assertTrue(result.degraded());
+        Assertions.assertFalse(result.modelFallbackUsed());
+        Assertions.assertTrue(result.degradationReason().startsWith("RATE_LIMIT"));
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertEquals(AiCallLogStatusEnum.SUCCESS, completion.status());
+        Assertions.assertEquals(AiCallFailureTypeEnum.RATE_LIMIT, completion.failureType());
+        Assertions.assertTrue(completion.degraded());
+        Assertions.assertEquals(result.degradationReason(), completion.degradationReason());
+    }
+
+    @Test
+    void execute_shouldKeepExplicitFailedModelFallbackMetadata() {
+        AiInvocationException afterFallback = new AiInvocationException(
+                AiFailureTypeEnum.TIMEOUT, REQUESTED_MODEL, ACTUAL_MODEL, 1,
+                "AI 服务响应超时", "fallback model timeout", null,
+                null, true, AiFailureTypeEnum.NETWORK_ERROR
+        );
+        when(aiModelClient.chat(any())).thenThrow(afterFallback);
+
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID),
+                raw -> "never", failure -> "rule-result");
+
+        Assertions.assertTrue(result.modelFallbackUsed());
         Assertions.assertEquals(ACTUAL_MODEL, result.actualModel());
         Assertions.assertEquals(1, result.retryCount());
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertTrue(completion.modelFallbackUsed());
+        Assertions.assertEquals(AiFailureTypeEnum.NETWORK_ERROR, completion.modelFallbackReason());
     }
 
-    private AiExecutionCommand command() {
-        return new AiExecutionCommand(
-                USER_ID,
-                PRIMARY_MODEL,
-                AiPromptCodeEnum.TODAY_ORDER_DEFAULT,
-                USER_PROMPT,
-                PARSE_FAILURE_MESSAGE
-        );
+    @Test
+    void execute_shouldIncludeRuleFallbackDuration() {
+        when(aiModelClient.chat(any())).thenThrow(failure(AiFailureTypeEnum.TIMEOUT, "AI 服务响应超时"));
+
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID), raw -> "never", failure -> {
+            long deadline = System.currentTimeMillis() + 25L;
+            while (System.currentTimeMillis() < deadline) {
+                Thread.onSpinWait();
+            }
+            return "rule-result";
+        });
+
+        Assertions.assertTrue(result.costTimeMs() >= 20L);
+        Assertions.assertTrue(captureCompletion().costTimeMs() >= 20L);
     }
 
-    private AiPromptTemplate promptTemplate() {
-        return new AiPromptTemplate(
-                10L,
-                "today-order.default",
-                "today-order",
-                2,
-                AiPromptSourceEnum.DATABASE,
-                SYSTEM_PROMPT
-        );
+    @Test
+    void execute_shouldPreserveModelFallbackWhenRuleDegradationAlsoOccurs() {
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                "not-json", List.of(), "stop", null, "req-2", REQUESTED_MODEL,
+                ACTUAL_MODEL, 1, true, AiFailureTypeEnum.NETWORK_ERROR
+        ));
+
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID),
+                raw -> { throw new IllegalArgumentException("bad json"); }, failure -> "rule-result");
+
+        Assertions.assertTrue(result.modelFallbackUsed());
+        Assertions.assertTrue(result.degraded());
+        AiCallLogCompletionCommand completion = captureCompletion();
+        Assertions.assertTrue(completion.modelFallbackUsed());
+        Assertions.assertTrue(completion.degraded());
+        Assertions.assertEquals(AiCallFailureTypeEnum.RESPONSE_PARSE, completion.failureType());
     }
 
-    private void stubSuccessfulInvocation() {
-        stubBeforeResponseProcessing();
-        when(responseProcessor.process(RAW_RESPONSE)).thenReturn(PROCESSED_RESULT);
+    @Test
+    void execute_shouldContinueWhenLogOperationsFail() {
+        when(aiCallLogService.createRunningLog(any())).thenThrow(new IllegalStateException("db down"));
+        stubSuccess();
+
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID), raw -> "ok");
+
+        Assertions.assertEquals("ok", result.data());
+        Assertions.assertNull(result.callLogId());
+        verify(aiCallLogService, never()).complete(any());
     }
 
-    private void stubBeforeResponseProcessing() {
-        stubBeforeModelInvocation();
-        when(aiModelClient.invoke(PRIMARY_MODEL, SYSTEM_PROMPT, USER_PROMPT))
-                .thenReturn(new AiInvocationResult(RAW_RESPONSE, ACTUAL_MODEL, 1));
+    @Test
+    void execute_shouldContinueWhenTerminalLogUpdateFails() {
+        stubSuccess();
+        when(aiCallLogService.complete(any())).thenThrow(new IllegalStateException("db down"));
+
+        AiExecutionResult<String> result = pipeline.execute(command(TRACE_ID), raw -> "ok");
+
+        Assertions.assertEquals("ok", result.data());
+        Assertions.assertEquals(LOG_ID, result.callLogId());
+        verify(aiCallLogService).complete(any());
     }
 
-    private void stubBeforeModelInvocation() {
-        when(promptTemplateResolver.resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT))
-                .thenReturn(promptTemplate());
-        when(aiCallLogService.createRunningLog(any())).thenReturn(CALL_LOG_ID);
+    @Test
+    void executeRaw_shouldNotRequireUserForLegacyCompatibility() {
+        stubSuccess();
+
+        AiExecutionResult<String> result = pipeline.executeRaw(new AiRawExecutionCommand(
+                null, REQUESTED_MODEL, "system", "user", "invalid", TRACE_ID
+        ), raw -> raw);
+
+        Assertions.assertEquals(RAW, result.data());
+        Assertions.assertNull(result.callLogId());
+        verify(promptTemplateResolver, never()).resolve(any());
     }
 
-    private AiInvocationException invocationFailure(AiFailureTypeEnum failureType,
-                                                    String modelName,
-                                                    int retryCount,
-                                                    String safeMessage) {
-        return new AiInvocationException(
-                failureType,
-                modelName,
-                retryCount,
-                safeMessage,
-                "模型调用失败：" + failureType,
-                null
+    private void stubSuccess() {
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                RAW, List.of(), "stop", null, null, REQUESTED_MODEL,
+                REQUESTED_MODEL, 0, false, null
+        ));
+    }
+
+    private AiCallLogCompletionCommand captureCompletion() {
+        ArgumentCaptor<AiCallLogCompletionCommand> captor = ArgumentCaptor.forClass(AiCallLogCompletionCommand.class);
+        verify(aiCallLogService).complete(captor.capture());
+        return captor.getValue();
+    }
+
+    private AiExecutionCommand command(String traceId) {
+        return new AiExecutionCommand(USER_ID, REQUESTED_MODEL, AiPromptCodeEnum.TODAY_ORDER_DEFAULT,
+                "user prompt", "AI 今日任务排序结果格式异常", traceId);
+    }
+
+    private AiPromptTemplate template() {
+        return new AiPromptTemplate(10L, "today-order.default", "today-order", 2,
+                AiPromptSourceEnum.DATABASE, "system prompt");
+    }
+
+    private AiInvocationException failure(AiFailureTypeEnum type, String safeMessage) {
+        return new AiInvocationException(type, REQUESTED_MODEL, 0, safeMessage,
+                "model failure: " + type, null);
+    }
+
+    private static Stream<Arguments> modelFailureMappings() {
+        return Stream.of(
+                Arguments.of(AiFailureTypeEnum.CONFIG_ERROR, AiCallFailureTypeEnum.CONFIG),
+                Arguments.of(AiFailureTypeEnum.NETWORK_ERROR, AiCallFailureTypeEnum.NETWORK),
+                Arguments.of(AiFailureTypeEnum.RATE_LIMITED, AiCallFailureTypeEnum.RATE_LIMIT),
+                Arguments.of(AiFailureTypeEnum.UPSTREAM_REJECTED, AiCallFailureTypeEnum.UPSTREAM_REJECTED),
+                Arguments.of(AiFailureTypeEnum.UPSTREAM_SERVER_ERROR, AiCallFailureTypeEnum.UPSTREAM_SERVER),
+                Arguments.of(AiFailureTypeEnum.INTERNAL_ERROR, AiCallFailureTypeEnum.INTERNAL)
         );
     }
 }

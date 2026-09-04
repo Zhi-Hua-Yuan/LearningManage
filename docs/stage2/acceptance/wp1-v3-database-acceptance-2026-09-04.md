@@ -22,7 +22,7 @@ WP1 的数据库能力已在隔离的 MySQL 8.0.41 实例和受保护 PR 的 Lin
 | 恢复演练 | PASS | 同时生成完整备份和结构备份；V2 完整备份恢复后 22 张表、32 行对账一致，V3 字段/归档表不存在，旧唯一索引恢复 |
 | V3 应用回归 | PASS | 576 tests，Failures 0，Errors 0，Skipped 0 |
 | 迁移不可变 | PASS | V1/V2 哈希保持清单值；V3 已登记到发布迁移清单 |
-| 生产执行策略 | PASS | `policy.v3MigrationExecuted=false`，仅隔离库执行 |
+| 生产执行策略 | PASS | WP1 当时仅在隔离库执行；WP3 将合同语义修正为 `publishedMigrationHead=3` 与 `v3Modified=false`，不再混用“迁移已发布”和“特定生产库已执行” |
 
 ## 3. 固定证据
 

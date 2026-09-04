@@ -14,7 +14,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
@@ -46,6 +46,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -117,7 +118,7 @@ class AiServiceImplDailyReviewRenameTest {
 
         assertEmptyResult(result);
         verify(promptTemplateResolver, never()).resolve(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
@@ -132,7 +133,7 @@ class AiServiceImplDailyReviewRenameTest {
 
         assertEmptyResult(result);
         verify(promptTemplateResolver, never()).resolve(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
@@ -166,8 +167,7 @@ class AiServiceImplDailyReviewRenameTest {
                 callLogCaptor.getValue().promptCode());
         Assertions.assertEquals(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT.getScene().getCode(),
                 callLogCaptor.getValue().scene());
-        verify(aiCallLogService).markSuccess(eq(CALL_LOG_ID), eq(response), anyLong());
-        verify(aiCallLogService, never()).markParseFailed(anyLong(), any(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> !command.degraded()));
 
         ArgumentCaptor<TaskTitleRenameLog> renameLogCaptor =
                 ArgumentCaptor.forClass(TaskTitleRenameLog.class);
@@ -190,13 +190,13 @@ class AiServiceImplDailyReviewRenameTest {
                 AiFailureTypeEnum.UPSTREAM_REJECTED,
                 "AI 服务暂时不可用"
         );
-        when(aiModelClient.invoke(eq(MODEL_NAME), anyString(), anyString())).thenThrow(failure);
+        when(aiModelClient.chat(any())).thenThrow(failure);
 
         DailyReviewSuggestRenameVO result = aiService.suggestDailyReviewRename(request());
 
         assertFallbackSuggestion(result.getItems().get(0), 101L, "背单词");
-        verify(aiCallLogService).markFailed(eq(CALL_LOG_ID), eq("AI 服务暂时不可用"), anyLong());
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()
+                && command.failureType() == com.spt.learningmanage.constant.AiCallFailureTypeEnum.UPSTREAM_REJECTED));
         TaskTitleRenameLog savedLog = captureSingleRenameLog();
         Assertions.assertEquals("下一步：背单词", savedLog.getNewTitle());
         Assertions.assertEquals("规则兜底：优化标题表达", savedLog.getReason());
@@ -211,17 +211,13 @@ class AiServiceImplDailyReviewRenameTest {
                 AiFailureTypeEnum.TIMEOUT,
                 "AI 服务响应超时，请稍后重试"
         );
-        when(aiModelClient.invoke(eq(MODEL_NAME), anyString(), anyString())).thenThrow(timeout);
+        when(aiModelClient.chat(any())).thenThrow(timeout);
 
         DailyReviewSuggestRenameVO result = aiService.suggestDailyReviewRename(request());
 
         assertFallbackSuggestion(result.getItems().get(0), 101L, "背单词");
-        verify(aiCallLogService).markTimeout(
-                eq(CALL_LOG_ID),
-                eq("AI 服务响应超时，请稍后重试"),
-                anyLong()
-        );
-        verify(aiCallLogService, never()).markFailed(anyLong(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()
+                && command.failureType() == com.spt.learningmanage.constant.AiCallFailureTypeEnum.TIMEOUT));
         verify(taskTitleRenameLogMapper).insert(any(TaskTitleRenameLog.class));
     }
 
@@ -236,13 +232,7 @@ class AiServiceImplDailyReviewRenameTest {
         DailyReviewSuggestRenameVO result = aiService.suggestDailyReviewRename(request());
 
         assertFallbackSuggestion(result.getItems().get(0), 101L, "背单词");
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(response),
-                eq("AI 日报回顾改名结果格式异常"),
-                anyLong()
-        );
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()));
         Assertions.assertEquals("下一步：背单词", captureSingleRenameLog().getNewTitle());
     }
 
@@ -268,8 +258,7 @@ class AiServiceImplDailyReviewRenameTest {
         Assertions.assertEquals(101L, suggestion.getTaskId());
         Assertions.assertEquals(100, suggestion.getConfidence());
         Assertions.assertEquals(120, suggestion.getReason().length());
-        verify(aiCallLogService).markSuccess(eq(CALL_LOG_ID), eq(response), anyLong());
-        verify(aiCallLogService, never()).markParseFailed(anyLong(), any(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> !command.degraded()));
         verify(taskTitleRenameLogMapper).insert(any(TaskTitleRenameLog.class));
     }
 
@@ -292,7 +281,7 @@ class AiServiceImplDailyReviewRenameTest {
         );
 
         Assertions.assertSame(promptFailure, actual);
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
@@ -358,7 +347,7 @@ class AiServiceImplDailyReviewRenameTest {
 
         Assertions.assertThrows(BusinessException.class,
                 () -> aiService.suggestDailyReviewRename(request));
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
@@ -373,7 +362,7 @@ class AiServiceImplDailyReviewRenameTest {
         Assertions.assertThrows(BusinessException.class,
                 () -> aiService.suggestDailyReviewRename(request));
         verify(taskMapper, never()).selectList(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
         verify(taskTitleRenameLogMapper, never()).insert(any(TaskTitleRenameLog.class));
     }
@@ -404,8 +393,10 @@ class AiServiceImplDailyReviewRenameTest {
 
     private void stubAiCall(List<Task> tasks, String response) {
         stubAiInfrastructure(tasks);
-        when(aiModelClient.invoke(eq(MODEL_NAME), anyString(), anyString()))
-                .thenReturn(new AiInvocationResult(response, MODEL_NAME, 0));
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                response, List.of(), "stop", null, null,
+                MODEL_NAME, MODEL_NAME, 0, false, null
+        ));
     }
 
     private void stubAiInfrastructure(List<Task> tasks) {
@@ -421,6 +412,7 @@ class AiServiceImplDailyReviewRenameTest {
                         "system prompt"
                 ));
         when(aiCallLogService.createRunningLog(any())).thenReturn(CALL_LOG_ID);
+        when(aiCallLogService.complete(any())).thenReturn(true);
     }
 
     private AiInvocationException invocationFailure(AiFailureTypeEnum failureType, String safeMessage) {

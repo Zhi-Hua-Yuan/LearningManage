@@ -1,5 +1,8 @@
 package com.spt.learningmanage.ai.pipeline;
 
+import com.spt.learningmanage.constant.AiFailureTypeEnum;
+import com.spt.learningmanage.model.dto.ai.chat.AiUsage;
+
 /**
  * 一次 AI 调用经过场景响应处理后的内部执行结果。
  *
@@ -13,10 +16,28 @@ package com.spt.learningmanage.ai.pipeline;
 public record AiExecutionResult<T>(
         T data,
         Long callLogId,
+        String requestedModel,
         String actualModel,
         Integer retryCount,
-        long costTimeMs
+        long costTimeMs,
+        String finishReason,
+        AiUsage usage,
+        String providerRequestId,
+        boolean modelFallbackUsed,
+        AiFailureTypeEnum modelFallbackReason,
+        boolean degraded,
+        String degradationReason,
+        String traceId
 ) {
+
+    public AiExecutionResult(T data,
+                             Long callLogId,
+                             String actualModel,
+                             Integer retryCount,
+                             long costTimeMs) {
+        this(data, callLogId, actualModel, actualModel, retryCount, costTimeMs,
+                null, null, null, false, null, false, null, null);
+    }
 
     public AiExecutionResult {
         if (data == null) {
@@ -31,5 +52,9 @@ public record AiExecutionResult<T>(
         if (costTimeMs < 0) {
             throw new IllegalArgumentException("执行耗时不能为负数");
         }
+        if (requestedModel == null || requestedModel.isBlank()) {
+            throw new IllegalArgumentException("请求模型名称不能为空");
+        }
+        AiRawExecutionCommand.validateTraceId(traceId);
     }
 }

@@ -2,6 +2,7 @@ package com.spt.learningmanage.ai.pipeline;
 
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
 
+
 /**
  * 执行一次 AI 调用所需的公共输入。
  *
@@ -16,8 +17,16 @@ public record AiExecutionCommand(
         String modelName,
         AiPromptCodeEnum promptCode,
         String userPrompt,
-        String parseFailureMessage
+        String parseFailureMessage,
+        String traceId
 ) {
+    public AiExecutionCommand(Long userId,
+                              String modelName,
+                              AiPromptCodeEnum promptCode,
+                              String userPrompt,
+                              String parseFailureMessage) {
+        this(userId, modelName, promptCode, userPrompt, parseFailureMessage, null);
+    }
 
     public AiExecutionCommand {
         if (userId == null || userId <= 0) {
@@ -35,5 +44,6 @@ public record AiExecutionCommand(
         if (parseFailureMessage == null || parseFailureMessage.isBlank()) {
             throw new IllegalArgumentException("响应解析失败提示不能为空");
         }
+        AiRawExecutionCommand.validateTraceId(traceId);
     }
 }

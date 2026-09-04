@@ -9,8 +9,10 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AiCallLogMapper;
 import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCompletionCommand;
 import com.spt.learningmanage.model.dto.ai.AiCallLogQueryRequest;
 import com.spt.learningmanage.model.dto.ai.AiCallLogStatsRequest;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.entity.AiCallLog;
 import com.spt.learningmanage.model.vo.ai.AiCallLogDetailVO;
 import com.spt.learningmanage.model.vo.ai.AiCallLogSceneStatsVO;
@@ -51,11 +53,13 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         callLog.setUserId(command.userId());
         callLog.setScene(defaultIfBlank(command.scene()));
         callLog.setModelName(defaultIfBlank(command.modelName()));
+        callLog.setRequestedModel(defaultIfBlank(command.modelName()));
         callLog.setPromptType(command.promptCode());
         callLog.setPromptTemplateId(command.promptTemplateId());
         callLog.setPromptVersion(command.promptVersion());
         callLog.setPromptSource(command.promptSource());
         callLog.setRequestText(command.requestText());
+        callLog.setTraceId(defaultIfBlankNullable(command.traceId()));
         callLog.setStatus(AiCallLogStatusEnum.RUNNING.getValue());
         callLog.setRetryCount(command.retryCount() == null || command.retryCount() < 0 ? 0 : command.retryCount());
 
@@ -64,6 +68,50 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 调用记录创建失败");
         }
         return callLog.getId();
+    }
+
+    @Override
+    public boolean complete(AiCallLogCompletionCommand command) {
+        if (command == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "AI 调用日志终态命令不能为空");
+        }
+
+        LambdaUpdateWrapper<AiCallLog> wrapper = new LambdaUpdateWrapper<AiCallLog>()
+                .eq(AiCallLog::getId, command.logId())
+                .eq(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
+                .set(AiCallLog::getStatus, command.status().getValue())
+                .set(AiCallLog::getResponseText, command.responseText())
+                .set(AiCallLog::getErrorMessage, truncate(resolveErrorMessage(command), ERROR_MESSAGE_MAX_LENGTH))
+                .set(AiCallLog::getCostTimeMs, command.costTimeMs())
+                .set(AiCallLog::getFallbackUsed, command.modelFallbackUsed() ? 1 : 0)
+                .set(AiCallLog::getDegraded, command.degraded() ? 1 : 0);
+
+        setIfNotBlank(wrapper, AiCallLog::getRequestedModel, command.requestedModel());
+        setIfNotBlank(wrapper, AiCallLog::getModelName, command.actualModel());
+        setIfNotBlank(wrapper, AiCallLog::getFinishReason, command.finishReason());
+        setIfNotBlank(wrapper, AiCallLog::getProviderRequestId, command.providerRequestId());
+        setIfNotBlank(wrapper, AiCallLog::getTraceId, command.traceId());
+        if (command.retryCount() != null) {
+            wrapper.set(AiCallLog::getRetryCount, Math.max(command.retryCount(), 0));
+        }
+        if (command.usage() != null) {
+            wrapper.set(AiCallLog::getPromptTokens, nonNegative(command.usage().promptTokens()));
+            wrapper.set(AiCallLog::getCompletionTokens, nonNegative(command.usage().completionTokens()));
+            wrapper.set(AiCallLog::getTotalTokens, nonNegative(command.usage().totalTokens()));
+        }
+        if (command.modelFallbackReason() != null) {
+            wrapper.set(AiCallLog::getFallbackReason, command.modelFallbackReason().name());
+        }
+        if (command.failureType() != null) {
+            wrapper.set(AiCallLog::getFailureType, command.failureType().name());
+        }
+        return aiCallLogMapper.update(null, wrapper) == 1;
+    }
+
+    private String resolveErrorMessage(AiCallLogCompletionCommand command) {
+        return StrUtil.isNotBlank(command.errorMessage())
+                ? command.errorMessage()
+                : command.degradationReason();
     }
 
     @Override
@@ -84,6 +132,52 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             wrapper.set(AiCallLog::getRetryCount, Math.max(retryCount, 0));
         }
         aiCallLogMapper.update(null, wrapper);
+    }
+
+    @Override
+    public void updateProtocolMetadata(Long logId, AiChatResult result, String traceId) {
+        if (logId == null || logId <= 0 || result == null) {
+            return;
+        }
+        LambdaUpdateWrapper<AiCallLog> wrapper = new LambdaUpdateWrapper<AiCallLog>()
+                .eq(AiCallLog::getId, logId);
+        if (StrUtil.isNotBlank(result.requestedModel())) {
+            wrapper.set(AiCallLog::getRequestedModel, result.requestedModel().trim());
+        }
+        if (StrUtil.isNotBlank(result.actualModel())) {
+            wrapper.set(AiCallLog::getModelName, result.actualModel().trim());
+        }
+        if (StrUtil.isNotBlank(result.finishReason())) {
+            wrapper.set(AiCallLog::getFinishReason, result.finishReason().trim());
+        }
+        if (StrUtil.isNotBlank(result.providerRequestId())) {
+            wrapper.set(AiCallLog::getProviderRequestId, result.providerRequestId().trim());
+        }
+        if (result.usage() != null) {
+            wrapper.set(AiCallLog::getPromptTokens, nonNegative(result.usage().promptTokens()));
+            wrapper.set(AiCallLog::getCompletionTokens, nonNegative(result.usage().completionTokens()));
+            wrapper.set(AiCallLog::getTotalTokens, nonNegative(result.usage().totalTokens()));
+        }
+        wrapper.set(AiCallLog::getFallbackUsed, result.fallbackUsed() ? 1 : 0);
+        if (result.fallbackReason() != null) {
+            wrapper.set(AiCallLog::getFallbackReason, result.fallbackReason().name());
+        }
+        if (StrUtil.isNotBlank(traceId)) {
+            wrapper.set(AiCallLog::getTraceId, traceId.trim());
+        }
+        aiCallLogMapper.update(null, wrapper);
+    }
+
+    private Long nonNegative(Integer value) {
+        return value == null ? null : Math.max(value.longValue(), 0L);
+    }
+
+    private void setIfNotBlank(LambdaUpdateWrapper<AiCallLog> wrapper,
+                               com.baomidou.mybatisplus.core.toolkit.support.SFunction<AiCallLog, ?> column,
+                               String value) {
+        if (StrUtil.isNotBlank(value)) {
+            wrapper.set(column, value.trim());
+        }
     }
 
     @Override
@@ -187,6 +281,7 @@ public class AiCallLogServiceImpl implements AiCallLogService {
 
         aiCallLogMapper.update(null, new LambdaUpdateWrapper<AiCallLog>()
                 .eq(AiCallLog::getId, logId)
+                .eq(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
                 .set(AiCallLog::getStatus, status)
                 .set(AiCallLog::getResponseText, responseText)
                 .set(AiCallLog::getErrorMessage, truncate(errorMessage, ERROR_MESSAGE_MAX_LENGTH))
@@ -392,6 +487,10 @@ public class AiCallLogServiceImpl implements AiCallLogService {
 
     private String defaultIfBlank(String value) {
         return StrUtil.isBlank(value) ? UNKNOWN_VALUE : value.trim();
+    }
+
+    private String defaultIfBlankNullable(String value) {
+        return StrUtil.isBlank(value) ? null : value.trim();
     }
 
     private String truncate(String value, int maxLength) {

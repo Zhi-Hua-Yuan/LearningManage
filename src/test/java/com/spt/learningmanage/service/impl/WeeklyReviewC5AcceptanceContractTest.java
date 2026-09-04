@@ -44,7 +44,7 @@ class WeeklyReviewC5AcceptanceContractTest {
         assertTrue(replan.contains("confirm_shouldRejectUnauthorizedProjectBeforeReadingOperation"));
         assertTrue(replan.contains("execute_shouldRejectUnauthorizedProjectBeforeModelInvocation"));
         assertTrue(replan.contains("execute_shouldRejectMissingProjectBeforeModelInvocation"));
-        assertTrue(ai.contains("verify(aiModelClient, never()).invoke"));
+        assertTrue(ai.contains("verify(aiModelClient, never()).chat"));
         assertTrue(vo.contains("teamProjection_jsonMustNotContainPrivateMarkers"));
         assertTrue(implementation.contains("@Transactional(rollbackFor = Exception.class)"));
         assertTrue(implementation.contains("selectActiveMembersForUpdate"));

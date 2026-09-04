@@ -26,11 +26,12 @@
     },
     "policy": {
       "type": "object", "additionalProperties": false,
-      "required": ["v1Modified", "v2Modified", "v3MigrationExecuted", "ragOrAgentImplemented", "requiredFailureCount"],
+      "required": ["publishedMigrationHead", "v1Modified", "v2Modified", "v3Modified", "ragOrAgentImplemented", "requiredFailureCount"],
       "properties": {
+        "publishedMigrationHead": {"const": "3"},
         "v1Modified": {"const": false},
         "v2Modified": {"const": false},
-        "v3MigrationExecuted": {"type": "boolean"},
+        "v3Modified": {"const": false},
         "ragOrAgentImplemented": {"const": false},
         "requiredFailureCount": {"type": "integer", "minimum": 0}
       }
