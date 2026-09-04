@@ -15,8 +15,10 @@ public class AiDraft {
     private String draftId;
     private Long userId;
     private String scene;
+    private Integer schemaVersion;
     private String payloadJson;
     private String inputHash;
+    private String traceId;
     private Integer status;
     private LocalDateTime expireAt;
     private LocalDateTime confirmedAt;

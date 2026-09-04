@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,6 +20,52 @@ public class AiCallLog {
     private String scene;
 
     private String modelName;
+
+    private String requestedModel;
+
+    private String finishReason;
+
+    private String providerRequestId;
+
+    private Long promptTokens;
+
+    private Long completionTokens;
+
+    private Long totalTokens;
+
+    private String priceVersion;
+
+    private String currency;
+
+    private BigDecimal estimatedCost;
+
+    private String traceId;
+
+    private String failureType;
+
+    private Integer fallbackUsed;
+
+    private String fallbackReason;
+
+    private Integer degraded;
+
+    private String requestSanitizationStatus;
+
+    private String responseSanitizationStatus;
+
+    private String errorSanitizationStatus;
+
+    private Integer requestTruncated;
+
+    private Integer responseTruncated;
+
+    private Integer errorTruncated;
+
+    private String requestHash;
+
+    private String responseHash;
+
+    private String errorHash;
 
     private String promptType;
 

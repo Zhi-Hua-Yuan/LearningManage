@@ -26,7 +26,12 @@ class FlywayCiScriptStaticTest {
             "scripts/ci/verify-existing-database.sh",
             "scripts/ci/verify-v2-negative-preflight.sh",
             "scripts/ci/verify-v2-recovery.sh",
+            "scripts/ci/lib/v3-test-common.sh",
+            "scripts/ci/verify-v3-negative-preflight.sh",
+            "scripts/ci/verify-v3-equivalent-duplicates.sh",
+            "scripts/ci/verify-v3-recovery.sh",
             "scripts/ci/verify-published-migrations.sh",
+            "scripts/ci/verify-stage2-acceptance.sh",
             "scripts/ci/verify-docker-runtime.sh",
             "scripts/ci/verify-runtime-api-contract.sh",
             "scripts/ci/verify-ai-breakdown-flow.sh",
@@ -81,6 +86,9 @@ class FlywayCiScriptStaticTest {
                 "scripts/ci/verify-existing-database.sh",
                 "scripts/ci/verify-v2-negative-preflight.sh",
                 "scripts/ci/verify-v2-recovery.sh",
+                "scripts/ci/verify-v3-negative-preflight.sh",
+                "scripts/ci/verify-v3-equivalent-duplicates.sh",
+                "scripts/ci/verify-v3-recovery.sh",
                 "scripts/ci/verify-docker-runtime.sh")) {
             String script = read(relativePath);
             int guard = script.indexOf("ci_assert_ci_target");
@@ -188,15 +196,22 @@ class FlywayCiScriptStaticTest {
     }
 
     @Test
-    void stage1FlywayGatesAreWiredIntoCiWithV2HistoryBaseline() throws IOException {
+    void stage2Wp1FlywayGatesAreWiredIntoCurrentCiWithV3History() throws IOException {
         String backendWorkflow = read(".github/workflows/backend-ci.yml");
         String releaseWorkflow = read(".github/workflows/release-gate.yml");
+        String provision = read("scripts/ci/provision-ci-databases.sh");
 
         for (String workflow : List.of(backendWorkflow, releaseWorkflow)) {
             assertTrue(workflow.contains("verify-v2-negative-preflight.sh"));
             assertTrue(workflow.contains("verify-v2-recovery.sh"));
-            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '2'"));
+            assertTrue(workflow.contains("verify-v3-negative-preflight.sh"));
+            assertTrue(workflow.contains("verify-v3-equivalent-duplicates.sh"));
+            assertTrue(workflow.contains("verify-v3-recovery.sh"));
+            assertTrue(workflow.contains("verify-stage2-acceptance.sh"));
+            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '3'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '576'"));
         }
+        assertTrue(provision.contains("CREATE TEMPORARY TABLES"));
     }
 
     @Test

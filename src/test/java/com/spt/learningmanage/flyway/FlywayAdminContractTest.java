@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FlywayAdminContractTest {
@@ -36,5 +38,16 @@ class FlywayAdminContractTest {
         assertDoesNotThrow(() -> FlywayAdmin.parseAction(new String[]{"info"}));
         assertThrows(IllegalArgumentException.class, () -> FlywayAdmin.parseAction(new String[]{"clean"}));
         assertThrows(IllegalArgumentException.class, () -> FlywayAdmin.parseAction(new String[]{"repair"}));
+    }
+
+    @Test
+    void optionalTargetVersionAcceptsOnlyPositiveIntegerVersions() {
+        assertNull(FlywayAdmin.optionalTargetVersion(Map.of()));
+        assertNull(FlywayAdmin.optionalTargetVersion(Map.of("FLYWAY_TARGET_VERSION", " ")));
+        assertEquals("2", FlywayAdmin.optionalTargetVersion(Map.of("FLYWAY_TARGET_VERSION", "2")));
+        assertThrows(IllegalArgumentException.class,
+                () -> FlywayAdmin.optionalTargetVersion(Map.of("FLYWAY_TARGET_VERSION", "0")));
+        assertThrows(IllegalArgumentException.class,
+                () -> FlywayAdmin.optionalTargetVersion(Map.of("FLYWAY_TARGET_VERSION", "latest")));
     }
 }

@@ -17,5 +17,6 @@ public class AiDraftConfirmLog {
     private String operationId;
     private String scene;
     private Long businessId;
+    private String traceId;
     private LocalDateTime createTime;
 }

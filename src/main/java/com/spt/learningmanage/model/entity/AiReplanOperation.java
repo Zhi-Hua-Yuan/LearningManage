@@ -17,6 +17,7 @@ public class AiReplanOperation {
     private String operationId;
     private Long userId;
     private Long projectId;
+    private String traceId;
     /**
      * 0-PREVIEW 1-CONFIRMED 2-CANCELED 3-EXPIRED
      */

@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0 FROZEN`（需求和设计输入已冻结，功能实现尚未开始）
+状态：`WP0/WP1 PASS · STAGE FROZEN`（V3 数据基础已冻结，WP2 尚未开始）
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -15,6 +15,8 @@
 - [AI 调用接口合同](api/ai-invocation-contract.md)
 - [阶段 2 风险登记表](risk/stage2-risk-register.md)
 - [机器可读验收合同](acceptance/stage2-acceptance-contract.json)
+- [WP1 V3 预审与迁移说明](database/wp1-v3-preflight-and-migration.md)
+- [WP1 数据库验收记录](acceptance/wp1-v3-database-acceptance-2026-09-04.md)
 
 ## 实施边界
 
@@ -36,4 +38,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0 只要求设计输入和验收合同进入 `FROZEN`；WP1～WP8 完成后才能将合同状态改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0、WP1 已通过，S2-A-005 为 `PASS`；阶段总状态继续保持 `FROZEN`。只有 WP2～WP8 全部通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
