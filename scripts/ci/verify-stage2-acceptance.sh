@@ -160,5 +160,38 @@ if [[ "$wp6_security_status" == "PASS" || "$wp6_resilience_status" == "PASS" ]];
   ' "$wp6_verification" >/dev/null || ci_fail "stage2_wp6_pass_without_candidate_ci"
 fi
 
+wp7_protocol_risk_status="$(jq -r '.risks[] | select(.id == "S2-R-003") | .status' "$contract")"
+if [[ "$wp7_protocol_risk_status" == "CLOSED" ]]; then
+  wp7_verification="${project_root}/docs/stage2/evidence/wp7/local-verification.json"
+  wp7_real_provider="${project_root}/docs/stage2/evidence/wp7/real-provider-validation.json"
+  [[ -s "$wp7_verification" && -s "$wp7_real_provider" ]] \
+    || ci_fail "stage2_wp7_evidence_missing"
+  wp7_expected_backend_sha="$(jq -r '.verification.realProvider.backendSha // empty' "$wp7_verification")"
+  wp7_expected_workflow_run_id="$(jq -r '.verification.realProvider.workflowRunId // empty' "$wp7_verification")"
+  [[ "$wp7_expected_backend_sha" =~ ^[0-9a-f]{40}$ ]] \
+    || ci_fail "stage2_wp7_expected_backend_sha_invalid"
+  [[ "$wp7_expected_workflow_run_id" =~ ^[1-9][0-9]*$ ]] \
+    || ci_fail "stage2_wp7_expected_workflow_run_id_invalid"
+  git merge-base --is-ancestor "$wp7_expected_backend_sha" HEAD \
+    || ci_fail "stage2_wp7_backend_sha_not_in_history"
+  bash "${project_root}/scripts/ci/verify-stage2-wp7-real-provider-report.sh" \
+    "$wp7_real_provider" "$wp7_expected_backend_sha" "$wp7_expected_workflow_run_id" >/dev/null
+  jq -e '
+    .verification.realProvider.status == "PASS" and
+    .verification.realProvider.rounds == 3 and
+    .verification.realProvider.scenarios == 9 and
+    .verification.frontendSafety.status == "PASS" and
+    .verification.frontendSafety.traceId == "PASS" and
+    .verification.frontendSafety.plainTextRendering == "PASS" and
+    .verification.frontendSafety.staticGuard == "PASS" and
+    .verification.fullRegression.backend.status == "PASS" and
+    .verification.fullRegression.frontend.status == "PASS" and
+    .verification.publishedMigrations.status == "PASS" and
+    .risk.id == "S2-R-003" and .risk.status == "CLOSED"
+  ' "$wp7_verification" >/dev/null || ci_fail "stage2_wp7_closed_without_complete_evidence"
+elif [[ "$wp7_protocol_risk_status" != "OPEN" ]]; then
+  ci_fail "stage2_wp7_protocol_risk_invalid_status"
+fi
+
 printf 'stage2.acceptance.mode=%s\n' "$mode"
 printf 'stage2.acceptance.status=PASS\n'
