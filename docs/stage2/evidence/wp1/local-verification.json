@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "workPackage": "WP1",
-  "status": "LOCAL_PASS_CI_PENDING",
-  "executedAt": "2026-09-04T06:14:29Z",
+  "status": "PASS",
+  "executedAt": "2026-09-04T07:30:24Z",
   "environment": {
     "database": "MySQL 8.0.41",
     "isolation": "localhost non-default port and CI database-name allowlist",
@@ -59,11 +59,11 @@
     "legacyUniqueIndexRestored": true
   },
   "candidateBinding": {
-    "candidateCommit": null,
-    "workingTreeClean": false,
-    "githubRunId": null,
-    "githubRunAttempt": null,
-    "status": "PENDING"
+    "candidateCommit": "9a652f80b786f0006159831e72c0b90ea03bffba",
+    "workingTreeClean": true,
+    "githubRunId": 33848473710,
+    "githubRunAttempt": 1,
+    "status": "PASS"
   },
   "regression": {
     "backendTests": 576,

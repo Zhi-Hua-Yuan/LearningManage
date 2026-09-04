@@ -1,18 +1,18 @@
 # WP1：V3 数据库迁移与草稿幂等预审验收记录
 
-状态：`LOCAL_PASS / CI_PENDING`
+状态：`PASS`
 日期：2026-09-04
 阶段状态：`FROZEN`
 
 ## 1. 结论
 
-WP1 的数据库能力已在隔离的 MySQL 8.0.41 实例上完成首轮本地验证。V3 可从空库安装，也可在固定到 V2 的历史数据副本上单独升级；等价重复可追溯归档，冲突和完整性异常在持久化 DDL 前阻断，`(user_id,draft_id)` 唯一约束生效。未迁移主库或生产库，未改变现有 API 和运行时 AI 行为。受保护 PR 的 Linux CI 通过并将证据绑定到候选提交前，WP1 不标记为最终 PASS。
+WP1 的数据库能力已在隔离的 MySQL 8.0.41 实例和受保护 PR 的 Linux Runner 上完成验证。V3 可从空库安装，也可在固定到 V2 的历史数据副本上单独升级；等价重复可追溯归档，冲突和完整性异常在持久化 DDL 前阻断，`(user_id,draft_id)` 唯一约束生效。候选提交 `9a652f80b786f0006159831e72c0b90ea03bffba` 已绑定 GitHub Actions Run `33848473710`，五个 Linux CI 作业全部通过。未迁移主库或生产库，未改变现有 API 和运行时 AI 行为，WP1 最终验收为 `PASS`。
 
 ## 2. 验收结果
 
 | 检查项 | 结果 | 实测结果 |
 |---|---|---|
-| 分支基线 | PASS | WP1 开始时的 source baseline 与本地 `develop` 为 `4d078f6`；阶段 1 候选 `5057158` 为祖先；最终候选提交仍待 PR 绑定 |
+| 分支基线 | PASS | WP1 开始时的 source baseline 与本地 `develop` 为 `4d078f6`；阶段 1 候选 `5057158` 为祖先；最终候选提交绑定为 `9a652f8` |
 | 空库 Flyway | PASS | 依次执行 V1、V2、V3，`migrationsExecuted=3`，current=3 |
 | V2→V3 Flyway | PASS | V2 target 后导入历史 AI 数据，V3 单独执行 `migrationsExecuted=1` |
 | V2 数据对账 | PASS | 迁移后业务表 23、含 history 表 24、业务行 32、14 项 V3 校验零违反 |
@@ -34,13 +34,15 @@ Backend tests 576/576
 Negative preflight cases 13/13
 V3 reusable post-verify checks 14/14
 V3 legacy backfill checks 5/5
+Candidate commit 9a652f80b786f0006159831e72c0b90ea03bffba
+GitHub Actions run 33848473710 (attempt 1, success)
 ```
 
-本机 Docker Desktop 未运行，因此本次本地实测使用独立端口的原生 MySQL 8.0.41。GitHub Actions 已接入相同空库、存量库、13 类负例、归档与双备份恢复脚本；受保护 PR 合并前仍需以 Linux Runner 结果作为最终跨环境证据。
+本机 Docker Desktop 未运行，因此本次本地实测使用独立端口的原生 MySQL 8.0.41。受保护 PR #107 的 Linux CI 已执行相同空库、存量库、13 类负例、归档、双备份恢复和 Docker 运行门禁，Run `33848473710` 的五个作业全部成功。
 
 ## 4. 状态变更
 
-- `S2-A-005`：保持 `PENDING`；本地通过、候选提交绑定和受保护 PR Linux CI 三项齐全后再更新为 `PASS`。
+- `S2-A-005`：`PENDING → PASS`；本地验证、候选提交绑定和受保护 PR Linux CI 三项证据齐全。
 - `S2-R-001`：`OPEN → CLOSED`。
 - `S2-R-004`：继续 `OPEN` 到 WP5；WP1 只关闭数据库唯一约束部分。
 - 阶段 2：继续 `FROZEN`，不得标记为整体 `PASS`。
