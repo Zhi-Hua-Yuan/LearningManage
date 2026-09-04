@@ -253,6 +253,18 @@ PR1 设计冻结                   completed
 → PR8 跨仓验收、证据、Tag 与 Release  pending
 ```
 
+## 6A. PR8 / WP8 执行资产
+
+WP8 先生成可审计的候选发布物，再由受保护合并、Tag 和 Release 完成最终封印：
+
+- [WP8 执行计划](release/wp8-execution-plan.md)
+- [阶段 1 发布候选运行手册](release/stage1-release-runbook.md)
+- [阶段 0 前端 37 operation 基线](release/stage0-frontend-operation-baseline.json)
+- [阶段 1 候选清单 Schema](release/stage1-release-candidate-manifest.schema.json)
+- [阶段 1 跨仓发布门禁](../../.github/workflows/stage1-release-gate.yml)
+
+候选清单状态 `CANDIDATE_PASS` 仅表示 S1-A-001～S1-A-011 已绑定并通过；S1-A-012、风险项 S1-R-010 及阶段合同最终 `PASS/CLOSED` 必须在受保护合并、Tag 和 Release 完成后再封印，避免提前宣布阶段完成。
+
 每个时点只允许一个阶段 1 主目标处于 `in_progress`。阶段 1 不并行引入 Qdrant、RAG 或 Agent。
 
 ## 6. 权威来源

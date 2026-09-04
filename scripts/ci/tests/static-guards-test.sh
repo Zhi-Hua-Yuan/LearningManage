@@ -220,6 +220,32 @@ expect_pass stage0_acceptance_contract check_stage0_acceptance_contract
 expect_pass frontend_contract_workflow check_frontend_contract_workflow
 expect_pass runtime_api_contract_workflow check_runtime_api_contract_workflow
 expect_pass full_stack_ai_contract check_full_stack_ai_contract
+
+stage1_workflow="${project_root}/.github/workflows/stage1-release-gate.yml"
+stage1_manifest_schema="${project_root}/docs/stage1/release/stage1-release-candidate-manifest.schema.json"
+stage1_compatibility="${ci_dir}/verify-stage1-api-compatibility.sh"
+stage1_acceptance_script="${ci_dir}/verify-stage1-acceptance.sh"
+stage1_manifest_script="${ci_dir}/create-stage1-release-manifest.sh"
+stage1_manifest_verify="${ci_dir}/verify-stage1-release-manifest.sh"
+stage1_evidence_index="${ci_dir}/create-stage1-evidence-index.sh"
+
+check_stage1_wp8_contract() {
+    [[ -f "$stage1_workflow" && -f "$stage1_manifest_schema" ]] || return 1
+    [[ -f "$stage1_compatibility" && -f "$stage1_acceptance_script" ]] || return 1
+    [[ -f "$stage1_manifest_script" && -f "$stage1_manifest_verify" && -f "$stage1_evidence_index" ]] || return 1
+    grep -Fq 'name: Stage 1 cross-repository release gate' "$stage1_workflow" \
+        && grep -Fq 'stage1-candidate-manifest' "$stage1_workflow" \
+        && grep -Fq 'verify-stage1-api-compatibility.sh' "$stage1_workflow" \
+        && grep -Fq 'create-stage1-evidence-index.sh' "$stage1_workflow" \
+        && grep -Fq 'create-stage1-release-manifest.sh' "$stage1_workflow" \
+        && grep -Fq 'status:"CANDIDATE_PASS"' "$stage1_manifest_script" \
+        && grep -Fq 's1R010:"ELIGIBLE"' "$stage1_manifest_script" \
+        && grep -Fq 'legacyOperationCount' "$stage1_manifest_schema" \
+        && grep -Fq 'minItems":11' "$stage1_manifest_schema" \
+        && ! grep -Eiq 'AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[A-Za-z0-9._-]{20,}' "$stage1_workflow" "$stage1_manifest_schema"
+}
+
+expect_pass stage1_wp8_contract check_stage1_wp8_contract
 expect_pass release_valid_sha release_validate_sha 0123456789abcdef0123456789abcdef01234567
 expect_fail release_short_sha release_validate_sha 0123456789abcdef
 expect_fail release_branch_name release_validate_sha develop
