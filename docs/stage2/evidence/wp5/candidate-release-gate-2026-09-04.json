@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP5",
+  "status": "PASS",
+  "candidateId": "stage2-wp5-20260904-merge-80f357b",
+  "workflow": {
+    "runId": 33889047346,
+    "headSha": "80f357b357bf98e18f4bdd1e53392aede002e8cf",
+    "url": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33889047346",
+    "result": "success",
+    "executedAt": "2026-09-04T15:31:16Z"
+  },
+  "repositories": {
+    "backendSha": "80f357b357bf98e18f4bdd1e53392aede002e8cf",
+    "frontendSha": "2ef907f292fbbacecf8a68f7d24c4701a555aa8a"
+  },
+  "jobs": {
+    "freezeReleaseCandidate": 101075939400,
+    "guardBackend": 101075996672,
+    "guardBothRepositories": 101076051964,
+    "backendVerification": 101076093769,
+    "frontendTestsAndStatic": 101076655810,
+    "frontendProductionBuild": 101077039997,
+    "flywayEmpty": 101077210253,
+    "flywayExisting": 101077609534,
+    "fullStackRuntime": 101078233883,
+    "candidateManifest": 101078862868
+  },
+  "testEvidence": {
+    "backendTests": 674,
+    "nonMySqlTests": 614,
+    "mysqlDependentTests": 60,
+    "frontendTests": 459,
+    "flywayEmpty": "PASS",
+    "flywayExisting": "PASS",
+    "dockerBackendRuntime": "PASS"
+  },
+  "wp5Concurrency": {
+    "parallelConfirmations": 20,
+    "projectWrites": 1,
+    "confirmationLogs": 1,
+    "commonBusinessId": "PASS",
+    "singleInitialResponse": "PASS",
+    "replanTerminalRace": "PASS",
+    "replanAtomicRollback": "PASS",
+    "status": "PASS"
+  },
+  "runtimeApiContract": {
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "reportSha256": "5234569B647EDB5C74D321686E01D22D574EA0C4E5412D3BB3808C8A84B0B300",
+    "status": "PASS"
+  },
+  "dockerStub": {
+    "provider": "deterministic-ci-stub",
+    "frontendViaNginx": "PASS",
+    "apiProxy": "PASS",
+    "aiBreakdownFlow": "PASS",
+    "cancelFlow": "PASS",
+    "confirmFlow": "PASS",
+    "idempotentReplay": "PASS",
+    "businessCounts": {"projects": 1, "milestones": 2, "tasks": 4},
+    "evidenceSha256": "84C0F5EFA21AC3D9368ABC4CB4639242B2A3860129E53C6268F7541717B74C5B",
+    "status": "PASS"
+  },
+  "candidateManifest": {
+    "artifact": "release-candidate-stage2-wp5-20260904-merge-80f357b-33889047346-1",
+    "sha256": "78BD22DCEF2E60CC8B1EAC8355288E8BDD0826A6A1862BC8FB1184094BC1C98C",
+    "status": "PASS"
+  },
+  "closedGate": {"id": "S2-A-009", "status": "PASS"},
+  "closedRisk": {"id": "S2-R-004", "status": "CLOSED"}
+}

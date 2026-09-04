@@ -1,9 +1,9 @@
 {
   "workPackage": "WP5",
-  "generatedAt": "2026-09-04T14:45:00Z",
+  "generatedAt": "2026-09-04T15:31:16Z",
   "baseline": {
     "tag": "stage2-wp4-v1.0.0",
-    "backendHead": "c20cfa7a",
+    "backendHead": "c20cfa7314c8028172544d175ab38a1a22d09a6d",
     "publishedMigrationHead": "3"
   },
   "verification": {
@@ -22,13 +22,13 @@
     "fullRegression": {
       "nonMySqlTests": {"tests": 614, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS"},
       "mysqlDependentTests": {"tests": 60, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_PR_CI"},
-      "fullVerify": {"tests": 674, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_TESTS", "runId": "33887235533"},
+      "fullVerify": {"tests": 674, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS", "runId": "33889047346"},
       "expectedFullVerifyTests": 674
     },
     "concurrentMySql": {
       "status": "PASS",
       "tests": 3,
-      "runId": "33887235533",
+      "runId": "33889047346",
       "evidence": "AiDraftConfirmationConcurrencyMySqlTest and AiReplanWriteSafetyMySqlTest; 60/60 MySQL-dependent tests passed on PR CI"
     },
     "replanSnapshotCas": {
@@ -40,18 +40,29 @@
       "evidence": "V1/V2/V3 published migration checksums unchanged; no V4"
     },
     "candidateCi": {
-      "status": "PENDING",
-      "runId": null
+      "status": "PASS",
+      "runId": "33889047346",
+      "headSha": "80f357b357bf98e18f4bdd1e53392aede002e8cf",
+      "url": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33889047346"
     },
     "dockerStub": {
-      "status": "PENDING"
+      "status": "PASS",
+      "jobId": 101078233883,
+      "evidenceSha256": "84C0F5EFA21AC3D9368ABC4CB4639242B2A3860129E53C6268F7541717B74C5B"
     },
     "runtimeApiComparison": {
-      "status": "PENDING"
+      "status": "PASS",
+      "frontendOperations": 44,
+      "runtimeOperations": 65,
+      "matchedOperations": 44,
+      "missingOperations": 0,
+      "reportSha256": "5234569B647EDB5C74D321686E01D22D574EA0C4E5412D3BB3808C8A84B0B300"
     }
   },
   "gate": {
     "id": "S2-A-009",
-    "status": "PENDING"
+    "status": "PASS",
+    "candidateId": "stage2-wp5-20260904-merge-80f357b",
+    "candidateManifestSha256": "78BD22DCEF2E60CC8B1EAC8355288E8BDD0826A6A1862BC8FB1184094BC1C98C"
   }
 }
