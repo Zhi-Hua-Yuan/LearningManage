@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Zhi-Hua-Yuan/LearningManage/blob/develop/docs/stage2/acceptance/stage2-acceptance-contract.schema.json",
+  "title": "LearningManage Stage 2 acceptance contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "stage", "status", "generatedAt", "baseline", "gates", "risks", "summary", "policy"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "stage": {"const": "stage2"},
+    "status": {"enum": ["FROZEN", "PASS"]},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "baseline": {"$ref": "#/$defs/baseline"},
+    "gates": {"type": "array", "minItems": 12, "items": {"$ref": "#/$defs/gate"}},
+    "risks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/risk"}},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pass", "pending", "fail", "openRisk"],
+      "properties": {
+        "pass": {"type": "integer", "minimum": 0},
+        "pending": {"type": "integer", "minimum": 0},
+        "fail": {"type": "integer", "minimum": 0},
+        "openRisk": {"type": "integer", "minimum": 0}
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["v1Modified", "v2Modified", "v3MigrationExecuted", "ragOrAgentImplemented", "requiredFailureCount"],
+      "properties": {
+        "v1Modified": {"const": false},
+        "v2Modified": {"const": false},
+        "v3MigrationExecuted": {"type": "boolean"},
+        "ragOrAgentImplemented": {"const": false},
+        "requiredFailureCount": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stage1Tag", "backendSha", "frontendSha", "backendTests", "frontendTests", "legacyApiCount", "frontendApiCount", "runtimeApiCount"],
+      "properties": {
+        "stage1Tag": {"const": "stage1-v1.0.0"},
+        "backendSha": {"$ref": "#/$defs/sha"},
+        "frontendSha": {"$ref": "#/$defs/sha"},
+        "backendTests": {"type": "integer", "minimum": 1},
+        "frontendTests": {"type": "integer", "minimum": 1},
+        "legacyApiCount": {"const": 37},
+        "frontendApiCount": {"const": 44},
+        "runtimeApiCount": {"type": "integer", "minimum": 1}
+      }
+    },
+    "gate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "domain", "status", "criteria", "targetWp", "evidence"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^S2-A-[0-9]{3}$"},
+        "domain": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PASS", "PENDING", "FAIL", "ACCEPTED_RISK"]},
+        "criteria": {"type": "string", "minLength": 1},
+        "targetWp": {"type": "string", "pattern": "^WP[0-8]$"},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "risk": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "status", "title", "owner", "targetWp"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^S2-R-[0-9]{3}$"},
+        "status": {"enum": ["OPEN", "CLOSED", "ACCEPTED_RISK", "DEFERRED"]},
+        "title": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "targetWp": {"type": "string", "pattern": "^WP[0-8]$"}
+      }
+    }
+  }
+}
