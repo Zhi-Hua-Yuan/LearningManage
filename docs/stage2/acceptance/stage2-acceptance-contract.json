@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "status": "FROZEN",
-  "generatedAt": "2026-09-04T11:40:00Z",
+  "generatedAt": "2026-09-04T12:13:05Z",
   "baseline": {
     "stage1Tag": "stage1-v1.0.0",
     "backendSha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
@@ -22,7 +22,7 @@
     {"id":"S2-A-005","domain":"database","status":"PASS","criteria":"V3 可从空库安装、从 V2 升级，并完成草稿确认重复数据预审；候选提交已绑定并通过受保护 PR 的 Linux CI","targetWp":"WP1","evidence":["docs/stage2/database/wp1-v3-preflight-and-migration.md","docs/stage2/acceptance/wp1-v3-database-acceptance-2026-09-04.md","docs/stage2/evidence/wp1/local-verification.json","docs/stage2/evidence/wp1/schema-diff-summary.md"]},
     {"id":"S2-A-006","domain":"protocol","status":"PASS","criteria":"chat 协议支持消息、Tool Calls、finish reason 和 Usage，旧 invoke 保持兼容","targetWp":"WP2","evidence":["docs/stage2/api/wp2-model-protocol.md","docs/stage2/acceptance/wp2-model-protocol-acceptance-2026-09-04.md","docs/stage2/evidence/wp2/local-verification.json"]},
     {"id":"S2-A-007","domain":"pipeline","status":"PASS","criteria":"所有可达模型调用统一经过 Pipeline，场景服务无直接 ModelClient/Transport 依赖，且 WP3 MySQL 与完整候选 CI 通过","targetWp":"WP3","evidence":["docs/stage2/architecture/ADR-004-pipeline-failure-and-degradation.md","docs/stage2/api/wp3-pipeline-contract.md","docs/stage2/acceptance/wp3-invocation-pipeline-acceptance-2026-09-04.md","docs/stage2/evidence/wp3/local-verification.json","docs/stage2/release/wp3-release-record-2026-09-04.md"]},
-    {"id":"S2-A-008","domain":"scenes","status":"PENDING","criteria":"五类现有 AI 场景完成服务拆分并保留旧 API 行为","targetWp":"WP4","evidence":["scene regression tests","legacy compatibility report"]},
+    {"id":"S2-A-008","domain":"scenes","status":"PENDING","criteria":"五类现有 AI 场景完成服务拆分并保留旧 API 行为，且保护分支候选 CI、Docker Stub 与运行时 API 契约通过","targetWp":"WP4","evidence":["docs/stage2/architecture/ADR-005-ai-scene-service-decomposition.md","docs/stage2/api/wp4-scene-service-contract.md","docs/stage2/acceptance/wp4-scene-service-acceptance-2026-09-04.md","docs/stage2/evidence/wp4/local-verification.json"]},
     {"id":"S2-A-009","domain":"draft","status":"PENDING","criteria":"草稿 Schema、确认状态机、行锁/CAS 和草稿级唯一约束通过并发测试","targetWp":"WP5","evidence":["draft concurrency report","database uniqueness report"]},
     {"id":"S2-A-010","domain":"security","status":"PENDING","criteria":"日志脱敏、截断、正文哈希、Trace、Token 和成本记录通过安全测试","targetWp":"WP6","evidence":["redaction tests","cost metadata report","trace report"]},
     {"id":"S2-A-011","domain":"resilience","status":"PENDING","criteria":"Chat 超时、重试、Bulkhead、Circuit Breaker 和模型回退通过故障注入","targetWp":"WP6","evidence":["fault injection report","resilience configuration report"]},
@@ -36,7 +36,7 @@
     {"id":"S2-R-005","status":"OPEN","title":"AI 日志敏感正文泄漏","owner":"security owner","targetWp":"WP6"},
     {"id":"S2-R-006","status":"OPEN","title":"模型回退造成额外成本","owner":"AI platform owner","targetWp":"WP6"},
     {"id":"S2-R-007","status":"OPEN","title":"外部模型故障影响业务线程","owner":"platform owner","targetWp":"WP6"},
-    {"id":"S2-R-008","status":"OPEN","title":"场景拆分导致旧 API 或前端行为回归","owner":"backend/frontend owner","targetWp":"WP8"},
+    {"id":"S2-R-008","status":"OPEN","title":"WP4 本地兼容回归已通过，仍待候选 Docker/API 与 WP8 跨仓终验","owner":"backend/frontend owner","targetWp":"WP8"},
     {"id":"S2-R-009","status":"OPEN","title":"运维日志查询形成内容权限旁路","owner":"security owner","targetWp":"WP8"}
   ],
   "summary": {"pass": 7, "pending": 5, "fail": 0, "openRisk": 7},

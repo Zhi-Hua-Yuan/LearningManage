@@ -1,22 +1,22 @@
 # 阶段 2 AI 调用清单
 
 状态：`FROZEN INPUT`
-来源：当前 `AiController`、`AiService`、`AiServiceImpl`、`AiInvocationPipeline` 和 `AiModelClient` 静态检查。
+来源：当前 `AiController`、`AiService`、场景服务、`AiInvocationPipeline` 和 `AiModelClient` 静态检查。
 
 | 场景 | 当前入口 | 当前模型路径 | 当前写入 | 阶段 2目标服务 | 状态 |
 |---|---|---|---|---|---|
-| 任务拆解兼容接口 | `POST /api/ai/breakdown` | Pipeline 2.0 | 无，返回预览数据 | `TaskBreakdownAiService` | WP3_PIPELINE_IMPLEMENTED |
-| 任务拆解预览 | `/breakdown/preview` | Pipeline 2.0 | 创建 `ai_draft` | `TaskBreakdownAiService` | WP3_PIPELINE_IMPLEMENTED |
+| 任务拆解兼容接口 | `POST /api/ai/breakdown` | Pipeline 2.0 | 无，返回预览数据 | `TaskBreakdownAiService` | WP4_SCENE_IMPLEMENTED |
+| 任务拆解预览 | `/breakdown/preview` | Pipeline 2.0 | 创建 `ai_draft` | `TaskBreakdownAiService` | WP4_SCENE_IMPLEMENTED |
 | 任务拆解确认 | `/breakdown/confirm` | 不应调用模型 | 项目、里程碑、任务 | `TaskBreakdownDraftHandler` | OPEN |
-| 周复盘兼容润色 | `POST /api/ai/polish` | Pipeline 2.0 | 无，返回文本 | `WeeklyReviewAiService` | WP3_PIPELINE_IMPLEMENTED |
-| 周复盘润色预览 | `/polish/preview` | Pipeline 2.0 | 创建 `ai_draft` | `WeeklyReviewAiService` | WP3_PIPELINE_IMPLEMENTED |
+| 周复盘兼容润色 | `POST /api/ai/polish` | Pipeline 2.0 | 无，返回文本 | `WeeklyReviewAiService` | WP4_SCENE_IMPLEMENTED |
+| 周复盘润色预览 | `/polish/preview` | Pipeline 2.0 | 创建 `ai_draft` | `WeeklyReviewAiService` | WP4_SCENE_IMPLEMENTED |
 | 周复盘润色确认 | `/polish/confirm` | 不应调用模型 | 更新周复盘 | `WeeklyPolishDraftHandler` | OPEN |
-| 今日任务排序 | `/today-order/recommend` | Pipeline 2.0 + 规则降级 | 无 | `TodayOrderAiService` | WP3_PIPELINE_IMPLEMENTED |
-| 日报改名建议 | `/daily-review/suggest-rename` | Pipeline 2.0 + 规则降级 | 无 | `DailyRenameAiService` | WP3_PIPELINE_IMPLEMENTED |
-| 清单重排预览 | `/list/replan/preview` | Pipeline 2.0 + 规则降级 | 创建 `ai_replan_operation/item` | `ListReplanAiService` | WP3_PIPELINE_IMPLEMENTED |
-| 清单重排确认 | `/list/replan/confirm` | 不应调用模型 | 更新任务 | `ListReplanAiService` + `AiWriteGuard` | OPEN |
-| 清单重排取消 | `/list/replan/cancel` | 不应调用模型 | 更新操作状态 | `ListReplanAiService` + 状态机 | OPEN |
-| 内部 `chat` 辅助方法 | `AiServiceImpl.chat` | Pipeline `executeRaw` 受限适配 | 无 | WP4 评估归属 | WP3_PIPELINE_IMPLEMENTED |
+| 今日任务排序 | `/today-order/recommend` | Pipeline 2.0 + 规则降级 | 无 | `TodayOrderAiService` | WP4_SCENE_IMPLEMENTED |
+| 日报改名建议 | `/daily-review/suggest-rename` | Pipeline 2.0 + 规则降级 | 无 | `DailyRenameAiService` | WP4_SCENE_IMPLEMENTED |
+| 清单重排预览 | `/list/replan/preview` | Pipeline 2.0 + 规则降级 | 创建 `ai_replan_operation/item` | `ListReplanAiService` | WP4_SCENE_IMPLEMENTED |
+| 清单重排确认 | `/list/replan/confirm` | 不应调用模型 | 更新任务 | `ListReplanAiService` | WP4_SCENE_IMPLEMENTED |
+| 清单重排取消 | `/list/replan/cancel` | 不应调用模型 | 更新操作状态 | `ListReplanAiService` | WP4_SCENE_IMPLEMENTED |
+| 内部 `chat` 辅助方法 | `AiServiceImpl.chat` | Pipeline `executeRaw` 受限适配 | 无 | `AiChatCompatibilityService` | WP4_SCENE_IMPLEMENTED |
 
 ## 收口规则
 
@@ -41,6 +41,17 @@
 | 生产场景统一经过 Pipeline | 2 | 6 |
 
 以上结果由 ArchUnit 和 `scripts/ci/verify-ai-invocation-boundary.sh` 双重约束；新增直接依赖或调用会使 CI 失败。
+
+## WP4 场景拆分结果
+
+- `AiServiceImpl` 从约 2,200 行缩减为 137 行，只保留七个场景/支持服务依赖。
+- 六个场景接口和实现已建立；任务拆解、周复盘、今日排序、日报改名、清单重排及内部 Chat 均有唯一归属。
+- `AiModelSelector`、`AiJsonResponseSanitizer` 与 `AiDraftLifecycleService` 已提取并具备独立测试。
+- 门面不依赖 Mapper、`PermissionService`、`AiProperties` 或 `AiInvocationPipeline`，也不声明事务。
+- 场景之间直接依赖数为 0；业务直接模型调用数仍为 0。
+- 任务拆解与周复盘的当前确认逻辑已进入对应场景服务；上表中的专用 Draft Handler 仍按 WP5 计划保持 `OPEN`。
+
+本轮本地非 MySQL 回归已通过 596 个后端测试；结合此前 57 个 MySQL 依赖测试证据，当前候选基线为 653 个后端测试和 459 个前端测试。正式状态将在保护分支候选 CI、Docker Stub 与运行时 OpenAPI 比对完成后由 `WP4_SCENE_IMPLEMENTED` 封存为 WP4 `PASS`。
 
 ## WP1 冻结的数据模型
 

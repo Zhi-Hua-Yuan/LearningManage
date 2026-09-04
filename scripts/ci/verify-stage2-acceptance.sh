@@ -32,7 +32,8 @@ case "$mode" in
       .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
-      ([.gates[] | select(.id | IN("S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id | IN("S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id == "S2-A-008") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-006") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-007") | .status] | all(. == "PENDING" or . == "PASS")) and
@@ -81,6 +82,23 @@ if [[ "$wp2_gate_status" == "PASS" ]]; then
   [[ -s "$wp2_verification" ]] || ci_fail "stage2_wp2_verification_missing"
   jq -e '.verification.fullMySqlCiStatus == "PASS" and .gate.status == "PASS"' "$wp2_verification" >/dev/null \
     || ci_fail "stage2_wp2_pass_without_full_ci"
+fi
+
+wp4_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-008") | .status' "$contract")"
+if [[ "$wp4_gate_status" == "PASS" ]]; then
+  wp4_verification="${project_root}/docs/stage2/evidence/wp4/local-verification.json"
+  [[ -s "$wp4_verification" ]] || ci_fail "stage2_wp4_verification_missing"
+  jq -e '
+    .verification.facade.status == "PASS" and
+    .verification.sceneServices.status == "PASS" and
+    .verification.architectureGate.status == "PASS" and
+    .verification.fullRegression.fullVerify.status == "PASS" and
+    .verification.frontend.productionBuild == "PASS" and
+    .verification.candidateCi.status == "PASS" and
+    .verification.dockerStub.status == "PASS" and
+    .verification.runtimeApiComparison.status == "PASS" and
+    .gate.status == "PASS"
+  ' "$wp4_verification" >/dev/null || ci_fail "stage2_wp4_pass_without_candidate_ci"
 fi
 
 wp3_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-007") | .status' "$contract")"

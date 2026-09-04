@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0/WP1/WP2/WP3 PASS · STAGE FROZEN`（模型协议与调用管线完成，真实供应商验证留至 WP7）
+状态：`WP0/WP1/WP2/WP3 PASS · WP4 IMPLEMENTED/LOCAL PASS · STAGE FROZEN`（WP4 正式 PASS 等待保护分支候选 CI）
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -20,6 +20,9 @@
 - [WP2 模型协议](api/wp2-model-protocol.md)
 - [WP2 模型协议验收记录](acceptance/wp2-model-protocol-acceptance-2026-09-04.md)
 - [WP3 调用管线验收记录](acceptance/wp3-invocation-pipeline-acceptance-2026-09-04.md)
+- [ADR-005：AI 场景服务拆分](architecture/ADR-005-ai-scene-service-decomposition.md)
+- [WP4 场景服务内部合同](api/wp4-scene-service-contract.md)
+- [WP4 场景服务拆分验收记录](acceptance/wp4-scene-service-acceptance-2026-09-04.md)
 
 ## 实施边界
 
@@ -41,4 +44,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP3 已通过，S2-A-005～S2-A-007 为 `PASS`。阶段总状态继续保持 `FROZEN`，因为 WP4～WP8 仍待实施。只有 WP3～WP8 全部通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP3 已正式通过，S2-A-005～S2-A-007 为 `PASS`。WP4 本轮非 MySQL 回归 596/596 通过，结合此前 57 个 MySQL 依赖测试证据形成 653 项后端候选基线；前端 459 项验证已通过。S2-A-008 在保护分支候选 CI、Docker Stub 和运行时 OpenAPI 证据封存前保持 `PENDING`。阶段总状态继续保持 `FROZEN`，只有 WP4～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。

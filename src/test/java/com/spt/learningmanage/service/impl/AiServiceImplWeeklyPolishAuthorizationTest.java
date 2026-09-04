@@ -8,6 +8,7 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
 import com.spt.learningmanage.mapper.AiDraftMapper;
+import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.entity.AiDraft;
@@ -15,19 +16,28 @@ import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.AiModelClient;
+import com.spt.learningmanage.service.AiCallLogService;
+import com.spt.learningmanage.service.ai.support.AiModelSelector;
+import com.spt.learningmanage.service.impl.ai.scene.WeeklyReviewAiServiceImpl;
+import com.spt.learningmanage.service.impl.ai.support.AiDraftLifecycleServiceImpl;
+import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
+import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
+import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -58,12 +68,30 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     @Mock
     private TaskMapper taskMapper;
     @Mock
+    private ProjectMapper projectMapper;
+    @Mock
     private PermissionService permissionService;
     @Mock
     private AiModelClient aiModelClient;
+    @Mock
+    private AiCallLogService aiCallLogService;
+    @Mock
+    private PromptTemplateResolver promptTemplateResolver;
+    @Mock
+    private AiModelSelector modelSelector;
 
-    @InjectMocks
-    private AiServiceImpl aiService;
+    private WeeklyReviewAiServiceImpl aiService;
+
+    @BeforeEach
+    void setUp() {
+        AiInvocationPipeline pipeline = new AiInvocationPipeline(
+                promptTemplateResolver, aiModelClient, aiCallLogService);
+        AiDraftLifecycleServiceImpl draftLifecycleService =
+                new AiDraftLifecycleServiceImpl(aiDraftMapper, aiDraftConfirmLogMapper);
+        aiService = new WeeklyReviewAiServiceImpl(
+                taskMapper, projectMapper, weeklyReviewMapper, pipeline, permissionService,
+                draftLifecycleService, modelSelector, new AiJsonResponseSanitizerImpl());
+    }
 
     @AfterEach
     void tearDown() {
@@ -125,6 +153,28 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
 
         verify(aiModelClient, never()).chat(any());
         verifyNoWrites();
+    }
+
+    @Test
+    void confirm_shouldUpdateReviewAndPersistConfirmation() {
+        UserHolder.set(USER_ID);
+        when(aiDraftMapper.selectOne(any())).thenReturn(draft(
+                "{\"taskIds\":[],\"polished\":\"{\\\"review\\\":\\\"本周完成了核心任务。\\\"}\"}"));
+        WeeklyReview review = new WeeklyReview();
+        review.setId(7001L);
+        review.setUserId(USER_ID);
+        when(weeklyReviewMapper.selectByIdForUpdate(7001L)).thenReturn(review);
+        when(weeklyReviewMapper.updateById(review)).thenReturn(1);
+        when(aiDraftMapper.update(any(), any())).thenReturn(1);
+        when(aiDraftConfirmLogMapper.insert(any(AiDraftConfirmLog.class))).thenReturn(1);
+
+        var result = aiService.confirmWeeklyPolish("draft-1", "op-1", 7001L);
+
+        assertTrue(result.getSuccess());
+        assertEquals(7001L, result.getBusinessId());
+        assertEquals("本周完成了核心任务。", review.getReflection());
+        verify(weeklyReviewMapper).updateById(review);
+        verify(aiDraftConfirmLogMapper).insert(any(AiDraftConfirmLog.class));
     }
 
     private void verifyNoWrites() {

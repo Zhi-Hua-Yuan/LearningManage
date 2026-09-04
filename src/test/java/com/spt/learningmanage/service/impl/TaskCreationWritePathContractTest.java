@@ -34,7 +34,7 @@ class TaskCreationWritePathContractTest {
     @Test
     void aiBreakdownUsesSharedCreationService() throws Exception {
         String source = Files.readString(Path.of(
-                "src/main/java/com/spt/learningmanage/service/impl/AiServiceImpl.java"));
+                "src/main/java/com/spt/learningmanage/service/impl/ai/scene/TaskBreakdownAiServiceImpl.java"));
         Assertions.assertTrue(source.contains("taskCreationService.createTask"));
     }
 }
