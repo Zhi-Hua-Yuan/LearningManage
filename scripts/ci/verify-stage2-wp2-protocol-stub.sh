@@ -42,7 +42,10 @@ done
 
 post_model() {
   local model="$1"
-  local messages="${2:-[{\"role\":\"user\",\"content\":\"wp2-sensitive-prompt-sentinel\"}]}"
+  local messages="${2:-}"
+  if [[ -z "$messages" ]]; then
+    messages='[{"role":"user","content":"wp2-sensitive-prompt-sentinel"}]'
+  fi
   curl --silent --show-error --fail --max-time 3 \
     --header 'X-WP2-Test-Sensitive: wp2-secret-sentinel' \
     --header 'Content-Type: application/json' \
@@ -90,6 +93,6 @@ if grep -Eq 'wp2-sensitive-prompt-sentinel|wp2-secret-sentinel' "$stub_log"; the
   ci_fail "wp2_stub_logged_sensitive_payload"
 fi
 
-ci_emit "wp2.stub.scenarios" "15"
+ci_emit "wp2.stub.scenarios" "16"
 ci_emit "wp2.stub.sensitivePayloadLogged" "false"
 ci_emit "wp2.stub.status" "PASS"
