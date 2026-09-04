@@ -44,6 +44,9 @@
   "release": {
     "tag": "stage1-v1.0.0",
     "tagTarget": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
-    "releaseStatus": "PENDING_TAG_AND_RELEASE"
+    "tagObject": "06b4727a57cfd4408208c34af49e5d8d020418b2",
+    "releaseId": "RE_kwDORpXfVM4WzAPM",
+    "releaseUrl": "https://github.com/Zhi-Hua-Yuan/LearningManage/releases/tag/stage1-v1.0.0",
+    "releaseStatus": "PASS"
   }
 }
