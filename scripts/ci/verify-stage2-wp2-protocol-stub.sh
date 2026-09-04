@@ -57,7 +57,7 @@ post_model stub-text | jq -e '.choices[0].message.content == "普通文本结果
 post_model stub-usage | jq -e '.usage.prompt_tokens == 10 and .usage.completion_tokens == 5 and .usage.total_tokens == 15' >/dev/null
 post_model stub-missing-usage | jq -e 'has("usage") | not' >/dev/null
 post_model stub-tool-call | jq -e '.choices[0].message.tool_calls[0].index == 0 and .choices[0].message.tool_calls[0].function.name == "query_tasks" and .choices[0].finish_reason == "tool_calls"' >/dev/null
-post_model stub-multi-tool-calls | jq -e '.choices[0].message.tool_calls | length == 2 and .choices[0].message.tool_calls[0].index == 0 and .choices[0].message.tool_calls[1].index == 1' >/dev/null
+post_model stub-multi-tool-calls | jq -e '(.choices[0].message.tool_calls | length == 2) and .choices[0].message.tool_calls[0].index == 0 and .choices[0].message.tool_calls[1].index == 1' >/dev/null
 post_model stub-tool-call '[{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"query_tasks","arguments":"{}"}}]},{"role":"tool","tool_call_id":"call-1","content":"[]"}]' \
   | jq -e '.choices[0].message.content == "工具结果已分析"' >/dev/null
 invalid_round_trip_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 \
