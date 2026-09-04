@@ -32,7 +32,8 @@ case "$mode" in
       .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
-      ([.gates[] | select(.id | IN("S2-A-005","S2-A-006","S2-A-007","S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id | IN("S2-A-006","S2-A-007","S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
       (.risks[] | select(.id == "S2-R-001") | .status) == "CLOSED" and
       (.risks[] | select(.id == "S2-R-004") | .status) == "OPEN" and
       .policy.v1Modified == false and .policy.v2Modified == false and
