@@ -11,7 +11,7 @@
 | 候选实现提交 | `88e09bb2c9487ba04a2245355fcdc59152ad8639` |
 | 跨仓候选门禁 | [run 33903357653](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33903357653) |
 | 前端候选提交 | `2ef907f292fbbacecf8a68f7d24c4701a555aa8a` |
-| 候选名称 | `stage2-wp6-20260905` |
+| 候选名称 | `stage2-wp6-20260905-r3` |
 | Tag | `stage2-wp6-v1.0.0` |
 | Release | [stage2-wp6-v1.0.0](https://github.com/Zhi-Hua-Yuan/LearningManage/releases/tag/stage2-wp6-v1.0.0) |
 
