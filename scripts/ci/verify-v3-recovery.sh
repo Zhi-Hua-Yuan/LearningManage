@@ -33,6 +33,8 @@ ci_require_command "sha256sum"
 ci_require_env "CI_LEGACY_DB_NAME"
 v3_require_inputs
 
+ci_emit "v3.recovery.phase" "start"
+
 source_database="${CI_LEGACY_DB_NAME}_v3_recovery_source"
 restore_database="${CI_LEGACY_DB_NAME}_v3_recovery_target"
 v3_prepare_v2_database "$source_database"
