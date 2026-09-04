@@ -86,9 +86,9 @@ v3_create_database "$restore_database"
 # Re-assert the isolated recovery grants immediately before Flyway runs. This
 # keeps the rehearsal independent from any grant cache or provisioning order.
 if ! ci_mysql_admin >/dev/null 2>&1 <<SQL
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES, ALTER, DROP, INDEX, REFERENCES
+GRANT ALL PRIVILEGES
     ON \`${source_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES, ALTER, DROP, INDEX, REFERENCES
+GRANT ALL PRIVILEGES
     ON \`${restore_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
 SQL
 then
