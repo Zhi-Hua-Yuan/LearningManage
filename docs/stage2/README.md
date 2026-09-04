@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0/WP1 PASS · WP2 LOCAL_PASS/PENDING_PR_CI · STAGE FROZEN`（模型协议实现完成，真实供应商验证留至 WP7）
+状态：`WP0/WP1/WP2 PASS · STAGE FROZEN`（模型协议实现完成，真实供应商验证留至 WP7）
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
