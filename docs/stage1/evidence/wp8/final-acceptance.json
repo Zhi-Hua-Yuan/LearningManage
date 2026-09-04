@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage1",
+  "status": "PASS",
+  "candidateId": "stage1-final-20260904-001",
+  "workflowRunId": "33832707901",
+  "protectedMerge": {
+    "pr": 103,
+    "mergeCommit": "505715860cce7f04a52c00a4e4258ac8ed838b8d"
+  },
+  "backend": {
+    "repository": "Zhi-Hua-Yuan/LearningManage",
+    "sha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
+    "tests": 564
+  },
+  "frontend": {
+    "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "sha": "2ef907f292fbbacecf8a68f7d24c4701a555aa8a",
+    "tests": 459
+  },
+  "apiContract": {
+    "legacyOperationCount": 37,
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "comparisonSha256": "92FBBF632192F11A84D5A163E55EC19DE29E7EE604864EAE914EF0199D6EB874"
+  },
+  "evidence": {
+    "candidateManifestSha256": "EEAA49E714C751D6B670D201BC90EB81A9440F0EDE6DCA8F36FA82A93E57F87A",
+    "sourceEvidenceIndexSha256": "2A65FB4CFCE9A2DA3628C6AD7C4F2122E4BFA875823F95DF4B23EDE6095A5A89",
+    "acceptanceContractSha256": "97B9D30C1E8F8A30F10740A2567DEFA40AEE5EC34681B4BD3BA572157540B985",
+    "acceptanceSchemaSha256": "D5537FE1C8A9536CC538C01D49CB46BF0DCB48412DE221F4EF42D67EC97B27AF",
+    "riskRegisterSha256": "AA0E4901F4F73388E288711668F505DD61D1D8085426AF279FAEF93FDE5C06FB"
+  },
+  "gates": [
+    "S1-A-001", "S1-A-002", "S1-A-003", "S1-A-004", "S1-A-005", "S1-A-006",
+    "S1-A-007", "S1-A-008", "S1-A-009", "S1-A-010", "S1-A-011", "S1-A-012"
+  ],
+  "riskClosure": {
+    "S1-R-010": "CLOSED",
+    "openBlockingRiskCount": 0
+  },
+  "release": {
+    "tag": "stage1-v1.0.0",
+    "tagTarget": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
+    "releaseStatus": "PENDING_TAG_AND_RELEASE"
+  }
+}
