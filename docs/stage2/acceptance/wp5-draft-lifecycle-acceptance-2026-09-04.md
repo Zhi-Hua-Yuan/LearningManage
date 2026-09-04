@@ -1,6 +1,6 @@
 # WP5 AI 草稿生命周期验收记录
 
-状态：`IMPLEMENTED / CANDIDATE CI PENDING`
+状态：`PASS`
 日期：2026-09-04
 
 ## 已完成实现
@@ -27,21 +27,27 @@
 - 静态写路径与无 V4 范围门禁。
 - 隔离 MySQL 上 20 路并发确认，只允许一个首次业务结果。
 
-## 当前验证结果
+## 最终验证结果
 
 - Java 主源码与全部测试源码完成干净重编译。
 - WP5 单元、架构、场景委托与 Spring 上下文测试通过。
 - 非 MySQL 测试集 `614/614` 通过，Failures 0、Errors 0、Skipped 0。
-- PR #114 首次 Runner 已实际执行 `674/674` 且测试本身全部通过：非 MySQL 614、MySQL 60；首次门禁仅因预估计数 673 少 1 而停止，现已按报告修正。
-- 三项 WP5 MySQL 测试已纳入测试集：20 路草稿确认、重排确认/取消竞争、重排快照失效原子回滚；本机因未注入 `TEST_DB_USERNAME/TEST_DB_PASSWORD` 未执行成功，
-  必须由候选 CI 的隔离 V3 MySQL 完成最终判定。
+- PR [#114](https://github.com/Zhi-Hua-Yuan/LearningManage/pull/114) 已合并，候选实现提交为 `80f357b357bf98e18f4bdd1e53392aede002e8cf`。
+- 合并后 Backend CI `33888407204` 的 Maven、Flyway 空库/存量库和 Docker 五项门禁全部通过。
+- 跨仓候选 [run 33889047346](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33889047346) 的 10 个 Job 全部通过。
+- 后端 `674/674` 通过：非 MySQL 614、MySQL 60；前端 `459/459` 通过。
+- 三项 WP5 MySQL 场景通过：20 路草稿确认只产生一次正式写入，重排确认/取消竞争只有一个终态，重排快照失效时整体回滚。
+- 前端 44 个 operation 与运行时 65 个 operation 匹配 `44/44`，缺失 0；legacy 37 未发生破坏性变化。
+- Flyway 空库、存量库升级、V1/V2/V3 不可变与无 V4 检查全部通过。
+- Docker Stub 的预览、取消、确认和幂等重放通过，正式写入计数为项目 1、里程碑 2、任务 4。
 
-## 候选 CI 必须证明
+## 候选绑定
 
-1. 后端既有测试和 WP5 新测试全部通过，测试数不得减少。
-2. 20 路并发确认产生 1 个项目、1 条确认日志和一个共同 businessId；重排竞争只有一个终态，快照失效无部分写入。
-3. 前端 459 项、legacy 37、frontend 44/44 和 runtime 65 契约无回归。
-4. Flyway 空库/升级及 V1/V2/V3 不可变检查通过。
-5. Docker Stub 的任务拆解预览、确认、重放、取消链路通过。
+- Candidate ID：`stage2-wp5-20260904-merge-80f357b`
+- 后端 SHA：`80f357b357bf98e18f4bdd1e53392aede002e8cf`
+- 前端 SHA：`2ef907f292fbbacecf8a68f7d24c4701a555aa8a`
+- Candidate Manifest SHA-256：`78BD22DCEF2E60CC8B1EAC8355288E8BDD0826A6A1862BC8FB1184094BC1C98C`
+- API 比对报告 SHA-256：`5234569B647EDB5C74D321686E01D22D574EA0C4E5412D3BB3808C8A84B0B300`
+- 全栈 AI 证据 SHA-256：`84C0F5EFA21AC3D9368ABC4CB4639242B2A3860129E53C6268F7541717B74C5B`
 
-上述候选 CI 通过前，`S2-A-009` 和 `S2-R-004` 保持待关闭状态。
+据此，`S2-A-009` 已关闭为 `PASS`，`S2-R-004` 已关闭为 `CLOSED`。WP5 不代表阶段 2 整体完成，`S2-A-010`～`S2-A-012` 继续保留至 WP6/WP8。

@@ -27,18 +27,22 @@ command -v "$python_bin" >/dev/null 2>&1 || ci_fail "python_validator_unavailabl
 case "$mode" in
   frozen)
     jq -e '
+      (.gates[] | select(.id == "S2-A-009") | .status) as $wp5_status |
+      (.risks[] | select(.id == "S2-R-004") | .status) as $wp5_risk_status |
       .schemaVersion == 1 and .stage == "stage2" and .status == "FROZEN" and
       .baseline.stage1Tag == "stage1-v1.0.0" and
       .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
-      ([.gates[] | select(.id | IN("S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ($wp5_status == "PENDING" or $wp5_status == "PASS") and
+      ([.gates[] | select(.id | IN("S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
       ([.gates[] | select(.id == "S2-A-008") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-006") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-007") | .status] | all(. == "PENDING" or . == "PASS")) and
       (.risks[] | select(.id == "S2-R-001") | .status) == "CLOSED" and
-      (.risks[] | select(.id == "S2-R-004") | .status) == "OPEN" and
+      (($wp5_status == "PENDING" and $wp5_risk_status == "OPEN") or
+       ($wp5_status == "PASS" and $wp5_risk_status == "CLOSED")) and
       .policy.publishedMigrationHead == "3" and
       .policy.v1Modified == false and .policy.v2Modified == false and .policy.v3Modified == false and
       .policy.ragOrAgentImplemented == false and

@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0～WP4 PASS · WP5 IMPLEMENTED / CANDIDATE CI PENDING · STAGE FROZEN`
+状态：`WP0～WP5 PASS · STAGE FROZEN`
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -27,6 +27,8 @@
 - [WP5 草稿生命周期内部合同](api/wp5-draft-lifecycle-contract.md)
 - [WP5 草稿生命周期验收记录](acceptance/wp5-draft-lifecycle-acceptance-2026-09-04.md)
 - [WP5 需求与实施清单](requirements/wp5-draft-lifecycle-requirements.md)
+- [WP5 候选门禁证据](evidence/wp5/candidate-release-gate-2026-09-04.json)
+- [WP5 Release 记录](release/wp5-release-record-2026-09-04.md)
 
 ## 实施边界
 
@@ -48,4 +50,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP4 已正式通过，S2-A-005～S2-A-008 为 `PASS`。WP5 已完成代码、内部合同、单元和架构测试，并加入隔离 MySQL 20 路并发确认门禁；在候选 CI 完成 MySQL、Docker、前端和 API 全门禁前，S2-A-009 继续保持 `PENDING`。阶段总状态继续保持 `FROZEN`，只有 WP5～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP5 已正式通过，S2-A-005～S2-A-009 为 `PASS`。WP5 候选 run `33889047346` 已通过后端 674 项、前端 459 项、隔离 MySQL 并发、Flyway、Docker Stub 和运行时 API 44/44 全门禁，`S2-R-004` 已关闭。阶段总状态继续保持 `FROZEN`，只有 WP6～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
