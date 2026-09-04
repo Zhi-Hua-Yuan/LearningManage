@@ -1,7 +1,7 @@
 # WP2 模型协议与供应商兼容层验收
 
 日期：2026-09-04
-结论：`LOCAL_PASS / PENDING_PR_CI`
+结论：`PASS`
 阶段门禁：`S2-A-006`
 
 ## 能力验收
@@ -29,7 +29,13 @@ WP2 协议与客户端测试：37/37 PASS（其中新增 31，包含真实 HTTP 
 CI 新测试总数：607
 ```
 
-本机直接执行全量测试时，既有 `*MySqlTest` 因未注入 CI 专用 `TEST_DB_*` 凭据而无法建立连接；失败发生在测试前置数据库连接阶段，与 WP2 代码无关。GitHub Actions 保留临时 MySQL、Flyway 和完整 607 测试门禁，PR CI 是最终全量运行证据。在该门禁通过并回填证据前，`S2-A-006` 保持 `PENDING`。
+本机直接执行全量测试时，既有 `*MySqlTest` 因未注入 CI 专用 `TEST_DB_*` 凭据而无法建立连接；失败发生在测试前置数据库连接阶段，与 WP2 代码无关。PR #108 的 Run #254 与合并后 `develop` 的 Run #255 均已通过完整 607 测试、Flyway 和 Docker 门禁，合并提交为 `7cc9bb574d0da5f56b4a77fa14ff89317601ba8b`，因此 `S2-A-006` 关闭为 `PASS`。
+
+## 受保护 CI 证据
+
+- PR #108 / Run #254：[Backend CI](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33856492022)
+- 合并后 Run #255：[Backend CI](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33857172196)
+- 合并提交：`7cc9bb574d0da5f56b4a77fa14ff89317601ba8b`
 
 ## 不可变边界
 

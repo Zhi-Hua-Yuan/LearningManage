@@ -40,4 +40,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP1 已通过，WP2 已完成本地实现与验收、等待受保护 PR CI；S2-A-005 为 `PASS`，S2-A-006 暂保持 `PENDING`。阶段总状态继续保持 `FROZEN`。只有 WP3～WP8 全部通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP2 已通过，S2-A-005 和 S2-A-006 为 `PASS`。阶段总状态继续保持 `FROZEN`，因为 WP3～WP8 仍待实施。只有 WP3～WP8 全部通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
