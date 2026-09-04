@@ -54,7 +54,7 @@ esac
 
 jq -e '([.gates[].id] | length == 12) and ([.gates[].id] | unique | length == 12)' "$contract" >/dev/null \
   || ci_fail "stage2_acceptance_gate_set_invalid"
-jq -e '([.risks[].id] | unique | length == (.risks | length))' "$contract" >/dev/null \
+jq -e '((.risks | map(.id) | unique | length) == (.risks | length))' "$contract" >/dev/null \
   || ci_fail "stage2_acceptance_risk_set_invalid"
 jq -e '([.gates[].evidence[]] | all(test("^(docs/|[A-Za-z0-9 _-]+)")))' "$contract" >/dev/null \
   || ci_fail "stage2_acceptance_evidence_invalid"
