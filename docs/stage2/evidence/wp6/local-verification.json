@@ -1,6 +1,6 @@
 {
   "workPackage": "WP6",
-  "generatedAt": "2026-09-04T17:00:00Z",
+  "generatedAt": "2026-09-04T17:38:01Z",
   "baseline": {
     "tag": "stage2-wp5-v1.0.0",
     "backendStartSha": "9570a644e976c8b40c03b6eb9d9427a8e1c69d84",
@@ -23,12 +23,12 @@
       "expectedTests": 709
     },
     "publishedMigrations": {"status": "PASS", "evidence": "V1/V2/V3 source files unchanged; no V4"},
-    "candidateCi": {"status": "PENDING", "runId": null, "headSha": null},
-    "dockerStub": {"status": "PENDING_CANDIDATE_CI"},
-    "runtimeApiComparison": {"status": "PENDING_CANDIDATE_CI", "expectedFrontendOperations": 44, "expectedLegacyOperations": 37}
+    "candidateCi": {"status": "PASS", "runId": "33900744185", "headSha": "078d3aaf41708aac185ec05f8c264e43099ce172", "backendTests": 709, "frontendTests": 459},
+    "dockerStub": {"status": "PASS", "evidence": "Full-stack runtime, API contract and AI breakdown gate"},
+    "runtimeApiComparison": {"status": "PASS", "expectedFrontendOperations": 44, "expectedLegacyOperations": 37, "matchedOperations": 44, "missingOperations": 0, "runtimeOperations": 65}
   },
   "gate": {
-    "security": {"id": "S2-A-010", "status": "PENDING"},
-    "resilience": {"id": "S2-A-011", "status": "PENDING"}
+    "security": {"id": "S2-A-010", "status": "PASS"},
+    "resilience": {"id": "S2-A-011", "status": "PASS"}
   }
 }

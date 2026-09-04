@@ -218,6 +218,7 @@ jobs:
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
       jar_sha256: ${{ steps.package.outputs.jar_sha256 }}
+      artifact_scan_sha256: ${{ steps.artifact-scan.outputs.artifact_scan_sha256 }}
     services:
       mysql:
         image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
@@ -285,6 +286,24 @@ jobs:
           artifact_name="release-backend-jar-${{ needs.freeze-candidate.outputs.candidate_id }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
           printf 'jar_sha256=%s\n' "$jar_sha256" >> "$GITHUB_OUTPUT"
+      - name: Scan tested backend artifact
+        id: artifact-scan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report=ci-artifacts/backend-artifact-scan.txt
+          jar_file=ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar
+          {
+            printf 'artifact=backend-jar\n'
+            printf 'status=PASS\n'
+            printf 'scan=non-binary strings and high-confidence credential patterns\n'
+          } > "$report"
+          if strings -a "$jar_file" | grep -E -i '((api[_-]?key|access[_-]?key|secret|password|authorization|cookie)[[:space:]]*[:=][[:space:]]*[^[:space:]]{8,}|bearer[[:space:]]+[A-Za-z0-9._-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,})' >> "$report"; then
+            sed -i 's/^status=PASS/status=FAIL/' "$report"
+            exit 1
+          fi
+          artifact_scan_sha256="$(sha256sum "$report" | awk '{print toupper($1)}')"
+          printf 'artifact_scan_sha256=%s\n' "$artifact_scan_sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.package.outputs.artifact_name }}
@@ -354,6 +373,7 @@ jobs:
       frontend_contract_sha256: ${{ steps.package.outputs.frontend_contract_sha256 }}
       frontend_operation_count: ${{ steps.package.outputs.frontend_operation_count }}
       frontend_contract_schema_version: ${{ steps.package.outputs.frontend_contract_schema_version }}
+      artifact_scan_sha256: ${{ steps.artifact-scan.outputs.artifact_scan_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -398,6 +418,23 @@ jobs:
           printf 'frontend_contract_sha256=%s\n' "$frontend_contract_sha256" >> "$GITHUB_OUTPUT"
           printf 'frontend_operation_count=%s\n' "$frontend_operation_count" >> "$GITHUB_OUTPUT"
           printf 'frontend_contract_schema_version=%s\n' "$frontend_contract_schema_version" >> "$GITHUB_OUTPUT"
+      - name: Scan tested frontend artifact
+        id: artifact-scan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report=ci-artifacts/frontend-artifact-scan.txt
+          {
+            printf 'artifact=frontend-dist\n'
+            printf 'status=PASS\n'
+            printf 'scan=high-confidence credential patterns\n'
+          } > "$report"
+          if grep -R -n -E -i '((api[_-]?key|access[_-]?key|secret|password|authorization|cookie)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{8,}["'"']|bearer[[:space:]]+[A-Za-z0-9._-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,})' ci-artifacts/dist >> "$report"; then
+            sed -i 's/^status=PASS/status=FAIL/' "$report"
+            exit 1
+          fi
+          artifact_scan_sha256="$(sha256sum "$report" | awk '{print toupper($1)}')"
+          printf 'artifact_scan_sha256=%s\n' "$artifact_scan_sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.package.outputs.artifact_name }}
@@ -687,7 +724,9 @@ jobs:
           FRONTEND_RULESET_SHA256: ${{ needs.freeze-candidate.outputs.frontend_ruleset_sha256 }}
           BACKEND_TEST_COUNT: ${{ env.CI_EXPECTED_TEST_COUNT }}
           BACKEND_JAR_SHA256: ${{ needs.backend-test.outputs.jar_sha256 }}
+          BACKEND_ARTIFACT_SCAN_SHA256: ${{ needs.backend-test.outputs.artifact_scan_sha256 }}
           FRONTEND_DIST_MANIFEST_SHA256: ${{ needs.frontend-build.outputs.dist_manifest_sha256 }}
+          FRONTEND_ARTIFACT_SCAN_SHA256: ${{ needs.frontend-build.outputs.artifact_scan_sha256 }}
           FRONTEND_CONTRACT_SHA256: ${{ needs.docker-gate.outputs.frontend_contract_sha256 }}
           RUNTIME_DOCUMENT_SHA256: ${{ needs.docker-gate.outputs.runtime_document_sha256 }}
           COMPARISON_REPORT_SHA256: ${{ needs.docker-gate.outputs.comparison_report_sha256 }}

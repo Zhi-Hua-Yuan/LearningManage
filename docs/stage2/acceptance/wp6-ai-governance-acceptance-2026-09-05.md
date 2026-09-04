@@ -1,6 +1,6 @@
 # WP6 AI 治理验收记录
 
-状态：`LOCAL PASS / FORMAL GATE PENDING`
+状态：`PASS`
 
 基线：`stage2-wp5-v1.0.0`，起点 `9570a64`
 
@@ -21,10 +21,15 @@
 - 安全验证见 `evidence/wp6/security-scan-report.md`。
 - 韧性故障注入见 `evidence/wp6/fault-injection-report.md`。
 
-## 正式门禁
+## 候选门禁
 
-本文件不提前宣称候选发布完成。只有同一候选提交上的 Backend CI、Release Gate、前端 459 项、Docker Stub、Flyway 与运行时 API 44/44 全部通过后，才允许：
+跨仓候选 Release Gate `33900744185` 已在合并提交
+`078d3aaf41708aac185ec05f8c264e43099ce172` 上通过，9/9 Job 成功：
 
-1. 将 `S2-A-010` 和 `S2-A-011` 改为 `PASS`；
-2. 关闭 `S2-R-005`、`S2-R-006`、`S2-R-007`、`S2-R-009`；
-3. 生成候选 Manifest、SHA-256 sidecar、Annotated Tag 和正式 Release。
+- 后端 709/709，前端 459/459；
+- Flyway 空库和存量库升级通过；
+- Docker 全栈运行、运行时 OpenAPI 与前端 44/44 operation 匹配通过，legacy 37 保持；
+- Docker AI Stub 草稿闭环通过；
+- Gitleaks、仓库守卫、候选 Manifest 生成与 SHA-256 校验通过。
+
+因此 `S2-A-010`、`S2-A-011` 已通过，`S2-R-005`、`S2-R-006`、`S2-R-007`、`S2-R-009` 已关闭。阶段 2 总体验收仍保留 `S2-A-012`，待 WP8 最终跨仓验收完成。

@@ -1,6 +1,6 @@
 # WP6 韧性故障注入报告
 
-状态：`LOCAL PASS / CANDIDATE CI PENDING`
+状态：`PASS / CANDIDATE GATE PASS`
 
 使用可控 Transport 和程序式 Resilience4j 验证了以下场景：
 
@@ -19,3 +19,6 @@
 
 对应自动化测试：`AiResilientCallExecutorTest`、`AiModelClientImplTest`、`AiInvocationPipelineTest`、`RateLimitServiceImplTest`。
 
+候选 Release Gate `33900744185` 已在合并提交
+`078d3aaf41708aac185ec05f8c264e43099ce172` 上完成后端回归、Docker 全栈和 AI Stub
+闭环验证，以上故障注入控制与调用次数、成本聚合约束均通过。
