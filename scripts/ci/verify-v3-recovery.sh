@@ -83,6 +83,20 @@ ci_mysql_migrator --database="$source_database" <"$v3_stage2_seed" >/dev/null \
     || ci_fail "v3_recovery_stage2_seed_import_failed"
 v3_create_database "$restore_database"
 
+# Re-assert the isolated recovery grants immediately before Flyway runs. This
+# keeps the rehearsal independent from any grant cache or provisioning order.
+if ! ci_mysql_admin >/dev/null 2>&1 <<SQL
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES, ALTER, DROP, INDEX, REFERENCES
+    ON \`${source_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES, ALTER, DROP, INDEX, REFERENCES
+    ON \`${restore_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
+SQL
+then
+    ci_fail "v3_recovery_grant_refresh_failed"
+fi
+ci_mysql_migrator --database="$source_database" --execute='CREATE TEMPORARY TABLE `_v3_recovery_privilege_probe` (`id` tinyint); DROP TEMPORARY TABLE `_v3_recovery_privilege_probe`;' >/dev/null \
+    || ci_fail "v3_recovery_migrator_privilege_probe_failed"
+
 source_tables_before="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${source_database}';")"
 source_rows_before="$(ci_business_row_total "$source_database")"
 
