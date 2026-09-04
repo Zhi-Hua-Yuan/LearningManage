@@ -1,6 +1,6 @@
 # 阶段 1 风险登记表
 
-状态：阶段 1 执行中；PR6 已完成；PR7/WP7-A～WP7-F 已合并或完成受保护候选验收并完成 post-merge CI；当前主目标为 PR8 阶段1最终验收
+状态：阶段 1 已完成；PR8/WP8 已通过受保护合并、跨仓最终验收并完成发布封印
 
 | ID | 状态 | 风险 | 触发条件 | 缓解措施 | 关闭证据 | 目标 PR |
 |---|---|---|---|---|---|---|
@@ -13,7 +13,7 @@
 | S1-R-007 | CLOSED | 权限检查逐条查询导致 N+1 | 任务列表、统计、AI 批量 ID | PermissionService 提供批量方法；查询次数门禁 | PR3 WP4-C：100 资源真实 MySQL 查询次数为固定 actor 1 次 + task 1 次；CI run 33167613189 | PR3 |
 | S1-R-008 | CLOSED | 普通接口已鉴权但 AI 入口可绕过 | AI 请求携带越权 projectId/taskId | C4 已补齐自动候选过滤、显式 ID 全量校验、周复盘润色草稿确认重授权 | PR6 C5 AI 授权回归；越权/不存在 ID 在模型调用前拒绝；Backend CI run 33350232099 | PR6 |
 | S1-R-009 | CLOSED | SYSTEM_ADMIN 被实现为全局内容读取后门 | 代码按角色无条件 return allow | ADR-003 禁止默认绕过；PR3 冻结权限矩阵覆盖 SYSTEM_ADMIN 的项目、任务、团队和复盘拒绝组合 | `PermissionMatrixParameterizedTest` 173 项通过，unauthorizedAllowedCount=0；PR3 最终合同验收记录 | PR3 |
-| S1-R-010 | OPEN | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | WP7-A 已固定 37 operation；WP7-F 已验证总计 44 个 operation、运行时匹配 44、缺失 0；阶段级最终关闭仍由 PR8 Candidate Manifest 绑定 | WP7-F 运行时比对报告 `docs/stage1/evidence/wp7-f/api-contract-report.json`、CI run 33790707384；待 PR8 权威发布候选重复核验 | PR7/PR8 |
+| S1-R-010 | CLOSED | 旧 37 个前端 operation 被破坏 | 修改旧路径、method 或必填字段 | WP7-A 已固定 37 operation；WP7-F 与 WP8 已验证总计 44 个 operation、运行时匹配 44、缺失 0 | WP8 workflow run 33832707901；Stage 1 candidate manifest `stage1-final-20260904-001`；PR #103 merge commit `505715860cce7f04a52c00a4e4258ac8ed838b8d`；Stage 1 tag/release record | PR7/PR8 |
 | S1-R-011 | CLOSED | Flyway V2 失败后无法安全恢复 | DDL/回填中断或发布后发现问题 | 迁移前备份；隔离库恢复演练；发布后只前向修复 | PR2 工作包 4 恢复演练：备份、迁移、恢复、V1 对账全部 PASS | PR2 |
 | S1-R-012 | CLOSED | 创建人与受理人口径混用导致统计错误 | 周复盘统计仍按 `task.user_id` 查询执行者 | C4 已将周复盘完成数/重点项目统一改为 `assignee_user_id`，并新增 Mapper SQL 合同与 MySQL 回归 | PR6 C5/C4 周统计真实 MySQL 回归；Backend CI run 33350232099；564 项测试通过 | PR6 |
 | S1-R-013 | CLOSED | 前端缓存保留旧受理人或旧能力 | 管理员从其他会话转派任务 | 受理人、任务列表、成员和能力采用内存态与统一失效链；401、登出和身份切换清空敏感状态；服务端始终重鉴权 | WP7-A 合并并冻结缓存合同；WP7-C 已证明任务级刷新、stale response 和当前页面状态隔离；WP7-D3 已证明关联候选 stale response 与失权 ID 不恢复；WP7-D4-3 已证明 AI 任务上下文 stale response、授权失败刷新和 malformed response 正文保护；WP7-E1/E2 已通过受保护 PR 与 post-merge CI 收口旧 key、401、登出和身份切换；WP7-E3-4 证据包含前端 PR #53 Merge SHA `2ef907f292fbbacecf8a68f7d24c4701a555aa8a`、post-merge CI `33783390301`，backend PR #100 Merge SHA `4bfece30bb10cadae2bb4701cbbfa5b7896eca75`、post-merge CI `33785800984`，五项 backend 门禁全部成功，PR7-T-040～045 全部 PASS，S7-GAP-010/011 RUNTIME_CLOSED；风险正式关闭（详见 `pr7-wp7e3-4-final-regression-acceptance-2026-09-04.md`） | PR7 |
