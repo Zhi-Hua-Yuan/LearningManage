@@ -116,7 +116,7 @@ preflight_output="$(ci_mysql_migrator --database="$source_database" <"$preflight
     || ci_fail "recovery_preflight_failed"
 ci_assert_stage1_check_output "$preflight_output" '^V2-P-' "25" "recovery_preflight"
 
-migrate_output="$(run_flyway_for_database migrate "$source_database")"
+migrate_output="$(FLYWAY_TARGET_VERSION=2 run_flyway_for_database migrate "$source_database")"
 grep -Fq 'migrate.success=true' <<<"$migrate_output" || ci_fail "recovery_migrate_failed"
 grep -Fq 'migrate.migrationsExecuted=1' <<<"$migrate_output" \
     || ci_fail "recovery_migration_count_unexpected"

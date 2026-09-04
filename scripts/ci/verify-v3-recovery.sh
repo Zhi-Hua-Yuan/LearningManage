@@ -33,26 +33,10 @@ ci_require_command "sha256sum"
 ci_require_env "CI_LEGACY_DB_NAME"
 v3_require_inputs
 
-ci_emit "v3.recovery.phase" "start"
-
 source_database="${CI_LEGACY_DB_NAME}_v3_recovery_source"
 restore_database="${CI_LEGACY_DB_NAME}_v3_recovery_target"
 v3_prepare_v2_database "$source_database"
 v3_create_database "$restore_database"
-
-# Re-assert the isolated recovery grants immediately before Flyway runs. This
-# keeps the rehearsal independent from any grant cache or provisioning order.
-if ! ci_mysql_admin >/dev/null 2>&1 <<SQL
-GRANT ALL PRIVILEGES
-    ON \`${source_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
-GRANT ALL PRIVILEGES
-    ON \`${restore_database}\`.* TO '${FLYWAY_DB_USERNAME}'@'%';
-SQL
-then
-    ci_fail "v3_recovery_grant_refresh_failed"
-fi
-ci_mysql_migrator --database="$source_database" --execute='CREATE TEMPORARY TABLE `_v3_recovery_privilege_probe` (`id` tinyint); DROP TEMPORARY TABLE `_v3_recovery_privilege_probe`;' >/dev/null \
-    || ci_fail "v3_recovery_migrator_privilege_probe_failed"
 
 source_tables_before="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${source_database}';")"
 source_rows_before="$(ci_business_row_total "$source_database")"
@@ -86,8 +70,7 @@ structure_backup_sha256="$(sha256sum "$structure_backup_file" | awk '{print toup
 preflight_output="$(ci_mysql_migrator --database="$source_database" <"$v3_preflight")" \
     || ci_fail "v3_recovery_preflight_failed"
 v3_assert_preflight "$preflight_output" "0" "0" "v3_recovery_preflight"
-ci_emit "v3.recovery.phase" "direct_mysql_v3"
-ci_mysql_admin --database="$source_database" <"$v3_migration" >/dev/null \
+ci_mysql_migrator --database="$source_database" <"$v3_migration" >/dev/null \
     || ci_fail "v3_recovery_migration_failed"
 
 if ! ci_mysql_migrator --database="$restore_database" <"$backup_file" >/dev/null 2>&1; then
