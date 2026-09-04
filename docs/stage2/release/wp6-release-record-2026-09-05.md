@@ -17,12 +17,12 @@
 
 ## 门禁结果
 
-- 候选 Release Gate 9/9 Job 通过。
+- 候选 Release Gate 10/10 Job 通过。
 - 后端 709/709、前端 459/459 通过。
 - Flyway 空库与存量库升级通过，V1/V2/V3 未修改且未新增 V4。
 - Docker 全栈运行、运行时 API 契约 44/44 匹配、legacy 37 保持，缺失 0。
 - Docker AI Stub 的任务拆解草稿闭环通过。
-- Gitleaks、仓库守卫、构建产物扫描和候选 Manifest 校验全部通过。
+- Gitleaks、仓库守卫、生成的 JAR/dist 产物扫描和候选 Manifest 校验全部通过。
 - `S2-A-010`、`S2-A-011` 通过；`S2-R-005`、`S2-R-006`、`S2-R-007`、`S2-R-009` 关闭。
 
 ## 证据摘要

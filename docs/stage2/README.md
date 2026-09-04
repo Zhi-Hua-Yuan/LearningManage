@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0～WP5 PASS · WP6 LOCAL PASS · STAGE FROZEN`
+状态：`WP0～WP6 PASS · STAGE FROZEN`
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -31,8 +31,9 @@
 - [WP5 Release 记录](release/wp5-release-record-2026-09-04.md)
 - [WP6 需求合同](requirements/wp6-ai-governance-requirements.md)
 - [WP6 AI 治理内部合同](api/wp6-ai-governance-contract.md)
-- [WP6 本地验收记录](acceptance/wp6-ai-governance-acceptance-2026-09-05.md)
-- [WP6 本地机器证据](evidence/wp6/local-verification.json)
+- [WP6 验收记录](acceptance/wp6-ai-governance-acceptance-2026-09-05.md)
+- [WP6 机器证据](evidence/wp6/local-verification.json)
+- [WP6 Release 记录](release/wp6-release-record-2026-09-05.md)
 
 ## 实施边界
 
@@ -54,4 +55,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP5 已正式通过，S2-A-005～S2-A-009 为 `PASS`。WP6 的 Trace、脱敏、成本和韧性实现已经完成本地验证，正式候选 CI 前 `S2-A-010`、`S2-A-011` 仍保持 `PENDING`。阶段总状态继续保持 `FROZEN`，只有 WP6～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP6 已正式通过，S2-A-005～S2-A-011 为 `PASS`。WP6 候选 Release Gate 已完成后端、前端、Flyway、Docker 全栈、API 契约和产物敏感信息扫描；阶段总状态继续保持 `FROZEN`，只有 WP7～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
