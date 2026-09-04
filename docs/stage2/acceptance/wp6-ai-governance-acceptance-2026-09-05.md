@@ -23,13 +23,13 @@
 
 ## 候选门禁
 
-跨仓候选 Release Gate `33900744185` 已在合并提交
-`078d3aaf41708aac185ec05f8c264e43099ce172` 上通过，9/9 Job 成功：
+跨仓候选 Release Gate `33903357653` 已在合并提交
+`88e09bb2c9487ba04a2245355fcdc59152ad8639` 上通过，10/10 Job 成功：
 
 - 后端 709/709，前端 459/459；
 - Flyway 空库和存量库升级通过；
 - Docker 全栈运行、运行时 OpenAPI 与前端 44/44 operation 匹配通过，legacy 37 保持；
 - Docker AI Stub 草稿闭环通过；
-- Gitleaks、仓库守卫、候选 Manifest 生成与 SHA-256 校验通过。
+- Gitleaks、生成的 JAR/dist 产物扫描、仓库守卫、候选 Manifest 生成与 SHA-256 校验通过。
 
 因此 `S2-A-010`、`S2-A-011` 已通过，`S2-R-005`、`S2-R-006`、`S2-R-007`、`S2-R-009` 已关闭。阶段 2 总体验收仍保留 `S2-A-012`，待 WP8 最终跨仓验收完成。

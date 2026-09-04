@@ -19,6 +19,6 @@
 
 对应自动化测试：`AiResilientCallExecutorTest`、`AiModelClientImplTest`、`AiInvocationPipelineTest`、`RateLimitServiceImplTest`。
 
-候选 Release Gate `33900744185` 已在合并提交
-`078d3aaf41708aac185ec05f8c264e43099ce172` 上完成后端回归、Docker 全栈和 AI Stub
+候选 Release Gate `33903357653` 已在合并提交
+`88e09bb2c9487ba04a2245355fcdc59152ad8639` 上完成后端回归、Docker 全栈和 AI Stub
 闭环验证，以上故障注入控制与调用次数、成本聚合约束均通过。

@@ -22,6 +22,6 @@
 - `AiLogAccessArchitectureTest`
 - `TraceIdFilterTest`
 
-候选 Release Gate `33900744185` 在合并提交
-`078d3aaf41708aac185ec05f8c264e43099ce172` 上完成 Gitleaks、Linux 测试、Docker Stub
-和产物扫描，结果全部通过；未发现 API Key、JWT、Authorization、Cookie、密码或 Secret 测试标记。
+候选 Release Gate `33903357653` 在合并提交
+`88e09bb2c9487ba04a2245355fcdc59152ad8639` 上完成 Gitleaks、Linux 测试、生成的 JAR/dist
+产物扫描、Docker Stub 和产物校验，结果全部通过；未发现 API Key、JWT、Authorization、Cookie、密码或 Secret 测试标记。
