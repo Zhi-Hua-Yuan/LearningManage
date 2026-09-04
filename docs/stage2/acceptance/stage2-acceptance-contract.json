@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "status": "FROZEN",
-  "generatedAt": "2026-09-04T12:13:05Z",
+  "generatedAt": "2026-09-04T13:06:25Z",
   "baseline": {
     "stage1Tag": "stage1-v1.0.0",
     "backendSha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
@@ -36,7 +36,7 @@
     {"id":"S2-R-005","status":"OPEN","title":"AI 日志敏感正文泄漏","owner":"security owner","targetWp":"WP6"},
     {"id":"S2-R-006","status":"OPEN","title":"模型回退造成额外成本","owner":"AI platform owner","targetWp":"WP6"},
     {"id":"S2-R-007","status":"OPEN","title":"外部模型故障影响业务线程","owner":"platform owner","targetWp":"WP6"},
-    {"id":"S2-R-008","status":"OPEN","title":"WP4 本地兼容回归已通过，仍待候选 Docker/API 与 WP8 跨仓终验","owner":"backend/frontend owner","targetWp":"WP8"},
+    {"id":"S2-R-008","status":"OPEN","title":"WP4 候选 Docker/API 已通过，仍待 WP8 跨仓最终兼容验收","owner":"backend/frontend owner","targetWp":"WP8"},
     {"id":"S2-R-009","status":"OPEN","title":"运维日志查询形成内容权限旁路","owner":"security owner","targetWp":"WP8"}
   ],
   "summary": {"pass": 8, "pending": 4, "fail": 0, "openRisk": 7},

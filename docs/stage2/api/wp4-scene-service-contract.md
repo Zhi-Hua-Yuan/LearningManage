@@ -1,6 +1,6 @@
 # WP4 AI 场景服务内部合同
 
-状态：`IMPLEMENTED / CANDIDATE CI PENDING`
+状态：`PASS / CANDIDATE CI PASS`
 日期：2026-09-04
 
 ## 公共兼容合同
@@ -32,6 +32,8 @@ WP4 没有新增、删除或重命名 HTTP 接口。`AiController`、`AiService`
 - 清单重排继续校验任务快照、操作状态和项目管理权限，并维持原幂等语义。
 - WP4 不改变草稿 Schema、状态值、确认记录唯一约束或锁策略。
 
+候选发布门禁已通过工作流 [33875362611](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33875362611) 固定到合并提交 `d3a9c673e2e79709f2cd140be9c24cad874957bd`；Docker Stub 全链路通过，运行时 API 与前端使用接口 44/44 匹配，缺失 0。详细证据见 `docs/stage2/evidence/wp4/candidate-release-gate-2026-09-04.json`。
+
 ## 版本边界
 
-已发布 Flyway 头保持 V3，V1/V2/V3 SHA-256 均未变化；WP4 不产生 V4。正式 `S2-A-008 PASS` 需保护分支候选 CI、Docker Stub 和运行时 OpenAPI 比对完成后封存。
+已发布 Flyway 头保持 V3，V1/V2/V3 SHA-256 均未变化；WP4 不产生 V4。`S2-A-008` 已在候选 CI、Docker Stub 和运行时 OpenAPI 比对完成后封存为 `PASS`；`S2-R-008` 继续保持 `OPEN`，直到 WP8 最终跨仓兼容验收。
