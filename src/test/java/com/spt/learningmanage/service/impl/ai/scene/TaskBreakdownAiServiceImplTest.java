@@ -20,8 +20,7 @@ import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
-import com.spt.learningmanage.service.PermissionService;
-import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.ai.draft.AiDraftConfirmationService;
 import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
 import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
@@ -45,11 +44,8 @@ import static org.mockito.Mockito.when;
 
 class TaskBreakdownAiServiceImplTest {
 
-    private final ProjectMapper projectMapper = mock(ProjectMapper.class);
-    private final MilestoneMapper milestoneMapper = mock(MilestoneMapper.class);
-    private final PermissionService permissionService = mock(PermissionService.class);
-    private final TaskCreationService taskCreationService = mock(TaskCreationService.class);
     private final AiDraftLifecycleService draftLifecycleService = mock(AiDraftLifecycleService.class);
+    private final AiDraftConfirmationService draftConfirmationService = mock(AiDraftConfirmationService.class);
     private final AiModelSelector modelSelector = mock(AiModelSelector.class);
     private final PromptTemplateResolver promptTemplateResolver = mock(PromptTemplateResolver.class);
     private final AiModelClient modelClient = mock(AiModelClient.class);
@@ -61,8 +57,8 @@ class TaskBreakdownAiServiceImplTest {
     void setUp() {
         AiInvocationPipeline pipeline = new AiInvocationPipeline(promptTemplateResolver, modelClient, callLogService);
         service = new TaskBreakdownAiServiceImpl(
-                projectMapper, milestoneMapper, pipeline, permissionService, taskCreationService,
-                draftLifecycleService, modelSelector, new AiJsonResponseSanitizerImpl());
+                pipeline, draftLifecycleService, draftConfirmationService,
+                modelSelector, new AiJsonResponseSanitizerImpl());
         UserHolder.set(1L);
         when(modelSelector.breakdownModel()).thenReturn("qwen-test");
         when(promptTemplateResolver.resolve(any())).thenAnswer(invocation -> {
@@ -108,7 +104,7 @@ class TaskBreakdownAiServiceImplTest {
         draft.setDraftId("draft-1");
         draft.setExpireAt(LocalDateTime.now().plusMinutes(20));
         when(draftLifecycleService.buildInputHash(any())).thenReturn("hash");
-        when(draftLifecycleService.createDraft(eq(1L), eq(AiSceneEnum.TASK_BREAKDOWN.getCode()), any(), eq("hash")))
+        when(draftLifecycleService.createDraft(any()))
                 .thenReturn(draft);
         AiBreakdownRequest request = new AiBreakdownRequest();
         request.setTarget("通过考试");
@@ -119,49 +115,21 @@ class TaskBreakdownAiServiceImplTest {
         assertEquals("draft-1", result.getDraftId());
         assertNotNull(result.getExpireAt());
         assertEquals(1, result.getMilestones().size());
-        verify(draftLifecycleService).createDraft(eq(1L), eq(AiSceneEnum.TASK_BREAKDOWN.getCode()), any(), eq("hash"));
+        verify(draftLifecycleService).createDraft(any());
     }
 
     @Test
     void confirmCreatesProjectMilestoneAndTasksAndMarksDraft() {
-        AiDraft draft = new AiDraft();
-        draft.setId(11L);
-        draft.setDraftId("draft-1");
-        draft.setStatus(0);
-        draft.setPayloadJson("{\"target\":\"通过考试\",\"description\":\"目标描述\","
-                + "\"milestones\":[{\"name\":\"准备阶段\",\"tasks\":["
-                + "{\"name\":\"制定计划\",\"priority\":2,\"dueDate\":\"2026-09-10\"}]}]}");
-        when(draftLifecycleService.requireDraft(eq(1L), eq("draft-1"), eq(AiSceneEnum.TASK_BREAKDOWN.getCode())))
-                .thenReturn(draft);
-        when(draftLifecycleService.findConfirmLog(eq(1L), eq("draft-1"), eq("op-1")))
-                .thenReturn(null);
-        when(projectMapper.selectOne(any())).thenReturn(null);
-        when(projectMapper.insert(any(Project.class))).thenAnswer(invocation -> {
-            invocation.getArgument(0, Project.class).setId(101L);
-            return 1;
-        });
-        when(milestoneMapper.insert(any(Milestone.class))).thenAnswer(invocation -> {
-            invocation.getArgument(0, Milestone.class).setId(201L);
-            return 1;
-        });
-        when(permissionService.requireProjectCreateTask(eq(1L), eq(101L)))
-                .thenReturn(mock(com.spt.learningmanage.model.permission.ProjectAccessScope.class));
-        when(draftLifecycleService.buildConfirmResult(eq(false), eq(101L)))
-                .thenAnswer(invocation -> {
-                    AiDraftConfirmVO vo = new AiDraftConfirmVO();
-                    vo.setSuccess(true);
-                    vo.setBusinessId(101L);
-                    return vo;
-                });
+        AiDraftConfirmVO confirmation = new AiDraftConfirmVO();
+        confirmation.setSuccess(true);
+        confirmation.setBusinessId(101L);
+        when(draftConfirmationService.confirm(any())).thenReturn(confirmation);
 
         AiDraftConfirmVO result = service.confirmTaskBreakdown("draft-1", "op-1", null, null);
 
         assertTrue(result.getSuccess());
         assertEquals(101L, result.getBusinessId());
-        verify(taskCreationService).createTask(any(), any(), eq(null));
-        verify(draftLifecycleService).markConfirmed(11L);
-        verify(draftLifecycleService).insertConfirmLog(1L, "draft-1", "op-1",
-                AiSceneEnum.TASK_BREAKDOWN.getCode(), 101L);
+        verify(draftConfirmationService).confirm(any());
     }
 
     private AiChatResult chatResult(String content) {

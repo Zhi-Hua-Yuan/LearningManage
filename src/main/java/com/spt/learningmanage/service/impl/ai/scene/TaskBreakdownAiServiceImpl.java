@@ -4,33 +4,24 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.constant.AiSceneEnum;
-import com.spt.learningmanage.constant.DeleteSourceConstant;
-import com.spt.learningmanage.constant.ProjectConstant;
-import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.exception.AiResponseProcessingException;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
-import com.spt.learningmanage.mapper.MilestoneMapper;
-import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftConfirmationCommand;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
+import com.spt.learningmanage.model.dto.ai.draft.TaskBreakdownConfirmationContext;
 import com.spt.learningmanage.model.entity.AiDraft;
-import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
-import com.spt.learningmanage.model.entity.Milestone;
-import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.entity.Task;
-import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.ai.AiBreakdownPreviewVO;
 import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
-import com.spt.learningmanage.service.PermissionService;
-import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.ai.draft.AiDraftConfirmationService;
 import com.spt.learningmanage.service.ai.scene.TaskBreakdownAiService;
 import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
@@ -39,11 +30,10 @@ import com.spt.learningmanage.service.impl.ai.support.AiSceneSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBreakdownAiService {
@@ -54,29 +44,20 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     private static final int TASK_PRIORITY_MIN = 0;
     private static final int TASK_PRIORITY_MAX = 3;
 
-    private final ProjectMapper projectMapper;
-    private final MilestoneMapper milestoneMapper;
     private final AiInvocationPipeline aiInvocationPipeline;
-    private final PermissionService permissionService;
-    private final TaskCreationService taskCreationService;
     private final AiDraftLifecycleService draftLifecycleService;
+    private final AiDraftConfirmationService draftConfirmationService;
     private final AiModelSelector modelSelector;
     private final AiJsonResponseSanitizer jsonSanitizer;
 
-    public TaskBreakdownAiServiceImpl(ProjectMapper projectMapper,
-                                      MilestoneMapper milestoneMapper,
-                                      AiInvocationPipeline aiInvocationPipeline,
-                                      PermissionService permissionService,
-                                      TaskCreationService taskCreationService,
+    public TaskBreakdownAiServiceImpl(AiInvocationPipeline aiInvocationPipeline,
                                       AiDraftLifecycleService draftLifecycleService,
+                                      AiDraftConfirmationService draftConfirmationService,
                                       AiModelSelector modelSelector,
                                       AiJsonResponseSanitizer jsonSanitizer) {
-        this.projectMapper = projectMapper;
-        this.milestoneMapper = milestoneMapper;
         this.aiInvocationPipeline = aiInvocationPipeline;
-        this.permissionService = permissionService;
-        this.taskCreationService = taskCreationService;
         this.draftLifecycleService = draftLifecycleService;
+        this.draftConfirmationService = draftConfirmationService;
         this.modelSelector = modelSelector;
         this.jsonSanitizer = jsonSanitizer;
     }
@@ -84,6 +65,12 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     @Override
     public List<MilestoneDraftVO> generateTaskBreakdown(String target, String description,
                                                         String duration, boolean detailed) {
+        return generateTaskBreakdown(target, description, duration, detailed, null);
+    }
+
+    private List<MilestoneDraftVO> generateTaskBreakdown(String target, String description,
+                                                         String duration, boolean detailed,
+                                                         String traceId) {
         if (StrUtil.hasBlank(target, duration)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标和周期不能为空，描述可为空");
         }
@@ -103,7 +90,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
         try {
             return aiInvocationPipeline.execute(new AiExecutionCommand(
                     userId, modelSelector.breakdownModel(), promptCode, userPrompt,
-                    "AI 任务拆解结果格式异常"
+                    "AI 任务拆解结果格式异常", traceId
             ), aiRawContent -> {
                 JSONArray jsonArray = JSONUtil.parseArray(jsonSanitizer.sanitizeArray(aiRawContent));
                 List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
@@ -128,8 +115,9 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     @Override
     public AiBreakdownPreviewVO previewTaskBreakdown(AiBreakdownRequest request) {
         boolean detailed = request.getDetailed() != null && request.getDetailed();
+        String traceId = UUID.randomUUID().toString().replace("-", "");
         List<MilestoneDraftVO> drafts = generateTaskBreakdown(
-                request.getTarget(), request.getDescription(), request.getDuration(), detailed);
+                request.getTarget(), request.getDescription(), request.getDuration(), detailed, traceId);
         Long userId = currentUserId();
         JSONObject payload = JSONUtil.createObj()
                 .set("target", request.getTarget())
@@ -137,9 +125,9 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                 .set("duration", request.getDuration())
                 .set("detailed", detailed)
                 .set("milestones", drafts);
-        AiDraft draft = draftLifecycleService.createDraft(
+        AiDraft draft = draftLifecycleService.createDraft(new AiDraftCreateCommand(
                 userId, AiSceneEnum.TASK_BREAKDOWN.getCode(), payload.toString(),
-                draftLifecycleService.buildInputHash(payload.toString()));
+                draftLifecycleService.buildInputHash(payload.toString()), 1, traceId));
         AiBreakdownPreviewVO vo = new AiBreakdownPreviewVO();
         vo.setDraftId(draft.getDraftId());
         vo.setExpireAt(draft.getExpireAt());
@@ -148,87 +136,12 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmTaskBreakdown(String draftId, String operationId,
                                                  String projectName, String projectGoal) {
         Long userId = currentUserId();
-        AiDraft draft = draftLifecycleService.requireDraft(
-                userId, draftId, AiSceneEnum.TASK_BREAKDOWN.getCode());
-        AiDraftConfirmLog replay = draftLifecycleService.findConfirmLog(userId, draftId, operationId);
-        if (replay != null) {
-            return draftLifecycleService.buildConfirmResult(true, replay.getBusinessId());
-        }
-        draftLifecycleService.requireConfirmable(draft);
-
-        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
-        JSONArray milestonesJson = payload.getJSONArray("milestones");
-        if (milestonesJson == null || milestonesJson.isEmpty()) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿缺少里程碑数据");
-        }
-        List<MilestoneDraftVO> milestoneDrafts = JSONUtil.toList(milestonesJson, MilestoneDraftVO.class);
-        normalizeAndValidateDrafts(milestoneDrafts);
-
-        String target = safeTrim(payload.getStr("target"));
-        String finalProjectName = StrUtil.isNotBlank(projectName) ? projectName.trim() : target;
-        if (StrUtil.isBlank(finalProjectName)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "projectName 不能为空");
-        }
-        if (finalProjectName.length() > PROJECT_NAME_MAX_LEN) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "projectName 过长");
-        }
-
-        Project project = new Project();
-        project.setUserId(userId);
-        project.setName(finalProjectName);
-        project.setGoal(StrUtil.isNotBlank(projectGoal) ? projectGoal.trim() : safeTrim(payload.getStr("description")));
-        project.setStatus(ProjectConstant.STATUS_ACTIVE);
-        project.setProgress(BigDecimal.ZERO);
-        project.setIsDelete(0);
-        project.setOrderNo(getNextProjectOrderNo(userId));
-        if (projectMapper.insert(project) != 1 || project.getId() == null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建项目失败");
-        }
-        ProjectAccessScope projectScope = permissionService.requireProjectCreateTask(userId, project.getId());
-
-        int milestoneOrder = 1;
-        for (MilestoneDraftVO milestoneDraft : milestoneDrafts) {
-            Milestone milestone = new Milestone();
-            milestone.setProjectId(project.getId());
-            milestone.setUserId(userId);
-            milestone.setName(milestoneDraft.getName());
-            milestone.setOrderNo(milestoneOrder++);
-            milestone.setProgress(BigDecimal.ZERO);
-            milestone.setIsDelete(0);
-            milestone.setDeleteSource(DeleteSourceConstant.NORMAL);
-            if (milestoneMapper.insert(milestone) != 1 || milestone.getId() == null) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建里程碑失败");
-            }
-            for (TaskDraftVO taskDraft : milestoneDraft.getTasks()) {
-                Task task = new Task();
-                task.setProjectId(project.getId());
-                task.setMilestoneId(milestone.getId());
-                task.setTitle(taskDraft.getName());
-                task.setPriority(taskDraft.getPriority());
-                task.setStatus(TaskStatusEnum.TODO.getValue());
-                task.setDueDate(LocalDate.parse(taskDraft.getDueDate()));
-                task.setIsDelete(0);
-                task.setDeleteSource(DeleteSourceConstant.NORMAL);
-                taskCreationService.createTask(task, projectScope, null);
-            }
-        }
-        draftLifecycleService.markConfirmed(draft.getId());
-        draftLifecycleService.insertConfirmLog(userId, draftId, operationId,
-                AiSceneEnum.TASK_BREAKDOWN.getCode(), project.getId());
-        return draftLifecycleService.buildConfirmResult(false, project.getId());
-    }
-
-    private int getNextProjectOrderNo(Long userId) {
-        Project latest = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
-                .eq(Project::getUserId, userId)
-                .isNull(Project::getDeletedAt)
-                .orderByDesc(Project::getOrderNo)
-                .last("limit 1"));
-        return latest == null || latest.getOrderNo() == null ? 0 : latest.getOrderNo() + 1;
+        return draftConfirmationService.confirm(new AiDraftConfirmationCommand(
+                userId, draftId, operationId, AiSceneEnum.TASK_BREAKDOWN.getCode(),
+                new TaskBreakdownConfirmationContext(projectName, projectGoal)));
     }
 
     private void normalizeAndValidateDrafts(List<MilestoneDraftVO> drafts) {

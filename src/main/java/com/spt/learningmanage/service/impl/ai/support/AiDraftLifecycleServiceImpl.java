@@ -2,21 +2,19 @@ package com.spt.learningmanage.service.impl.ai.support;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.constant.AiDraftStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
-import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
 import com.spt.learningmanage.mapper.AiDraftMapper;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
 import com.spt.learningmanage.model.entity.AiDraft;
-import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
-import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
 import com.spt.learningmanage.model.vo.ai.AiDraftDetailVO;
+import com.spt.learningmanage.service.ai.draft.AiDraftHandlerRegistry;
 import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
+import com.spt.learningmanage.service.impl.ai.draft.AiDraftStateMachine;
 import com.spt.learningmanage.utils.UserHolder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -26,109 +24,39 @@ public class AiDraftLifecycleServiceImpl implements AiDraftLifecycleService {
     private static final int AI_DRAFT_EXPIRE_MINUTES = 20;
 
     private final AiDraftMapper aiDraftMapper;
-    private final AiDraftConfirmLogMapper aiDraftConfirmLogMapper;
+    private final AiDraftHandlerRegistry handlerRegistry;
+    private final AiDraftStateMachine stateMachine;
 
     public AiDraftLifecycleServiceImpl(AiDraftMapper aiDraftMapper,
-                                       AiDraftConfirmLogMapper aiDraftConfirmLogMapper) {
+                                       AiDraftHandlerRegistry handlerRegistry,
+                                       AiDraftStateMachine stateMachine) {
         this.aiDraftMapper = aiDraftMapper;
-        this.aiDraftConfirmLogMapper = aiDraftConfirmLogMapper;
+        this.handlerRegistry = handlerRegistry;
+        this.stateMachine = stateMachine;
     }
 
     @Override
-    public AiDraft createDraft(Long userId, String scene, String payloadJson, String inputHash) {
+    public AiDraft createDraft(AiDraftCreateCommand command) {
+        validateCreateCommand(command);
+        int currentSchemaVersion = handlerRegistry.currentSchemaVersion(command.scene());
+        if (!Objects.equals(currentSchemaVersion, command.schemaVersion())) {
+            throw new BusinessException(ErrorCode.AI_DRAFT_SCHEMA_UNSUPPORTED,
+                    "草稿创建版本与场景当前版本不一致");
+        }
         AiDraft draft = new AiDraft();
         draft.setDraftId(UUID.randomUUID().toString().replace("-", ""));
-        draft.setUserId(userId);
-        draft.setScene(scene);
-        draft.setPayloadJson(payloadJson);
-        draft.setInputHash(inputHash);
+        draft.setUserId(command.userId());
+        draft.setScene(command.scene());
+        draft.setSchemaVersion(command.schemaVersion());
+        draft.setPayloadJson(command.payloadJson());
+        draft.setInputHash(command.inputHash());
+        draft.setTraceId(StrUtil.blankToDefault(command.traceId(), null));
         draft.setStatus(AiDraftStatusEnum.PREVIEW.getValue());
-        draft.setExpireAt(LocalDateTime.now().plusMinutes(AI_DRAFT_EXPIRE_MINUTES));
+        draft.setExpireAt(stateMachine.now().plusMinutes(AI_DRAFT_EXPIRE_MINUTES));
         if (aiDraftMapper.insert(draft) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿创建失败");
         }
         return draft;
-    }
-
-    @Override
-    public AiDraft requireDraft(Long userId, String draftId, String scene) {
-        LambdaQueryWrapper<AiDraft> wrapper = new LambdaQueryWrapper<AiDraft>()
-                .eq(AiDraft::getDraftId, draftId)
-                .eq(AiDraft::getUserId, userId);
-        if (StrUtil.isNotBlank(scene)) {
-            wrapper.eq(AiDraft::getScene, scene);
-        }
-        AiDraft draft = aiDraftMapper.selectOne(wrapper.last("limit 1"));
-        if (draft == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
-        }
-        return draft;
-    }
-
-    @Override
-    public AiDraftConfirmLog findConfirmLog(Long userId, String draftId, String operationId) {
-        return aiDraftConfirmLogMapper.selectOne(new LambdaQueryWrapper<AiDraftConfirmLog>()
-                .eq(AiDraftConfirmLog::getUserId, userId)
-                .eq(AiDraftConfirmLog::getDraftId, draftId)
-                .eq(AiDraftConfirmLog::getOperationId, operationId)
-                .last("limit 1"));
-    }
-
-    @Override
-    public void requireConfirmable(AiDraft draft) {
-        if (refreshExpiredIfNecessary(draft)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
-        }
-        if (AiDraftStatusEnum.isPreview(draft.getStatus())) {
-            return;
-        }
-        if (AiDraftStatusEnum.isConfirmed(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认，请勿重复提交");
-        }
-        if (AiDraftStatusEnum.isCanceled(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已取消，请重新生成");
-        }
-        if (AiDraftStatusEnum.isExpired(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，请重新预览");
-        }
-        throw new BusinessException(ErrorCode.OPERATION_ERROR,
-                "草稿状态异常，无法确认：" + AiDraftStatusEnum.getText(draft.getStatus()));
-    }
-
-    @Override
-    public void markConfirmed(Long draftDbId) {
-        int rows = aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                .eq(AiDraft::getId, draftDbId)
-                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
-                .set(AiDraft::getStatus, AiDraftStatusEnum.CONFIRMED.getValue())
-                .set(AiDraft::getConfirmedAt, LocalDateTime.now()));
-        if (rows != 1) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态更新失败");
-        }
-    }
-
-    @Override
-    public void insertConfirmLog(Long userId, String draftId, String operationId, String scene, Long businessId) {
-        AiDraftConfirmLog logEntity = new AiDraftConfirmLog();
-        logEntity.setUserId(userId);
-        logEntity.setDraftId(draftId);
-        logEntity.setOperationId(operationId);
-        logEntity.setScene(scene);
-        logEntity.setBusinessId(businessId);
-        try {
-            aiDraftConfirmLogMapper.insert(logEntity);
-        } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "确认日志写入失败");
-        }
-    }
-
-    @Override
-    public AiDraftConfirmVO buildConfirmResult(boolean replay, Long businessId) {
-        AiDraftConfirmVO vo = new AiDraftConfirmVO();
-        vo.setSuccess(true);
-        vo.setIdempotentReplay(replay);
-        vo.setBusinessId(businessId);
-        return vo;
     }
 
     @Override
@@ -139,25 +67,23 @@ public class AiDraftLifecycleServiceImpl implements AiDraftLifecycleService {
     @Override
     public boolean cancelDraft(String draftId, String scene) {
         Long userId = currentUserId();
-        AiDraft draft = requireDraft(userId, draftId, scene);
-        refreshExpiredIfNecessary(draft);
+        if (StrUtil.isBlank(draftId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "draftId 不能为空");
+        }
+        AiDraft draft = materializeExpiry(requireDraft(userId, draftId.trim(), scene));
         if (AiDraftStatusEnum.isCanceled(draft.getStatus())) {
             return true;
         }
-        if (AiDraftStatusEnum.isConfirmed(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已确认，不能取消");
+        rejectCancelTerminalState(draft);
+        if (stateMachine.markCanceled(draft.getId())) {
+            return true;
         }
-        if (AiDraftStatusEnum.isExpired(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿已过期，不能取消");
+        AiDraft winner = requireDraft(userId, draft.getDraftId(), scene);
+        if (AiDraftStatusEnum.isCanceled(winner.getStatus())) {
+            return true;
         }
-        if (!AiDraftStatusEnum.isPreview(draft.getStatus())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿状态异常，不能取消");
-        }
-        return aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                .eq(AiDraft::getId, draft.getId())
-                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
-                .set(AiDraft::getStatus, AiDraftStatusEnum.CANCELED.getValue())
-                .set(AiDraft::getCanceledAt, LocalDateTime.now())) > 0;
+        rejectCancelTerminalState(winner);
+        throw new BusinessException(ErrorCode.AI_DRAFT_CONFLICT, "草稿取消状态冲突，请刷新后重试");
     }
 
     @Override
@@ -166,8 +92,7 @@ public class AiDraftLifecycleServiceImpl implements AiDraftLifecycleService {
         if (StrUtil.isBlank(draftId)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "draftId 不能为空");
         }
-        AiDraft draft = requireDraft(userId, draftId.trim(), null);
-        refreshExpiredIfNecessary(draft);
+        AiDraft draft = materializeExpiry(requireDraft(userId, draftId.trim(), null));
         AiDraftDetailVO vo = new AiDraftDetailVO();
         vo.setDraftId(draft.getDraftId());
         vo.setScene(draft.getScene());
@@ -182,27 +107,54 @@ public class AiDraftLifecycleServiceImpl implements AiDraftLifecycleService {
 
     @Override
     public int expirePreviewDrafts() {
-        return aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
-                .lt(AiDraft::getExpireAt, LocalDateTime.now())
-                .set(AiDraft::getStatus, AiDraftStatusEnum.EXPIRED.getValue()));
+        return stateMachine.expirePreviewsBefore(stateMachine.now());
     }
 
-    private boolean refreshExpiredIfNecessary(AiDraft draft) {
+    private AiDraft requireDraft(Long userId, String draftId, String scene) {
+        LambdaQueryWrapper<AiDraft> wrapper = new LambdaQueryWrapper<AiDraft>()
+                .eq(AiDraft::getDraftId, draftId)
+                .eq(AiDraft::getUserId, userId);
+        if (StrUtil.isNotBlank(scene)) {
+            wrapper.eq(AiDraft::getScene, scene.trim());
+        }
+        AiDraft draft = aiDraftMapper.selectOne(wrapper.last("limit 1"));
+        if (draft == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "草稿不存在");
+        }
+        return draft;
+    }
+
+    private AiDraft materializeExpiry(AiDraft draft) {
+        if (!AiDraftStatusEnum.isPreview(draft.getStatus()) || !stateMachine.isExpired(draft)) {
+            return draft;
+        }
+        if (stateMachine.markExpired(draft.getId())) {
+            draft.setStatus(AiDraftStatusEnum.EXPIRED.getValue());
+            return draft;
+        }
+        return requireDraft(draft.getUserId(), draft.getDraftId(), draft.getScene());
+    }
+
+    private void rejectCancelTerminalState(AiDraft draft) {
+        if (AiDraftStatusEnum.isConfirmed(draft.getStatus())) {
+            throw new BusinessException(ErrorCode.AI_DRAFT_NOT_CONFIRMABLE, "草稿已确认，不能取消");
+        }
+        if (AiDraftStatusEnum.isExpired(draft.getStatus())) {
+            throw new BusinessException(ErrorCode.AI_DRAFT_EXPIRED, "草稿已过期，不能取消");
+        }
         if (!AiDraftStatusEnum.isPreview(draft.getStatus())) {
-            return false;
+            throw new BusinessException(ErrorCode.AI_DRAFT_CONFLICT, "草稿状态异常，不能取消");
         }
-        if (draft.getExpireAt() != null && LocalDateTime.now().isAfter(draft.getExpireAt())) {
-            int rows = aiDraftMapper.update(null, new LambdaUpdateWrapper<AiDraft>()
-                    .eq(AiDraft::getId, draft.getId())
-                    .eq(AiDraft::getStatus, AiDraftStatusEnum.PREVIEW.getValue())
-                    .set(AiDraft::getStatus, AiDraftStatusEnum.EXPIRED.getValue()));
-            if (rows > 0) {
-                draft.setStatus(AiDraftStatusEnum.EXPIRED.getValue());
-            }
-            return true;
+    }
+
+    private void validateCreateCommand(AiDraftCreateCommand command) {
+        if (command == null || command.userId() == null || command.userId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿用户不合法");
         }
-        return false;
+        if (StrUtil.hasBlank(command.scene(), command.payloadJson(), command.inputHash())
+                || command.schemaVersion() == null || command.schemaVersion() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿创建参数不合法");
+        }
     }
 
     private Long currentUserId() {

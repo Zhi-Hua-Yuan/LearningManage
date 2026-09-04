@@ -18,9 +18,12 @@ import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
+import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
+import com.spt.learningmanage.service.ai.draft.AiDraftConfirmationService;
 import com.spt.learningmanage.service.impl.ai.scene.WeeklyReviewAiServiceImpl;
-import com.spt.learningmanage.service.impl.ai.support.AiDraftLifecycleServiceImpl;
+import com.spt.learningmanage.service.impl.ai.draft.WeeklyReviewPolishDraftHandler;
 import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
+import com.spt.learningmanage.model.dto.ai.draft.WeeklyReviewPolishConfirmationContext;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.utils.UserHolder;
@@ -79,18 +82,24 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     private PromptTemplateResolver promptTemplateResolver;
     @Mock
     private AiModelSelector modelSelector;
+    @Mock
+    private AiDraftLifecycleService draftLifecycleService;
+    @Mock
+    private AiDraftConfirmationService draftConfirmationService;
 
     private WeeklyReviewAiServiceImpl aiService;
+    private WeeklyReviewPolishDraftHandler draftHandler;
 
     @BeforeEach
     void setUp() {
         AiInvocationPipeline pipeline = new AiInvocationPipeline(
                 promptTemplateResolver, aiModelClient, aiCallLogService);
-        AiDraftLifecycleServiceImpl draftLifecycleService =
-                new AiDraftLifecycleServiceImpl(aiDraftMapper, aiDraftConfirmLogMapper);
         aiService = new WeeklyReviewAiServiceImpl(
-                taskMapper, projectMapper, weeklyReviewMapper, pipeline, permissionService,
-                draftLifecycleService, modelSelector, new AiJsonResponseSanitizerImpl());
+                taskMapper, projectMapper, pipeline, permissionService,
+                draftLifecycleService, draftConfirmationService, modelSelector,
+                new AiJsonResponseSanitizerImpl());
+        draftHandler = new WeeklyReviewPolishDraftHandler(
+                weeklyReviewMapper, permissionService, new AiJsonResponseSanitizerImpl());
     }
 
     @AfterEach
@@ -101,12 +110,13 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     @Test
     void confirm_shouldRejectWhenPersistedTaskLosesReadPermission() {
         UserHolder.set(USER_ID);
-        when(aiDraftMapper.selectOne(any())).thenReturn(draft("{\"taskIds\":[101],\"polished\":\"{\\\"review\\\":\\\"ok\\\"}\"}"));
         doThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权访问任务"))
                 .when(permissionService).requireAllTasksReadable(USER_ID, List.of(101L));
 
         assertThrows(BusinessException.class,
-                () -> aiService.confirmWeeklyPolish("draft-1", "op-1", 7001L));
+                () -> draftHandler.apply(
+                        draft("{\"taskIds\":[101],\"polished\":\"{\\\"review\\\":\\\"ok\\\"}\"}"),
+                        new WeeklyReviewPolishConfirmationContext(7001L)));
 
         verify(permissionService, never()).requireWeeklyReviewUpdate(any(), any());
         verify(weeklyReviewMapper, never()).updateById(any(WeeklyReview.class));
@@ -116,15 +126,20 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     @Test
     void confirm_shouldRecheckReviewPermissionBeforeWriting() {
         UserHolder.set(USER_ID);
-        when(aiDraftMapper.selectOne(any())).thenReturn(draft("{\"taskIds\":[],\"polished\":\"{\\\"review\\\":\\\"ok\\\"}\"}"));
+        WeeklyReview review = new WeeklyReview();
+        review.setId(7001L);
+        review.setUserId(USER_ID);
+        when(weeklyReviewMapper.selectByIdForUpdate(7001L)).thenReturn(review);
         doThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权更新周复盘"))
                 .when(permissionService).requireWeeklyReviewUpdate(USER_ID, 7001L);
 
         assertThrows(BusinessException.class,
-                () -> aiService.confirmWeeklyPolish("draft-1", "op-1", 7001L));
+                () -> draftHandler.apply(
+                        draft("{\"taskIds\":[],\"polished\":\"{\\\"review\\\":\\\"ok\\\"}\"}"),
+                        new WeeklyReviewPolishConfirmationContext(7001L)));
 
         verify(permissionService).requireWeeklyReviewUpdate(eq(USER_ID), eq(7001L));
-        verify(weeklyReviewMapper, never()).selectByIdForUpdate(any());
+        verify(weeklyReviewMapper).selectByIdForUpdate(7001L);
         verify(weeklyReviewMapper, never()).updateById(any(WeeklyReview.class));
     }
 
@@ -158,23 +173,18 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
     @Test
     void confirm_shouldUpdateReviewAndPersistConfirmation() {
         UserHolder.set(USER_ID);
-        when(aiDraftMapper.selectOne(any())).thenReturn(draft(
-                "{\"taskIds\":[],\"polished\":\"{\\\"review\\\":\\\"本周完成了核心任务。\\\"}\"}"));
         WeeklyReview review = new WeeklyReview();
         review.setId(7001L);
         review.setUserId(USER_ID);
         when(weeklyReviewMapper.selectByIdForUpdate(7001L)).thenReturn(review);
         when(weeklyReviewMapper.updateById(review)).thenReturn(1);
-        when(aiDraftMapper.update(any(), any())).thenReturn(1);
-        when(aiDraftConfirmLogMapper.insert(any(AiDraftConfirmLog.class))).thenReturn(1);
+        var result = draftHandler.apply(draft(
+                        "{\"taskIds\":[],\"polished\":\"{\\\"review\\\":\\\"本周完成了核心任务。\\\"}\"}"),
+                new WeeklyReviewPolishConfirmationContext(7001L));
 
-        var result = aiService.confirmWeeklyPolish("draft-1", "op-1", 7001L);
-
-        assertTrue(result.getSuccess());
-        assertEquals(7001L, result.getBusinessId());
+        assertEquals(7001L, result);
         assertEquals("本周完成了核心任务。", review.getReflection());
         verify(weeklyReviewMapper).updateById(review);
-        verify(aiDraftConfirmLogMapper).insert(any(AiDraftConfirmLog.class));
     }
 
     private void verifyNoWrites() {

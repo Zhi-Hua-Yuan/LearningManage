@@ -101,6 +101,23 @@ if [[ "$wp4_gate_status" == "PASS" ]]; then
   ' "$wp4_verification" >/dev/null || ci_fail "stage2_wp4_pass_without_candidate_ci"
 fi
 
+wp5_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-009") | .status' "$contract")"
+if [[ "$wp5_gate_status" == "PASS" ]]; then
+  wp5_verification="${project_root}/docs/stage2/evidence/wp5/local-verification.json"
+  [[ -s "$wp5_verification" ]] || ci_fail "stage2_wp5_verification_missing"
+  jq -e '
+    .verification.confirmationKernel.status == "PASS" and
+    .verification.handlerRegistry.status == "PASS" and
+    .verification.writePath.status == "PASS" and
+    .verification.concurrentMySql.status == "PASS" and
+    .verification.publishedMigrations.status == "PASS" and
+    .verification.candidateCi.status == "PASS" and
+    .verification.dockerStub.status == "PASS" and
+    .verification.runtimeApiComparison.status == "PASS" and
+    .gate.status == "PASS"
+  ' "$wp5_verification" >/dev/null || ci_fail "stage2_wp5_pass_without_candidate_ci"
+fi
+
 wp3_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-007") | .status' "$contract")"
 if [[ "$wp3_gate_status" == "PASS" ]]; then
   wp3_verification="${project_root}/docs/stage2/evidence/wp3/local-verification.json"
