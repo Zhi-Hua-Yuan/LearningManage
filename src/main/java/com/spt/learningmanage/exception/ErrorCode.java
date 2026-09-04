@@ -37,7 +37,11 @@ public enum ErrorCode {
     AI_SERVICE_UNAVAILABLE(30001, "AI 服务暂时不可用"),
     AI_REQUEST_TIMEOUT(30002, "AI 服务响应超时"),
     AI_RESPONSE_INVALID(30003, "AI 返回结果格式异常"),
-    AI_CONFIG_ERROR(30004, "AI 服务配置异常");
+    AI_CONFIG_ERROR(30004, "AI 服务配置异常"),
+    AI_DRAFT_NOT_CONFIRMABLE(30005, "AI 草稿当前不可确认"),
+    AI_DRAFT_EXPIRED(30006, "AI 草稿已过期"),
+    AI_DRAFT_SCHEMA_UNSUPPORTED(30007, "AI 草稿版本不受支持"),
+    AI_DRAFT_CONFLICT(30008, "AI 草稿状态冲突");
 
     private final int code;
     private final String message;

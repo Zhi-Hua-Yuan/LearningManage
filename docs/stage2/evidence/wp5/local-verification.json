@@ -1,0 +1,57 @@
+{
+  "workPackage": "WP5",
+  "generatedAt": "2026-09-04T14:45:00Z",
+  "baseline": {
+    "tag": "stage2-wp4-v1.0.0",
+    "backendHead": "c20cfa7a",
+    "publishedMigrationHead": "3"
+  },
+  "verification": {
+    "confirmationKernel": {
+      "status": "PASS",
+      "evidence": "AiDraftConfirmationServiceImplTest"
+    },
+    "handlerRegistry": {
+      "status": "PASS",
+      "evidence": "DefaultAiDraftHandlerRegistryTest and scene Handler tests"
+    },
+    "writePath": {
+      "status": "PASS",
+      "evidence": "AiDraftWritePathContractTest and TaskCreationWritePathContractTest"
+    },
+    "fullRegression": {
+      "nonMySqlTests": {"tests": 614, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS"},
+      "mysqlDependentTests": {"tests": 60, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_PR_CI"},
+      "fullVerify": {"tests": 674, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_TESTS", "runId": "33887235533"},
+      "expectedFullVerifyTests": 674
+    },
+    "concurrentMySql": {
+      "status": "PASS",
+      "tests": 3,
+      "runId": "33887235533",
+      "evidence": "AiDraftConfirmationConcurrencyMySqlTest and AiReplanWriteSafetyMySqlTest; 60/60 MySQL-dependent tests passed on PR CI"
+    },
+    "replanSnapshotCas": {
+      "status": "PASS",
+      "evidence": "TaskMapper.compareAndSetReplan and AiServiceImplListReplanAuthorizationTest"
+    },
+    "publishedMigrations": {
+      "status": "PASS",
+      "evidence": "V1/V2/V3 published migration checksums unchanged; no V4"
+    },
+    "candidateCi": {
+      "status": "PENDING",
+      "runId": null
+    },
+    "dockerStub": {
+      "status": "PENDING"
+    },
+    "runtimeApiComparison": {
+      "status": "PENDING"
+    }
+  },
+  "gate": {
+    "id": "S2-A-009",
+    "status": "PENDING"
+  }
+}

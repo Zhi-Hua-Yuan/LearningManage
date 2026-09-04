@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -83,6 +84,36 @@ public interface TaskMapper extends BaseMapper<Task> {
 									 @Param("expectedAssigneeUserId") Long expectedAssigneeUserId,
 									 @Param("targetStatus") Integer targetStatus,
 									 @Param("completedAt") LocalDateTime completedAt);
+
+	/**
+	 * Apply one persisted AI replan item only while the task still exactly
+	 * matches the preview snapshot. MySQL's null-safe equality keeps nullable
+	 * due dates and snapshot timestamps inside the same CAS predicate.
+	 */
+	@Update("""
+			UPDATE task
+			SET title = #{newTitle},
+			    priority = #{newPriority},
+			    due_date = #{newDueDate}
+			WHERE id = #{taskId}
+			  AND project_id = #{projectId}
+			  AND status = #{expectedStatus}
+			  AND is_delete = 0
+			  AND title <=> #{oldTitle}
+			  AND priority <=> #{oldPriority}
+			  AND due_date <=> #{oldDueDate}
+			  AND update_time <=> #{expectedUpdateTime}
+			""")
+	int compareAndSetReplan(@Param("taskId") Long taskId,
+							 @Param("projectId") Long projectId,
+							 @Param("expectedStatus") Integer expectedStatus,
+							 @Param("oldTitle") String oldTitle,
+							 @Param("oldPriority") Integer oldPriority,
+							 @Param("oldDueDate") LocalDate oldDueDate,
+							 @Param("expectedUpdateTime") LocalDateTime expectedUpdateTime,
+							 @Param("newTitle") String newTitle,
+							 @Param("newPriority") Integer newPriority,
+							 @Param("newDueDate") LocalDate newDueDate);
 
 	@Update("""
 			UPDATE task

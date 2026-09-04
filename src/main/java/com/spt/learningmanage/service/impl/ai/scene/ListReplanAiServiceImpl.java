@@ -26,6 +26,7 @@ import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.ai.scene.ListReplanAiService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
+import com.spt.learningmanage.service.impl.ai.draft.AiReplanWriteGuard;
 import com.spt.learningmanage.service.impl.ai.support.AiSceneSupport;
 import com.spt.learningmanage.utils.UserHolder;
 import org.slf4j.Logger;
@@ -58,10 +59,6 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     private static final int LIST_REPLAN_TITLE_CONFIDENCE_THRESHOLD = 70;
     private static final int LIST_REPLAN_REASON_MAX_LEN = 160;
     private static final int LIST_REPLAN_PREVIEW_EXPIRE_MINUTES = 20;
-    private static final int LIST_REPLAN_STATUS_PREVIEW = 0;
-    private static final int LIST_REPLAN_STATUS_CONFIRMED = 1;
-    private static final int LIST_REPLAN_STATUS_CANCELED = 2;
-    private static final int LIST_REPLAN_STATUS_EXPIRED = 3;
     private static final Pattern DATE_TOKEN_PATTERN =
             Pattern.compile("\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|\\d{1,2}月\\d{1,2}日");
 
@@ -71,6 +68,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     private final AiReplanItemMapper aiReplanItemMapper;
     private final AiInvocationPipeline aiInvocationPipeline;
     private final PermissionService permissionService;
+    private final AiReplanWriteGuard replanWriteGuard;
     private final AiModelSelector modelSelector;
     private final AiJsonResponseSanitizer jsonSanitizer;
 
@@ -80,6 +78,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                                    AiReplanItemMapper aiReplanItemMapper,
                                    AiInvocationPipeline aiInvocationPipeline,
                                    PermissionService permissionService,
+                                   AiReplanWriteGuard replanWriteGuard,
                                    AiModelSelector modelSelector,
                                    AiJsonResponseSanitizer jsonSanitizer) {
         this.taskMapper = taskMapper;
@@ -88,6 +87,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         this.aiReplanItemMapper = aiReplanItemMapper;
         this.aiInvocationPipeline = aiInvocationPipeline;
         this.permissionService = permissionService;
+        this.replanWriteGuard = replanWriteGuard;
         this.modelSelector = modelSelector;
         this.jsonSanitizer = jsonSanitizer;
     }
@@ -189,12 +189,13 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
 
         LocalDate today = LocalDate.now();
         List<ListTaskReplanItem> replanItems;
+        String traceId = null;
         if (pendingTasks.isEmpty()) {
             replanItems = List.of();
         } else {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
             String modelName = modelSelector.breakdownModel();
-            replanItems = aiInvocationPipeline.execute(
+            var execution = aiInvocationPipeline.execute(
                     new AiExecutionCommand(
                             currentUserId, modelName, AiPromptCodeEnum.LIST_REPLAN_PREVIEW,
                             userPrompt, "AI 清单重排结果格式异常"
@@ -205,16 +206,17 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                                 currentUserId, listId, failure.failureType(), failure.cause());
                         return fallbackListReplanItems(pendingTasks);
                     }
-            ).data();
+            );
+            replanItems = execution.data();
+            traceId = execution.traceId();
         }
 
         String operationId = generateListReplanOperationId();
-        saveListReplanPreview(operationId, currentUserId, listId, replanItems, pendingTasks);
+        saveListReplanPreview(operationId, currentUserId, listId, traceId, replanItems, pendingTasks);
         return buildListReplanPreviewVO(operationId, replanItems);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public boolean confirmListReplan(Long listId, String operationId) {
         Long currentUserId = UserHolder.get();
         if (currentUserId == null) {
@@ -223,56 +225,12 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         if (listId == null || listId <= 0 || StrUtil.isBlank(operationId)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
-        permissionService.requireProjectManage(currentUserId, listId);
-
         String normalizedOperationId = operationId.trim();
-        AiReplanOperation operation = aiReplanOperationMapper.selectOne(new LambdaQueryWrapper<AiReplanOperation>()
-                .eq(AiReplanOperation::getOperationId, normalizedOperationId)
-                .eq(AiReplanOperation::getUserId, currentUserId)
-                .eq(AiReplanOperation::getProjectId, listId)
-                .last("limit 1"));
-        if (operation == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "重排操作不存在");
-        }
-        if (!Objects.equals(operation.getStatus(), LIST_REPLAN_STATUS_PREVIEW)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "该重排操作已确认/取消/过期，不能重复确认");
-        }
-        if (operation.getExpiresAt() != null && LocalDateTime.now().isAfter(operation.getExpiresAt())) {
-            aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
-                    .eq(AiReplanOperation::getId, operation.getId())
-                    .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
-                    .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_EXPIRED));
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "重排预览已过期，请重新预览");
-        }
-
-        List<AiReplanItem> items = aiReplanItemMapper.selectList(new LambdaQueryWrapper<AiReplanItem>()
-                .eq(AiReplanItem::getOperationId, normalizedOperationId));
-        List<ListTaskReplanItem> replanItems = items.stream().map(this::toListReplanItem).toList();
-        long changedCount = replanItems.stream().filter(ListTaskReplanItem::hasAnyChange).count();
-        int updatedCount = applyListReplanItems(replanItems, currentUserId);
-        if (updatedCount != changedCount) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "部分任务状态已变化，重排确认失败，请重新预览");
-        }
-
-        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
-                .eq(Project::getId, listId)
-                .eq(Project::getIsDelete, 0)
-                .isNull(Project::getDeletedAt)
-                .last("limit 1"));
-        if (project != null) {
-            syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
-        }
-
-        aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
-                .eq(AiReplanOperation::getId, operation.getId())
-                .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
-                .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_CONFIRMED)
-                .set(AiReplanOperation::getConfirmedAt, LocalDateTime.now()));
-        return updatedCount > 0;
+        return replanWriteGuard.confirm(currentUserId, listId, normalizedOperationId,
+                operation -> applyConfirmedReplan(currentUserId, listId, operation));
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public boolean cancelListReplan(String operationId) {
         Long currentUserId = UserHolder.get();
         if (currentUserId == null) {
@@ -283,23 +241,49 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         }
 
         String normalizedOperationId = operationId.trim();
-        AiReplanOperation operation = aiReplanOperationMapper.selectOne(new LambdaQueryWrapper<AiReplanOperation>()
-                .eq(AiReplanOperation::getOperationId, normalizedOperationId)
-                .eq(AiReplanOperation::getUserId, currentUserId)
-                .last("limit 1"));
-        if (operation == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "重排操作不存在");
+        return replanWriteGuard.cancel(currentUserId, normalizedOperationId);
+    }
+
+    private boolean applyConfirmedReplan(Long currentUserId, Long listId, AiReplanOperation operation) {
+        permissionService.requireProjectManage(currentUserId, listId);
+        List<AiReplanItem> items = aiReplanItemMapper.selectList(new LambdaQueryWrapper<AiReplanItem>()
+                .eq(AiReplanItem::getOperationId, operation.getOperationId()));
+        List<AiReplanItem> changedItems = items.stream()
+                .filter(this::hasAnyReplanChange)
+                .toList();
+        if (!changedItems.isEmpty()) {
+            permissionService.requireAllTasksReorganizable(currentUserId,
+                    changedItems.stream().map(AiReplanItem::getTaskId).toList());
         }
-        if (!Objects.equals(operation.getStatus(), LIST_REPLAN_STATUS_PREVIEW)) {
-            return false;
+        for (AiReplanItem item : changedItems) {
+            int rows = taskMapper.compareAndSetReplan(
+                    item.getTaskId(), listId, TaskStatusEnum.TODO.getValue(),
+                    item.getOldTitle(), item.getOldPriority(), item.getOldDueDate(),
+                    item.getTaskSnapshotUpdateTime(), item.getNewTitle(),
+                    item.getNewPriority(), item.getNewDueDate());
+            if (rows != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                        "任务快照已变化，重排确认失败，请重新预览");
+            }
         }
 
-        int rows = aiReplanOperationMapper.update(null, new LambdaUpdateWrapper<AiReplanOperation>()
-                .eq(AiReplanOperation::getId, operation.getId())
-                .eq(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_PREVIEW)
-                .set(AiReplanOperation::getStatus, LIST_REPLAN_STATUS_CANCELED)
-                .set(AiReplanOperation::getCanceledAt, LocalDateTime.now()));
-        return rows > 0;
+        Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()
+                .eq(Project::getId, listId)
+                .eq(Project::getIsDelete, 0)
+                .isNull(Project::getDeletedAt)
+                .last("limit 1"));
+        if (project != null) {
+            syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
+        }
+        return !changedItems.isEmpty();
+    }
+
+    private boolean hasAnyReplanChange(AiReplanItem item) {
+        return item != null
+                && item.getTaskId() != null
+                && (!Objects.equals(item.getOldTitle(), item.getNewTitle())
+                || !Objects.equals(item.getOldPriority(), item.getNewPriority())
+                || !Objects.equals(item.getOldDueDate(), item.getNewDueDate()));
     }
 
     private String buildListReplanUserPrompt(Project project, List<Task> completedTasks, List<Task> pendingTasks, LocalDate today) {
@@ -444,6 +428,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     private void saveListReplanPreview(String operationId,
                                        Long userId,
                                        Long listId,
+                                       String traceId,
                                        List<ListTaskReplanItem> replanItems,
                                        List<Task> pendingTasks) {
         LocalDateTime now = LocalDateTime.now();
@@ -451,7 +436,8 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         operation.setOperationId(operationId);
         operation.setUserId(userId);
         operation.setProjectId(listId);
-        operation.setStatus(LIST_REPLAN_STATUS_PREVIEW);
+        operation.setTraceId(traceId);
+        operation.setStatus(AiReplanWriteGuard.PREVIEW);
         operation.setExpiresAt(now.plusMinutes(LIST_REPLAN_PREVIEW_EXPIRE_MINUTES));
         operation.setCreatedAt(now);
         aiReplanOperationMapper.insert(operation);
@@ -806,4 +792,3 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     }
 
 }
-

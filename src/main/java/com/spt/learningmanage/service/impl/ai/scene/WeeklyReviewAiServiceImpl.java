@@ -15,16 +15,17 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
-import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftConfirmationCommand;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
+import com.spt.learningmanage.model.dto.ai.draft.WeeklyReviewPolishConfirmationContext;
 import com.spt.learningmanage.model.entity.AiDraft;
-import com.spt.learningmanage.model.entity.AiDraftConfirmLog;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
-import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
 import com.spt.learningmanage.model.vo.ai.AiPolishPreviewVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.ai.draft.AiDraftConfirmationService;
 import com.spt.learningmanage.service.ai.scene.WeeklyReviewAiService;
 import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
@@ -34,13 +35,12 @@ import com.spt.learningmanage.utils.UserHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -53,33 +53,37 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
 
     private final TaskMapper taskMapper;
     private final ProjectMapper projectMapper;
-    private final WeeklyReviewMapper weeklyReviewMapper;
     private final AiInvocationPipeline aiInvocationPipeline;
     private final PermissionService permissionService;
     private final AiDraftLifecycleService draftLifecycleService;
+    private final AiDraftConfirmationService draftConfirmationService;
     private final AiModelSelector modelSelector;
     private final AiJsonResponseSanitizer jsonSanitizer;
 
     public WeeklyReviewAiServiceImpl(TaskMapper taskMapper,
                                      ProjectMapper projectMapper,
-                                     WeeklyReviewMapper weeklyReviewMapper,
                                      AiInvocationPipeline aiInvocationPipeline,
                                      PermissionService permissionService,
                                      AiDraftLifecycleService draftLifecycleService,
+                                     AiDraftConfirmationService draftConfirmationService,
                                      AiModelSelector modelSelector,
                                      AiJsonResponseSanitizer jsonSanitizer) {
         this.taskMapper = taskMapper;
         this.projectMapper = projectMapper;
-        this.weeklyReviewMapper = weeklyReviewMapper;
         this.aiInvocationPipeline = aiInvocationPipeline;
         this.permissionService = permissionService;
         this.draftLifecycleService = draftLifecycleService;
+        this.draftConfirmationService = draftConfirmationService;
         this.modelSelector = modelSelector;
         this.jsonSanitizer = jsonSanitizer;
     }
 
     @Override
     public String polishWeeklyReview(List<Long> taskIds, String reflection) {
+        return polishWeeklyReview(taskIds, reflection, null);
+    }
+
+    private String polishWeeklyReview(List<Long> taskIds, String reflection, String traceId) {
         Long currentUserId = UserHolder.get();
         if (currentUserId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "登录状态已失效，请重新登录");
@@ -147,7 +151,7 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
         try {
             return aiInvocationPipeline.execute(new AiExecutionCommand(
                     currentUserId, modelSelector.polishModel(), AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT,
-                    userPrompt, "AI 周总结润色结果格式异常"
+                    userPrompt, "AI 周总结润色结果格式异常", traceId
             ), aiRawContent -> {
                 JSONObject resultObj = JSONUtil.parseObj(jsonSanitizer.sanitizeObject(aiRawContent));
                 String review = resultObj.getStr("review");
@@ -168,15 +172,16 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
 
     @Override
     public AiPolishPreviewVO previewWeeklyPolish(AiPolishRequest request) {
-        String polished = polishWeeklyReview(request.getTaskIds(), request.getReflection());
+        String traceId = UUID.randomUUID().toString().replace("-", "");
+        String polished = polishWeeklyReview(request.getTaskIds(), request.getReflection(), traceId);
         Long userId = currentUserId();
         JSONObject payload = JSONUtil.createObj()
                 .set("taskIds", request.getTaskIds())
                 .set("reflection", request.getReflection())
                 .set("polished", polished);
-        AiDraft draft = draftLifecycleService.createDraft(
+        AiDraft draft = draftLifecycleService.createDraft(new AiDraftCreateCommand(
                 userId, AiSceneEnum.WEEKLY_POLISH.getCode(), payload.toString(),
-                draftLifecycleService.buildInputHash(payload.toString()));
+                draftLifecycleService.buildInputHash(payload.toString()), 1, traceId));
         AiPolishPreviewVO vo = new AiPolishPreviewVO();
         vo.setDraftId(draft.getDraftId());
         vo.setExpireAt(draft.getExpireAt());
@@ -185,42 +190,11 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public AiDraftConfirmVO confirmWeeklyPolish(String draftId, String operationId, Long reviewId) {
         Long userId = currentUserId();
-        AiDraft draft = draftLifecycleService.requireDraft(
-                userId, draftId, AiSceneEnum.WEEKLY_POLISH.getCode());
-        if (reviewId == null || reviewId <= 0 || StrUtil.isBlank(operationId)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "确认参数不合法");
-        }
-        draftLifecycleService.requireConfirmable(draft);
-        JSONObject payload = JSONUtil.parseObj(draft.getPayloadJson());
-        JSONArray payloadTaskIds = payload.getJSONArray("taskIds");
-        if (payloadTaskIds != null && !payloadTaskIds.isEmpty()) {
-            permissionService.requireAllTasksReadable(userId, JSONUtil.toList(payloadTaskIds, Long.class));
-        }
-        permissionService.requireWeeklyReviewUpdate(userId, reviewId);
-        AiDraftConfirmLog replay = draftLifecycleService.findConfirmLog(userId, draftId, operationId);
-        if (replay != null) {
-            return draftLifecycleService.buildConfirmResult(true, replay.getBusinessId());
-        }
-
-        WeeklyReview review = weeklyReviewMapper.selectByIdForUpdate(reviewId);
-        if (review == null || !Objects.equals(review.getUserId(), userId)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权操作该周总结");
-        }
-        String reviewText = extractReviewText(payload.getStr("polished"));
-        if (StrUtil.isBlank(reviewText)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿内容为空");
-        }
-        review.setReflection(reviewText);
-        if (weeklyReviewMapper.updateById(review) != 1) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结更新失败");
-        }
-        draftLifecycleService.markConfirmed(draft.getId());
-        draftLifecycleService.insertConfirmLog(userId, draftId, operationId,
-                AiSceneEnum.WEEKLY_POLISH.getCode(), reviewId);
-        return draftLifecycleService.buildConfirmResult(false, reviewId);
+        return draftConfirmationService.confirm(new AiDraftConfirmationCommand(
+                userId, draftId, operationId, AiSceneEnum.WEEKLY_POLISH.getCode(),
+                new WeeklyReviewPolishConfirmationContext(reviewId)));
     }
 
     private String extractReviewText(String polished) {

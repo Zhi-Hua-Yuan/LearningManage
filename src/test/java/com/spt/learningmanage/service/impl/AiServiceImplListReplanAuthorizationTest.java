@@ -18,6 +18,7 @@ import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
 import com.spt.learningmanage.service.impl.ai.scene.ListReplanAiServiceImpl;
+import com.spt.learningmanage.service.impl.ai.draft.AiReplanWriteGuard;
 import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
@@ -67,6 +68,7 @@ class AiServiceImplListReplanAuthorizationTest {
     @Mock private PromptTemplateResolver promptTemplateResolver;
     @Mock private PermissionService permissionService;
     @Mock private AiModelSelector modelSelector;
+    @Mock private AiReplanWriteGuard replanWriteGuard;
 
     private ListReplanAiServiceImpl aiService;
 
@@ -76,7 +78,8 @@ class AiServiceImplListReplanAuthorizationTest {
                 promptTemplateResolver, aiModelClient, aiCallLogService);
         aiService = new ListReplanAiServiceImpl(
                 taskMapper, projectMapper, aiReplanOperationMapper, aiReplanItemMapper,
-                pipeline, permissionService, modelSelector, new AiJsonResponseSanitizerImpl());
+                pipeline, permissionService, replanWriteGuard,
+                modelSelector, new AiJsonResponseSanitizerImpl());
     }
 
     @AfterEach
@@ -110,13 +113,13 @@ class AiServiceImplListReplanAuthorizationTest {
     @Test
     void confirm_shouldRejectUnauthorizedProjectBeforeReadingOperation() {
         UserHolder.set(USER_ID);
-        doThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权管理项目"))
-                .when(permissionService).requireProjectManage(USER_ID, 9003L);
+        when(replanWriteGuard.confirm(any(), any(), anyString(), any()))
+                .thenThrow(new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权管理项目"));
 
         assertThrows(BusinessException.class,
                 () -> aiService.confirmListReplan(9003L, "operation-1"));
 
-        verify(aiReplanOperationMapper, never()).selectOne(any());
+        verify(replanWriteGuard).confirm(any(), any(), anyString(), any());
         verify(aiModelClient, never()).chat(any());
     }
 
@@ -164,16 +167,10 @@ class AiServiceImplListReplanAuthorizationTest {
     @Test
     void cancelPreviewOperationUpdatesStateAndIsNotModelBacked() {
         UserHolder.set(USER_ID);
-        AiReplanOperation operation = new AiReplanOperation();
-        operation.setId(11L);
-        operation.setOperationId("operation-1");
-        operation.setUserId(USER_ID);
-        operation.setStatus(0);
-        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
-        when(aiReplanOperationMapper.update(any(), any())).thenReturn(1);
+        when(replanWriteGuard.cancel(USER_ID, "operation-1")).thenReturn(true);
 
         assertTrue(aiService.cancelListReplan(" operation-1 "));
-        verify(aiReplanOperationMapper).update(any(), any());
+        verify(replanWriteGuard).cancel(USER_ID, "operation-1");
         verify(aiModelClient, never()).chat(any());
     }
 
@@ -197,18 +194,21 @@ class AiServiceImplListReplanAuthorizationTest {
         item.setNewPriority(2);
         item.setOldDueDate(java.time.LocalDate.of(2026, 9, 10));
         item.setNewDueDate(java.time.LocalDate.of(2026, 9, 15));
-        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
+        item.setTaskSnapshotUpdateTime(java.time.LocalDateTime.of(2026, 9, 4, 12, 0));
         when(aiReplanItemMapper.selectList(any())).thenReturn(java.util.List.of(item));
-        when(taskMapper.update(any(), any())).thenReturn(1);
+        when(taskMapper.compareAndSetReplan(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(1);
         when(taskMapper.selectList(any())).thenReturn(java.util.List.of(task(301L, 9011L,
                 java.time.LocalDate.of(2026, 9, 20))));
         when(projectMapper.selectOne(any())).thenReturn(project);
-        when(aiReplanOperationMapper.update(any(), any())).thenReturn(1);
+        when(replanWriteGuard.confirm(any(), any(), anyString(), any())).thenAnswer(invocation ->
+                invocation.getArgument(3, AiReplanWriteGuard.ConfirmWork.class).apply(operation));
 
         assertTrue(aiService.confirmListReplan(9011L, " operation-2 "));
 
-        verify(taskMapper).update(any(), any());
-        verify(aiReplanOperationMapper).update(any(), any());
+        verify(taskMapper).compareAndSetReplan(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(permissionService).requireAllTasksReorganizable(USER_ID, java.util.List.of(301L));
+        verify(replanWriteGuard).confirm(any(), any(), anyString(), any());
     }
 
     @Test
@@ -226,13 +226,16 @@ class AiServiceImplListReplanAuthorizationTest {
         item.setNewTitle("新任务");
         item.setOldPriority(1);
         item.setNewPriority(2);
-        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
         when(aiReplanItemMapper.selectList(any())).thenReturn(java.util.List.of(item));
-        when(taskMapper.update(any(), any())).thenThrow(new IllegalStateException("db down"));
+        when(taskMapper.compareAndSetReplan(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(0);
+        when(replanWriteGuard.confirm(any(), any(), anyString(), any())).thenAnswer(invocation ->
+                invocation.getArgument(3, AiReplanWriteGuard.ConfirmWork.class).apply(operation));
 
-        assertThrows(IllegalStateException.class,
+        BusinessException exception = assertThrows(BusinessException.class,
                 () -> aiService.confirmListReplan(9012L, "operation-3"));
-        verify(aiReplanOperationMapper, never()).update(any(), any());
+        assertEquals(ErrorCode.OPERATION_ERROR, exception.getErrorCode());
+        verify(replanWriteGuard).confirm(any(), any(), anyString(), any());
     }
 
     private Task task(Long id, Long projectId, java.time.LocalDate dueDate) {
