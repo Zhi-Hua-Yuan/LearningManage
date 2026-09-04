@@ -20,14 +20,16 @@
       "evidence": "AiDraftWritePathContractTest and TaskCreationWritePathContractTest"
     },
     "fullRegression": {
-      "nonMySqlTests": {"tests": 613, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS"},
-      "mysqlDependentTests": {"tests": 60, "status": "PENDING_CANDIDATE_CI"},
-      "expectedFullVerifyTests": 673
+      "nonMySqlTests": {"tests": 614, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS"},
+      "mysqlDependentTests": {"tests": 60, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_PR_CI"},
+      "fullVerify": {"tests": 674, "failures": 0, "errors": 0, "skipped": 0, "status": "PASS_TESTS", "runId": "33887235533"},
+      "expectedFullVerifyTests": 674
     },
     "concurrentMySql": {
-      "status": "PENDING",
+      "status": "PASS",
       "tests": 3,
-      "evidence": "AiDraftConfirmationConcurrencyMySqlTest and AiReplanWriteSafetyMySqlTest; local credentials unavailable"
+      "runId": "33887235533",
+      "evidence": "AiDraftConfirmationConcurrencyMySqlTest and AiReplanWriteSafetyMySqlTest; 60/60 MySQL-dependent tests passed on PR CI"
     },
     "replanSnapshotCas": {
       "status": "PASS",

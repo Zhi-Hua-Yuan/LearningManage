@@ -31,8 +31,8 @@
 
 - Java 主源码与全部测试源码完成干净重编译。
 - WP5 单元、架构、场景委托与 Spring 上下文测试通过。
-- 非 MySQL 测试集 `613/613` 通过，Failures 0、Errors 0、Skipped 0。
-- 完整候选计数锁定为 `673`：非 MySQL 613、既有 MySQL 57、WP5 MySQL 3。
+- 非 MySQL 测试集 `614/614` 通过，Failures 0、Errors 0、Skipped 0。
+- PR #114 首次 Runner 已实际执行 `674/674` 且测试本身全部通过：非 MySQL 614、MySQL 60；首次门禁仅因预估计数 673 少 1 而停止，现已按报告修正。
 - 三项 WP5 MySQL 测试已纳入测试集：20 路草稿确认、重排确认/取消竞争、重排快照失效原子回滚；本机因未注入 `TEST_DB_USERNAME/TEST_DB_PASSWORD` 未执行成功，
   必须由候选 CI 的隔离 V3 MySQL 完成最终判定。
 
