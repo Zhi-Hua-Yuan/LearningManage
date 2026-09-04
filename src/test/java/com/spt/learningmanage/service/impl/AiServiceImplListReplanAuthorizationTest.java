@@ -4,33 +4,36 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
-import com.spt.learningmanage.mapper.AiDraftConfirmLogMapper;
-import com.spt.learningmanage.mapper.AiDraftMapper;
 import com.spt.learningmanage.mapper.AiReplanItemMapper;
 import com.spt.learningmanage.mapper.AiReplanOperationMapper;
-import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
-import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
-import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.AiReplanOperation;
+import com.spt.learningmanage.model.entity.AiReplanItem;
+import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.PermissionService;
-import com.spt.learningmanage.service.TaskCreationService;
-import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.service.ai.support.AiModelSelector;
+import com.spt.learningmanage.service.impl.ai.scene.ListReplanAiServiceImpl;
+import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
+import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -47,26 +50,34 @@ class AiServiceImplListReplanAuthorizationTest {
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
                 new MapperBuilderAssistant(new MybatisConfiguration(), ""), Project.class);
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), AiReplanOperation.class);
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), AiReplanItem.class);
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), Task.class);
     }
 
-    @Mock private AiProperties aiProperties;
     @Mock private TaskMapper taskMapper;
     @Mock private ProjectMapper projectMapper;
-    @Mock private TaskTitleRenameLogMapper taskTitleRenameLogMapper;
-    @Mock private AiDraftMapper aiDraftMapper;
-    @Mock private AiDraftConfirmLogMapper aiDraftConfirmLogMapper;
-    @Mock private MilestoneMapper milestoneMapper;
-    @Mock private WeeklyReviewMapper weeklyReviewMapper;
     @Mock private AiReplanOperationMapper aiReplanOperationMapper;
     @Mock private AiReplanItemMapper aiReplanItemMapper;
     @Mock private AiCallLogService aiCallLogService;
     @Mock private AiModelClient aiModelClient;
     @Mock private PromptTemplateResolver promptTemplateResolver;
     @Mock private PermissionService permissionService;
-    @Mock private TaskCreationService taskCreationService;
+    @Mock private AiModelSelector modelSelector;
 
-    @InjectMocks
-    private AiServiceImpl aiService;
+    private ListReplanAiServiceImpl aiService;
+
+    @BeforeEach
+    void setUp() {
+        AiInvocationPipeline pipeline = new AiInvocationPipeline(
+                promptTemplateResolver, aiModelClient, aiCallLogService);
+        aiService = new ListReplanAiServiceImpl(
+                taskMapper, projectMapper, aiReplanOperationMapper, aiReplanItemMapper,
+                pipeline, permissionService, modelSelector, new AiJsonResponseSanitizerImpl());
+    }
 
     @AfterEach
     void tearDown() {
@@ -130,5 +141,109 @@ class AiServiceImplListReplanAuthorizationTest {
 
         verify(aiModelClient, never()).chat(any());
         verify(taskMapper, never()).selectList(any());
+    }
+
+    @Test
+    void previewWithNoTasksPersistsEmptyOperationWithoutCallingModel() {
+        UserHolder.set(USER_ID);
+        Project project = new Project();
+        project.setId(9010L);
+        when(projectMapper.selectOne(any())).thenReturn(project);
+        when(taskMapper.selectList(any())).thenReturn(java.util.List.of());
+        when(aiReplanOperationMapper.insert(any(AiReplanOperation.class))).thenReturn(1);
+
+        AiListReplanPreviewVO result = aiService.previewListReplan(9010L);
+
+        assertTrue(result.getOperationId() != null && !result.getOperationId().isBlank());
+        assertEquals(0, result.getChangedCount());
+        assertTrue(result.getPreviewTasks().isEmpty());
+        verify(aiReplanOperationMapper).insert(any(AiReplanOperation.class));
+        verify(aiModelClient, never()).chat(any());
+    }
+
+    @Test
+    void cancelPreviewOperationUpdatesStateAndIsNotModelBacked() {
+        UserHolder.set(USER_ID);
+        AiReplanOperation operation = new AiReplanOperation();
+        operation.setId(11L);
+        operation.setOperationId("operation-1");
+        operation.setUserId(USER_ID);
+        operation.setStatus(0);
+        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
+        when(aiReplanOperationMapper.update(any(), any())).thenReturn(1);
+
+        assertTrue(aiService.cancelListReplan(" operation-1 "));
+        verify(aiReplanOperationMapper).update(any(), any());
+        verify(aiModelClient, never()).chat(any());
+    }
+
+    @Test
+    void confirmAppliesChangedItemsAndMarksOperationConfirmed() {
+        UserHolder.set(USER_ID);
+        Project project = new Project();
+        project.setId(9011L);
+        project.setEndDate(java.time.LocalDate.of(2026, 9, 20));
+        AiReplanOperation operation = new AiReplanOperation();
+        operation.setId(12L);
+        operation.setOperationId("operation-2");
+        operation.setUserId(USER_ID);
+        operation.setProjectId(9011L);
+        operation.setStatus(0);
+        AiReplanItem item = new AiReplanItem();
+        item.setTaskId(301L);
+        item.setOldTitle("旧任务");
+        item.setNewTitle("新任务");
+        item.setOldPriority(1);
+        item.setNewPriority(2);
+        item.setOldDueDate(java.time.LocalDate.of(2026, 9, 10));
+        item.setNewDueDate(java.time.LocalDate.of(2026, 9, 15));
+        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
+        when(aiReplanItemMapper.selectList(any())).thenReturn(java.util.List.of(item));
+        when(taskMapper.update(any(), any())).thenReturn(1);
+        when(taskMapper.selectList(any())).thenReturn(java.util.List.of(task(301L, 9011L,
+                java.time.LocalDate.of(2026, 9, 20))));
+        when(projectMapper.selectOne(any())).thenReturn(project);
+        when(aiReplanOperationMapper.update(any(), any())).thenReturn(1);
+
+        assertTrue(aiService.confirmListReplan(9011L, " operation-2 "));
+
+        verify(taskMapper).update(any(), any());
+        verify(aiReplanOperationMapper).update(any(), any());
+    }
+
+    @Test
+    void confirmDoesNotMarkOperationWhenTaskUpdateFails() {
+        UserHolder.set(USER_ID);
+        AiReplanOperation operation = new AiReplanOperation();
+        operation.setId(13L);
+        operation.setOperationId("operation-3");
+        operation.setUserId(USER_ID);
+        operation.setProjectId(9012L);
+        operation.setStatus(0);
+        AiReplanItem item = new AiReplanItem();
+        item.setTaskId(302L);
+        item.setOldTitle("旧任务");
+        item.setNewTitle("新任务");
+        item.setOldPriority(1);
+        item.setNewPriority(2);
+        when(aiReplanOperationMapper.selectOne(any())).thenReturn(operation);
+        when(aiReplanItemMapper.selectList(any())).thenReturn(java.util.List.of(item));
+        when(taskMapper.update(any(), any())).thenThrow(new IllegalStateException("db down"));
+
+        assertThrows(IllegalStateException.class,
+                () -> aiService.confirmListReplan(9012L, "operation-3"));
+        verify(aiReplanOperationMapper, never()).update(any(), any());
+    }
+
+    private Task task(Long id, Long projectId, java.time.LocalDate dueDate) {
+        Task task = new Task();
+        task.setId(id);
+        task.setProjectId(projectId);
+        task.setStatus(0);
+        task.setIsDelete(0);
+        task.setTitle("任务");
+        task.setPriority(2);
+        task.setDueDate(dueDate);
+        return task;
     }
 }

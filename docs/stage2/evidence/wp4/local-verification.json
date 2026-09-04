@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP4",
+  "generatedAt": "2026-09-04T12:13:05Z",
+  "branch": "develop",
+  "baseCommit": "8e703393837c1e4dfb8ae546a09a311b5d880521",
+  "status": "READY_FOR_CANDIDATE_CI",
+  "verification": {
+    "facade": {"lines": 137, "collaborators": 7, "businessDependencies": 0, "status": "PASS"},
+    "sceneServices": {"interfaces": 6, "supportInterfaces": 3, "crossSceneDependencies": 0, "status": "PASS"},
+    "wp4Tests": {"tests": 24, "failures": 0, "errors": 0, "status": "PASS"},
+    "architectureGate": {"tests": 4, "failures": 0, "errors": 0, "status": "PASS"},
+    "fullRegression": {
+      "nonMySqlTests": {"tests": 596, "failures": 0, "errors": 0, "status": "PASS"},
+      "mysqlDependentTests": {"tests": 57, "failures": 0, "errors": 0, "status": "PASS"},
+      "fullVerify": {"tests": 645, "failures": 0, "errors": 0, "status": "PASS", "command": ".\\mvnw.cmd verify", "note": "既有隔离 Docker MySQL 验证；本轮新增 8 项纯单元测试已在非 MySQL 回归中通过，待候选 CI 汇总为 653 项"}
+    },
+    "frontend": {
+      "testFiles": 58,
+      "tests": 459,
+      "contractOperations": 44,
+      "contractSha256": "4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6",
+      "typeCheck": "PASS",
+      "productionBuild": "PASS"
+    },
+    "publicControllerChanges": 0,
+    "businessDirectModelCalls": 0,
+    "candidateCi": {"status": "PENDING"},
+    "dockerStub": {"status": "PENDING_CANDIDATE_CI"},
+    "runtimeApiComparison": {"status": "PENDING_CANDIDATE_CI", "expectedFrontendOperations": 44},
+    "acceptanceContract": {
+      "jsonSchemaValidation": "PASS",
+      "bashSyntax": "PASS",
+      "localScriptStatus": "BLOCKED_MISSING_JQ",
+      "candidateCiRequired": true
+    }
+  },
+  "migrationIntegrity": {
+    "publishedMigrationHead": 3,
+    "migrationAdded": false,
+    "V1": "E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9",
+    "V2": "B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1",
+    "V3": "A626B41B40EFB8EDC2D72F57454A738B6196A11DEA9C6E14070F07E6CFAC4177"
+  },
+  "scope": {
+    "httpApiChanged": false,
+    "databaseMigrationAdded": false,
+    "ragImplemented": false,
+    "agentImplemented": false,
+    "draftStateMachineEnhanced": false,
+    "resilienceEnhanced": false
+  },
+  "gate": {"id": "S2-A-008", "status": "PENDING_CANDIDATE_CI"},
+  "risk": {"id": "S2-R-008", "status": "OPEN"}
+}

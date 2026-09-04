@@ -3,7 +3,6 @@ package com.spt.learningmanage.service.impl;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
-import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.constant.AiPromptSourceEnum;
@@ -19,6 +18,9 @@ import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.ai.support.AiModelSelector;
+import com.spt.learningmanage.service.impl.ai.scene.TodayOrderAiServiceImpl;
+import com.spt.learningmanage.service.impl.ai.support.AiJsonResponseSanitizerImpl;
 import com.spt.learningmanage.utils.UserHolder;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
@@ -27,12 +29,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.ArgumentCaptor;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -69,8 +69,6 @@ class AiServiceImplTodayOrderTest {
     }
 
     @Mock
-    private AiProperties aiProperties;
-    @Mock
     private TaskMapper taskMapper;
     @Mock
     private AiCallLogService aiCallLogService;
@@ -81,8 +79,9 @@ class AiServiceImplTodayOrderTest {
     @Mock
     private PermissionService permissionService;
 
-    @InjectMocks
-    private AiServiceImpl aiService;
+    @Mock
+    private AiModelSelector modelSelector;
+    private TodayOrderAiServiceImpl aiService;
 
     @BeforeEach
     void setUp() {
@@ -91,7 +90,9 @@ class AiServiceImplTodayOrderTest {
                 aiModelClient,
                 aiCallLogService
         );
-        ReflectionTestUtils.setField(aiService, "aiInvocationPipeline", pipeline);
+        aiService = new TodayOrderAiServiceImpl(
+                taskMapper, pipeline, permissionService, modelSelector,
+                new AiJsonResponseSanitizerImpl());
         lenient().when(permissionService.filterReadableTaskIds(eq(USER_ID), any()))
                 .thenAnswer(invocation -> new java.util.LinkedHashSet<>(invocation.getArgument(1)));
         UserHolder.set(USER_ID);
@@ -281,7 +282,7 @@ class AiServiceImplTodayOrderTest {
 
     private void stubAiInfrastructure(List<Task> tasks) {
         when(taskMapper.selectList(any())).thenReturn(tasks);
-        when(aiProperties.getBreakdownModel()).thenReturn(MODEL_NAME);
+        when(modelSelector.breakdownModel()).thenReturn(MODEL_NAME);
         when(promptTemplateResolver.resolve(AiPromptCodeEnum.TODAY_ORDER_DEFAULT))
                 .thenReturn(new AiPromptTemplate(
                         10L,
