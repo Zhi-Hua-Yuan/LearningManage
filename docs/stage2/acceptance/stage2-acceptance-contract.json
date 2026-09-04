@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "status": "FROZEN",
-  "generatedAt": "2026-09-04T07:30:24Z",
+  "generatedAt": "2026-09-04T08:41:23Z",
   "baseline": {
     "stage1Tag": "stage1-v1.0.0",
     "backendSha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
@@ -20,7 +20,7 @@
     {"id":"S2-A-003","domain":"architecture","status":"PASS","criteria":"调用管线、模型协议、草稿幂等、日志成本和韧性 ADR 已接受","targetWp":"WP0","evidence":["docs/stage2/architecture/ADR-001-invocation-pipeline-and-model-protocol.md","docs/stage2/architecture/ADR-002-draft-confirmation-idempotency.md","docs/stage2/architecture/ADR-003-logging-cost-and-resilience.md"]},
     {"id":"S2-A-004","domain":"inventory","status":"PASS","criteria":"现有 AI 入口、直接调用风险、写入路径和目标服务已登记","targetWp":"WP0","evidence":["docs/stage2/ai-invocation-inventory.md","docs/stage2/acceptance/wp0-baseline-acceptance-2026-09-04.md"]},
     {"id":"S2-A-005","domain":"database","status":"PASS","criteria":"V3 可从空库安装、从 V2 升级，并完成草稿确认重复数据预审；候选提交已绑定并通过受保护 PR 的 Linux CI","targetWp":"WP1","evidence":["docs/stage2/database/wp1-v3-preflight-and-migration.md","docs/stage2/acceptance/wp1-v3-database-acceptance-2026-09-04.md","docs/stage2/evidence/wp1/local-verification.json","docs/stage2/evidence/wp1/schema-diff-summary.md"]},
-    {"id":"S2-A-006","domain":"protocol","status":"PENDING","criteria":"chat 协议支持消息、Tool Calls、finish reason 和 Usage，旧 invoke 保持兼容","targetWp":"WP2","evidence":["protocol contract tests","offline Stub report"]},
+    {"id":"S2-A-006","domain":"protocol","status":"PENDING","criteria":"chat 协议支持消息、Tool Calls、finish reason 和 Usage，旧 invoke 保持兼容","targetWp":"WP2","evidence":["docs/stage2/api/wp2-model-protocol.md","docs/stage2/acceptance/wp2-model-protocol-acceptance-2026-09-04.md","docs/stage2/evidence/wp2/local-verification.json"]},
     {"id":"S2-A-007","domain":"pipeline","status":"PENDING","criteria":"所有可达模型调用统一经过 Pipeline，场景服务无直接 ModelClient/Transport 依赖","targetWp":"WP3","evidence":["architecture test","call-site inventory diff"]},
     {"id":"S2-A-008","domain":"scenes","status":"PENDING","criteria":"五类现有 AI 场景完成服务拆分并保留旧 API 行为","targetWp":"WP4","evidence":["scene regression tests","legacy compatibility report"]},
     {"id":"S2-A-009","domain":"draft","status":"PENDING","criteria":"草稿 Schema、确认状态机、行锁/CAS 和草稿级唯一约束通过并发测试","targetWp":"WP5","evidence":["draft concurrency report","database uniqueness report"]},
@@ -31,7 +31,7 @@
   "risks": [
     {"id":"S2-R-001","status":"CLOSED","title":"阶段 2 分支已完成 develop 对齐和阶段 1 候选祖先校验","owner":"release owner","targetWp":"WP1"},
     {"id":"S2-R-002","status":"OPEN","title":"部分场景仍可能绕过统一 Pipeline","owner":"AI platform owner","targetWp":"WP4"},
-    {"id":"S2-R-003","status":"OPEN","title":"供应商 Tool Calls/Usage 协议差异","owner":"AI platform owner","targetWp":"WP2"},
+    {"id":"S2-R-003","status":"OPEN","title":"真实供应商 Tool Calls/Usage/请求 ID 协议差异仍待受控验证","owner":"AI platform owner","targetWp":"WP7"},
     {"id":"S2-R-004","status":"OPEN","title":"数据库唯一底线已完成，完整草稿确认重放与并发语义仍待实现","owner":"backend owner","targetWp":"WP5"},
     {"id":"S2-R-005","status":"OPEN","title":"AI 日志敏感正文泄漏","owner":"security owner","targetWp":"WP6"},
     {"id":"S2-R-006","status":"OPEN","title":"模型回退造成额外成本","owner":"AI platform owner","targetWp":"WP6"},

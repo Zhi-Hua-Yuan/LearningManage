@@ -24,7 +24,7 @@ env:
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
-  CI_EXPECTED_TEST_COUNT: '576'
+  CI_EXPECTED_TEST_COUNT: '607'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -88,6 +88,10 @@ jobs:
           bash scripts/ci/verify-stage2-acceptance.sh
           bash scripts/ci/verify-published-migrations.sh
           git diff --check
+
+      - name: Verify WP2 model protocol stub
+        shell: bash
+        run: bash scripts/ci/verify-stage2-wp2-protocol-stub.sh
 
   backend-test:
     name: Maven verification and tested artifact

@@ -33,6 +33,8 @@ void confirmDraft(String draftId, String operationId);
 AiSanitizedContent sanitize(AiDataClassification classification, String content);
 ```
 
+`AiModelClient.chat(...)` 的具体消息、Tool Calls、Usage、供应商元数据和兼容规则见 [WP2 模型协议](wp2-model-protocol.md)。
+
 ## 3. Pipeline 数据合同
 
 ```text

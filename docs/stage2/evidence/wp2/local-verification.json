@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP2",
+  "generatedAt": "2026-09-04T08:41:23Z",
+  "branch": "codex/stage2-wp2-model-protocol",
+  "baseCommit": "06254a5",
+  "status": "PASS",
+  "verification": {
+    "protocolAndClientTests": {
+      "tests": 37,
+      "newTests": 31,
+      "failures": 0,
+      "errors": 0,
+      "status": "PASS"
+    },
+    "nonMySqlRegression": {
+      "tests": 554,
+      "failures": 0,
+      "errors": 0,
+      "status": "PASS"
+    },
+    "offlineStub": {
+      "scenarios": 16,
+      "sensitivePayloadLogged": false,
+      "status": "PASS"
+    },
+    "ciExpectedBackendTests": 607,
+    "fullMySqlCiStatus": "PENDING_PR_CI",
+    "publicControllerChanges": 0,
+    "publicApiCounts": {
+      "legacy": 37,
+      "frontend": 44,
+      "runtimeBaseline": 65
+    }
+  },
+  "migrationIntegrity": {
+    "unchangedFromOriginDevelop": true,
+    "V1": "E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9",
+    "V2": "B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1",
+    "V3": "A626B41B40EFB8EDC2D72F57454A738B6196A11DEA9C6E14070F07E6CFAC4177"
+  },
+  "scope": {
+    "databaseMigrationAdded": false,
+    "ragImplemented": false,
+    "agentImplemented": false,
+    "businessToolExecuted": false,
+    "streamingImplemented": false,
+    "parallelToolExecutionImplemented": false
+  },
+  "gate": {
+    "id": "S2-A-006",
+    "status": "PENDING"
+  },
+  "remainingRisk": {
+    "id": "S2-R-003",
+    "status": "OPEN",
+    "targetWp": "WP7"
+  }
+}

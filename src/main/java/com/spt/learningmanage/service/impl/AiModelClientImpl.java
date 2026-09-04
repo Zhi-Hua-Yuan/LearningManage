@@ -1,26 +1,33 @@
 package com.spt.learningmanage.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spt.learningmanage.client.ai.AiChatCommandValidator;
+import com.spt.learningmanage.client.ai.AiChatRequestMapper;
+import com.spt.learningmanage.client.ai.AiChatResponseParser;
 import com.spt.learningmanage.client.ai.AiHttpTransport;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.model.dto.ai.AiHttpResponse;
 import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiToolChoice;
 import com.spt.learningmanage.service.AiModelClient;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AiModelClientImpl implements AiModelClient {
 
     private static final Logger log = LoggerFactory.getLogger(AiModelClientImpl.class);
@@ -31,19 +38,70 @@ public class AiModelClientImpl implements AiModelClient {
     private static final int CONNECT_TIMEOUT_MAX_MS = 30000;
     private static final int READ_TIMEOUT_MIN_MS = 5000;
     private static final int READ_TIMEOUT_MAX_MS = 300000;
-    private static final int ERROR_BODY_PREVIEW_MAX_LENGTH = 500;
-
     private final AiProperties aiProperties;
 
     private final AiHttpTransport aiHttpTransport;
 
+    private final AiChatCommandValidator commandValidator;
+
+    private final AiChatRequestMapper requestMapper;
+
+    private final AiChatResponseParser responseParser;
+
+    @Autowired
+    public AiModelClientImpl(AiProperties aiProperties,
+                             AiHttpTransport aiHttpTransport,
+                             AiChatCommandValidator commandValidator,
+                             AiChatRequestMapper requestMapper,
+                             AiChatResponseParser responseParser) {
+        this.aiProperties = aiProperties;
+        this.aiHttpTransport = aiHttpTransport;
+        this.commandValidator = commandValidator;
+        this.requestMapper = requestMapper;
+        this.responseParser = responseParser;
+    }
+
+    public AiModelClientImpl(AiProperties aiProperties, AiHttpTransport aiHttpTransport) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        this.aiProperties = aiProperties;
+        this.aiHttpTransport = aiHttpTransport;
+        this.commandValidator = new AiChatCommandValidator(objectMapper);
+        this.requestMapper = new AiChatRequestMapper(objectMapper);
+        this.responseParser = new AiChatResponseParser(objectMapper);
+    }
+
     @Override
     public AiInvocationResult invoke(String primaryModel, String systemPrompt, String userPrompt) {
-        String normalizedPrimaryModel = safeTrim(primaryModel);
+        validateConfiguration(safeTrim(primaryModel));
+        AiChatCommand command = new AiChatCommand(
+                primaryModel,
+                List.of(AiChatMessage.system(systemPrompt), AiChatMessage.user(userPrompt)),
+                List.of(),
+                null,
+                null,
+                null
+        );
+        AiChatResult chatResult = chat(command);
+        if (StrUtil.isBlank(chatResult.content())) {
+            throw invalidResponse(chatResult.actualModel(), chatResult.retryCount(),
+                    "旧 invoke 接口收到非文本响应");
+        }
+        return new AiInvocationResult(
+                chatResult.content(),
+                chatResult.actualModel(),
+                chatResult.retryCount()
+        );
+    }
+
+    @Override
+    public AiChatResult chat(AiChatCommand command) {
+        commandValidator.validate(command);
+        String normalizedPrimaryModel = safeTrim(command.requestedModel());
         validateConfiguration(normalizedPrimaryModel);
+        AiChatCommand normalizedCommand = command.withRequestedModel(normalizedPrimaryModel);
 
         try {
-            return invokeOnce(normalizedPrimaryModel, systemPrompt, userPrompt, 0);
+            return chatOnce(normalizedCommand, normalizedPrimaryModel, 0, null);
         } catch (AiInvocationException primaryException) {
             String fallbackModel = safeTrim(aiProperties.getFallbackModel());
             if (!primaryException.isRetryable()
@@ -55,7 +113,8 @@ public class AiModelClientImpl implements AiModelClient {
             log.warn("AI 主模型调用失败，使用兜底模型重试: primaryModel={}, fallbackModel={}, failureType={}",
                     normalizedPrimaryModel, fallbackModel, primaryException.getFailureType());
             try {
-                return invokeOnce(fallbackModel, systemPrompt, userPrompt, 1);
+                AiChatCommand fallbackCommand = normalizedCommand.withRequestedModel(fallbackModel);
+                return chatOnce(fallbackCommand, normalizedPrimaryModel, 1, primaryException.getFailureType());
             } catch (AiInvocationException fallbackException) {
                 fallbackException.addSuppressed(primaryException);
                 throw fallbackException;
@@ -63,22 +122,30 @@ public class AiModelClientImpl implements AiModelClient {
         }
     }
 
-    private AiInvocationResult invokeOnce(String model,
-                                          String systemPrompt,
-                                          String userPrompt,
-                                          int retryCount) {
-        JSONObject requestBody = JSONUtil.createObj()
-                .set("model", model)
-                .set("messages", JSONUtil.createArray()
-                        .put(JSONUtil.createObj().set("role", "system").set("content", systemPrompt))
-                        .put(JSONUtil.createObj().set("role", "user").set("content", userPrompt)));
-
+    private AiChatResult chatOnce(AiChatCommand command,
+                                  String requestedModel,
+                                  int retryCount,
+                                  AiFailureTypeEnum fallbackReason) {
+        String model = command.requestedModel();
+        String requestBody;
+        try {
+            requestBody = requestMapper.toJson(command);
+        } catch (RuntimeException e) {
+            throw invocationException(
+                    AiFailureTypeEnum.INTERNAL_ERROR,
+                    model,
+                    retryCount,
+                    "AI 请求构造失败，请联系管理员",
+                    "构造 AI 上游请求失败: model=" + model,
+                    e
+            );
+        }
         AiHttpResponse response;
         try {
             response = aiHttpTransport.postChat(
                     StrUtil.removeSuffix(aiProperties.getBaseUrl().trim(), "/") + "/chat/completions",
                     aiProperties.getApiKey().trim(),
-                    requestBody.toString(),
+                    requestBody,
                     resolveConnectTimeoutMs(),
                     resolveReadTimeoutMs()
             );
@@ -111,27 +178,21 @@ public class AiModelClientImpl implements AiModelClient {
                     retryCount,
                     safeMessageFor(failureType),
                     "AI 上游响应异常: model=" + model
-                            + ", status=" + response.statusCode()
-                            + ", body=" + truncate(response.responseBody(), ERROR_BODY_PREVIEW_MAX_LENGTH),
+                            + ", status=" + response.statusCode(),
                     null
             );
         }
 
         try {
-            JSONObject responseJson = JSONUtil.parseObj(response.responseBody());
-            JSONArray choices = responseJson.getJSONArray("choices");
-            if (choices == null || choices.isEmpty()) {
-                throw invalidResponse(model, retryCount, "AI 响应缺少 choices");
-            }
-            JSONObject firstChoice = choices.getJSONObject(0);
-            JSONObject message = firstChoice == null ? null : firstChoice.getJSONObject("message");
-            String content = message == null ? null : message.getStr("content");
-            if (StrUtil.isBlank(content)) {
-                throw invalidResponse(model, retryCount, "AI 响应 content 为空");
-            }
-            return new AiInvocationResult(content, model, retryCount);
-        } catch (AiInvocationException e) {
-            throw e;
+            AiChatResult result = responseParser.parse(
+                    response,
+                    requestedModel,
+                    model,
+                    retryCount,
+                    fallbackReason
+            );
+            validateResponseAgainstCommand(command, result);
+            return result;
         } catch (Exception e) {
             throw invocationException(
                     AiFailureTypeEnum.INVALID_RESPONSE,
@@ -141,6 +202,31 @@ public class AiModelClientImpl implements AiModelClient {
                     "解析 AI 上游响应失败: model=" + model,
                     e
             );
+        }
+    }
+
+    private void validateResponseAgainstCommand(AiChatCommand command, AiChatResult result) {
+        if (result.toolCalls().isEmpty()) {
+            return;
+        }
+        if (command.tools().isEmpty()) {
+            throw new IllegalArgumentException("模型返回了请求中未声明的 Tool Call");
+        }
+        if (command.toolChoice() != null && command.toolChoice().mode() == AiToolChoice.Mode.NONE) {
+            throw new IllegalArgumentException("toolChoice=NONE 时模型不得返回 Tool Call");
+        }
+        Set<String> registeredFunctions = command.tools().stream()
+                .map(tool -> tool.function().name())
+                .collect(Collectors.toSet());
+        for (var toolCall : result.toolCalls()) {
+            if (!registeredFunctions.contains(toolCall.function().name())) {
+                throw new IllegalArgumentException("模型返回了未声明函数: " + toolCall.function().name());
+            }
+            if (command.toolChoice() != null
+                    && command.toolChoice().mode() == AiToolChoice.Mode.FUNCTION
+                    && !command.toolChoice().functionName().equals(toolCall.function().name())) {
+                throw new IllegalArgumentException("模型返回函数与强制 toolChoice 不一致");
+            }
         }
     }
 
@@ -258,10 +344,4 @@ public class AiModelClientImpl implements AiModelClient {
         return value == null ? null : value.trim();
     }
 
-    private String truncate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength);
-    }
 }
