@@ -84,6 +84,7 @@ structure_backup_sha256="$(sha256sum "$structure_backup_file" | awk '{print toup
 preflight_output="$(ci_mysql_migrator --database="$source_database" <"$v3_preflight")" \
     || ci_fail "v3_recovery_preflight_failed"
 v3_assert_preflight "$preflight_output" "0" "0" "v3_recovery_preflight"
+ci_emit "v3.recovery.phase" "direct_mysql_v3"
 ci_mysql_migrator --database="$source_database" <"$v3_migration" >/dev/null \
     || ci_fail "v3_recovery_migration_failed"
 
