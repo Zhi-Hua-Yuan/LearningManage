@@ -24,6 +24,40 @@ cleanup() {
 }
 trap cleanup EXIT
 
+run_flyway_for_database() {
+    local action="$1"
+    local database_name="$2"
+    local target_version="${3:-}"
+    local output
+
+    if [[ -n "$target_version" ]]; then
+        if ! output="$(
+            DB_NAME="$database_name" \
+            FLYWAY_EXPECTED_DB_NAME="$database_name" \
+            FLYWAY_BASELINE_AUTHORIZED="$([[ "$action" == "baseline" ]] && printf 'true' || printf 'false')" \
+            FLYWAY_BASELINE_VERSION="1" \
+            FLYWAY_TARGET_VERSION="$target_version" \
+            "${v3_project_root}/scripts/flyway-admin.sh" "$action" 2>&1
+        )"; then
+            printf '%s\n' "$output" >&2
+            ci_fail "v3_recovery_flyway_${action}_failed"
+        fi
+    else
+        if ! output="$(
+            DB_NAME="$database_name" \
+            FLYWAY_EXPECTED_DB_NAME="$database_name" \
+            FLYWAY_BASELINE_AUTHORIZED="$([[ "$action" == "baseline" ]] && printf 'true' || printf 'false')" \
+            FLYWAY_BASELINE_VERSION="1" \
+            "${v3_project_root}/scripts/flyway-admin.sh" "$action" 2>&1
+        )"; then
+            printf '%s\n' "$output" >&2
+            ci_fail "v3_recovery_flyway_${action}_failed"
+        fi
+    fi
+    printf '%s\n' "$output" >&2
+    printf '%s\n' "$output"
+}
+
 ci_assert_ci_target
 ci_assert_ci_flyway_identity
 ci_require_command "mysql"
@@ -35,7 +69,18 @@ v3_require_inputs
 
 source_database="${CI_LEGACY_DB_NAME}_v3_recovery_source"
 restore_database="${CI_LEGACY_DB_NAME}_v3_recovery_target"
-v3_prepare_v2_database "$source_database"
+ci_mysql_migrator --database="$source_database" <"$v3_legacy_fixture" >/dev/null \
+    || ci_fail "v3_recovery_legacy_fixture_import_failed"
+ci_mysql_migrator --database="$source_database" <"$v3_stage1_seed" >/dev/null \
+    || ci_fail "v3_recovery_stage1_seed_import_failed"
+baseline_output="$(run_flyway_for_database baseline "$source_database")"
+grep -Fq 'baseline.success=true' <<<"$baseline_output" || ci_fail "v3_recovery_baseline_failed"
+v2_migrate_output="$(run_flyway_for_database migrate "$source_database" 2)"
+grep -Fq 'migrate.success=true' <<<"$v2_migrate_output" || ci_fail "v3_recovery_v2_migrate_failed"
+grep -Fq 'migrate.migrationsExecuted=1' <<<"$v2_migrate_output" \
+    || ci_fail "v3_recovery_v2_migration_count_unexpected"
+ci_mysql_migrator --database="$source_database" <"$v3_stage2_seed" >/dev/null \
+    || ci_fail "v3_recovery_stage2_seed_import_failed"
 v3_create_database "$restore_database"
 
 source_tables_before="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${source_database}';")"
@@ -70,8 +115,10 @@ structure_backup_sha256="$(sha256sum "$structure_backup_file" | awk '{print toup
 preflight_output="$(ci_mysql_migrator --database="$source_database" <"$v3_preflight")" \
     || ci_fail "v3_recovery_preflight_failed"
 v3_assert_preflight "$preflight_output" "0" "0" "v3_recovery_preflight"
-ci_mysql_migrator --database="$source_database" <"$v3_migration" >/dev/null \
-    || ci_fail "v3_recovery_migration_failed"
+v3_migrate_output="$(run_flyway_for_database migrate "$source_database")"
+grep -Fq 'migrate.success=true' <<<"$v3_migrate_output" || ci_fail "v3_recovery_migration_failed"
+grep -Fq 'migrate.migrationsExecuted=1' <<<"$v3_migrate_output" \
+    || ci_fail "v3_recovery_migration_count_unexpected"
 
 if ! ci_mysql_migrator --database="$restore_database" <"$backup_file" >/dev/null 2>&1; then
     ci_fail "v3_recovery_restore_failed"
