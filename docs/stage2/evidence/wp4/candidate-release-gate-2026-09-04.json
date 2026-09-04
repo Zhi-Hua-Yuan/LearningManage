@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP4",
+  "status": "PASS",
+  "candidateId": "stage2-wp4-20260904-merge-d3a9c67",
+  "workflow": {
+    "runId": 33875362611,
+    "headSha": "d3a9c673e2e79709f2cd140be9c24cad874957bd",
+    "url": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33875362611",
+    "result": "success",
+    "executedAt": "2026-09-04T13:06:24Z"
+  },
+  "repositories": {
+    "backendSha": "d3a9c673e2e79709f2cd140be9c24cad874957bd",
+    "frontendSha": "2ef907f292fbbacecf8a68f7d24c4701a555aa8a"
+  },
+  "jobs": {
+    "freezeReleaseCandidate": 101030939157,
+    "guardBackend": 101030988356,
+    "guardBothRepositories": 101031035210,
+    "backendVerification": 101031090343,
+    "frontendTestsAndStatic": 101031581419,
+    "frontendProductionBuild": 101031982097,
+    "flywayEmpty": 101032144937,
+    "flywayExisting": 101032522218,
+    "fullStackRuntime": 101033036043,
+    "candidateManifest": 101033717983
+  },
+  "testEvidence": {
+    "backendTests": 653,
+    "frontendTests": 459,
+    "frontendTestFiles": 58,
+    "flywayEmpty": "PASS",
+    "flywayExisting": "PASS",
+    "dockerBackendRuntime": "PASS"
+  },
+  "runtimeApiContract": {
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "digestEvidence": "详见 docs/stage2/evidence/wp4/local-verification.json",
+    "status": "PASS"
+  },
+  "dockerStub": {
+    "provider": "deterministic-ci-stub",
+    "frontendViaNginx": "PASS",
+    "apiProxy": "PASS",
+    "aiBreakdownFlow": "PASS",
+    "cancelFlow": "PASS",
+    "confirmFlow": "PASS",
+    "idempotentReplay": "PASS",
+    "businessCounts": {"projects": 1, "milestones": 2, "tasks": 4},
+    "status": "PASS"
+  },
+  "candidateManifest": {
+    "artifact": "release-candidate-stage2-wp4-20260904-merge-d3a9c67-33875362611-1",
+    "digestEvidence": "详见 docs/stage2/evidence/wp4/local-verification.json",
+    "status": "PASS"
+  },
+  "risk": {"id": "S2-R-008", "status": "OPEN", "closureTarget": "WP8"}
+}
