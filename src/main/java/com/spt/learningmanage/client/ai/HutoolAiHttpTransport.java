@@ -22,7 +22,7 @@ public class HutoolAiHttpTransport implements AiHttpTransport {
                 .setReadTimeout(readTimeoutMs)
                 .body(requestBody)
                 .execute()) {
-            return new AiHttpResponse(response.getStatus(), response.body());
+            return new AiHttpResponse(response.getStatus(), response.body(), response.headers());
         }
     }
 }

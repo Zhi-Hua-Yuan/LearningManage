@@ -32,8 +32,9 @@ case "$mode" in
       .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
-      ([.gates[] | select(.id | IN("S2-A-006","S2-A-007","S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id | IN("S2-A-007","S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
       ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
+      ([.gates[] | select(.id == "S2-A-006") | .status] | all(. == "PENDING" or . == "PASS")) and
       (.risks[] | select(.id == "S2-R-001") | .status) == "CLOSED" and
       (.risks[] | select(.id == "S2-R-004") | .status) == "OPEN" and
       .policy.v1Modified == false and .policy.v2Modified == false and
@@ -70,6 +71,14 @@ while IFS= read -r evidence_path; do
   [[ -z "$evidence_path" ]] && continue
   [[ -s "$project_root/$evidence_path" ]] || ci_fail "stage2_evidence_missing:${evidence_path}"
 done < <(jq -r '.gates[].evidence[] | select(startswith("docs/"))' "$contract")
+
+wp2_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-006") | .status' "$contract")"
+if [[ "$wp2_gate_status" == "PASS" ]]; then
+  wp2_verification="${project_root}/docs/stage2/evidence/wp2/local-verification.json"
+  [[ -s "$wp2_verification" ]] || ci_fail "stage2_wp2_verification_missing"
+  jq -e '.verification.fullMySqlCiStatus == "PASS" and .gate.status == "PASS"' "$wp2_verification" >/dev/null \
+    || ci_fail "stage2_wp2_pass_without_full_ci"
+fi
 
 printf 'stage2.acceptance.mode=%s\n' "$mode"
 printf 'stage2.acceptance.status=PASS\n'

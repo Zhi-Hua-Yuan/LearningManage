@@ -200,6 +200,7 @@ class FlywayCiScriptStaticTest {
         String backendWorkflow = read(".github/workflows/backend-ci.yml");
         String releaseWorkflow = read(".github/workflows/release-gate.yml");
         String provision = read("scripts/ci/provision-ci-databases.sh");
+        String stage2Acceptance = read("scripts/ci/verify-stage2-acceptance.sh");
 
         for (String workflow : List.of(backendWorkflow, releaseWorkflow)) {
             assertTrue(workflow.contains("verify-v2-negative-preflight.sh"));
@@ -208,10 +209,12 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-v3-equivalent-duplicates.sh"));
             assertTrue(workflow.contains("verify-v3-recovery.sh"));
             assertTrue(workflow.contains("verify-stage2-acceptance.sh"));
+            assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
             assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '3'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '576'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '607'"));
         }
         assertTrue(provision.contains("CREATE TEMPORARY TABLES"));
+        assertTrue(stage2Acceptance.contains("stage2_wp2_pass_without_full_ci"));
     }
 
     @Test
