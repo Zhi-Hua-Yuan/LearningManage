@@ -34,6 +34,15 @@ class ProductionSecretPolicyTest {
         assertDoesNotThrow(policy::validate);
     }
 
+    @Test
+    void productionPolicyShouldAllowMissingAiKeyWhenChatIsDisabled() {
+        JwtProperties properties = jwtProperties("a-realistic-local-test-secret-with-32-bytes");
+        ProductionSecretPolicy policy = new ProductionSecretPolicy(
+                properties, "database-password-for-test", "", false);
+
+        assertDoesNotThrow(policy::validate);
+    }
+
     private JwtProperties jwtProperties(String secret) {
         JwtProperties properties = new JwtProperties();
         properties.setSecret(secret);

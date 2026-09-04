@@ -9,6 +9,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
+import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.Milestone;
@@ -28,6 +29,8 @@ import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.slf4j.MDC;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,6 +76,7 @@ class TaskBreakdownAiServiceImplTest {
     @AfterEach
     void tearDown() {
         UserHolder.remove();
+        MDC.clear();
     }
 
     @Test
@@ -116,6 +120,26 @@ class TaskBreakdownAiServiceImplTest {
         assertNotNull(result.getExpireAt());
         assertEquals(1, result.getMilestones().size());
         verify(draftLifecycleService).createDraft(any());
+    }
+
+    @Test
+    void previewPropagatesHttpTraceToPipelineAndDraft() {
+        MDC.put("traceId", "http_trace-12345");
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+        AiDraft draft = new AiDraft();
+        draft.setDraftId("draft-trace");
+        draft.setExpireAt(LocalDateTime.now().plusMinutes(20));
+        when(draftLifecycleService.buildInputHash(any())).thenReturn("hash");
+        when(draftLifecycleService.createDraft(any())).thenReturn(draft);
+        AiBreakdownRequest request = new AiBreakdownRequest();
+        request.setTarget("通过考试");
+        request.setDuration("8周");
+
+        service.previewTaskBreakdown(request);
+
+        ArgumentCaptor<AiDraftCreateCommand> captor = ArgumentCaptor.forClass(AiDraftCreateCommand.class);
+        verify(draftLifecycleService).createDraft(captor.capture());
+        assertEquals("http_trace-12345", captor.getValue().traceId());
     }
 
     @Test

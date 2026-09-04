@@ -25,7 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest(classes = LearningManageApplication.class)
+@SpringBootTest(classes = LearningManageApplication.class, properties = {
+        "ai.pricing.version=wp6-test-v1",
+        "ai.pricing.currency=CNY",
+        "ai.pricing.models[requested-model].input-per-million=2.00",
+        "ai.pricing.models[requested-model].output-per-million=8.00",
+        "ai.pricing.models[fallback-model].input-per-million=1.00",
+        "ai.pricing.models[fallback-model].output-per-million=4.00"
+})
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional
@@ -68,6 +75,15 @@ class AiCallLogPipelineMySqlTest {
         assertEquals(0, number(row, "fallback_used").intValue());
         assertEquals(0, number(row, "degraded").intValue());
         assertNull(row.get("failure_type"));
+        assertEquals("CLEAN", row.get("request_sanitization_status"));
+        assertEquals("CLEAN", row.get("response_sanitization_status"));
+        assertEquals("CLEAN", row.get("error_sanitization_status"));
+        assertNotNull(row.get("request_hash"));
+        assertNotNull(row.get("response_hash"));
+        assertEquals("wp6-test-v1", row.get("price_version"));
+        assertEquals("CNY", row.get("currency"));
+        assertEquals(0, new java.math.BigDecimal("0.00008800")
+                .compareTo((java.math.BigDecimal) row.get("estimated_cost")));
     }
 
     @Test
@@ -124,6 +140,29 @@ class AiCallLogPipelineMySqlTest {
         Map<String, Object> row = row(logId);
         assertEquals(AiCallLogStatusEnum.TIMEOUT.getValue(), number(row, "status").intValue());
         assertEquals(AiCallFailureTypeEnum.TIMEOUT.name(), row.get("failure_type"));
+    }
+
+    @Test
+    void shouldNeverPersistRawSecretsInRequestResponseOrError() {
+        Long logId = aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
+                99001L, "wp6-security-test", "requested-model", "wp6-test",
+                null, 1, "builtin", "{\"password\":\"plain-secret\"}", 0, "trace-security"
+        ));
+        assertTrue(aiCallLogService.complete(new AiCallLogCompletionCommand(
+                logId, AiCallLogStatusEnum.PARSE_FAILED,
+                "Authorization: Bearer provider-secret", "cookie=session-secret", 10L,
+                "requested-model", "requested-model", 0, null, null, null,
+                false, null, "trace-security", AiCallFailureTypeEnum.PROTOCOL, false, null
+        )));
+
+        Map<String, Object> row = row(logId);
+        String persisted = row.get("request_text") + " " + row.get("response_text") + " " + row.get("error_message");
+        assertFalse(persisted.contains("plain-secret"));
+        assertFalse(persisted.contains("provider-secret"));
+        assertFalse(persisted.contains("session-secret"));
+        assertEquals("REDACTED", row.get("request_sanitization_status"));
+        assertEquals("REDACTED", row.get("response_sanitization_status"));
+        assertEquals("REDACTED", row.get("error_sanitization_status"));
     }
 
     private Long createRunning(String traceId) {

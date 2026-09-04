@@ -1,0 +1,34 @@
+{
+  "workPackage": "WP6",
+  "generatedAt": "2026-09-04T17:00:00Z",
+  "baseline": {
+    "tag": "stage2-wp5-v1.0.0",
+    "backendStartSha": "9570a644e976c8b40c03b6eb9d9427a8e1c69d84",
+    "publishedMigrationHead": "3"
+  },
+  "verification": {
+    "trace": {"status": "PASS", "evidence": "TraceIdFilterTest and TaskBreakdownAiServiceImplTest"},
+    "sanitization": {"status": "PASS", "evidence": "DefaultAiContentSanitizerTest, AiCallLogPipelineMySqlTest and security-scan-report.md"},
+    "cost": {"status": "PASS", "evidence": "AiCostCalculatorTest and AiCallLogPipelineMySqlTest"},
+    "resilience": {"status": "PASS", "evidence": "AiResilientCallExecutorTest, AiModelClientImplTest and fault-injection-report.md"},
+    "accessBoundary": {"status": "PASS", "evidence": "AiLogAccessArchitectureTest and user-scoped service queries"},
+    "fullRegression": {
+      "nonMySqlTests": 648,
+      "mysqlDependentTests": 61,
+      "tests": 709,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "status": "PASS",
+      "expectedTests": 709
+    },
+    "publishedMigrations": {"status": "PASS", "evidence": "V1/V2/V3 source files unchanged; no V4"},
+    "candidateCi": {"status": "PENDING", "runId": null, "headSha": null},
+    "dockerStub": {"status": "PENDING_CANDIDATE_CI"},
+    "runtimeApiComparison": {"status": "PENDING_CANDIDATE_CI", "expectedFrontendOperations": 44, "expectedLegacyOperations": 37}
+  },
+  "gate": {
+    "security": {"id": "S2-A-010", "status": "PENDING"},
+    "resilience": {"id": "S2-A-011", "status": "PENDING"}
+  }
+}

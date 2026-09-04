@@ -343,6 +343,10 @@ class AiInvocationPipelineTest {
                 Arguments.of(AiFailureTypeEnum.RATE_LIMITED, AiCallFailureTypeEnum.RATE_LIMIT),
                 Arguments.of(AiFailureTypeEnum.UPSTREAM_REJECTED, AiCallFailureTypeEnum.UPSTREAM_REJECTED),
                 Arguments.of(AiFailureTypeEnum.UPSTREAM_SERVER_ERROR, AiCallFailureTypeEnum.UPSTREAM_SERVER),
+                Arguments.of(AiFailureTypeEnum.CIRCUIT_OPEN, AiCallFailureTypeEnum.CIRCUIT_OPEN),
+                Arguments.of(AiFailureTypeEnum.CONCURRENCY_LIMIT, AiCallFailureTypeEnum.CONCURRENCY_LIMIT),
+                Arguments.of(AiFailureTypeEnum.CONTENT_BLOCKED, AiCallFailureTypeEnum.CONTENT_BLOCKED),
+                Arguments.of(AiFailureTypeEnum.FEATURE_DISABLED, AiCallFailureTypeEnum.FEATURE_DISABLED),
                 Arguments.of(AiFailureTypeEnum.INTERNAL_ERROR, AiCallFailureTypeEnum.INTERNAL)
         );
     }

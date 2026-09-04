@@ -27,13 +27,13 @@ import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
 import com.spt.learningmanage.service.impl.ai.support.AiSceneSupport;
+import com.spt.learningmanage.trace.TraceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBreakdownAiService {
@@ -115,7 +115,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     @Override
     public AiBreakdownPreviewVO previewTaskBreakdown(AiBreakdownRequest request) {
         boolean detailed = request.getDetailed() != null && request.getDetailed();
-        String traceId = UUID.randomUUID().toString().replace("-", "");
+        String traceId = TraceContext.explicitOrCurrent(null);
         List<MilestoneDraftVO> drafts = generateTaskBreakdown(
                 request.getTarget(), request.getDescription(), request.getDuration(), detailed, traceId);
         Long userId = currentUserId();

@@ -2,6 +2,11 @@ package com.spt.learningmanage.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spt.learningmanage.ai.governance.AiContentSanitizer;
+import com.spt.learningmanage.ai.governance.AiFeatureGate;
+import com.spt.learningmanage.ai.governance.AiResilientCallExecutor;
+import com.spt.learningmanage.ai.governance.AiSanitizedContent;
+import com.spt.learningmanage.ai.governance.AiSanitizationStatus;
 import com.spt.learningmanage.client.ai.AiChatCommandValidator;
 import com.spt.learningmanage.client.ai.AiChatRequestMapper;
 import com.spt.learningmanage.client.ai.AiChatResponseParser;
@@ -12,8 +17,11 @@ import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.model.dto.ai.AiHttpResponse;
 import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
+import com.spt.learningmanage.model.dto.ai.chat.AiAttemptSummary;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiFunctionCall;
+import com.spt.learningmanage.model.dto.ai.chat.AiToolCall;
 import com.spt.learningmanage.model.dto.ai.chat.AiToolChoice;
 import com.spt.learningmanage.service.AiModelClient;
 import org.slf4j.Logger;
@@ -24,7 +32,9 @@ import org.springframework.stereotype.Service;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,26 +58,52 @@ public class AiModelClientImpl implements AiModelClient {
 
     private final AiChatResponseParser responseParser;
 
+    private final AiFeatureGate featureGate;
+
+    private final AiContentSanitizer contentSanitizer;
+
+    private final AiResilientCallExecutor resilientCallExecutor;
+
     @Autowired
     public AiModelClientImpl(AiProperties aiProperties,
                              AiHttpTransport aiHttpTransport,
                              AiChatCommandValidator commandValidator,
                              AiChatRequestMapper requestMapper,
-                             AiChatResponseParser responseParser) {
+                             AiChatResponseParser responseParser,
+                             AiFeatureGate featureGate,
+                             AiContentSanitizer contentSanitizer,
+                             AiResilientCallExecutor resilientCallExecutor) {
         this.aiProperties = aiProperties;
         this.aiHttpTransport = aiHttpTransport;
         this.commandValidator = commandValidator;
         this.requestMapper = requestMapper;
         this.responseParser = responseParser;
+        this.featureGate = featureGate;
+        this.contentSanitizer = contentSanitizer;
+        this.resilientCallExecutor = resilientCallExecutor;
+    }
+
+    public AiModelClientImpl(AiProperties aiProperties,
+                             AiHttpTransport aiHttpTransport,
+                             AiChatCommandValidator commandValidator,
+                             AiChatRequestMapper requestMapper,
+                             AiChatResponseParser responseParser) {
+        this(aiProperties, aiHttpTransport, commandValidator, requestMapper, responseParser,
+                new AiFeatureGate(aiProperties),
+                new com.spt.learningmanage.ai.governance.DefaultAiContentSanitizer(
+                        new ObjectMapper(), aiProperties),
+                new AiResilientCallExecutor(aiProperties));
     }
 
     public AiModelClientImpl(AiProperties aiProperties, AiHttpTransport aiHttpTransport) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        this.aiProperties = aiProperties;
-        this.aiHttpTransport = aiHttpTransport;
-        this.commandValidator = new AiChatCommandValidator(objectMapper);
-        this.requestMapper = new AiChatRequestMapper(objectMapper);
-        this.responseParser = new AiChatResponseParser(objectMapper);
+        this(aiProperties, aiHttpTransport,
+                new AiChatCommandValidator(new ObjectMapper()),
+                new AiChatRequestMapper(new ObjectMapper()),
+                new AiChatResponseParser(new ObjectMapper()),
+                new AiFeatureGate(aiProperties),
+                new com.spt.learningmanage.ai.governance.DefaultAiContentSanitizer(
+                        new ObjectMapper(), aiProperties),
+                new AiResilientCallExecutor(aiProperties));
     }
 
     @Override
@@ -97,11 +133,14 @@ public class AiModelClientImpl implements AiModelClient {
     public AiChatResult chat(AiChatCommand command) {
         commandValidator.validate(command);
         String normalizedPrimaryModel = safeTrim(command.requestedModel());
+        featureGate.requireChatEnabled(normalizedPrimaryModel);
         validateConfiguration(normalizedPrimaryModel);
-        AiChatCommand normalizedCommand = command.withRequestedModel(normalizedPrimaryModel);
+        AiChatCommand normalizedCommand = sanitizeCommand(command.withRequestedModel(normalizedPrimaryModel));
+        long deadlineNanos = System.nanoTime()
+                + TimeUnit.MILLISECONDS.toNanos(aiProperties.getResilience().getTotalTimeoutMs());
 
         try {
-            return chatOnce(normalizedCommand, normalizedPrimaryModel, 0, null);
+            return chatOnce(normalizedCommand, normalizedPrimaryModel, 0, null, deadlineNanos);
         } catch (AiInvocationException primaryException) {
             String fallbackModel = safeTrim(aiProperties.getFallbackModel());
             if (!primaryException.isRetryable()
@@ -114,14 +153,20 @@ public class AiModelClientImpl implements AiModelClient {
                     normalizedPrimaryModel, fallbackModel, primaryException.getFailureType());
             try {
                 AiChatCommand fallbackCommand = normalizedCommand.withRequestedModel(fallbackModel);
-                return chatOnce(fallbackCommand, normalizedPrimaryModel, 1, primaryException.getFailureType());
+                AiChatResult fallbackResult = chatOnce(fallbackCommand, normalizedPrimaryModel, 1,
+                        primaryException.getFailureType(), deadlineNanos);
+                List<AiAttemptSummary> attempts = new ArrayList<>(primaryException.getAttempts());
+                attempts.addAll(fallbackResult.attempts());
+                return fallbackResult.withAttempts(attempts);
             } catch (AiInvocationException fallbackException) {
+                List<AiAttemptSummary> attempts = new ArrayList<>(primaryException.getAttempts());
+                attempts.addAll(fallbackException.getAttempts());
                 AiInvocationException terminalException = new AiInvocationException(
                         fallbackException.getFailureType(), normalizedPrimaryModel,
                         fallbackException.getModelName(), fallbackException.getRetryCount(),
                         fallbackException.getSafeMessage(), fallbackException.getMessage(),
                         fallbackException, fallbackException.getHttpStatusCode(), true,
-                        primaryException.getFailureType()
+                        primaryException.getFailureType(), attempts
                 );
                 terminalException.addSuppressed(primaryException);
                 throw terminalException;
@@ -132,7 +177,31 @@ public class AiModelClientImpl implements AiModelClient {
     private AiChatResult chatOnce(AiChatCommand command,
                                   String requestedModel,
                                   int retryCount,
-                                  AiFailureTypeEnum fallbackReason) {
+                                  AiFailureTypeEnum fallbackReason,
+                                  long deadlineNanos) {
+        ensureTimeRemaining(command.requestedModel(), retryCount, deadlineNanos);
+        long attemptStartedAt = System.nanoTime();
+        try {
+            AiChatResult result = resilientCallExecutor.execute(requestedModel, command.requestedModel(), retryCount,
+                    () -> executeOnce(command, requestedModel, retryCount, fallbackReason, deadlineNanos));
+            AiAttemptSummary attempt = new AiAttemptSummary(command.requestedModel(), result.usage(),
+                    result.providerRequestId(), null, elapsedMillis(attemptStartedAt));
+            return result.withAttempts(List.of(attempt));
+        } catch (AiInvocationException exception) {
+            if (!exception.getAttempts().isEmpty()) {
+                throw exception;
+            }
+            throw exception.withAttempts(List.of(new AiAttemptSummary(
+                    command.requestedModel(), null, null, exception.getFailureType(), elapsedMillis(attemptStartedAt)
+            )));
+        }
+    }
+
+    private AiChatResult executeOnce(AiChatCommand command,
+                                     String requestedModel,
+                                     int retryCount,
+                                     AiFailureTypeEnum fallbackReason,
+                                     long deadlineNanos) {
         String model = command.requestedModel();
         String requestBody;
         try {
@@ -154,7 +223,7 @@ public class AiModelClientImpl implements AiModelClient {
                     aiProperties.getApiKey().trim(),
                     requestBody,
                     resolveConnectTimeoutMs(),
-                    resolveReadTimeoutMs()
+                    resolveReadTimeoutMs(deadlineNanos)
             );
         } catch (Exception e) {
             if (containsSocketTimeout(e)) {
@@ -329,6 +398,71 @@ public class AiModelClientImpl implements AiModelClient {
                 READ_TIMEOUT_MAX_MS,
                 "readTimeoutMs"
         );
+    }
+
+    private int resolveReadTimeoutMs(long deadlineNanos) {
+        long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime());
+        if (remainingMillis <= 0) {
+            return 1;
+        }
+        return (int) Math.max(1L, Math.min(resolveReadTimeoutMs(), remainingMillis));
+    }
+
+    private void ensureTimeRemaining(String model, int retryCount, long deadlineNanos) {
+        if (deadlineNanos - System.nanoTime() <= 0) {
+            throw invocationException(
+                    AiFailureTypeEnum.TIMEOUT,
+                    model,
+                    retryCount,
+                    "AI 服务响应超时，请稍后重试",
+                    "AI logical call deadline exceeded before model attempt: model=" + model,
+                    null
+            );
+        }
+    }
+
+    private long elapsedMillis(long startedAtNanos) {
+        return Math.max(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos), 0L);
+    }
+
+    private AiChatCommand sanitizeCommand(AiChatCommand command) {
+        List<AiChatMessage> messages = command.messages().stream()
+                .map(this::sanitizeMessage)
+                .toList();
+        return new AiChatCommand(command.requestedModel(), messages, command.tools(), command.toolChoice(),
+                command.temperature(), command.maxOutputTokens());
+    }
+
+    private AiChatMessage sanitizeMessage(AiChatMessage message) {
+        String content = sanitizeProviderContent(message.content());
+        List<AiToolCall> toolCalls = message.toolCalls().stream()
+                .map(this::sanitizeToolCall)
+                .toList();
+        return new AiChatMessage(message.role(), content, message.toolCallId(), toolCalls);
+    }
+
+    private AiToolCall sanitizeToolCall(AiToolCall toolCall) {
+        if (toolCall.function() == null) {
+            return toolCall;
+        }
+        return new AiToolCall(toolCall.id(), toolCall.type(), new AiFunctionCall(
+                toolCall.function().name(), sanitizeProviderContent(toolCall.function().arguments())
+        ));
+    }
+
+    private String sanitizeProviderContent(String content) {
+        AiSanitizedContent sanitized = contentSanitizer.sanitizeForProvider(content);
+        if (sanitized.status() == AiSanitizationStatus.BLOCKED) {
+            throw invocationException(
+                    AiFailureTypeEnum.CONTENT_BLOCKED,
+                    null,
+                    0,
+                    "请求包含禁止发送的敏感信息",
+                    "AI provider content sanitization was blocked",
+                    null
+            );
+        }
+        return sanitized.value();
     }
 
     private int normalizeTimeout(Integer configured,

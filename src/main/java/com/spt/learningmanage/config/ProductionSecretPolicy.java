@@ -13,19 +13,32 @@ public class ProductionSecretPolicy {
     private final String databasePassword;
     private final String aiApiKey;
 
+    private final boolean aiChatEnabled;
+
+    @org.springframework.beans.factory.annotation.Autowired
     public ProductionSecretPolicy(
             JwtProperties jwtProperties,
             @Value("${spring.datasource.password}") String databasePassword,
-            @Value("${ai.api-key}") String aiApiKey) {
+            @Value("${ai.api-key:}") String aiApiKey,
+            @Value("${ai.chat.enabled:true}") boolean aiChatEnabled) {
         this.jwtProperties = jwtProperties;
         this.databasePassword = databasePassword;
         this.aiApiKey = aiApiKey;
+        this.aiChatEnabled = aiChatEnabled;
+    }
+
+    public ProductionSecretPolicy(JwtProperties jwtProperties,
+                                  String databasePassword,
+                                  String aiApiKey) {
+        this(jwtProperties, databasePassword, aiApiKey, true);
     }
 
     @PostConstruct
     public void validate() {
         requireUsable("DB_PASSWORD", databasePassword);
-        requireUsable("ALIYUN_API_KEY", aiApiKey);
+        if (aiChatEnabled) {
+            requireUsable("ALIYUN_API_KEY", aiApiKey);
+        }
         requireUsable("JWT_SECRET", jwtProperties.getSecret());
         if (jwtProperties.getSecret().length() < 32) {
             throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");

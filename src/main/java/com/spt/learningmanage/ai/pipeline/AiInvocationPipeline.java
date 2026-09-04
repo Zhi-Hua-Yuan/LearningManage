@@ -17,12 +17,12 @@ import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
+import com.spt.learningmanage.trace.TraceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 统一编排 Prompt、Chat 模型调用、响应处理、规则降级和调用日志终态。
@@ -286,7 +286,7 @@ public class AiInvocationPipeline {
                 result == null ? null : result.finishReason(), result == null ? null : result.usage(),
                 result == null ? null : result.providerRequestId(), result != null && result.fallbackUsed(),
                 result == null ? null : result.fallbackReason(), traceId, failureType,
-                degraded, degradationReason
+                degraded, degradationReason, result == null ? List.of() : result.attempts()
         );
     }
 
@@ -328,7 +328,7 @@ public class AiInvocationPipeline {
                 normalizedModel(exception.getRequestedModel(), execution.modelName()),
                 normalizedModel(exception.getModelName(), execution.modelName()), retryCount,
                 exception.isModelFallbackUsed(), exception.getModelFallbackReason()
-        );
+        ).withAttempts(exception.getAttempts());
     }
 
     private AiCallFailureTypeEnum mapFailureType(AiInvocationException exception) {
@@ -344,6 +344,10 @@ public class AiInvocationPipeline {
                     ? AiCallFailureTypeEnum.AUTH
                     : AiCallFailureTypeEnum.UPSTREAM_REJECTED;
             case INVALID_RESPONSE -> AiCallFailureTypeEnum.PROTOCOL;
+            case CIRCUIT_OPEN -> AiCallFailureTypeEnum.CIRCUIT_OPEN;
+            case CONCURRENCY_LIMIT -> AiCallFailureTypeEnum.CONCURRENCY_LIMIT;
+            case CONTENT_BLOCKED -> AiCallFailureTypeEnum.CONTENT_BLOCKED;
+            case FEATURE_DISABLED -> AiCallFailureTypeEnum.FEATURE_DISABLED;
             case INTERNAL_ERROR -> AiCallFailureTypeEnum.INTERNAL;
         };
     }
@@ -361,7 +365,7 @@ public class AiInvocationPipeline {
     }
 
     private String resolveTraceId(String traceId) {
-        return traceId == null ? UUID.randomUUID().toString().replace("-", "") : traceId.trim();
+        return TraceContext.explicitOrCurrent(traceId);
     }
 
     private String normalizedModel(String value, String defaultValue) {

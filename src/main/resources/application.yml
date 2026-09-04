@@ -31,7 +31,7 @@ mybatis-plus:
 # AI 大模型配置 (阿里云通义千问)
 ai:
   # 使用 ${} 读取系统环境变量，冒号后面是默认值（如果没有配置环境变量就用默认值）
-  api-key: ${ALIYUN_API_KEY}
+  api-key: ${ALIYUN_API_KEY:}
   # 阿里云百炼平台的 OpenAI 兼容接口地址
   base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
   model: qwen-plus
@@ -40,11 +40,38 @@ ai:
   fallback-model: ${AI_FALLBACK_MODEL:}
   connect-timeout-ms: ${AI_CONNECT_TIMEOUT_MS:5000}
   read-timeout-ms: ${AI_READ_TIMEOUT_MS:60000}
+  chat:
+    enabled: ${AI_CHAT_ENABLED:true}
+  logging:
+    max-body-chars: ${AI_LOG_MAX_BODY_CHARS:8000}
+    max-error-chars: ${AI_LOG_MAX_ERROR_CHARS:2000}
+  resilience:
+    max-concurrent-calls: ${AI_MAX_CONCURRENT_CALLS:20}
+    max-wait-millis: ${AI_MAX_WAIT_MILLIS:0}
+    total-timeout-ms: ${AI_TOTAL_TIMEOUT_MS:120000}
+    sliding-window-size: ${AI_CB_SLIDING_WINDOW_SIZE:20}
+    minimum-number-of-calls: ${AI_CB_MINIMUM_CALLS:10}
+    failure-rate-threshold: ${AI_CB_FAILURE_RATE_THRESHOLD:50}
+    slow-call-duration-ms: ${AI_CB_SLOW_CALL_DURATION_MS:30000}
+    slow-call-rate-threshold: ${AI_CB_SLOW_CALL_RATE_THRESHOLD:50}
+    open-state-wait-ms: ${AI_CB_OPEN_WAIT_MS:30000}
+    half-open-permitted-calls: ${AI_CB_HALF_OPEN_CALLS:3}
+  pricing:
+    version: ${AI_PRICE_VERSION:}
+    currency: ${AI_PRICE_CURRENCY:CNY}
+    models:
+      qwen-plus:
+        input-per-million: ${QWEN_PLUS_INPUT_PRICE:}
+        output-per-million: ${QWEN_PLUS_OUTPUT_PRICE:}
 
 security:
   jwt:
     secret: ${JWT_SECRET}
     expire-seconds: ${JWT_EXPIRE_SECONDS:86400}
+
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId:-}]"
 
 #logging:
 #  level:

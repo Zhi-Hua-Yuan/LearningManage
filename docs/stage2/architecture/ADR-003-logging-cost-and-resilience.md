@@ -7,7 +7,7 @@
 
 ### 日志
 
-- 请求和响应先经过 `AiLogSanitizer`，再截断和持久化。
+- 请求和响应先经过 `AiContentSanitizer`，再截断和持久化。
 - 默认正文上限 8,000 字符，错误信息上限 2,000 字符。
 - 保存脱敏状态、截断状态和正文 SHA-256，不保存脱敏前正文。
 - 日志写入失败只告警，不改变模型调用结果。
@@ -27,7 +27,7 @@ API Key、JWT、密码、Authorization、Cookie 和 PROHIBITED 字段禁止进�
 
 ### 韧性
 
-Chat 使用独立的连接超时、读取超时、Retry、Bulkhead 和 Circuit Breaker。默认最多一次模型回退；禁止无限重试。阶段 4 以后 Embedding、Rerank 和 Qdrant 复用同一策略抽象，但不在本阶段提前实现。
+Chat 使用独立的连接超时、读取超时、逻辑总期限、Semaphore Bulkhead 和模型级 Circuit Breaker。主模型与兜底模型各最多一次，不进行同模型自动重试，单次逻辑调用最多两次外部请求。阶段 4 以后 Embedding、Rerank 和 Qdrant 可复用同一策略抽象，但不在本阶段提前实现。
 
 ## 结果
 

@@ -1,6 +1,10 @@
 package com.spt.learningmanage.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.spt.learningmanage.ai.governance.AiContentSanitizer;
+import com.spt.learningmanage.ai.governance.AiCostCalculator;
+import com.spt.learningmanage.ai.governance.AiCostEstimate;
+import com.spt.learningmanage.ai.governance.AiSanitizedContent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -35,13 +39,18 @@ import java.util.TreeMap;
 @Service
 public class AiCallLogServiceImpl implements AiCallLogService {
 
-    private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
     private static final int LIST_TEXT_PREVIEW_MAX_LENGTH = 300;
     private static final int DETAIL_TEXT_MAX_LENGTH = 10000;
     private static final String UNKNOWN_VALUE = "unknown";
 
     @Resource
     private AiCallLogMapper aiCallLogMapper;
+
+    @Resource
+    private AiContentSanitizer aiContentSanitizer;
+
+    @Resource
+    private AiCostCalculator aiCostCalculator;
 
     @Override
     public Long createRunningLog(AiCallLogCreateCommand command) {
@@ -58,7 +67,15 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         callLog.setPromptTemplateId(command.promptTemplateId());
         callLog.setPromptVersion(command.promptVersion());
         callLog.setPromptSource(command.promptSource());
-        callLog.setRequestText(command.requestText());
+        AiSanitizedContent request = aiContentSanitizer.sanitizeForLog(command.requestText(), false);
+        callLog.setRequestText(request.value());
+        callLog.setRequestSanitizationStatus(request.status().name());
+        callLog.setRequestTruncated(request.truncated() ? 1 : 0);
+        callLog.setRequestHash(request.sha256());
+        callLog.setResponseSanitizationStatus("CLEAN");
+        callLog.setErrorSanitizationStatus("CLEAN");
+        callLog.setResponseTruncated(0);
+        callLog.setErrorTruncated(0);
         callLog.setTraceId(defaultIfBlankNullable(command.traceId()));
         callLog.setStatus(AiCallLogStatusEnum.RUNNING.getValue());
         callLog.setRetryCount(command.retryCount() == null || command.retryCount() < 0 ? 0 : command.retryCount());
@@ -76,12 +93,23 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "AI 调用日志终态命令不能为空");
         }
 
+        AiSanitizedContent response = aiContentSanitizer.sanitizeForLog(command.responseText(), false);
+        AiSanitizedContent error = aiContentSanitizer.sanitizeForLog(resolveErrorMessage(command), true);
+        AiCostEstimate cost = aiCostCalculator.estimate(
+                command.attempts(), command.actualModel(), command.usage());
+
         LambdaUpdateWrapper<AiCallLog> wrapper = new LambdaUpdateWrapper<AiCallLog>()
                 .eq(AiCallLog::getId, command.logId())
                 .eq(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
                 .set(AiCallLog::getStatus, command.status().getValue())
-                .set(AiCallLog::getResponseText, command.responseText())
-                .set(AiCallLog::getErrorMessage, truncate(resolveErrorMessage(command), ERROR_MESSAGE_MAX_LENGTH))
+                .set(AiCallLog::getResponseText, response.value())
+                .set(AiCallLog::getErrorMessage, error.value())
+                .set(AiCallLog::getResponseSanitizationStatus, response.status().name())
+                .set(AiCallLog::getErrorSanitizationStatus, error.status().name())
+                .set(AiCallLog::getResponseTruncated, response.truncated() ? 1 : 0)
+                .set(AiCallLog::getErrorTruncated, error.truncated() ? 1 : 0)
+                .set(AiCallLog::getResponseHash, response.sha256())
+                .set(AiCallLog::getErrorHash, error.sha256())
                 .set(AiCallLog::getCostTimeMs, command.costTimeMs())
                 .set(AiCallLog::getFallbackUsed, command.modelFallbackUsed() ? 1 : 0)
                 .set(AiCallLog::getDegraded, command.degraded() ? 1 : 0);
@@ -98,6 +126,11 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             wrapper.set(AiCallLog::getPromptTokens, nonNegative(command.usage().promptTokens()));
             wrapper.set(AiCallLog::getCompletionTokens, nonNegative(command.usage().completionTokens()));
             wrapper.set(AiCallLog::getTotalTokens, nonNegative(command.usage().totalTokens()));
+        }
+        if (cost.estimatedCost() != null) {
+            wrapper.set(AiCallLog::getPriceVersion, cost.priceVersion());
+            wrapper.set(AiCallLog::getCurrency, cost.currency());
+            wrapper.set(AiCallLog::getEstimatedCost, cost.estimatedCost());
         }
         if (command.modelFallbackReason() != null) {
             wrapper.set(AiCallLog::getFallbackReason, command.modelFallbackReason().name());
@@ -157,6 +190,12 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             wrapper.set(AiCallLog::getPromptTokens, nonNegative(result.usage().promptTokens()));
             wrapper.set(AiCallLog::getCompletionTokens, nonNegative(result.usage().completionTokens()));
             wrapper.set(AiCallLog::getTotalTokens, nonNegative(result.usage().totalTokens()));
+        }
+        AiCostEstimate cost = aiCostCalculator.estimate(result.actualModel(), result.usage());
+        if (cost.estimatedCost() != null) {
+            wrapper.set(AiCallLog::getPriceVersion, cost.priceVersion());
+            wrapper.set(AiCallLog::getCurrency, cost.currency());
+            wrapper.set(AiCallLog::getEstimatedCost, cost.estimatedCost());
         }
         wrapper.set(AiCallLog::getFallbackUsed, result.fallbackUsed() ? 1 : 0);
         if (result.fallbackReason() != null) {
@@ -279,12 +318,21 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             return;
         }
 
+        AiSanitizedContent response = aiContentSanitizer.sanitizeForLog(responseText, false);
+        AiSanitizedContent error = aiContentSanitizer.sanitizeForLog(errorMessage, true);
+
         aiCallLogMapper.update(null, new LambdaUpdateWrapper<AiCallLog>()
                 .eq(AiCallLog::getId, logId)
                 .eq(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
                 .set(AiCallLog::getStatus, status)
-                .set(AiCallLog::getResponseText, responseText)
-                .set(AiCallLog::getErrorMessage, truncate(errorMessage, ERROR_MESSAGE_MAX_LENGTH))
+                .set(AiCallLog::getResponseText, response.value())
+                .set(AiCallLog::getErrorMessage, error.value())
+                .set(AiCallLog::getResponseSanitizationStatus, response.status().name())
+                .set(AiCallLog::getErrorSanitizationStatus, error.status().name())
+                .set(AiCallLog::getResponseTruncated, response.truncated() ? 1 : 0)
+                .set(AiCallLog::getErrorTruncated, error.truncated() ? 1 : 0)
+                .set(AiCallLog::getResponseHash, response.sha256())
+                .set(AiCallLog::getErrorHash, error.sha256())
                 .set(AiCallLog::getCostTimeMs, costTimeMs));
     }
 
@@ -328,6 +376,13 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setAvgCostTimeMs(calculateAvgCostTimeMs(callLogs));
         vo.setMaxCostTimeMs(calculateMaxCostTimeMs(callLogs));
         vo.setMinCostTimeMs(calculateMinCostTimeMs(callLogs));
+        vo.setTotalPromptTokens(sumLong(callLogs, AiCallLog::getPromptTokens));
+        vo.setTotalCompletionTokens(sumLong(callLogs, AiCallLog::getCompletionTokens));
+        vo.setTotalTokens(sumLong(callLogs, AiCallLog::getTotalTokens));
+        vo.setTotalEstimatedCost(totalEstimatedCost(callLogs));
+        vo.setUnknownUsageCount(callLogs.stream().filter(log -> log.getTotalTokens() == null).count());
+        vo.setFallbackCount(callLogs.stream().filter(log -> Objects.equals(log.getFallbackUsed(), 1)).count());
+        vo.setDegradedCount(callLogs.stream().filter(log -> Objects.equals(log.getDegraded(), 1)).count());
         vo.setSceneStats(buildSceneStats(callLogs));
         vo.setStatusStats(buildStatusStats(callLogs));
         return vo;
@@ -427,6 +482,10 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setId(callLog.getId());
         vo.setScene(callLog.getScene());
         vo.setModelName(callLog.getModelName());
+        vo.setRequestedModel(callLog.getRequestedModel());
+        vo.setActualModel(callLog.getModelName());
+        vo.setTraceId(callLog.getTraceId());
+        vo.setProviderRequestId(callLog.getProviderRequestId());
         vo.setPromptType(callLog.getPromptType());
         vo.setPromptTemplateId(callLog.getPromptTemplateId());
         vo.setPromptVersion(callLog.getPromptVersion());
@@ -438,6 +497,7 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setErrorMessage(callLog.getErrorMessage());
         vo.setCostTimeMs(callLog.getCostTimeMs());
         vo.setRetryCount(callLog.getRetryCount());
+        populateGovernanceFields(vo, callLog);
         vo.setCreateTime(callLog.getCreateTime());
         vo.setUpdateTime(callLog.getUpdateTime());
         return vo;
@@ -449,6 +509,10 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setUserId(callLog.getUserId());
         vo.setScene(callLog.getScene());
         vo.setModelName(callLog.getModelName());
+        vo.setRequestedModel(callLog.getRequestedModel());
+        vo.setActualModel(callLog.getModelName());
+        vo.setTraceId(callLog.getTraceId());
+        vo.setProviderRequestId(callLog.getProviderRequestId());
         vo.setPromptType(callLog.getPromptType());
         vo.setPromptTemplateId(callLog.getPromptTemplateId());
         vo.setPromptVersion(callLog.getPromptVersion());
@@ -462,9 +526,61 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         vo.setErrorMessage(callLog.getErrorMessage());
         vo.setCostTimeMs(callLog.getCostTimeMs());
         vo.setRetryCount(callLog.getRetryCount());
+        vo.setPromptTokens(callLog.getPromptTokens());
+        vo.setCompletionTokens(callLog.getCompletionTokens());
+        vo.setTotalTokens(callLog.getTotalTokens());
+        vo.setPriceVersion(callLog.getPriceVersion());
+        vo.setCurrency(callLog.getCurrency());
+        vo.setEstimatedCost(callLog.getEstimatedCost());
+        vo.setFallbackUsed(callLog.getFallbackUsed());
+        vo.setDegraded(callLog.getDegraded());
+        vo.setFailureType(callLog.getFailureType());
+        vo.setRequestSanitizationStatus(callLog.getRequestSanitizationStatus());
+        vo.setResponseSanitizationStatus(callLog.getResponseSanitizationStatus());
+        vo.setErrorSanitizationStatus(callLog.getErrorSanitizationStatus());
+        vo.setRequestTruncated(callLog.getRequestTruncated());
+        vo.setResponseTruncated(callLog.getResponseTruncated());
+        vo.setErrorTruncated(callLog.getErrorTruncated());
+        vo.setRequestHash(callLog.getRequestHash());
+        vo.setResponseHash(callLog.getResponseHash());
+        vo.setErrorHash(callLog.getErrorHash());
         vo.setCreateTime(callLog.getCreateTime());
         vo.setUpdateTime(callLog.getUpdateTime());
         return vo;
+    }
+
+    private void populateGovernanceFields(AiCallLogVO vo, AiCallLog callLog) {
+        vo.setPromptTokens(callLog.getPromptTokens());
+        vo.setCompletionTokens(callLog.getCompletionTokens());
+        vo.setTotalTokens(callLog.getTotalTokens());
+        vo.setPriceVersion(callLog.getPriceVersion());
+        vo.setCurrency(callLog.getCurrency());
+        vo.setEstimatedCost(callLog.getEstimatedCost());
+        vo.setFallbackUsed(callLog.getFallbackUsed());
+        vo.setDegraded(callLog.getDegraded());
+        vo.setRequestSanitizationStatus(callLog.getRequestSanitizationStatus());
+        vo.setResponseSanitizationStatus(callLog.getResponseSanitizationStatus());
+        vo.setErrorSanitizationStatus(callLog.getErrorSanitizationStatus());
+        vo.setRequestTruncated(callLog.getRequestTruncated());
+        vo.setResponseTruncated(callLog.getResponseTruncated());
+        vo.setErrorTruncated(callLog.getErrorTruncated());
+    }
+
+    private long sumLong(List<AiCallLog> callLogs,
+                         java.util.function.Function<AiCallLog, Long> extractor) {
+        return callLogs.stream().map(extractor).filter(Objects::nonNull).mapToLong(Long::longValue).sum();
+    }
+
+    private BigDecimal totalEstimatedCost(List<AiCallLog> callLogs) {
+        List<BigDecimal> knownCosts = callLogs.stream()
+                .map(AiCallLog::getEstimatedCost)
+                .filter(Objects::nonNull)
+                .toList();
+        if (knownCosts.isEmpty()) {
+            return null;
+        }
+        return knownCosts.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(8, RoundingMode.HALF_UP);
     }
 
     private long safePageNum(Long pageNum) {

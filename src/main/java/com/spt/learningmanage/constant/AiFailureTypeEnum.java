@@ -15,6 +15,10 @@ public enum AiFailureTypeEnum {
     UPSTREAM_SERVER_ERROR(true),
     UPSTREAM_REJECTED(false),
     INVALID_RESPONSE(true),
+    CIRCUIT_OPEN(true),
+    CONCURRENCY_LIMIT(false),
+    CONTENT_BLOCKED(false),
+    FEATURE_DISABLED(false),
     INTERNAL_ERROR(false);
 
     private final boolean retryable;
