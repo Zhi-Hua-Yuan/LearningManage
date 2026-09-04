@@ -34,6 +34,8 @@
 - [WP6 验收记录](acceptance/wp6-ai-governance-acceptance-2026-09-05.md)
 - [WP6 机器证据](evidence/wp6/local-verification.json)
 - [WP6 Release 记录](release/wp6-release-record-2026-09-05.md)
+- [WP7 需求合同](requirements/wp7-real-provider-frontend-safety-requirements.md)
+- [WP7 前端错误与安全渲染合同](api/wp7-frontend-error-and-rendering-contract.md)
 
 ## 实施边界
 

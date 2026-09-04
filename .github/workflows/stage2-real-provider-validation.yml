@@ -1,0 +1,92 @@
+name: Stage 2 real provider validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage2-real-provider-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  validate:
+    name: Validate Qwen protocol
+    if: ${{ github.repository == 'Zhi-Hua-Yuan/LearningManage' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: stage2-real-provider
+    env:
+      ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
+      AI_REAL_PROVIDER_BASE_URL: ${{ vars.AI_REAL_PROVIDER_BASE_URL }}
+      AI_REAL_PROVIDER_MODEL: ${{ vars.AI_REAL_PROVIDER_MODEL }}
+      AI_PRICE_VERSION: ${{ vars.AI_PRICE_VERSION }}
+      AI_PRICE_CURRENCY: ${{ vars.AI_PRICE_CURRENCY }}
+      QWEN_PLUS_INPUT_PRICE: ${{ vars.QWEN_PLUS_INPUT_PRICE }}
+      QWEN_PLUS_OUTPUT_PRICE: ${{ vars.QWEN_PLUS_OUTPUT_PRICE }}
+      AI_REAL_PROVIDER_REPORT: target/real-provider-validation.json
+    steps:
+      - name: Reject unprotected workflow ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/develop' ]]
+
+      - name: Checkout exact backend commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify commit belongs to protected develop
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin develop
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/develop
+
+      - name: Setup Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Validate protected configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ -n "$ALIYUN_API_KEY" && "$ALIYUN_API_KEY" != 'ci-only-not-a-real-key' ]]
+          [[ -n "$AI_PRICE_VERSION" ]]
+          [[ "$AI_PRICE_CURRENCY" =~ ^[A-Za-z]{3}$ ]]
+          [[ "$QWEN_PLUS_INPUT_PRICE" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          [[ "$QWEN_PLUS_OUTPUT_PRICE" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          printf '::add-mask::%s\n' "$ALIYUN_API_KEY"
+
+      - name: Run isolated real provider validation
+        run: ./mvnw -B -ntp -Preal-provider-validation test
+
+      - name: Verify sanitized evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/verify-stage2-wp7-real-provider-report.sh "$AI_REAL_PROVIDER_REPORT"
+          if grep -Fq "$ALIYUN_API_KEY" "$AI_REAL_PROVIDER_REPORT"; then
+            echo 'API key found in validation evidence' >&2
+            exit 1
+          fi
+          (cd target && sha256sum real-provider-validation.json > real-provider-validation.sha256)
+
+      - name: Upload sanitized validation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage2-real-provider-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/real-provider-validation.json
+            target/real-provider-validation.sha256
+          if-no-files-found: error
+          retention-days: 14

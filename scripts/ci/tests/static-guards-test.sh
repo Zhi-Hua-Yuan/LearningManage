@@ -22,6 +22,8 @@ stage0_schema_validator="${ci_dir}/validate-json-schema.py"
 runtime_contract="${ci_dir}/verify-runtime-api-contract.sh"
 ai_flow="${ci_dir}/verify-ai-breakdown-flow.sh"
 ai_stub="${ci_dir}/stubs/ai-chat-completions-stub.py"
+real_provider_workflow="${project_root}/.github/workflows/stage2-real-provider-validation.yml"
+real_provider_report_guard="${ci_dir}/verify-stage2-wp7-real-provider-report.sh"
 
 passed=0
 
@@ -180,6 +182,19 @@ check_full_stack_ai_contract() {
         && ! grep -Eiq 'dashscope|password|authorization|bearer' "$ai_stub"
 }
 
+check_real_provider_workflow_contract() {
+    [[ -f "$real_provider_workflow" && -f "$real_provider_report_guard" ]] || return 1
+    grep -Fqx 'name: Stage 2 real provider validation' "$real_provider_workflow" \
+        && grep -Fq 'workflow_dispatch:' "$real_provider_workflow" \
+        && grep -Fq 'environment: stage2-real-provider' "$real_provider_workflow" \
+        && grep -Fq 'contents: read' "$real_provider_workflow" \
+        && grep -Fq 'persist-credentials: false' "$real_provider_workflow" \
+        && grep -Fq 'refs/heads/develop' "$real_provider_workflow" \
+        && grep -Fq 'verify-stage2-wp7-real-provider-report.sh' "$real_provider_workflow" \
+        && grep -Fq 'real-provider-validation' "$project_root/pom.xml" \
+        && ! grep -Eq '^[[:space:]]+(pull_request|push|schedule):' "$real_provider_workflow"
+}
+
 # shellcheck source=scripts/ci/lib/release-candidate-common.sh
 source "$release_common"
 
@@ -220,6 +235,7 @@ expect_pass stage0_acceptance_contract check_stage0_acceptance_contract
 expect_pass frontend_contract_workflow check_frontend_contract_workflow
 expect_pass runtime_api_contract_workflow check_runtime_api_contract_workflow
 expect_pass full_stack_ai_contract check_full_stack_ai_contract
+expect_pass real_provider_workflow_contract check_real_provider_workflow_contract
 
 stage1_workflow="${project_root}/.github/workflows/stage1-release-gate.yml"
 stage1_manifest_schema="${project_root}/docs/stage1/release/stage1-release-candidate-manifest.schema.json"
