@@ -22,7 +22,7 @@ jobs:
     environment: stage2-real-provider
     env:
       ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
-      AI_REAL_PROVIDER_BASE_URL: ${{ vars.AI_REAL_PROVIDER_BASE_URL }}
+      AI_REAL_PROVIDER_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
       AI_REAL_PROVIDER_MODEL: ${{ vars.AI_REAL_PROVIDER_MODEL }}
       AI_PRICE_VERSION: ${{ vars.AI_PRICE_VERSION }}
       AI_PRICE_CURRENCY: ${{ vars.AI_PRICE_CURRENCY }}
@@ -61,6 +61,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           [[ -n "$ALIYUN_API_KEY" && "$ALIYUN_API_KEY" != 'ci-only-not-a-real-key' ]]
+          [[ "$AI_REAL_PROVIDER_BASE_URL" == 'https://dashscope.aliyuncs.com/compatible-mode/v1' ]]
+          [[ "$AI_REAL_PROVIDER_MODEL" == 'qwen-plus' ]]
           [[ -n "$AI_PRICE_VERSION" ]]
           [[ "$AI_PRICE_CURRENCY" =~ ^[A-Za-z]{3}$ ]]
           [[ "$QWEN_PLUS_INPUT_PRICE" =~ ^[0-9]+([.][0-9]+)?$ ]]
@@ -74,7 +76,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          bash scripts/ci/verify-stage2-wp7-real-provider-report.sh "$AI_REAL_PROVIDER_REPORT"
+          bash scripts/ci/verify-stage2-wp7-real-provider-report.sh \
+            "$AI_REAL_PROVIDER_REPORT" "$GITHUB_SHA" "$GITHUB_RUN_ID"
           if grep -Fq "$ALIYUN_API_KEY" "$AI_REAL_PROVIDER_REPORT"; then
             echo 'API key found in validation evidence' >&2
             exit 1

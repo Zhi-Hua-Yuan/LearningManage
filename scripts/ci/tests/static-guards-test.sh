@@ -190,7 +190,11 @@ check_real_provider_workflow_contract() {
         && grep -Fq 'contents: read' "$real_provider_workflow" \
         && grep -Fq 'persist-credentials: false' "$real_provider_workflow" \
         && grep -Fq 'refs/heads/develop' "$real_provider_workflow" \
+        && grep -Fq 'AI_REAL_PROVIDER_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1' "$real_provider_workflow" \
+        && grep -Fq '"$GITHUB_SHA" "$GITHUB_RUN_ID"' "$real_provider_workflow" \
         && grep -Fq 'verify-stage2-wp7-real-provider-report.sh' "$real_provider_workflow" \
+        && grep -Fq 'wp7_expected_backend_sha_invalid' "$real_provider_report_guard" \
+        && grep -Fq '.backendSha == $expectedBackendSha' "$real_provider_report_guard" \
         && grep -Fq 'real-provider-validation' "$project_root/pom.xml" \
         && ! grep -Eq '^[[:space:]]+(pull_request|push|schedule):' "$real_provider_workflow"
 }

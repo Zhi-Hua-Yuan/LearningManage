@@ -7,12 +7,19 @@ source "${script_dir}/lib/ci-common.sh"
 ci_require_command jq
 
 report="${1:-${AI_REAL_PROVIDER_REPORT:-target/real-provider-validation.json}}"
+expected_backend_sha="${2:-${WP7_EXPECTED_BACKEND_SHA:-}}"
+expected_workflow_run_id="${3:-${WP7_EXPECTED_WORKFLOW_RUN_ID:-}}"
 [[ -s "$report" ]] || ci_fail "wp7_real_provider_report_missing"
+[[ "$expected_backend_sha" =~ ^[0-9a-f]{40}$ ]] \
+  || ci_fail "wp7_expected_backend_sha_invalid"
+[[ "$expected_workflow_run_id" =~ ^[1-9][0-9]*$ ]] \
+  || ci_fail "wp7_expected_workflow_run_id_invalid"
 
-jq -e '
+jq -e --arg expectedBackendSha "$expected_backend_sha" \
+  --arg expectedWorkflowRunId "$expected_workflow_run_id" '
   .schemaVersion == 1 and
-  (.backendSha | type == "string" and length > 0) and
-  (.workflowRunId | type == "string" and length > 0) and
+  .backendSha == $expectedBackendSha and
+  .workflowRunId == $expectedWorkflowRunId and
   (.model | type == "string" and length > 0) and
   .roundCount == 3 and
   .scenarioCount == 9 and

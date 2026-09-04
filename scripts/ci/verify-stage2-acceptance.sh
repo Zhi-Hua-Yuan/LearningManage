@@ -166,7 +166,16 @@ if [[ "$wp7_protocol_risk_status" == "CLOSED" ]]; then
   wp7_real_provider="${project_root}/docs/stage2/evidence/wp7/real-provider-validation.json"
   [[ -s "$wp7_verification" && -s "$wp7_real_provider" ]] \
     || ci_fail "stage2_wp7_evidence_missing"
-  bash "${project_root}/scripts/ci/verify-stage2-wp7-real-provider-report.sh" "$wp7_real_provider" >/dev/null
+  wp7_expected_backend_sha="$(jq -r '.verification.realProvider.backendSha // empty' "$wp7_verification")"
+  wp7_expected_workflow_run_id="$(jq -r '.verification.realProvider.workflowRunId // empty' "$wp7_verification")"
+  [[ "$wp7_expected_backend_sha" =~ ^[0-9a-f]{40}$ ]] \
+    || ci_fail "stage2_wp7_expected_backend_sha_invalid"
+  [[ "$wp7_expected_workflow_run_id" =~ ^[1-9][0-9]*$ ]] \
+    || ci_fail "stage2_wp7_expected_workflow_run_id_invalid"
+  git merge-base --is-ancestor "$wp7_expected_backend_sha" HEAD \
+    || ci_fail "stage2_wp7_backend_sha_not_in_history"
+  bash "${project_root}/scripts/ci/verify-stage2-wp7-real-provider-report.sh" \
+    "$wp7_real_provider" "$wp7_expected_backend_sha" "$wp7_expected_workflow_run_id" >/dev/null
   jq -e '
     .verification.realProvider.status == "PASS" and
     .verification.realProvider.rounds == 3 and
