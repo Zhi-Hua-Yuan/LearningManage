@@ -1,6 +1,6 @@
 # WP6 安全验证报告
 
-状态：`LOCAL PASS / CANDIDATE GITLEAKS PENDING`
+状态：`PASS / CANDIDATE GATE PASS`
 
 ## 已验证控制
 
@@ -22,5 +22,6 @@
 - `AiLogAccessArchitectureTest`
 - `TraceIdFilterTest`
 
-正式结论需要候选 CI 的 Gitleaks、Linux 测试、Docker Stub 和产物扫描全部通过后封存。
-
+候选 Release Gate `33900744185` 在合并提交
+`078d3aaf41708aac185ec05f8c264e43099ce172` 上完成 Gitleaks、Linux 测试、Docker Stub
+和产物扫描，结果全部通过；未发现 API Key、JWT、Authorization、Cookie、密码或 Secret 测试标记。
