@@ -12,6 +12,20 @@ public record AiCallLogCreateCommand(
         Integer promptVersion,
         String promptSource,
         String requestText,
-        Integer retryCount
+        Integer retryCount,
+        String traceId
 ) {
+
+    public AiCallLogCreateCommand(Long userId,
+                                  String scene,
+                                  String modelName,
+                                  String promptCode,
+                                  Long promptTemplateId,
+                                  Integer promptVersion,
+                                  String promptSource,
+                                  String requestText,
+                                  Integer retryCount) {
+        this(userId, scene, modelName, promptCode, promptTemplateId, promptVersion,
+                promptSource, requestText, retryCount, null);
+    }
 }

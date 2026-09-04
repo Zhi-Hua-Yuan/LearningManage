@@ -109,7 +109,7 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
         assertThrows(BusinessException.class,
                 () -> aiService.polishWeeklyReview(List.of(101L, 202L), "本周反思"));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verifyNoWrites();
     }
 
@@ -123,7 +123,7 @@ class AiServiceImplWeeklyPolishAuthorizationTest {
         assertThrows(BusinessException.class,
                 () -> aiService.polishWeeklyReview(List.of(999L), "本周反思"));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verifyNoWrites();
     }
 

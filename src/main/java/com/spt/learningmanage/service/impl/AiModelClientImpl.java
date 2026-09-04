@@ -116,8 +116,15 @@ public class AiModelClientImpl implements AiModelClient {
                 AiChatCommand fallbackCommand = normalizedCommand.withRequestedModel(fallbackModel);
                 return chatOnce(fallbackCommand, normalizedPrimaryModel, 1, primaryException.getFailureType());
             } catch (AiInvocationException fallbackException) {
-                fallbackException.addSuppressed(primaryException);
-                throw fallbackException;
+                AiInvocationException terminalException = new AiInvocationException(
+                        fallbackException.getFailureType(), normalizedPrimaryModel,
+                        fallbackException.getModelName(), fallbackException.getRetryCount(),
+                        fallbackException.getSafeMessage(), fallbackException.getMessage(),
+                        fallbackException, fallbackException.getHttpStatusCode(), true,
+                        primaryException.getFailureType()
+                );
+                terminalException.addSuppressed(primaryException);
+                throw terminalException;
             }
         }
     }
@@ -179,7 +186,8 @@ public class AiModelClientImpl implements AiModelClient {
                     safeMessageFor(failureType),
                     "AI 上游响应异常: model=" + model
                             + ", status=" + response.statusCode(),
-                    null
+                    null,
+                    response.statusCode()
             );
         }
 
@@ -282,13 +290,24 @@ public class AiModelClientImpl implements AiModelClient {
                                                       String safeMessage,
                                                       String internalMessage,
                                                       Throwable cause) {
+        return invocationException(failureType, model, retryCount, safeMessage, internalMessage, cause, null);
+    }
+
+    private AiInvocationException invocationException(AiFailureTypeEnum failureType,
+                                                      String model,
+                                                      int retryCount,
+                                                      String safeMessage,
+                                                      String internalMessage,
+                                                      Throwable cause,
+                                                      Integer httpStatusCode) {
         return new AiInvocationException(
                 failureType,
                 model,
                 retryCount,
                 safeMessage,
                 internalMessage,
-                cause
+                cause,
+                httpStatusCode
         );
     }
 

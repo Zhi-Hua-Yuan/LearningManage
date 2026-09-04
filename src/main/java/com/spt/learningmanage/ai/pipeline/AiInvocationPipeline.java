@@ -1,11 +1,18 @@
 package com.spt.learningmanage.ai.pipeline;
 
 import cn.hutool.json.JSONUtil;
+import com.spt.learningmanage.constant.AiCallFailureTypeEnum;
+import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.exception.AiResponseProcessingException;
+import com.spt.learningmanage.exception.BusinessException;
+import com.spt.learningmanage.model.dto.ai.AiCallLogCompletionCommand;
 import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiToolChoice;
 import com.spt.learningmanage.prompt.AiPromptTemplate;
 import com.spt.learningmanage.prompt.PromptTemplateResolver;
 import com.spt.learningmanage.service.AiCallLogService;
@@ -14,15 +21,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.UUID;
+
 /**
- * 统一编排提示词解析、模型调用、响应处理和调用日志生命周期。
- *
- * <p>业务数据准备、场景降级和正式数据写入不属于本管线职责。</p>
+ * 统一编排 Prompt、Chat 模型调用、响应处理、规则降级和调用日志终态。
  */
 @Component
 public class AiInvocationPipeline {
 
     private static final Logger log = LoggerFactory.getLogger(AiInvocationPipeline.class);
+    private static final String RAW_PROMPT_CODE = "legacy-chat";
+    private static final String RAW_PROMPT_SOURCE = "runtime";
 
     private final PromptTemplateResolver promptTemplateResolver;
     private final AiModelClient aiModelClient;
@@ -38,198 +48,338 @@ public class AiInvocationPipeline {
 
     public <T> AiExecutionResult<T> execute(AiExecutionCommand command,
                                             AiResponseProcessor<T> responseProcessor) {
+        return execute(command, responseProcessor, null);
+    }
+
+    public <T> AiExecutionResult<T> execute(AiExecutionCommand command,
+                                            AiResponseProcessor<T> responseProcessor,
+                                            AiFallback<T> fallback) {
         if (command == null) {
             throw new IllegalArgumentException("AI 执行命令不能为空");
         }
+        AiPromptTemplate template = promptTemplateResolver.resolve(command.promptCode());
+        return executeResolved(new ResolvedExecution(
+                command.userId(), command.modelName(), template.scene(), template.code(),
+                template.templateId(), template.version(), template.source().getCode(),
+                template.systemPrompt(), command.userPrompt(), command.parseFailureMessage(), command.traceId()
+        ), responseProcessor, fallback);
+    }
+
+    /**
+     * 受限兼容入口：仅供既有内部通用 chat 使用，不允许 Tool。
+     */
+    public <T> AiExecutionResult<T> executeRaw(AiRawExecutionCommand command,
+                                               AiResponseProcessor<T> responseProcessor) {
+        if (command == null) {
+            throw new IllegalArgumentException("AI 原始执行命令不能为空");
+        }
+        return executeResolved(new ResolvedExecution(
+                command.userId(), command.modelName(), RAW_PROMPT_CODE, RAW_PROMPT_CODE,
+                null, null, RAW_PROMPT_SOURCE, command.systemPrompt(), command.userPrompt(),
+                command.parseFailureMessage(), command.traceId()
+        ), responseProcessor, null);
+    }
+
+    private <T> AiExecutionResult<T> executeResolved(ResolvedExecution execution,
+                                                     AiResponseProcessor<T> responseProcessor,
+                                                     AiFallback<T> fallback) {
         if (responseProcessor == null) {
             throw new IllegalArgumentException("AI 响应处理器不能为空");
         }
 
-        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(command.promptCode());
-        Long callLogId = createCallLogSafely(command, promptTemplate);
+        String traceId = resolveTraceId(execution.traceId());
         long startTime = System.currentTimeMillis();
-
-        AiInvocationResult invocationResult = invokeModel(
-                command,
-                promptTemplate,
-                callLogId,
-                startTime
-        );
+        Long callLogId = createCallLogSafely(execution, traceId);
+        AiChatResult chatResult;
 
         try {
-            T data = responseProcessor.process(invocationResult.content());
+            chatResult = aiModelClient.chat(new AiChatCommand(
+                    execution.modelName(),
+                    List.of(AiChatMessage.system(execution.systemPrompt()), AiChatMessage.user(execution.userPrompt())),
+                    List.of(), AiToolChoice.none(), null, null
+            ));
+        } catch (AiInvocationException exception) {
+            return handleInvocationFailure(execution, fallback, traceId, callLogId, startTime, null, exception);
+        } catch (Exception exception) {
+            AiInvocationException wrapped = new AiInvocationException(
+                    AiFailureTypeEnum.INTERNAL_ERROR, execution.modelName(), 0,
+                    "AI 服务暂时不可用，请稍后重试",
+                    "AI 调用发生未分类异常：model=" + execution.modelName(), exception
+            );
+            return handleInvocationFailure(execution, fallback, traceId, callLogId, startTime, null, wrapped);
+        }
+
+        try {
+            validateTextResult(chatResult, execution.modelName());
+        } catch (AiInvocationException exception) {
+            return handleInvocationFailure(execution, fallback, traceId, callLogId, startTime, chatResult, exception);
+        }
+
+        try {
+            T data = responseProcessor.process(chatResult.content());
             if (data == null) {
                 throw new IllegalStateException("AI 响应处理结果不能为空");
             }
-
-            long costTimeMs = elapsedSince(startTime);
-            AiExecutionResult<T> executionResult = new AiExecutionResult<>(
-                    data,
-                    callLogId,
-                    invocationResult.actualModel(),
-                    invocationResult.retryCount(),
-                    costTimeMs
-            );
-            markSuccessSafely(callLogId, invocationResult.content(), costTimeMs);
-            return executionResult;
+            long duration = elapsedSince(startTime);
+            completeSafely(completion(callLogId, AiCallLogStatusEnum.SUCCESS,
+                    chatResult.content(), null, duration, execution, chatResult, traceId,
+                    null, false, null));
+            return result(data, callLogId, execution, chatResult, duration, false, null, traceId);
         } catch (Exception exception) {
-            long costTimeMs = elapsedSince(startTime);
-            markParseFailedSafely(
-                    callLogId,
-                    invocationResult.content(),
-                    command.parseFailureMessage(),
-                    costTimeMs
-            );
-            throw new AiResponseProcessingException(command.parseFailureMessage(), exception);
+            AiResponseProcessingException processingException = normalizeProcessingFailure(execution, exception);
+            return handleProcessingFailure(execution, fallback, traceId, callLogId, startTime,
+                    chatResult, processingException);
         }
     }
 
-    private AiInvocationResult invokeModel(AiExecutionCommand command,
-                                           AiPromptTemplate promptTemplate,
-                                           Long callLogId,
-                                           long startTime) {
-        try {
-            AiInvocationResult invocationResult = aiModelClient.invoke(
-                    command.modelName(),
-                    promptTemplate.systemPrompt(),
-                    command.userPrompt()
-            );
-            updateExecutionMetadataSafely(
-                    callLogId,
-                    invocationResult.actualModel(),
-                    invocationResult.retryCount()
-            );
-            return invocationResult;
-        } catch (AiInvocationException exception) {
-            markInvocationFailedSafely(callLogId, exception, elapsedSince(startTime));
+    private <T> AiExecutionResult<T> handleInvocationFailure(ResolvedExecution execution,
+                                                              AiFallback<T> fallback,
+                                                              String traceId,
+                                                              Long callLogId,
+                                                              long startTime,
+                                                              AiChatResult chatResult,
+                                                              AiInvocationException exception) {
+        AiCallFailureTypeEnum failureType = mapFailureType(exception);
+        AiChatResult invocationMetadata = chatResult == null
+                ? failureMetadata(execution, exception)
+                : chatResult;
+        if (fallback == null) {
+            long duration = elapsedSince(startTime);
+            completeSafely(completion(callLogId, statusFor(failureType), null, exception.getSafeMessage(),
+                    duration, execution, invocationMetadata, traceId, failureType, false, null));
             throw exception;
-        } catch (Exception exception) {
-            AiInvocationException wrapped = new AiInvocationException(
-                    AiFailureTypeEnum.INTERNAL_ERROR,
-                    command.modelName(),
-                    0,
-                    "AI 服务暂时不可用，请稍后重试",
-                    "AI 调用发生未分类异常：model=" + command.modelName(),
-                    exception
-            );
-            markInvocationFailedSafely(callLogId, wrapped, elapsedSince(startTime));
-            throw wrapped;
+        }
+
+        T fallbackData = applyFallbackOrCompleteFailure(fallback, callLogId, failureType,
+                exception.getSafeMessage(), exception, startTime, execution, invocationMetadata, traceId);
+        long duration = elapsedSince(startTime);
+        String degradationReason = failureType.name() + ": " + exception.getSafeMessage();
+        completeSafely(completion(callLogId, AiCallLogStatusEnum.SUCCESS, null, exception.getSafeMessage(),
+                duration, execution, invocationMetadata, traceId, failureType, true, degradationReason));
+        return result(fallbackData, callLogId, execution, invocationMetadata, duration,
+                true, degradationReason, traceId);
+    }
+
+    private <T> AiExecutionResult<T> handleProcessingFailure(ResolvedExecution execution,
+                                                              AiFallback<T> fallback,
+                                                              String traceId,
+                                                              Long callLogId,
+                                                              long startTime,
+                                                              AiChatResult chatResult,
+                                                              AiResponseProcessingException exception) {
+        AiCallFailureTypeEnum failureType = exception.getFailureType();
+        if (fallback == null) {
+            long duration = elapsedSince(startTime);
+            completeSafely(completion(callLogId, AiCallLogStatusEnum.PARSE_FAILED,
+                    chatResult.content(), exception.getSafeMessage(), duration,
+                    execution, chatResult, traceId, failureType, false, null));
+            throw exception;
+        }
+
+        T fallbackData = applyFallbackOrCompleteFailure(fallback, callLogId, failureType,
+                exception.getSafeMessage(), exception, startTime, execution, chatResult, traceId);
+        long duration = elapsedSince(startTime);
+        String degradationReason = failureType.name() + ": " + exception.getSafeMessage();
+        completeSafely(completion(callLogId, AiCallLogStatusEnum.SUCCESS,
+                chatResult.content(), exception.getSafeMessage(), duration,
+                execution, chatResult, traceId, failureType, true, degradationReason));
+        return result(fallbackData, callLogId, execution, chatResult, duration,
+                true, degradationReason, traceId);
+    }
+
+    private <T> T applyFallback(AiFallback<T> fallback,
+                                Long callLogId,
+                                AiCallFailureTypeEnum failureType,
+                                String safeMessage,
+                                Throwable cause) {
+        T data = fallback.apply(new AiPipelineFailure(callLogId, failureType, safeMessage, cause));
+        if (data == null) {
+            throw new IllegalStateException("AI 规则降级结果不能为空");
+        }
+        return data;
+    }
+
+    private <T> T applyFallbackOrCompleteFailure(AiFallback<T> fallback,
+                                                  Long callLogId,
+                                                  AiCallFailureTypeEnum failureType,
+                                                  String safeMessage,
+                                                  Throwable cause,
+                                                  long startTime,
+                                                  ResolvedExecution execution,
+                                                  AiChatResult chatResult,
+                                                  String traceId) {
+        try {
+            return applyFallback(fallback, callLogId, failureType, safeMessage, cause);
+        } catch (RuntimeException fallbackException) {
+            long duration = elapsedSince(startTime);
+            completeSafely(completion(callLogId, AiCallLogStatusEnum.FAILED,
+                    chatResult == null ? null : chatResult.content(), "AI 规则降级执行失败",
+                    duration, execution, chatResult, traceId, AiCallFailureTypeEnum.INTERNAL, false, null));
+            if (fallbackException != cause) {
+                fallbackException.addSuppressed(cause);
+            }
+            throw fallbackException;
         }
     }
 
-    private Long createCallLogSafely(AiExecutionCommand command,
-                                     AiPromptTemplate promptTemplate) {
+    private void validateTextResult(AiChatResult result, String requestedModel) {
+        if (result == null || result.content() == null || result.content().isBlank()) {
+            String actualModel = result == null ? requestedModel : normalizedModel(result.actualModel(), requestedModel);
+            int retryCount = result == null || result.retryCount() == null ? 0 : Math.max(result.retryCount(), 0);
+            throw new AiInvocationException(
+                    AiFailureTypeEnum.INVALID_RESPONSE, actualModel, retryCount,
+                    "AI 返回结果格式异常，请重试",
+                    result != null && !result.toolCalls().isEmpty()
+                            ? "文本调用不接受仅包含 Tool Call 的响应" : "文本调用返回空响应",
+                    null
+            );
+        }
+    }
+
+    private AiResponseProcessingException normalizeProcessingFailure(ResolvedExecution execution,
+                                                                      Exception exception) {
+        if (exception instanceof AiResponseProcessingException processingException) {
+            return processingException;
+        }
+        if (exception instanceof BusinessException) {
+            return AiResponseProcessingException.businessValidation(execution.parseFailureMessage(), exception);
+        }
+        return AiResponseProcessingException.parse(execution.parseFailureMessage(), exception);
+    }
+
+    private Long createCallLogSafely(ResolvedExecution execution, String traceId) {
+        if (execution.userId() == null) {
+            return null;
+        }
         try {
             return aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
-                    command.userId(),
-                    promptTemplate.scene(),
-                    command.modelName(),
-                    promptTemplate.code(),
-                    promptTemplate.templateId(),
-                    promptTemplate.version(),
-                    promptTemplate.source().getCode(),
-                    buildRequestText(promptTemplate.systemPrompt(), command.userPrompt()),
-                    0
+                    execution.userId(), execution.scene(), execution.modelName(), execution.promptCode(),
+                    execution.promptTemplateId(), execution.promptVersion(), execution.promptSource(),
+                    buildRequestText(execution.systemPrompt(), execution.userPrompt()), 0, traceId
             ));
         } catch (Exception exception) {
             log.warn("AI 调用日志创建失败：scene={}, model={}",
-                    promptTemplate.scene(), command.modelName(), exception);
+                    execution.scene(), execution.modelName(), exception);
             return null;
         }
     }
 
-    private void markInvocationFailedSafely(Long callLogId,
-                                            AiInvocationException exception,
-                                            long costTimeMs) {
-        updateExecutionMetadataSafely(
-                callLogId,
-                exception.getModelName(),
-                exception.getRetryCount()
+    private AiCallLogCompletionCommand completion(Long callLogId,
+                                                   AiCallLogStatusEnum status,
+                                                   String responseText,
+                                                   String errorMessage,
+                                                   long duration,
+                                                   ResolvedExecution execution,
+                                                   AiChatResult result,
+                                                   String traceId,
+                                                   AiCallFailureTypeEnum failureType,
+                                                   boolean degraded,
+                                                   String degradationReason) {
+        if (callLogId == null) {
+            return null;
+        }
+        return new AiCallLogCompletionCommand(
+                callLogId, status, responseText, errorMessage, duration,
+                result == null ? execution.modelName() : normalizedModel(result.requestedModel(), execution.modelName()),
+                result == null ? execution.modelName() : normalizedModel(result.actualModel(), execution.modelName()),
+                result == null || result.retryCount() == null ? 0 : Math.max(result.retryCount(), 0),
+                result == null ? null : result.finishReason(), result == null ? null : result.usage(),
+                result == null ? null : result.providerRequestId(), result != null && result.fallbackUsed(),
+                result == null ? null : result.fallbackReason(), traceId, failureType,
+                degraded, degradationReason
         );
-        if (exception.getFailureType() == AiFailureTypeEnum.TIMEOUT) {
-            markTimeoutSafely(callLogId, exception.getSafeMessage(), costTimeMs);
-            return;
-        }
-        if (exception.getFailureType() == AiFailureTypeEnum.INVALID_RESPONSE) {
-            markParseFailedSafely(callLogId, null, exception.getSafeMessage(), costTimeMs);
-            return;
-        }
-        markFailedSafely(callLogId, exception.getSafeMessage(), costTimeMs);
     }
 
-    private void updateExecutionMetadataSafely(Long callLogId,
-                                               String actualModel,
-                                               Integer retryCount) {
-        if (callLogId == null) {
+    private void completeSafely(AiCallLogCompletionCommand command) {
+        if (command == null) {
             return;
         }
         try {
-            aiCallLogService.updateExecutionMetadata(callLogId, actualModel, retryCount);
+            if (!aiCallLogService.complete(command)) {
+                log.warn("AI 调用日志终态未更新，可能已完成：logId={}", command.logId());
+            }
         } catch (Exception exception) {
-            log.warn("AI 调用日志执行元数据更新失败：logId={}", callLogId, exception);
+            log.warn("AI 调用日志终态更新失败：logId={}", command.logId(), exception);
         }
     }
 
-    private void markSuccessSafely(Long callLogId, String responseText, long costTimeMs) {
-        if (callLogId == null) {
-            return;
-        }
-        try {
-            aiCallLogService.markSuccess(callLogId, responseText, costTimeMs);
-        } catch (Exception exception) {
-            log.warn("AI 调用日志成功状态更新失败：logId={}", callLogId, exception);
-        }
+    private <T> AiExecutionResult<T> result(T data,
+                                            Long callLogId,
+                                            ResolvedExecution execution,
+                                            AiChatResult result,
+                                            long duration,
+                                            boolean degraded,
+                                            String degradationReason,
+                                            String traceId) {
+        return new AiExecutionResult<>(
+                data, callLogId, normalizedModel(result.requestedModel(), execution.modelName()),
+                normalizedModel(result.actualModel(), execution.modelName()),
+                result.retryCount() == null ? 0 : Math.max(result.retryCount(), 0), duration,
+                result.finishReason(), result.usage(), result.providerRequestId(),
+                result.fallbackUsed(), result.fallbackReason(), degraded, degradationReason, traceId
+        );
     }
 
-    private void markFailedSafely(Long callLogId, String errorMessage, long costTimeMs) {
-        if (callLogId == null) {
-            return;
-        }
-        try {
-            aiCallLogService.markFailed(callLogId, errorMessage, costTimeMs);
-        } catch (Exception exception) {
-            log.warn("AI 调用日志失败状态更新失败：logId={}", callLogId, exception);
-        }
+    private AiChatResult failureMetadata(ResolvedExecution execution,
+                                         AiInvocationException exception) {
+        int retryCount = exception.getRetryCount() == null ? 0 : Math.max(exception.getRetryCount(), 0);
+        return new AiChatResult(
+                null, List.of(), null, null, null,
+                normalizedModel(exception.getRequestedModel(), execution.modelName()),
+                normalizedModel(exception.getModelName(), execution.modelName()), retryCount,
+                exception.isModelFallbackUsed(), exception.getModelFallbackReason()
+        );
     }
 
-    private void markTimeoutSafely(Long callLogId, String errorMessage, long costTimeMs) {
-        if (callLogId == null) {
-            return;
-        }
-        try {
-            aiCallLogService.markTimeout(callLogId, errorMessage, costTimeMs);
-        } catch (Exception exception) {
-            log.warn("AI 调用日志超时状态更新失败：logId={}", callLogId, exception);
-        }
+    private AiCallFailureTypeEnum mapFailureType(AiInvocationException exception) {
+        AiFailureTypeEnum type = exception.getFailureType();
+        return switch (type) {
+            case CONFIG_ERROR -> AiCallFailureTypeEnum.CONFIG;
+            case TIMEOUT -> AiCallFailureTypeEnum.TIMEOUT;
+            case NETWORK_ERROR -> AiCallFailureTypeEnum.NETWORK;
+            case RATE_LIMITED -> AiCallFailureTypeEnum.RATE_LIMIT;
+            case UPSTREAM_SERVER_ERROR -> AiCallFailureTypeEnum.UPSTREAM_SERVER;
+            case UPSTREAM_REJECTED -> exception.getHttpStatusCode() != null
+                    && (exception.getHttpStatusCode() == 401 || exception.getHttpStatusCode() == 403)
+                    ? AiCallFailureTypeEnum.AUTH
+                    : AiCallFailureTypeEnum.UPSTREAM_REJECTED;
+            case INVALID_RESPONSE -> AiCallFailureTypeEnum.PROTOCOL;
+            case INTERNAL_ERROR -> AiCallFailureTypeEnum.INTERNAL;
+        };
     }
 
-    private void markParseFailedSafely(Long callLogId,
-                                       String responseText,
-                                       String errorMessage,
-                                       long costTimeMs) {
-        if (callLogId == null) {
-            return;
+    private AiCallLogStatusEnum statusFor(AiCallFailureTypeEnum type) {
+        if (type == AiCallFailureTypeEnum.TIMEOUT) {
+            return AiCallLogStatusEnum.TIMEOUT;
         }
-        try {
-            aiCallLogService.markParseFailed(
-                    callLogId,
-                    responseText,
-                    errorMessage,
-                    costTimeMs
-            );
-        } catch (Exception exception) {
-            log.warn("AI 调用日志解析失败状态更新失败：logId={}", callLogId, exception);
+        if (type == AiCallFailureTypeEnum.PROTOCOL
+                || type == AiCallFailureTypeEnum.RESPONSE_PARSE
+                || type == AiCallFailureTypeEnum.BUSINESS_VALIDATION) {
+            return AiCallLogStatusEnum.PARSE_FAILED;
         }
+        return AiCallLogStatusEnum.FAILED;
+    }
+
+    private String resolveTraceId(String traceId) {
+        return traceId == null ? UUID.randomUUID().toString().replace("-", "") : traceId.trim();
+    }
+
+    private String normalizedModel(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value.trim();
     }
 
     private String buildRequestText(String systemPrompt, String userPrompt) {
-        return JSONUtil.createObj()
-                .set("systemPrompt", systemPrompt)
-                .set("userPrompt", userPrompt)
-                .toString();
+        return JSONUtil.createObj().set("systemPrompt", systemPrompt).set("userPrompt", userPrompt).toString();
     }
 
     private long elapsedSince(long startTime) {
-        return System.currentTimeMillis() - startTime;
+        return Math.max(System.currentTimeMillis() - startTime, 0L);
+    }
+
+    private record ResolvedExecution(
+            Long userId, String modelName, String scene, String promptCode,
+            Long promptTemplateId, Integer promptVersion, String promptSource,
+            String systemPrompt, String userPrompt, String parseFailureMessage, String traceId
+    ) {
     }
 }

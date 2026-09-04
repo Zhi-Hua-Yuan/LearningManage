@@ -31,7 +31,7 @@ env:
   JAVA_VERSION: '17'
   NODE_VERSION: '22.13.1'
   NPM_VERSION: '10.9.2'
-  CI_EXPECTED_TEST_COUNT: '607'
+  CI_EXPECTED_TEST_COUNT: '629'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -165,6 +165,7 @@ jobs:
           bash scripts/ci/tests/static-guards-test.sh
           bash scripts/ci/verify-stage0-acceptance.sh
           bash scripts/ci/verify-stage2-acceptance.sh
+          bash scripts/ci/verify-ai-invocation-boundary.sh
           bash scripts/ci/verify-published-migrations.sh
           bash scripts/ci/verify-stage2-wp2-protocol-stub.sh
           forbidden_event='pull_request_'target

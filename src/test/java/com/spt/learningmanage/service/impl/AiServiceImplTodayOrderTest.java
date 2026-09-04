@@ -10,7 +10,7 @@ import com.spt.learningmanage.constant.AiPromptSourceEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.mapper.TaskMapper;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -112,7 +113,7 @@ class AiServiceImplTodayOrderTest {
         Assertions.assertTrue(result.getItems().isEmpty());
         Assertions.assertNotNull(result.getGeneratedAt());
         verify(promptTemplateResolver, never()).resolve(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -132,9 +133,8 @@ class AiServiceImplTodayOrderTest {
         Assertions.assertEquals(List.of(102L, 101L), result.getItems().stream().map(item -> item.getTaskId()).toList());
         Assertions.assertEquals(List.of(1, 2), result.getItems().stream().map(item -> item.getRank()).toList());
         Assertions.assertNotNull(result.getGeneratedAt());
-        verify(aiCallLogService).updateExecutionMetadata(CALL_LOG_ID, MODEL_NAME, 0);
-        verify(aiCallLogService).markSuccess(eq(CALL_LOG_ID), eq(response), anyLong());
-        verify(aiCallLogService, never()).markParseFailed(anyLong(), any(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> !command.degraded()
+                && command.status() == com.spt.learningmanage.constant.AiCallLogStatusEnum.SUCCESS));
     }
 
     @Test
@@ -149,13 +149,13 @@ class AiServiceImplTodayOrderTest {
                 "upstream rejected request",
                 null
         );
-        when(aiModelClient.invoke(eq(MODEL_NAME), anyString(), anyString())).thenThrow(failure);
+        when(aiModelClient.chat(any())).thenThrow(failure);
 
         AiTodayOrderVO result = aiService.recommendTodayOrder(request());
 
         assertFallbackOrder(result);
-        verify(aiCallLogService).markFailed(eq(CALL_LOG_ID), eq("AI 服务暂时不可用"), anyLong());
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()
+                && command.failureType() == com.spt.learningmanage.constant.AiCallFailureTypeEnum.UPSTREAM_REJECTED));
     }
 
     @Test
@@ -166,13 +166,8 @@ class AiServiceImplTodayOrderTest {
         AiTodayOrderVO result = aiService.recommendTodayOrder(request());
 
         assertFallbackOrder(result);
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(response),
-                eq("AI 今日任务排序结果格式异常"),
-                anyLong()
-        );
-        verify(aiCallLogService, never()).markSuccess(anyLong(), anyString(), anyLong());
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()
+                && command.failureType() == com.spt.learningmanage.constant.AiCallFailureTypeEnum.RESPONSE_PARSE));
     }
 
     @Test
@@ -183,12 +178,7 @@ class AiServiceImplTodayOrderTest {
         AiTodayOrderVO result = aiService.recommendTodayOrder(request());
 
         assertFallbackOrder(result);
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(response),
-                eq("AI 今日任务排序结果格式异常"),
-                anyLong()
-        );
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()));
     }
 
     @Test
@@ -199,12 +189,7 @@ class AiServiceImplTodayOrderTest {
         AiTodayOrderVO result = aiService.recommendTodayOrder(request());
 
         assertFallbackOrder(result);
-        verify(aiCallLogService).markParseFailed(
-                eq(CALL_LOG_ID),
-                eq(response),
-                eq("AI 今日任务排序结果格式异常"),
-                anyLong()
-        );
+        verify(aiCallLogService).complete(argThat(command -> command.degraded()));
     }
 
     @Test
@@ -228,7 +213,7 @@ class AiServiceImplTodayOrderTest {
                 LocalDateTime.of(2026, 8, 12, 9, 0))));
 
         assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -241,7 +226,7 @@ class AiServiceImplTodayOrderTest {
         when(taskMapper.selectList(any())).thenReturn(List.of());
 
         assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -254,7 +239,7 @@ class AiServiceImplTodayOrderTest {
 
         assertThrows(BusinessException.class, () -> aiService.recommendTodayOrder(request));
         verify(taskMapper, never()).selectList(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -288,8 +273,10 @@ class AiServiceImplTodayOrderTest {
 
     private void stubAiCall(List<Task> tasks, String response) {
         stubAiInfrastructure(tasks);
-        when(aiModelClient.invoke(eq(MODEL_NAME), anyString(), anyString()))
-                .thenReturn(new AiInvocationResult(response, MODEL_NAME, 0));
+        when(aiModelClient.chat(any())).thenReturn(new AiChatResult(
+                response, List.of(), "stop", null, null,
+                MODEL_NAME, MODEL_NAME, 0, false, null
+        ));
     }
 
     private void stubAiInfrastructure(List<Task> tasks) {
@@ -305,6 +292,7 @@ class AiServiceImplTodayOrderTest {
                         "system prompt"
                 ));
         when(aiCallLogService.createRunningLog(any())).thenReturn(CALL_LOG_ID);
+        when(aiCallLogService.complete(any())).thenReturn(true);
     }
 
     private String validResponse(Long firstTaskId, Long secondTaskId) {

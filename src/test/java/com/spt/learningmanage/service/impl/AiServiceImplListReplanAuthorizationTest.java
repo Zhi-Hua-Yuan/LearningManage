@@ -81,7 +81,7 @@ class AiServiceImplListReplanAuthorizationTest {
 
         assertThrows(BusinessException.class, () -> aiService.previewListReplan(9001L));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -92,7 +92,7 @@ class AiServiceImplListReplanAuthorizationTest {
 
         assertThrows(BusinessException.class, () -> aiService.previewListReplan(9002L));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(aiCallLogService, never()).createRunningLog(any());
     }
 
@@ -106,7 +106,7 @@ class AiServiceImplListReplanAuthorizationTest {
                 () -> aiService.confirmListReplan(9003L, "operation-1"));
 
         verify(aiReplanOperationMapper, never()).selectOne(any());
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
     }
 
     @Test
@@ -117,7 +117,7 @@ class AiServiceImplListReplanAuthorizationTest {
 
         assertThrows(BusinessException.class, () -> aiService.replanListTasks(9004L));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(taskMapper, never()).selectList(any());
     }
 
@@ -128,7 +128,7 @@ class AiServiceImplListReplanAuthorizationTest {
 
         assertThrows(BusinessException.class, () -> aiService.replanListTasks(9005L));
 
-        verify(aiModelClient, never()).invoke(anyString(), anyString(), anyString());
+        verify(aiModelClient, never()).chat(any());
         verify(taskMapper, never()).selectList(any());
     }
 }

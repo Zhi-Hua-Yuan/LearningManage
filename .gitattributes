@@ -1,4 +1,9 @@
 /.gitattributes text eol=lf
+/src/main/java/com/spt/learningmanage/ai/pipeline/AiExecutionCommand.java text eol=lf
+/src/main/java/com/spt/learningmanage/ai/pipeline/AiExecutionResult.java text eol=lf
+/src/main/java/com/spt/learningmanage/model/dto/ai/AiCallLogCreateCommand.java text eol=lf
+/src/main/java/com/spt/learningmanage/service/AiCallLogService.java text eol=lf
+/src/main/java/com/spt/learningmanage/service/impl/AiCallLogServiceImpl.java text eol=lf
 /mvnw text eol=lf
 /.dockerignore text eol=lf
 /Dockerfile text eol=lf

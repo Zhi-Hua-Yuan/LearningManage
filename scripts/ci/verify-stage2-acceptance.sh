@@ -32,13 +32,15 @@ case "$mode" in
       .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
       .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[] | select(.id | IN("S2-A-001","S2-A-002","S2-A-003","S2-A-004")) | .status] | all(. == "PASS")) and
-      ([.gates[] | select(.id | IN("S2-A-007","S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
+      ([.gates[] | select(.id | IN("S2-A-008","S2-A-009","S2-A-010","S2-A-011","S2-A-012")) | .status] | all(. == "PENDING")) and
       ([.gates[] | select(.id == "S2-A-005") | .status] | all(. == "PENDING" or . == "PASS")) and
       ([.gates[] | select(.id == "S2-A-006") | .status] | all(. == "PENDING" or . == "PASS")) and
+      ([.gates[] | select(.id == "S2-A-007") | .status] | all(. == "PENDING" or . == "PASS")) and
       (.risks[] | select(.id == "S2-R-001") | .status) == "CLOSED" and
       (.risks[] | select(.id == "S2-R-004") | .status) == "OPEN" and
-      .policy.v1Modified == false and .policy.v2Modified == false and
-      .policy.v3MigrationExecuted == false and .policy.ragOrAgentImplemented == false and
+      .policy.publishedMigrationHead == "3" and
+      .policy.v1Modified == false and .policy.v2Modified == false and .policy.v3Modified == false and
+      .policy.ragOrAgentImplemented == false and
       .summary.fail == 0
     ' "$contract" >/dev/null || ci_fail "stage2_frozen_contract_invalid"
     ;;
@@ -46,7 +48,8 @@ case "$mode" in
     jq -e '
       .schemaVersion == 1 and .stage == "stage2" and .status == "PASS" and
       ([.gates[].status] | all(. == "PASS")) and
-      .policy.v1Modified == false and .policy.v2Modified == false and
+      .policy.publishedMigrationHead == "3" and
+      .policy.v1Modified == false and .policy.v2Modified == false and .policy.v3Modified == false and
       .policy.ragOrAgentImplemented == false and .summary.fail == 0 and .summary.openRisk == 0
     ' "$contract" >/dev/null || ci_fail "stage2_sealed_contract_invalid"
     ;;
@@ -78,6 +81,20 @@ if [[ "$wp2_gate_status" == "PASS" ]]; then
   [[ -s "$wp2_verification" ]] || ci_fail "stage2_wp2_verification_missing"
   jq -e '.verification.fullMySqlCiStatus == "PASS" and .gate.status == "PASS"' "$wp2_verification" >/dev/null \
     || ci_fail "stage2_wp2_pass_without_full_ci"
+fi
+
+wp3_gate_status="$(jq -r '.gates[] | select(.id == "S2-A-007") | .status' "$contract")"
+if [[ "$wp3_gate_status" == "PASS" ]]; then
+  wp3_verification="${project_root}/docs/stage2/evidence/wp3/local-verification.json"
+  [[ -s "$wp3_verification" ]] || ci_fail "stage2_wp3_verification_missing"
+  jq -e '
+    .verification.coreTests.status == "PASS" and
+    .verification.architectureGate.status == "PASS" and
+    .verification.sourceBoundaryGate.status == "PASS" and
+    .verification.wp3MySqlTests.status == "PASS" and
+    .verification.fullMySqlCiStatus == "PASS" and
+    .gate.status == "PASS"
+  ' "$wp3_verification" >/dev/null || ci_fail "stage2_wp3_pass_without_full_ci"
 fi
 
 printf 'stage2.acceptance.mode=%s\n' "$mode"

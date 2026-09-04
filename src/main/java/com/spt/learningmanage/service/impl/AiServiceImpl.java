@@ -7,7 +7,9 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
+import com.spt.learningmanage.ai.pipeline.AiExecutionResult;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
+import com.spt.learningmanage.ai.pipeline.AiRawExecutionCommand;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
@@ -30,8 +32,6 @@ import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
-import com.spt.learningmanage.model.dto.ai.AiCallLogCreateCommand;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
@@ -56,10 +56,6 @@ import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
 import com.spt.learningmanage.model.vo.ai.TitleRenameSuggestionItemVO;
 import com.spt.learningmanage.model.vo.milestone.MilestoneDraftVO;
 import com.spt.learningmanage.model.vo.milestone.TaskDraftVO;
-import com.spt.learningmanage.prompt.AiPromptTemplate;
-import com.spt.learningmanage.prompt.PromptTemplateResolver;
-import com.spt.learningmanage.service.AiCallLogService;
-import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.AiService;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.TaskCreationService;
@@ -143,15 +139,6 @@ public class AiServiceImpl implements AiService {
     private AiReplanItemMapper aiReplanItemMapper;
 
     @Resource
-    private AiCallLogService aiCallLogService;
-
-    @Resource
-    private AiModelClient aiModelClient;
-
-    @Resource
-    private PromptTemplateResolver promptTemplateResolver;
-
-    @Resource
     private AiInvocationPipeline aiInvocationPipeline;
 
     @Resource
@@ -166,7 +153,10 @@ public class AiServiceImpl implements AiService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "提示词不能为空");
         }
         try {
-            return aiModelClient.invoke(resolveModel(aiProperties.getModel()), systemPrompt, userPrompt).content();
+            return aiInvocationPipeline.executeRaw(new AiRawExecutionCommand(
+                    UserHolder.get(), resolveModel(aiProperties.getModel()),
+                    systemPrompt, userPrompt, "AI 通用对话结果格式异常", null
+            ), rawContent -> rawContent).data();
         } catch (AiInvocationException e) {
             log.warn("AI 通用对话调用失败: type={}, model={}", e.getFailureType(), e.getModelName(), e);
             throw toBusinessException(e);
@@ -191,59 +181,32 @@ public class AiServiceImpl implements AiService {
             userPrompt = userPrompt + String.format("补充描述：%s。", description.trim());
         }
 
-        // 获取提示词模版编码
         AiPromptCodeEnum promptCode = detailed
                 ? AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED
                 : AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT;
-        // 根据提示词编码去获取提示词模版
-        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(promptCode);
-        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getBreakdownModel());
-        // 创建 AI 调用日志
-        Long callLogId = createAiCallLogSafely(
-                userId,
-                modelName,
-                promptTemplate,
-                buildAiCallRequestText(systemPrompt, userPrompt),
-                0
-        );
-
-        long startTime = System.currentTimeMillis();
-        String aiRawContent;
         try {
-            // 调用 AI 模型，并获取结果
-            aiRawContent = invokeAiWithLog(callLogId, modelName, systemPrompt, userPrompt, startTime).content();
+            return aiInvocationPipeline.execute(new AiExecutionCommand(
+                    userId, modelName, promptCode, userPrompt, "AI 任务拆解结果格式异常"
+            ), aiRawContent -> {
+                String jsonText = sanitizeJsonArrayText(aiRawContent);
+                JSONArray jsonArray = JSONUtil.parseArray(jsonText);
+                List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
+                normalizeAndValidateDrafts(result);
+                logDraftLengthRisk(result, normalizedTarget, detailed);
+                if (result == null || result.isEmpty()) {
+                    throw new BusinessException(
+                            ErrorCode.OPERATION_ERROR,
+                            "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）"
+                    );
+                }
+                return result;
+            }).data();
         } catch (AiInvocationException e) {
             log.warn("AI 任务拆解调用失败: type={}, model={}", e.getFailureType(), e.getModelName(), e);
             throw toBusinessException(e);
-        }
-
-        try {
-            // 解析 AI 返回结果
-            String jsonText = sanitizeJsonArrayText(aiRawContent);
-            JSONArray jsonArray = JSONUtil.parseArray(jsonText);
-            List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
-            // 检查每一个里程碑是否符合条件
-            normalizeAndValidateDrafts(result);
-            // 检测结果风险并在有问题时记录日志
-            logDraftLengthRisk(result, normalizedTarget, detailed);
-            if (result == null || result.isEmpty()) {
-                throw new BusinessException(
-                        ErrorCode.OPERATION_ERROR,
-                        "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）"
-                );
-            }
-            // AI 模型调用成功记录日志
-            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
-            return result;
-        } catch (BusinessException e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent,
-                    "AI 任务拆解结果格式异常", elapsedSince(startTime));
-            log.warn("AI 任务拆解结果校验失败", e);
-            throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 任务拆解结果格式异常，请重试");
-        } catch (Exception e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent, "AI 任务拆解结果格式异常", elapsedSince(startTime));
-            log.warn("AI 任务拆解结果解析失败", e);
+        } catch (AiResponseProcessingException e) {
+            log.warn("AI 任务拆解结果处理失败: type={}", e.getFailureType(), e);
             throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 任务拆解结果格式异常，请重试");
         }
     }
@@ -327,46 +290,26 @@ public class AiServiceImpl implements AiService {
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
 
-        AiPromptTemplate promptTemplate = promptTemplateResolver
-                .resolve(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT);
-        String systemPrompt = promptTemplate.systemPrompt();
         String modelName = resolveModel(aiProperties.getPolishModel());
-        Long callLogId = createAiCallLogSafely(
-                currentUserId,
-                modelName,
-                promptTemplate,
-                buildAiCallRequestText(systemPrompt, userPrompt),
-                0
-        );
-
-        long startTime = System.currentTimeMillis();
-        String aiRawContent;
         try {
-            aiRawContent = invokeAiWithLog(callLogId, modelName, systemPrompt, userPrompt, startTime).content();
+            return aiInvocationPipeline.execute(new AiExecutionCommand(
+                    currentUserId, modelName, AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT,
+                    userPrompt, "AI 周总结润色结果格式异常"
+            ), aiRawContent -> {
+                String cleanedResult = sanitizeJsonObjectText(aiRawContent);
+                JSONObject resultObj = JSONUtil.parseObj(cleanedResult);
+                String review = resultObj.getStr("review");
+                if (StrUtil.isBlank(review)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "周总结润色结果缺少 review 字段，请重试");
+                }
+                return JSONUtil.createObj().set("review", review).toString();
+            }).data();
         } catch (AiInvocationException e) {
             log.warn("AI 周总结润色调用失败: type={}, model={}", e.getFailureType(), e.getModelName(), e);
             throw toBusinessException(e);
-        }
-
-        try {
-            String cleanedResult = sanitizeJsonObjectText(aiRawContent);
-            JSONObject resultObj = JSONUtil.parseObj(cleanedResult);
-            String review = resultObj.getStr("review");
-            if (StrUtil.isBlank(review)) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果缺少 review 字段，请重试");
-            }
-            // 只返回 review，确保前后端契约稳定且无多余字段。
-            String result = JSONUtil.createObj().set("review", review).toString();
-            markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
-            return result;
-        } catch (BusinessException e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent,
-                    "AI 周总结润色结果格式异常", elapsedSince(startTime));
-            log.warn("AI 周总结润色结果校验失败", e);
-            throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 周总结润色结果格式异常，请重试");
-        } catch (Exception e) {
-            markAiCallParseFailedSafely(callLogId, aiRawContent, "AI 周总结润色结果格式异常", elapsedSince(startTime));
-            log.warn("AI 周总结润色结果解析失败", e);
+        } catch (AiResponseProcessingException e) {
+            log.warn("AI 周总结润色结果处理失败: type={}", e.getFailureType(), e);
             throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 周总结润色结果格式异常，请重试");
         }
     }
@@ -629,27 +572,21 @@ public class AiServiceImpl implements AiService {
                 "AI 今日任务排序结果格式异常"
         );
 
-        try {
-            AiTodayOrderVO aiResult = aiInvocationPipeline.execute(
-                    command,
-                    rawContent -> parseAndValidateTodayOrderResult(rawContent, tasks, strategy, now)
-            ).data();
-            aiResult.setGeneratedAt(LocalDateTime.now(zoneId).toString());
-            aiResult.setFallbackUsed(false);
-            return aiResult;
-        } catch (AiInvocationException e) {
-            log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}, type={}, model={}",
-                    currentUserId, today, strategy, e.getFailureType(), e.getModelName(), e);
-            result.setFallbackUsed(true);
-            result.setItems(fallbackByRule(tasks, strategy, now));
-            return result;
-        } catch (AiResponseProcessingException e) {
-            log.warn("AI今日任务排序结果解析失败，回退规则排序: userId={}, today={}, strategy={}",
-                    currentUserId, today, strategy, e);
-            result.setFallbackUsed(true);
-            result.setItems(fallbackByRule(tasks, strategy, now));
-            return result;
-        }
+        AiExecutionResult<AiTodayOrderVO> execution = aiInvocationPipeline.execute(
+                command,
+                rawContent -> parseAndValidateTodayOrderResult(rawContent, tasks, strategy, now),
+                failure -> {
+                    log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}, type={}",
+                            currentUserId, today, strategy, failure.failureType(), failure.cause());
+                    result.setFallbackUsed(true);
+                    result.setItems(fallbackByRule(tasks, strategy, now));
+                    return result;
+                }
+        );
+        AiTodayOrderVO ordered = execution.data();
+        ordered.setGeneratedAt(LocalDateTime.now(zoneId).toString());
+        ordered.setFallbackUsed(execution.degraded());
+        return ordered;
     }
 
     @Override
@@ -692,20 +629,15 @@ public class AiServiceImpl implements AiService {
                 "AI 日报回顾改名结果格式异常"
         );
 
-        List<TitleRenameSuggestionItemVO> suggestions;
-        try {
-            suggestions = aiInvocationPipeline.execute(
-                    command,
-                    rawContent -> parseAndValidateRenameSuggestions(rawContent, pendingTasks, maxEdits)
-            ).data();
-        } catch (AiInvocationException e) {
-            log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}, type={}, model={}",
-                    currentUserId, reviewDate, e.getFailureType(), e.getModelName(), e);
-            suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
-        } catch (AiResponseProcessingException e) {
-            log.warn("AI 日报回顾改名结果解析失败，回退规则生成。userId={}, reviewDate={}", currentUserId, reviewDate, e);
-            suggestions = fallbackRenameSuggestions(pendingTasks, maxEdits);
-        }
+        List<TitleRenameSuggestionItemVO> suggestions = aiInvocationPipeline.execute(
+                command,
+                rawContent -> parseAndValidateRenameSuggestions(rawContent, pendingTasks, maxEdits),
+                failure -> {
+                    log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}, type={}",
+                            currentUserId, reviewDate, failure.failureType(), failure.cause());
+                    return fallbackRenameSuggestions(pendingTasks, maxEdits);
+                }
+        ).data();
 
         saveRenameLogs(currentUserId, reviewDate, operationId, suggestions);
         result.setItems(suggestions);
@@ -753,18 +685,19 @@ public class AiServiceImpl implements AiService {
         }
 
         LocalDate today = LocalDate.now();
-        List<ListTaskReplanItem> replanItems;
-        try {
-            String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-            AiPromptTemplate promptTemplate = promptTemplateResolver
-                    .resolve(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
-            String aiRawContent = aiModelClient.invoke(
-                    resolveModel(aiProperties.getBreakdownModel()), promptTemplate.systemPrompt(), userPrompt).content();
-            replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
-        } catch (Exception e) {
-            log.warn("AI 清单重排失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
-            replanItems = fallbackListReplanItems(pendingTasks);
-        }
+        String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
+        List<ListTaskReplanItem> replanItems = aiInvocationPipeline.execute(
+                new AiExecutionCommand(
+                        currentUserId, resolveModel(aiProperties.getBreakdownModel()),
+                        AiPromptCodeEnum.LIST_REPLAN_PREVIEW, userPrompt, "AI 清单重排结果格式异常"
+                ),
+                rawContent -> parseAndValidateListReplanItems(rawContent, pendingTasks, today),
+                failure -> {
+                    log.warn("AI 清单重排失败，回退为不变更策略。userId={}, listId={}, type={}",
+                            currentUserId, listId, failure.failureType(), failure.cause());
+                    return fallbackListReplanItems(pendingTasks);
+                }
+        ).data();
 
         int updatedCount = applyListReplanItems(replanItems, currentUserId);
         syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
@@ -811,36 +744,19 @@ public class AiServiceImpl implements AiService {
             replanItems = List.of();
         } else {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-            AiPromptTemplate promptTemplate = promptTemplateResolver
-                    .resolve(AiPromptCodeEnum.LIST_REPLAN_PREVIEW);
-            String systemPrompt = promptTemplate.systemPrompt();
             String modelName = resolveModel(aiProperties.getBreakdownModel());
-            Long callLogId = createAiCallLogSafely(
-                    currentUserId,
-                    modelName,
-                    promptTemplate,
-                    buildAiCallRequestText(systemPrompt, userPrompt),
-                    0
-            );
-
-            long startTime = System.currentTimeMillis();
-            try {
-                String aiRawContent = invokeAiWithLog(
-                        callLogId, modelName, systemPrompt, userPrompt, startTime).content();
-                try {
-                    replanItems = parseAndValidateListReplanItems(aiRawContent, pendingTasks, today);
-                    markAiCallSuccessSafely(callLogId, aiRawContent, elapsedSince(startTime));
-                } catch (Exception e) {
-                    markAiCallParseFailedSafely(callLogId, aiRawContent,
-                            "AI 清单重排结果格式异常", elapsedSince(startTime));
-                    log.warn("AI 清单重排预览结果解析失败，回退为不变更策略。userId={}, listId={}", currentUserId, listId, e);
-                    replanItems = fallbackListReplanItems(pendingTasks);
-                }
-            } catch (AiInvocationException e) {
-                log.warn("AI 清单重排预览失败，回退为不变更策略。userId={}, listId={}, type={}, model={}",
-                        currentUserId, listId, e.getFailureType(), e.getModelName(), e);
-                replanItems = fallbackListReplanItems(pendingTasks);
-            }
+            replanItems = aiInvocationPipeline.execute(
+                    new AiExecutionCommand(
+                            currentUserId, modelName, AiPromptCodeEnum.LIST_REPLAN_PREVIEW,
+                            userPrompt, "AI 清单重排结果格式异常"
+                    ),
+                    rawContent -> parseAndValidateListReplanItems(rawContent, pendingTasks, today),
+                    failure -> {
+                        log.warn("AI 清单重排预览失败，回退为不变更策略。userId={}, listId={}, type={}",
+                                currentUserId, listId, failure.failureType(), failure.cause());
+                        return fallbackListReplanItems(pendingTasks);
+                    }
+            ).data();
         }
 
         String operationId = generateListReplanOperationId();
@@ -2215,91 +2131,6 @@ public class AiServiceImpl implements AiService {
         return Integer.toHexString(Objects.hashCode(raw));
     }
 
-    /**
-     * 创建 AI 调用日志
-     *
-     * @param userId
-     * @param modelName
-     * @param promptTemplate
-     * @param requestText
-     * @param retryCount
-     * @return
-     */
-    private Long createAiCallLogSafely(Long userId,
-                                       String modelName,
-                                       AiPromptTemplate promptTemplate,
-                                       String requestText,
-                                       Integer retryCount) {
-        try {
-            return aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
-                    userId,
-                    promptTemplate.scene(),
-                    modelName,
-                    promptTemplate.code(),
-                    promptTemplate.templateId(),
-                    promptTemplate.version(),
-                    promptTemplate.source().getCode(),
-                    requestText,
-                    retryCount
-            ));
-        } catch (Exception e) {
-            log.warn("AI调用日志创建失败: scene={}, model={}", promptTemplate.scene(), modelName, e);
-            return null;
-        }
-    }
-
-    private AiInvocationResult invokeAiWithLog(Long logId,
-                                               String modelName,
-                                               String systemPrompt,
-                                               String userPrompt,
-                                               long startTime) {
-        try {
-            // 调用 AI 模型，并保存调用记录
-            AiInvocationResult result = aiModelClient.invoke(modelName, systemPrompt, userPrompt);
-            // 更新调用元数据
-            updateExecutionMetadataSafely(logId, result.actualModel(), result.retryCount());
-            return result;
-        } catch (AiInvocationException e) {
-            // 如果 AI 模型调用异常，则将其记录
-            markInvocationFailedSafely(logId, e, elapsedSince(startTime));
-            throw e;
-        } catch (Exception e) {
-            AiInvocationException wrapped = new AiInvocationException(
-                    AiFailureTypeEnum.INTERNAL_ERROR,
-                    modelName,
-                    0,
-                    "AI 服务暂时不可用，请稍后重试",
-                    "AI 调用发生未分类异常: model=" + modelName,
-                    e
-            );
-            markInvocationFailedSafely(logId, wrapped, elapsedSince(startTime));
-            throw wrapped;
-        }
-    }
-
-    private void updateExecutionMetadataSafely(Long logId, String actualModel, Integer retryCount) {
-        try {
-            aiCallLogService.updateExecutionMetadata(logId, actualModel, retryCount);
-        } catch (Exception e) {
-            log.warn("AI调用日志执行元数据更新失败: logId={}", logId, e);
-        }
-    }
-
-    private void markInvocationFailedSafely(Long logId,
-                                            AiInvocationException exception,
-                                            Long costTimeMs) {
-        updateExecutionMetadataSafely(logId, exception.getModelName(), exception.getRetryCount());
-        if (exception.getFailureType() == AiFailureTypeEnum.TIMEOUT) {
-            markAiCallTimeoutSafely(logId, exception.getSafeMessage(), costTimeMs);
-            return;
-        }
-        if (exception.getFailureType() == AiFailureTypeEnum.INVALID_RESPONSE) {
-            markAiCallParseFailedSafely(logId, null, exception.getSafeMessage(), costTimeMs);
-            return;
-        }
-        markAiCallFailedSafely(logId, exception.getSafeMessage(), costTimeMs);
-    }
-
     private BusinessException toBusinessException(AiInvocationException exception) {
         ErrorCode errorCode = switch (exception.getFailureType()) {
             case CONFIG_ERROR -> ErrorCode.AI_CONFIG_ERROR;
@@ -2308,49 +2139,6 @@ public class AiServiceImpl implements AiService {
             default -> ErrorCode.AI_SERVICE_UNAVAILABLE;
         };
         return new BusinessException(errorCode, exception.getSafeMessage());
-    }
-
-    private void markAiCallSuccessSafely(Long logId, String responseText, Long costTimeMs) {
-        try {
-            aiCallLogService.markSuccess(logId, responseText, costTimeMs);
-        } catch (Exception e) {
-            log.warn("AI调用日志更新成功状态失败: logId={}", logId, e);
-        }
-    }
-
-    private void markAiCallFailedSafely(Long logId, String errorMessage, Long costTimeMs) {
-        try {
-            aiCallLogService.markFailed(logId, errorMessage, costTimeMs);
-        } catch (Exception e) {
-            log.warn("AI调用日志更新失败状态失败: logId={}", logId, e);
-        }
-    }
-
-    private void markAiCallTimeoutSafely(Long logId, String errorMessage, Long costTimeMs) {
-        try {
-            aiCallLogService.markTimeout(logId, errorMessage, costTimeMs);
-        } catch (Exception e) {
-            log.warn("AI调用日志更新超时状态失败: logId={}", logId, e);
-        }
-    }
-
-    private void markAiCallParseFailedSafely(Long logId, String responseText, String errorMessage, Long costTimeMs) {
-        try {
-            aiCallLogService.markParseFailed(logId, responseText, errorMessage, costTimeMs);
-        } catch (Exception e) {
-            log.warn("AI调用日志更新解析失败状态失败: logId={}", logId, e);
-        }
-    }
-
-    private long elapsedSince(long startTime) {
-        return System.currentTimeMillis() - startTime;
-    }
-
-    private String buildAiCallRequestText(String systemPrompt, String userPrompt) {
-        return JSONUtil.createObj()
-                .set("systemPrompt", systemPrompt)
-                .set("userPrompt", userPrompt)
-                .toString();
     }
 
     private String safeTrim(String text) {
