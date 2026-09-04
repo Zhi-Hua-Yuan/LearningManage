@@ -72,8 +72,8 @@ class TaskMembershipTerminationConcurrencyMySqlTest {
     private ExecutorService executor;
 
     @BeforeEach
-    void databaseMustBeIsolatedV2() {
-        assertIsolatedV2Database();
+    void databaseMustBeIsolatedV3() {
+        assertIsolatedV3Database();
         UserHolder.remove();
         executor = Executors.newFixedThreadPool(4);
     }
@@ -373,11 +373,11 @@ class TaskMembershipTerminationConcurrencyMySqlTest {
                         + "WHERE p.id=47001 AND t.status=0 AND tm.is_delete=1", Integer.class));
     }
 
-    private void assertIsolatedV2Database() {
+    private void assertIsolatedV3Database() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*"));
-        assertEquals(2, jdbcTemplate.queryForObject(
+        assertEquals(3, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1",
                 Integer.class));
     }

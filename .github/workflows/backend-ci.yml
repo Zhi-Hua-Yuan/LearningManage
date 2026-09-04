@@ -24,7 +24,7 @@ env:
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
-  CI_EXPECTED_TEST_COUNT: '564'
+  CI_EXPECTED_TEST_COUNT: '576'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -85,6 +85,7 @@ jobs:
           find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
           bash scripts/ci/tests/static-guards-test.sh
           bash scripts/ci/verify-stage0-acceptance.sh
+          bash scripts/ci/verify-stage2-acceptance.sh
           bash scripts/ci/verify-published-migrations.sh
           git diff --check
 
@@ -265,6 +266,9 @@ jobs:
           bash scripts/ci/verify-v2-negative-preflight.sh
           bash scripts/ci/verify-existing-database.sh
           bash scripts/ci/verify-v2-recovery.sh
+          bash scripts/ci/verify-v3-negative-preflight.sh
+          bash scripts/ci/verify-v3-equivalent-duplicates.sh
+          bash scripts/ci/verify-v3-recovery.sh
 
   docker-gate:
     name: Docker runtime and migration gate
@@ -282,7 +286,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-ci-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18123/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '2'
+      CI_EXPECTED_HISTORY_TOTAL: '3'
       CI_EMPTY_DB_NAME: learning_manage_ci_empty
       CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
     steps:

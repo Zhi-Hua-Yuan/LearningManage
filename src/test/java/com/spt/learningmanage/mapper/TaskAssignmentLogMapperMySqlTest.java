@@ -41,7 +41,7 @@ class TaskAssignmentLogMapperMySqlTest {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void databaseMustBeAnIsolatedV2Database() {
+    void databaseMustBeAnIsolatedV3Database() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*"),
@@ -52,8 +52,8 @@ class TaskAssignmentLogMapperMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(2, currentVersion,
-                "assignment history Mapper tests require the V2 schema");
+        assertEquals(3, currentVersion,
+                "assignment history Mapper tests require the V3 schema");
     }
 
     @Test

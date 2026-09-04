@@ -41,8 +41,8 @@ class TaskAssignmentConcurrencyMySqlTest {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void setActorMustUseIsolatedV2Database() {
-        assertIsolatedV2Database();
+    void setActorMustUseIsolatedV3Database() {
+        assertIsolatedV3Database();
         UserHolder.remove();
     }
 
@@ -112,11 +112,11 @@ class TaskAssignmentConcurrencyMySqlTest {
         });
     }
 
-    private void assertIsolatedV2Database() {
+    private void assertIsolatedV3Database() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*"));
-        assertEquals(2, jdbcTemplate.queryForObject(
+        assertEquals(3, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success = 1",
                 Integer.class));
     }

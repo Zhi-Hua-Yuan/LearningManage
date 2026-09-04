@@ -24,3 +24,15 @@
 2. 阶段 2 结束前，`AiServiceImpl` 不得保留场景 Prompt 组装、直接 ModelClient 调用或场景 JSON 解析。
 3. 任何新增 AI 场景必须先登记，再实现；未登记的调用在架构门禁中失败。
 4. `aiModelClient.invoke(...)` 的允许调用者只限兼容适配器和 Pipeline 测试 Stub。
+
+## WP1 冻结的数据模型
+
+| 数据对象 | V3 能力 | WP1 状态 | 后续责任 |
+|---|---|---|---|
+| `ai_call_log` | requested/actual model、finish reason、供应商请求 ID、Usage、价格/成本、Trace、失败/回退/降级、脱敏/截断/哈希元数据 | Schema 已冻结；历史未知值保持 `null` 或 `LEGACY_UNKNOWN` | WP2 写入协议元数据，WP3/WP6 接入运行逻辑 |
+| `ai_draft` | `schema_version=1`、可空 `trace_id` | Schema 已冻结，存量安全回填 | WP5 实现 Handler、行锁/CAS 和重放语义 |
+| `ai_draft_confirm_log` | 可空 `trace_id`，唯一边界改为 `(user_id,draft_id)`，保留首次 `operation_id` | 数据库唯一底线已完成 | WP5 完整实现权限与幂等状态机 |
+| `ai_draft_confirm_log_archive` | 原确认日志完整快照、归档原因/时间/迁移版本，`source_log_id` 唯一 | 仅用于 V3 等价重复迁移审计 | 不进入运行时 Mapper、Controller 或公共 API |
+| `ai_replan_operation` | 可空 `trace_id` 与索引 | Schema 已冻结 | WP4/WP6 接入运行时 Trace |
+
+V3 合并后不可修改；WP2 及以后若需要新字段，必须使用新的前向迁移，不得改写 V3。

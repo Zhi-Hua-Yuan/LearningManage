@@ -64,7 +64,7 @@ class TeamMembershipTerminationConcurrencyMySqlTest {
     void setUp() {
         UserHolder.remove();
         executor = Executors.newFixedThreadPool(4);
-        assertIsolatedV2Database();
+        assertIsolatedV3Database();
     }
 
     @AfterEach
@@ -250,10 +250,10 @@ class TeamMembershipTerminationConcurrencyMySqlTest {
         }
     }
 
-    private void assertIsolatedV2Database() {
+    private void assertIsolatedV3Database() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertTrue(database != null && database.matches("(?i).*(?:_test|_ci_).*"));
-        assertEquals(2, jdbcTemplate.queryForObject(
+        assertEquals(3, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1",
                 Integer.class));
     }

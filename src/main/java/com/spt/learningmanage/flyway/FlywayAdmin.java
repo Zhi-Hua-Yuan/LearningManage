@@ -43,6 +43,10 @@ public final class FlywayAdmin {
                     .cleanDisabled(true)
                     .outOfOrder(false)
                     .baselineVersion(EXPECTED_BASELINE_VERSION);
+            String targetVersion = optionalTargetVersion(environment);
+            if (targetVersion != null) {
+                configuration.target(targetVersion);
+            }
             if ("validate".equals(action)
                     && "true".equalsIgnoreCase(environment.get("FLYWAY_ALLOW_PENDING_VALIDATE"))) {
                 configuration.ignoreMigrationPatterns("*:pending");
@@ -93,6 +97,17 @@ public final class FlywayAdmin {
         if (!EXPECTED_BASELINE_VERSION.equals(environment.get("FLYWAY_BASELINE_VERSION"))) {
             throw new IllegalStateException("baseline requires FLYWAY_BASELINE_VERSION=1");
         }
+    }
+
+    static String optionalTargetVersion(Map<String, String> environment) {
+        String value = environment.get("FLYWAY_TARGET_VERSION");
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        if (!value.matches("[1-9][0-9]*")) {
+            throw new IllegalArgumentException("FLYWAY_TARGET_VERSION must be a positive integer");
+        }
+        return value;
     }
 
     private static void baselineLegacySchema(Map<String, String> environment) throws Exception {

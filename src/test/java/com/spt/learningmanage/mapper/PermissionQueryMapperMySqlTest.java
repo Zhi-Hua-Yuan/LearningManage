@@ -48,7 +48,7 @@ class PermissionQueryMapperMySqlTest {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void databaseMustBeAnIsolatedV2Database() {
+    void databaseMustBeAnIsolatedV3Database() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*") ,
@@ -59,8 +59,8 @@ class PermissionQueryMapperMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(2, currentVersion,
-                "permission Mapper integration tests require the V2 schema");
+        assertEquals(3, currentVersion,
+                "permission Mapper integration tests require the V3 schema");
     }
 
     @Test

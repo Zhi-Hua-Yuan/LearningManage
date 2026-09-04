@@ -64,7 +64,7 @@ class PermissionServiceBatchMySqlTest {
     private PermissionQueryCountInterceptor queryCountInterceptor;
 
     @BeforeEach
-    void prepareIsolatedV2BatchFixture() {
+    void prepareIsolatedV3BatchFixture() {
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertTrue(database != null && database.matches("(?i).*(?:_test|_ci_).*"),
                 "batch permission tests must use an isolated test database");
@@ -73,7 +73,7 @@ class PermissionServiceBatchMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(2, currentVersion);
+        assertEquals(3, currentVersion);
 
         String insertSql = "INSERT INTO task "
                 + "(id, project_id, user_id, title, status, priority, is_delete, "
