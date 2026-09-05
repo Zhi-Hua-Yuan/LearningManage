@@ -17,13 +17,14 @@
 - 普通 CI 和跨仓候选继续使用确定性 Stub。
 - WP7 只验证协议兼容性，不把回答质量作为阶段 2 发布门槛。
 
-受保护 Environment 名称固定为 `stage2-real-provider`。其中 Secret 为 `ALIYUN_API_KEY`；Variables 为 `AI_REAL_PROVIDER_MODEL`、`AI_REAL_PROVIDER_BASE_URL`、`AI_PRICE_VERSION`、`AI_PRICE_CURRENCY`、`QWEN_PLUS_INPUT_PRICE` 和 `QWEN_PLUS_OUTPUT_PRICE`。模型和 URL 留空时分别使用 `qwen-plus` 与当前 DashScope OpenAI-compatible 地址，价格版本和两项单价必须显式配置。
+受保护 Environment 名称固定为 `stage2-real-provider`。其中 Secret 为 `ALIYUN_API_KEY`；Variables 为 `AI_REAL_PROVIDER_MODEL`、`AI_PRICE_VERSION`、`AI_PRICE_CURRENCY`、`QWEN_PLUS_INPUT_PRICE` 和 `QWEN_PLUS_OUTPUT_PRICE`。供应商 URL 在工作流中固定为 DashScope 华北 2 OpenAI-compatible HTTPS 地址，禁止通过 Environment 改写；模型固定验证 `qwen-plus`，价格版本和两项单价必须显式配置。
 
 ## 真实供应商验收
 
 - 连续三轮执行中文文本、强制 Tool Call、Tool Result 回传，共九个场景。
 - 每个场景必须返回非空请求 ID 和完整非负 Usage，且不得使用 fallback。
 - Tool Call 只能调用 `stage2_protocol_probe`，参数必须为 JSON Object。
+- Tool Call 是否存在以通过强类型校验的 `message.tool_calls` 为准。DashScope 实测在强制工具调用时可能返回 `finish_reason=stop`；适配层仅对同时存在合法 Tool Call 的 `stop` 兼容，不接受其他不一致值，证据保留供应商原始 finish reason。
 - 证据仅保存模型、Usage、成本、finish reason、延迟、SHA 和请求 ID 哈希。
 - API Key、Authorization、完整 Prompt、完整响应和原始请求 ID不得进入证据。
 

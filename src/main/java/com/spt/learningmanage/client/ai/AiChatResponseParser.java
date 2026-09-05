@@ -54,7 +54,8 @@ public class AiChatResponseParser {
             require(!toolCalls.isEmpty(), "finish_reason=tool_calls 但响应未包含 Tool Call");
         }
         if (!toolCalls.isEmpty() && finishReason != null) {
-            require("tool_calls".equals(finishReason), "finish_reason 与 Tool Calls 不一致");
+            require("tool_calls".equals(finishReason) || "stop".equals(finishReason),
+                    "finish_reason 与 Tool Calls 不一致");
         }
 
         AiUsage usage = parseUsage(root.get("usage"));
