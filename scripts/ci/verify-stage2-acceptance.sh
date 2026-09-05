@@ -9,11 +9,18 @@ ci_require_command jq
 
 contract="${STAGE2_ACCEPTANCE_CONTRACT:-${project_root}/docs/stage2/acceptance/stage2-acceptance-contract.json}"
 schema="${STAGE2_ACCEPTANCE_SCHEMA:-${project_root}/docs/stage2/acceptance/stage2-acceptance-contract.schema.json}"
-mode="${STAGE2_ACCEPTANCE_MODE:-frozen}"
+mode="${STAGE2_ACCEPTANCE_MODE:-}"
 schema_validator="${STAGE2_SCHEMA_VALIDATOR:-${project_root}/scripts/ci/validate-json-schema.py}"
 
 [[ -s "$contract" ]] || ci_fail "stage2_acceptance_contract_missing"
 [[ -s "$schema" ]] || ci_fail "stage2_acceptance_schema_missing"
+if [[ -z "$mode" ]]; then
+  case "$(jq -er '.status' "$contract")" in
+    FROZEN) mode=frozen ;;
+    PASS) mode=sealed ;;
+    *) ci_fail "stage2_acceptance_contract_status_invalid" ;;
+  esac
+fi
 [[ -s "$schema_validator" ]] || ci_fail "stage2_schema_validator_missing"
 
 python_bin="${PYTHON_BIN:-python3}"
