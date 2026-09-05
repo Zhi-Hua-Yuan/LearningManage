@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,6 +18,17 @@ test('all generated case IDs are globally unique and stable-looking', () => {
   assert.equal(ids.length, 210);
   assert.equal(new Set(ids).size, 210);
   assert.ok(ids.every((id) => /^(TB|WP|TO|DR|LR)-(DEV|REG|HOLD)-\d{3}$|^FI-\d{3}$/.test(id)));
+});
+
+test('every quality split exercises both task-breakdown prompt modes', () => {
+  for (const split of ['development', 'regression', 'holdout']) {
+    const cases = fs.readFileSync(path.join(root, 'datasets', `${split}.jsonl`), 'utf8')
+      .split(/\r?\n/).filter(Boolean).map(JSON.parse)
+      .filter((item) => item.scene === 'task-breakdown');
+    assert.ok(cases.some((item) => item.requestPayload.detailed === true), `${split} lacks detailed mode`);
+    assert.ok(cases.some((item) => item.requestPayload.detailed === false), `${split} lacks default mode`);
+    assert.ok(cases.every((item) => item.datasetVersion === '1.1.0' && item.labelVersion === 2));
+  }
 });
 
 test('provider requires one of the fixed synthetic actors', async () => {
@@ -44,6 +56,76 @@ test('real evaluation supplies required production runtime ports', () => {
   assert.match(workflow, /^\s*STAGE3_API_BASE_URL:\s*http:\/\/127\.0\.0\.1:18133\/api\s*$/m);
   assert.match(workflow, /^\s*REDIS_HOST:\s*127\.0\.0\.1\s*$/m);
   assert.match(workflow, /^\s*REDIS_PORT:\s*['"]?6379['"]?\s*$/m);
+  assert.match(workflow, /run_round development 1 false/);
+  assert.match(workflow, /real-results\/regression-\*-summary\.json real-results\/holdout-\*-summary\.json/);
+});
+
+test('candidate prompt manifest and SQL bind the exact database V2 content', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-prompts-'));
+  const promptManifestPath = path.join(root, 'prompt-manifest.json');
+  const originalManifest = fs.readFileSync(promptManifestPath);
+  try {
+    const sqlPath = path.join(temp, 'candidate.sql');
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'build-candidate-prompt-sql.mjs'), sqlPath], { cwd: root });
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'export-prompt-manifest.mjs')], { cwd: root });
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    const manifest = JSON.parse(fs.readFileSync(promptManifestPath, 'utf8'));
+    const config = JSON.parse(fs.readFileSync(path.join(root, 'prompts', 'candidate-prompts.json'), 'utf8'));
+    assert.equal((sql.match(/INSERT INTO prompt_template/g) || []).length, 3);
+    assert.match(sql, /^START TRANSACTION;/);
+    assert.match(sql, /COMMIT;\s*$/);
+    for (const candidate of config.prompts) {
+      const entry = manifest.prompts.find((prompt) => prompt.code === candidate.code);
+      const content = fs.readFileSync(path.join(root, 'prompts', candidate.file), 'utf8').trim();
+      const expectedHash = crypto.createHash('sha256').update(content).digest('hex').toUpperCase();
+      assert.equal(entry.version, 2);
+      assert.equal(entry.source, 'DATABASE');
+      assert.equal(entry.sha256, expectedHash);
+      assert.equal(entry.contentLength, [...content].length);
+    }
+    assert.equal(manifest.prompts.length, 6);
+  } finally {
+    fs.writeFileSync(promptManifestPath, originalManifest);
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('semantic grader retries transient provider failures without changing the model binding', async () => {
+  const providerPath = path.join(root, 'providers', 'dashscope-grader.js');
+  const originalFetch = global.fetch;
+  const previous = Object.fromEntries(['ALIYUN_API_KEY', 'STAGE3_GRADER_MODEL', 'STAGE3_SUT_MODEL',
+    'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
+    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS'].map((key) => [key, process.env[key]]));
+  let attempts = 0;
+  try {
+    Object.assign(process.env, {
+      ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
+      STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: '1', STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: '2',
+      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3'
+    });
+    global.fetch = async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError('synthetic fetch failure');
+      return {
+        ok: true, status: 200,
+        async json() {
+          return { id: 'synthetic-request', choices: [{ message: { content: '{"pass":true,"score":1,"reason":"ok"}' } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } };
+        }
+      };
+    };
+    delete require.cache[require.resolve(providerPath)];
+    const Provider = require(providerPath);
+    const result = await new Provider().callApi('synthetic rubric');
+    assert.equal(attempts, 2);
+    assert.equal(result.metadata.model, 'qwen-max');
+    assert.equal(result.tokenUsage.total, 15);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test('locked evaluation dependencies are cross-platform and use the restricted native install', () => {

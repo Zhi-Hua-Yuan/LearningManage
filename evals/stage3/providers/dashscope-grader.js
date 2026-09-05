@@ -1,5 +1,37 @@
 'use strict';
 
+const crypto = require('node:crypto');
+
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function requestWithRetry(url, options) {
+  const maxAttempts = Number(process.env.STAGE3_GRADER_MAX_ATTEMPTS || 3);
+  const timeoutMs = Number(process.env.STAGE3_GRADER_TIMEOUT_MS || 60000);
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 5) {
+    throw new Error('STAGE3_GRADER_MAX_ATTEMPTS must be 1-5');
+  }
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+    throw new Error('STAGE3_GRADER_TIMEOUT_MS must be 1000-120000');
+  }
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
+      if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) return response;
+      lastError = new Error(`Grader request failed with retryable HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts) throw error;
+    }
+    await sleep(250 * (2 ** (attempt - 1)));
+  }
+  throw lastError || new Error('Grader request failed');
+}
+
 module.exports = class DashscopeGraderProvider {
   id() {
     return `dashscope-grader:${process.env.STAGE3_GRADER_MODEL || 'qwen-max'}`;
@@ -12,7 +44,7 @@ module.exports = class DashscopeGraderProvider {
     const sutModel = process.env.STAGE3_SUT_MODEL || 'qwen-plus';
     if (model === sutModel) throw new Error('The grader model must differ from the system-under-test model');
     const baseUrl = (process.env.STAGE3_DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await requestWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model, temperature: 0, messages: [{ role: 'user', content: prompt }] })
@@ -38,7 +70,7 @@ module.exports = class DashscopeGraderProvider {
         total: body.usage.total_tokens
       } : undefined,
       cost: estimatedCost,
-      metadata: { model, priceVersion, providerRequestIdHash: body.id ? require('node:crypto').createHash('sha256').update(String(body.id)).digest('hex').toUpperCase() : null }
+      metadata: { model, priceVersion, providerRequestIdHash: body.id ? crypto.createHash('sha256').update(String(body.id)).digest('hex').toUpperCase() : null }
     };
   }
 };

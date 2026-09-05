@@ -21,7 +21,7 @@ for (const file of files) {
 }
 const manifest = {
   schemaVersion: 1,
-  datasetVersion: '1.0.0',
+  datasetVersion: '1.1.0',
   syntheticOrAnonymizedOnly: true,
   qualityCases: 170,
   failureInjectionCases: 40,

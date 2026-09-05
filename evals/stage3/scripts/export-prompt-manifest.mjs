@@ -62,7 +62,7 @@ function promptContent(invocation) {
   return literals.join('');
 }
 
-const prompts = Object.entries(promptCodes).map(([enumName, code]) => {
+const builtInPrompts = Object.entries(promptCodes).map(([enumName, code]) => {
   const content = promptContent(findInvocation(enumName));
   return {
     code,
@@ -72,6 +72,25 @@ const prompts = Object.entries(promptCodes).map(([enumName, code]) => {
     contentLength: [...content].length
   };
 });
+
+const candidateConfigPath = path.join(root, 'prompts', 'candidate-prompts.json');
+const candidateConfig = JSON.parse(fs.readFileSync(candidateConfigPath, 'utf8'));
+const candidatePrompts = new Map((candidateConfig.prompts || []).map((candidate) => {
+  const promptRoot = path.resolve(root, 'prompts');
+  const contentPath = path.resolve(promptRoot, candidate.file);
+  if (!contentPath.startsWith(`${promptRoot}${path.sep}`) || !fs.existsSync(contentPath)) {
+    throw new Error(`Candidate prompt file is missing: ${candidate.file}`);
+  }
+  const content = fs.readFileSync(contentPath, 'utf8').trim();
+  return [candidate.code, {
+    code: candidate.code,
+    version: candidate.version,
+    source: 'DATABASE',
+    sha256: crypto.createHash('sha256').update(content, 'utf8').digest('hex').toUpperCase(),
+    contentLength: [...content].length
+  }];
+}));
+const prompts = builtInPrompts.map((prompt) => candidatePrompts.get(prompt.code) || prompt);
 
 const manifest = {
   schemaVersion: 1,

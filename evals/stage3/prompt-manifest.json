@@ -5,17 +5,17 @@
   "prompts": [
     {
       "code": "task-breakdown.default",
-      "version": 1,
-      "source": "BUILTIN",
-      "sha256": "ECECE61581396BCC4D54E3E93E0CAB656FE64DDD5139E8E7E37BA1577089FA6D",
-      "contentLength": 384
+      "version": 2,
+      "source": "DATABASE",
+      "sha256": "A46C89CD182130E0538FFF3930FFC362B6CF337B323E583ED28065788BA4536B",
+      "contentLength": 485
     },
     {
       "code": "task-breakdown.detailed",
-      "version": 1,
-      "source": "BUILTIN",
-      "sha256": "F111BC2B4CF10A2D86B21A89D99BF1D852E0FB23F305CE172BCB9B7158A74D75",
-      "contentLength": 406
+      "version": 2,
+      "source": "DATABASE",
+      "sha256": "ABA41BBC9905C3F0C996BD34DC7C985C3CAEF1A977B847D41D5E72357F23EA64",
+      "contentLength": 544
     },
     {
       "code": "weekly-polish.default",
@@ -33,10 +33,10 @@
     },
     {
       "code": "daily-review-rename.default",
-      "version": 1,
-      "source": "BUILTIN",
-      "sha256": "4A2B71ACE29B4E0270C784D00372DEC2367B3E3701A4F81411A2810D7B656527",
-      "contentLength": 332
+      "version": 2,
+      "source": "DATABASE",
+      "sha256": "2379D8C2CD61994EEF823CA914E69ADF8B63ABB3549F0D8F6789946FB23CEB73",
+      "contentLength": 428
     },
     {
       "code": "list-replan.preview",

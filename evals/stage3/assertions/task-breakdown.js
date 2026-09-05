@@ -12,11 +12,15 @@ module.exports = function taskBreakdownAssertion(output, context) {
   }
   const names = new Set();
   const startDate = new Date(`${process.env.STAGE3_EVAL_TODAY || new Date().toISOString().slice(0, 10)}T00:00:00Z`);
-  const durationMatch = String(payload.duration || '').match(/(\d+)/);
-  const durationAmount = durationMatch ? Number(durationMatch[1]) : 1;
-  const durationDays = durationAmount * (String(payload.duration).includes('周') ? 7 : 30);
+  const durationMatch = String(payload.duration || '').match(/^(\d+)\s*(天|周|个月|月|年)$/);
+  if (!durationMatch) return { pass: false, score: 0, reason: 'Dataset duration is not supported' };
+  const durationAmount = Number(durationMatch[1]);
+  const durationUnit = durationMatch[2];
   const lastAllowedDate = new Date(startDate);
-  lastAllowedDate.setUTCDate(lastAllowedDate.getUTCDate() + durationDays + 1);
+  if (durationUnit === '天') lastAllowedDate.setUTCDate(lastAllowedDate.getUTCDate() + durationAmount);
+  else if (durationUnit === '周') lastAllowedDate.setUTCDate(lastAllowedDate.getUTCDate() + durationAmount * 7);
+  else if (durationUnit === '个月' || durationUnit === '月') lastAllowedDate.setUTCMonth(lastAllowedDate.getUTCMonth() + durationAmount);
+  else lastAllowedDate.setUTCFullYear(lastAllowedDate.getUTCFullYear() + durationAmount);
   for (const milestone of milestones) {
     if (!milestone || typeof milestone.name !== 'string' || !milestone.name.trim() || milestone.name.length > 100) {
       return { pass: false, score: 0, reason: 'Milestone name is blank or too long' };

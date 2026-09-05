@@ -10,6 +10,7 @@ import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
 import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.Milestone;
@@ -33,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.slf4j.MDC;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,12 +90,38 @@ class TaskBreakdownAiServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("准备阶段", result.get(0).getName());
         assertEquals(2, result.get(0).getTasks().get(0).getPriority());
-        assertEquals("2026-09-10", result.get(0).getTasks().get(0).getDueDate());
+        assertEquals(LocalDate.now().plusDays(5).toString(), result.get(0).getTasks().get(0).getDueDate());
+    }
+
+    @Test
+    void generateTaskBreakdownSuppliesAnExplicitPlanningWindow() {
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+
+        service.generateTaskBreakdown("通过考试", "", "8周", false);
+
+        ArgumentCaptor<AiChatCommand> captor = ArgumentCaptor.forClass(AiChatCommand.class);
+        verify(modelClient).chat(captor.capture());
+        String userPrompt = captor.getValue().messages().get(1).content();
+        LocalDate today = LocalDate.now();
+        assertTrue(userPrompt.contains("今天日期（含）：" + today));
+        assertTrue(userPrompt.contains("最晚截止日期（含）：" + today.plusWeeks(8)));
+        assertTrue(userPrompt.contains("绝不能晚于最晚截止日期"));
     }
 
     @Test
     void generateTaskBreakdownMapsBusinessValidationFailureToStableError() {
         when(modelClient.chat(any())).thenReturn(chatResult(validResponse(9)));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.generateTaskBreakdown("通过考试", "", "8周", false));
+
+        assertEquals(ErrorCode.AI_RESPONSE_INVALID, exception.getErrorCode());
+    }
+
+    @Test
+    void generateTaskBreakdownRejectsDueDateOutsidePlanningWindow() {
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)
+                .replace(LocalDate.now().plusDays(5).toString(), LocalDate.now().plusWeeks(8).plusDays(1).toString())));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.generateTaskBreakdown("通过考试", "", "8周", false));
@@ -169,10 +197,10 @@ class TaskBreakdownAiServiceImplTest {
                   "tasks": [{
                     "name": " 制定计划 ",
                     "priority": %d,
-                    "dueDate": "2026-09-10"
+                    "dueDate": "%s"
                   }]
                 }]
                 ```
-                """.formatted(priority);
+                """.formatted(priority, LocalDate.now().plusDays(5));
     }
 }

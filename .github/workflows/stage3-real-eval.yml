@@ -14,7 +14,7 @@ on:
       dataset_version:
         description: Expected dataset version
         required: true
-        default: '1.0.0'
+        default: '1.1.0'
         type: string
       baseline_summary_path:
         description: Optional repository-relative frozen Stage 3 candidate summary for regression comparison
@@ -52,6 +52,8 @@ env:
   STAGE3_DB_USERNAME: learning_manage_stage3_reader
   STAGE3_SUT_MODEL: qwen-plus
   STAGE3_GRADER_MODEL: qwen-max
+  STAGE3_GRADER_MAX_ATTEMPTS: '3'
+  STAGE3_GRADER_TIMEOUT_MS: '60000'
   STAGE3_ENABLE_MODEL_GRADING: 'true'
   STAGE3_REQUIRE_USAGE: 'true'
   STAGE3_REQUIRE_PROVIDER_REQUEST_ID: 'true'
@@ -61,7 +63,7 @@ jobs:
   real-eval:
     name: Protected qwen-plus regression and holdout
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     environment: stage3-real-ai
     services:
       mysql:
@@ -153,7 +155,7 @@ jobs:
             sleep 2
           done
           bash scripts/ci/seed-stage3-eval.sh
-      - name: Run three regression and holdout rounds
+      - name: Run development qualification plus three regression and holdout rounds
         working-directory: evals/stage3
         env:
           STAGE3_PROMPT_MANIFEST: prompt-manifest.json
@@ -162,30 +164,41 @@ jobs:
           npm run install:ci
           npm run validate
           mkdir -p real-results
+          run_round() {
+            local split="$1"
+            local round="$2"
+            local defer_semantic_gate="$3"
+            local gate_status=1
+            set +e
+            STAGE3_EVAL_SPLIT="$split" npm run eval:real
+            local eval_status=$?
+            STAGE3_EVAL_SPLIT="$split" STAGE3_ROUND_COUNT=1 npm run report
+            local report_status=$?
+            if [[ "$report_status" -eq 0 ]]; then
+              if [[ "$defer_semantic_gate" == true ]]; then
+                STAGE3_REQUIRE_USAGE=true STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate
+              else
+                STAGE3_REQUIRE_USAGE=true npm run gate
+              fi
+              gate_status=$?
+            fi
+            set -e
+            [[ -s output.json ]] && mv output.json "real-results/${split}-round-${round}-raw.json"
+            [[ -s summary.json ]] && mv summary.json "real-results/${split}-round-${round}-summary.json"
+            [[ -s report.md ]] && mv report.md "real-results/${split}-round-${round}-report.md"
+            if (( eval_status != 0 || report_status != 0 || gate_status != 0 )); then
+              printf 'stage3.round.failure=split:%s,round:%s,eval:%s,report:%s,gate:%s\n' \
+                "$split" "$round" "$eval_status" "$report_status" "$gate_status"
+              exit 1
+            fi
+          }
+          run_round development 1 false
           for split in regression holdout; do
             for round in 1 2 3; do
-              set +e
-              STAGE3_EVAL_SPLIT="$split" npm run eval:real
-              eval_status=$?
-              STAGE3_EVAL_SPLIT="$split" STAGE3_ROUND_COUNT=1 npm run report
-              report_status=$?
-              gate_status=1
-              if [[ "$report_status" -eq 0 ]]; then
-                STAGE3_REQUIRE_USAGE=true STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate
-                gate_status=$?
-              fi
-              set -e
-              [[ -s output.json ]] && mv output.json "real-results/${split}-round-${round}-raw.json"
-              [[ -s summary.json ]] && mv summary.json "real-results/${split}-round-${round}-summary.json"
-              [[ -s report.md ]] && mv report.md "real-results/${split}-round-${round}-report.md"
-              if (( eval_status != 0 || report_status != 0 || gate_status != 0 )); then
-                printf 'stage3.round.failure=split:%s,round:%s,eval:%s,report:%s,gate:%s\n' \
-                  "$split" "$round" "$eval_status" "$report_status" "$gate_status"
-                exit 1
-              fi
+              run_round "$split" "$round" true
             done
           done
-          node scripts/create-human-review-sample.mjs real-results/*-raw.json
+          node scripts/create-human-review-sample.mjs real-results/regression-*-raw.json real-results/holdout-*-raw.json
       - name: Aggregate six immutable rounds and enforce candidate thresholds
         working-directory: evals/stage3
         env:
@@ -199,7 +212,8 @@ jobs:
             export STAGE3_BASELINE_CANDIDATE_SUMMARY
             test -s "$STAGE3_BASELINE_CANDIDATE_SUMMARY"
           fi
-          npm run real:aggregate -- real-results/candidate-summary.json real-results/*-summary.json
+          npm run real:aggregate -- real-results/candidate-summary.json \
+            real-results/regression-*-summary.json real-results/holdout-*-summary.json
           jq -n --arg backendSha "$STAGE3_BACKEND_SHA" --arg frontendSha "${{ inputs.frontend_sha }}" \
             --arg datasetHash "$(jq -r .combinedSha256 dataset-manifest.json)" \
             --arg candidateSummarySha "$(cut -d' ' -f1 real-results/candidate-summary.json.sha256)" \
