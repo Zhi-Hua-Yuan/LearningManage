@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "candidateId": "stage2-rc3-20260905",
+  "status": "CANDIDATE_PASS",
+  "backend": {
+    "repository": "Zhi-Hua-Yuan/LearningManage",
+    "sha": "e92c1157c671570584ba505bda0186a421a23a8f",
+    "developShaAtStart": "e92c1157c671570584ba505bda0186a421a23a8f",
+    "developShaAtEnd": "e92c1157c671570584ba505bda0186a421a23a8f"
+  },
+  "frontend": {
+    "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "sha": "ff896ea7e297eb4865a3540552a9333641e278c5",
+    "developShaAtStart": "ff896ea7e297eb4865a3540552a9333641e278c5",
+    "developShaAtEnd": "ff896ea7e297eb4865a3540552a9333641e278c5"
+  },
+  "environment": {
+    "java": "17",
+    "node": "22.13.1",
+    "npm": "10.9.2",
+    "mysql": "8.0.41"
+  },
+  "flyway": {
+    "publishedManifestSha256": "2867FA990109B8F1C56A73FD0CF3D9FE702B7DE19F864954EE7230A05F4DEDE1",
+    "v1Sha256": "E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9",
+    "v2Sha256": "B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1",
+    "v3Sha256": "A626B41B40EFB8EDC2D72F57454A738B6196A11DEA9C6E14070F07E6CFAC4177",
+    "historyTotal": 3,
+    "emptyDatabase": "PASS",
+    "existingDatabase": "PASS",
+    "v4Present": false
+  },
+  "apiContract": {
+    "legacyOperationCount": 37,
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "comparisonSha256": "349600864D80238598D87C235AD72C5EC270E0757AA238003B0CB8E2A4FD2809"
+  },
+  "regression": {
+    "backendTests": 710,
+    "frontendTests": 484,
+    "aiBreakdownFlow": "PASS",
+    "dockerRuntime": "PASS",
+    "status": "PASS"
+  },
+  "realProvider": {
+    "status": "BOUND",
+    "model": "qwen-plus",
+    "validatedBackendSha": "665678e5181835e0076a5517f7dc0940407fb75d",
+    "workflowRunId": "33949480189",
+    "rounds": 3,
+    "scenarios": 9,
+    "inputTokens": 999,
+    "outputTokens": 84,
+    "totalTokens": 1083,
+    "estimatedCost": "0.00096720",
+    "currency": "CNY",
+    "reportSha256": "7FF49299D38D7E505E3F8615972CD0D544E60BF902D3C72EB24D089AEBEDF605"
+  },
+  "stage2Acceptance": {
+    "contractSha256": "C03674FCF201A9DC3F49137E6E0E027A7078758563CA21C2ABEA9AD20D54806B",
+    "schemaSha256": "0B32F6A9DBFCB43EB26C8C3DBD3AA92954C1DA6E7983ABFF653E6C11553E4CBB",
+    "riskRegisterSha256": "DCB5D3004DCB6282669A18EDD1C791987D6CA3A482E19127746529C8DFE3FD75",
+    "sourceEvidenceIndexSha256": "EA67E32D7ACE5F01CB36DFA19ABE2047A1ED687747FC6D8E49FE7E3F1D6B156A",
+    "gatesPassed": [
+      "S2-A-001",
+      "S2-A-002",
+      "S2-A-003",
+      "S2-A-004",
+      "S2-A-005",
+      "S2-A-006",
+      "S2-A-007",
+      "S2-A-008",
+      "S2-A-009",
+      "S2-A-010",
+      "S2-A-011"
+    ]
+  },
+  "riskClosure": {
+    "s2R008": "ELIGIBLE",
+    "openBlockingRiskCount": 1
+  },
+  "artifacts": {
+    "backendJarSha256": "4BA3AEF4E48702153E2A18C8B6AB8547C73248D0837B78E4359A9D75F95F0757",
+    "frontendDistManifestSha256": "4D4D1726A78CAD51EFCD067C99754A036B2994AA640F85E40EF2DC37E557C357",
+    "files": [
+      "stage2-source-evidence-index.json",
+      "api-compatibility-report.json",
+      "frontend-api-contract.json",
+      "runtime-openapi.json",
+      "real-provider-evidence-binding.json"
+    ]
+  },
+  "workflow": {
+    "runId": "33950053176",
+    "runAttempt": "1",
+    "workflowSha": "e92c1157c671570584ba505bda0186a421a23a8f",
+    "triggeredBy": "Zhi-Hua-Yuan",
+    "executedAt": "2026-09-05T06:41:35Z"
+  }
+}

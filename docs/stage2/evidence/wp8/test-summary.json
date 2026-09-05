@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "status": "PASS",
+  "backend": {
+    "tests": 710,
+    "failures": 0,
+    "errors": 0
+  },
+  "frontend": {
+    "tests": 484,
+    "failures": 0,
+    "errors": 0
+  },
+  "docker": {
+    "status": "PASS",
+    "projects": 1,
+    "milestones": 2,
+    "tasks": 4,
+    "idempotentReplay": "PASS"
+  }
+}

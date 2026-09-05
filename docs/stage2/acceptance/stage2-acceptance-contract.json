@@ -2,8 +2,8 @@
   "$schema": "./stage2-acceptance-contract.schema.json",
   "schemaVersion": 1,
   "stage": "stage2",
-  "status": "FROZEN",
-  "generatedAt": "2026-09-05T03:52:37Z",
+  "status": "PASS",
+  "generatedAt": "2026-09-05T06:41:42Z",
   "baseline": {
     "stage1Tag": "stage1-v1.0.0",
     "backendSha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
@@ -26,7 +26,7 @@
     {"id":"S2-A-009","domain":"draft","status":"PASS","criteria":"草稿 Schema、确认状态机、行锁/CAS 和草稿级唯一约束通过并发测试","targetWp":"WP5","evidence":["docs/stage2/requirements/wp5-draft-lifecycle-requirements.md","docs/stage2/architecture/ADR-006-draft-lifecycle-write-safety.md","docs/stage2/api/wp5-draft-lifecycle-contract.md","docs/stage2/acceptance/wp5-draft-lifecycle-acceptance-2026-09-04.md","docs/stage2/evidence/wp5/local-verification.json","docs/stage2/evidence/wp5/candidate-release-gate-2026-09-04.json","docs/stage2/release/wp5-release-record-2026-09-04.md"]},
     {"id":"S2-A-010","domain":"security","status":"PASS","criteria":"日志脱敏、截断、正文哈希、Trace、Token 和成本记录通过安全测试","targetWp":"WP6","evidence":["docs/stage2/acceptance/wp6-ai-governance-acceptance-2026-09-05.md","docs/stage2/evidence/wp6/security-scan-report.md","docs/stage2/evidence/wp6/local-verification.json","docs/stage2/release/wp6-release-record-2026-09-05.md"]},
     {"id":"S2-A-011","domain":"resilience","status":"PASS","criteria":"Chat 超时、调用次数上限、Bulkhead、Circuit Breaker 和模型回退通过故障注入","targetWp":"WP6","evidence":["docs/stage2/evidence/wp6/fault-injection-report.md","docs/stage2/evidence/wp6/local-verification.json","docs/stage2/release/wp6-release-record-2026-09-05.md"]},
-    {"id":"S2-A-012","domain":"compatibility","status":"PENDING","criteria":"前端 44 个 operation 全匹配，legacy 37 个 operation 保留，阶段 2 全量门禁通过","targetWp":"WP8","evidence":["runtime OpenAPI report","cross-repository candidate manifest","stage2 release evidence"]}
+    {"id":"S2-A-012","domain":"compatibility","status":"PASS","criteria":"前端 44 个 operation 全匹配，legacy 37 个 operation 保留，阶段 2 最终跨仓候选的 11 个门禁全部通过","targetWp":"WP8","evidence":["docs/stage2/evidence/wp8/runtime-openapi.json","docs/stage2/evidence/wp8/api-compatibility-report.json","docs/stage2/evidence/wp8/frontend-api-contract.json","docs/stage2/evidence/wp8/stage2-release-candidate-manifest.json","docs/stage2/evidence/wp8/final-acceptance.json"]}
   ],
   "risks": [
     {"id":"S2-R-001","status":"CLOSED","title":"阶段 2 分支已完成 develop 对齐和阶段 1 候选祖先校验","owner":"release owner","targetWp":"WP1"},
@@ -36,9 +36,9 @@
     {"id":"S2-R-005","status":"CLOSED","title":"AI 日志敏感正文泄漏","owner":"security owner","targetWp":"WP6"},
     {"id":"S2-R-006","status":"CLOSED","title":"模型回退造成额外成本","owner":"AI platform owner","targetWp":"WP6"},
     {"id":"S2-R-007","status":"CLOSED","title":"外部模型故障影响业务线程","owner":"platform owner","targetWp":"WP6"},
-    {"id":"S2-R-008","status":"OPEN","title":"WP4 候选 Docker/API 已通过，仍待 WP8 跨仓最终兼容验收","owner":"backend/frontend owner","targetWp":"WP8"},
+    {"id":"S2-R-008","status":"CLOSED","title":"WP8 最终跨仓候选已通过 API、Flyway、Docker 和阶段 2 兼容验收","owner":"backend/frontend owner","targetWp":"WP8"},
     {"id":"S2-R-009","status":"CLOSED","title":"运维日志查询形成内容权限旁路","owner":"security owner","targetWp":"WP8"}
   ],
-  "summary": {"pass": 11, "pending": 1, "fail": 0, "openRisk": 1},
+  "summary": {"pass": 12, "pending": 0, "fail": 0, "openRisk": 0},
   "policy": {"publishedMigrationHead": "3", "v1Modified": false, "v2Modified": false, "v3Modified": false, "ragOrAgentImplemented": false, "requiredFailureCount": 0}
 }

@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0～WP7 PASS · STAGE FROZEN`
+状态：`WP0～WP8 PASS · STAGE SEALED`
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -64,6 +64,6 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP7 已正式通过，S2-A-005～S2-A-011 为 `PASS`。WP7 已完成真实 `qwen-plus` 三轮协议验证、前端 TraceId/错误语义/纯文本渲染和跨仓 Release Gate，`S2-R-003` 已关闭。阶段总状态继续保持 `FROZEN`；只有 WP8 最终兼容验收完成后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP8 已完成候选验收，12 项 S2-A 门禁均为 `PASS`，开放风险为 0。WP8 候选 run `33950053176` 已通过精确前后端 SHA 冻结、API 兼容、Flyway、Docker AI Stub 闭环、产物扫描和真实 `qwen-plus` 证据绑定；最终 Seal 通过后发布 `stage2-v1.0.0`。
 
 WP8 使用 `.github/workflows/stage2-release-gate.yml` 冻结精确前后端 SHA。工作流同时支持候选阶段的 `FROZEN` 合同和证据封存后的 `PASS` 合同；发布 Tag 只能来自 sealed 模式全量门禁通过的提交。

@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "root": "docs/stage2",
+  "excludes": [
+    "docs/stage2/evidence/wp8"
+  ],
+  "files": [
+    {
+      "path": "docs/stage2/README.md",
+      "size": 4481,
+      "sha256": "D24FA35E90A3CE5950CAD79C46373C84332578BD4D047397036C27C6D2B458DD"
+    },
+    {
+      "path": "docs/stage2/acceptance/stage2-acceptance-contract.json",
+      "size": 6858,
+      "sha256": "C03674FCF201A9DC3F49137E6E0E027A7078758563CA21C2ABEA9AD20D54806B"
+    },
+    {
+      "path": "docs/stage2/acceptance/stage2-acceptance-contract.schema.json",
+      "size": 3617,
+      "sha256": "0B32F6A9DBFCB43EB26C8C3DBD3AA92954C1DA6E7983ABFF653E6C11553E4CBB"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp0-baseline-acceptance-2026-09-04.md",
+      "size": 2364,
+      "sha256": "587D1F179A73D6AA4192D60C3BC1DA07493982B0DAF5D58AC3215D41C290DE1C"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp1-v3-database-acceptance-2026-09-04.md",
+      "size": 3453,
+      "sha256": "73F82A31936A7150BF48BF39976FC9BD1FFE56E30F08CA73C148F9E971AFD43C"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp2-model-protocol-acceptance-2026-09-04.md",
+      "size": 2882,
+      "sha256": "F766D37C505EBF3158114FD21B511DBE3505B1D24AC3F147468B6028A55B43C0"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp3-invocation-pipeline-acceptance-2026-09-04.md",
+      "size": 2432,
+      "sha256": "E7DA50E3695CC106BC0DDEDC5AFF5C501F0286A73E211E0897AECFA560665DCE"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp4-scene-service-acceptance-2026-09-04.md",
+      "size": 2207,
+      "sha256": "7674994A4EBC0ECF98C470454FEC1359F0F0955085727716335995932E17E80D"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp5-draft-lifecycle-acceptance-2026-09-04.md",
+      "size": 3100,
+      "sha256": "35E0002E998CE2D4915D9579FA563D681F240A6E63E3F282E912EE83CFE57E84"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp6-ai-governance-acceptance-2026-09-05.md",
+      "size": 1767,
+      "sha256": "542FA4673F67D4F56011D853ACB14FBB43348C33254B0E2824C2434D02ABFF69"
+    },
+    {
+      "path": "docs/stage2/acceptance/wp7-real-provider-frontend-safety-acceptance-2026-09-05.md",
+      "size": 2595,
+      "sha256": "A7237E62ABA0F02A86D69B40047A53D14B9B9F0C6441BD1C10675963905C9518"
+    },
+    {
+      "path": "docs/stage2/ai-invocation-inventory.md",
+      "size": 5784,
+      "sha256": "89D4B6A0DB49BA96E198789DB1E53F07C14FBD1AB20C91243A9773672DD4266B"
+    },
+    {
+      "path": "docs/stage2/api/ai-invocation-contract.md",
+      "size": 2303,
+      "sha256": "A4D6D9DF63F7D745E00B88F2204C477AA084EA87465476DE94DA94C3A20624BE"
+    },
+    {
+      "path": "docs/stage2/api/wp2-model-protocol.md",
+      "size": 3298,
+      "sha256": "8B15A083B7996DC5D98EB27F33A7483FE66E86A085CBB83DF97758D09F9FB4BB"
+    },
+    {
+      "path": "docs/stage2/api/wp3-pipeline-contract.md",
+      "size": 1564,
+      "sha256": "7A20C0248852D47833C84A53034D0FF0A558D0CB47D7CF6D3758E3D1E2334690"
+    },
+    {
+      "path": "docs/stage2/api/wp4-scene-service-contract.md",
+      "size": 2727,
+      "sha256": "B29AC2850B3943222E060EC9A40931F3A80DE4B3DCAEEEBFBCEED930316ECA7F"
+    },
+    {
+      "path": "docs/stage2/api/wp5-draft-lifecycle-contract.md",
+      "size": 1903,
+      "sha256": "C58DC5DFCA2314C453916FC50ED3606D35D01448156197497FEA4B341F38CD0F"
+    },
+    {
+      "path": "docs/stage2/api/wp6-ai-governance-contract.md",
+      "size": 2374,
+      "sha256": "955C703FE3B12B04875146A98E32701314CC46F9431B3055A2CB22431F24EDD3"
+    },
+    {
+      "path": "docs/stage2/api/wp7-frontend-error-and-rendering-contract.md",
+      "size": 1233,
+      "sha256": "BBE384A45A9A639962A145D3470ECAEF8CFC6461D2E282BDF1F51AD0987F2E62"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-001-invocation-pipeline-and-model-protocol.md",
+      "size": 1962,
+      "sha256": "31794C0D9B2D9653CC9681280281648297F4B2C4E4FEDB2C090328F811C5627E"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-002-draft-confirmation-idempotency.md",
+      "size": 1511,
+      "sha256": "3E6F64110E5C37DDB81FAE19475B69349F4ED204BED4487525F34C6C86C955CF"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-003-logging-cost-and-resilience.md",
+      "size": 1506,
+      "sha256": "C8921B277475E3A7A7C15CB47843CAF2456B528415F47F4D9CF6F4861DB772A9"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-004-pipeline-failure-and-degradation.md",
+      "size": 3262,
+      "sha256": "A9542677AEE7ED887776DD0F8428F39CE9CED5051682DB2E687E469D8BF86F90"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-005-ai-scene-service-decomposition.md",
+      "size": 3043,
+      "sha256": "F3DFFCEABBFF520DD8B83B2F33B84E3AE00F597ADFB310663714329E0722D7A3"
+    },
+    {
+      "path": "docs/stage2/architecture/ADR-006-draft-lifecycle-write-safety.md",
+      "size": 2340,
+      "sha256": "191FBA64116EFF477F2F01C7E00543D1FC3E9FB310283F15341E72489E23F0CB"
+    },
+    {
+      "path": "docs/stage2/baseline/2026-09-04.md",
+      "size": 3331,
+      "sha256": "AECCA8906362583CD7A39B31735A4F9CC3879DE4956CA004A9C77EF5019506E8"
+    },
+    {
+      "path": "docs/stage2/database/wp1-v3-preflight-and-migration.md",
+      "size": 4137,
+      "sha256": "33C5BA6F5BF6CAF2E4D5D157A2ADB716DEC494F9DD6EFC1F96F0D0D7BCF3A754"
+    },
+    {
+      "path": "docs/stage2/evidence/wp1/local-verification.json",
+      "size": 2368,
+      "sha256": "E851958BE7BC756348C1B5A45ECDBEFC8408E5F9E6448EB963A41EAEE19578B8"
+    },
+    {
+      "path": "docs/stage2/evidence/wp1/schema-diff-summary.md",
+      "size": 1422,
+      "sha256": "3ACC11487FC4F579772C165AE592E11639E06C087638CE5CF96B418DE05ED231"
+    },
+    {
+      "path": "docs/stage2/evidence/wp2/local-verification.json",
+      "size": 1893,
+      "sha256": "80F133C4A060125948F42F303D9E34FC47C9373C9B141586C16DF9DD242DF15A"
+    },
+    {
+      "path": "docs/stage2/evidence/wp3/local-verification.json",
+      "size": 2814,
+      "sha256": "5E2E5D1AEED5645BB790765DB9BABC66565F6DDBD300292BC85C84375EBFAF2D"
+    },
+    {
+      "path": "docs/stage2/evidence/wp4/candidate-release-gate-2026-09-04.json",
+      "size": 2101,
+      "sha256": "04E307D705106AE08CA9D78F55B8194D93A85180827B5A10A9541A0532325851"
+    },
+    {
+      "path": "docs/stage2/evidence/wp4/local-verification.json",
+      "size": 2757,
+      "sha256": "15704353F105C6E196B9422B17676D8EBCE868D645A8BDC401D2496B33B755F7"
+    },
+    {
+      "path": "docs/stage2/evidence/wp5/candidate-release-gate-2026-09-04.json",
+      "size": 2536,
+      "sha256": "C00948BB3FED42E9610AC7874A0A9A9B04F656D75795CDC25912D0A353C3721B"
+    },
+    {
+      "path": "docs/stage2/evidence/wp5/local-verification.json",
+      "size": 2446,
+      "sha256": "9F5F03C8ABFE6F005040F61D9E6F2AFEA77063B6F327D4D021581F6A2DBCE091"
+    },
+    {
+      "path": "docs/stage2/evidence/wp6/fault-injection-report.md",
+      "size": 1366,
+      "sha256": "60F9475B9984A3EBAAA9CE586268C1D3CA619639F45C2DF62B100CCB58BFB55F"
+    },
+    {
+      "path": "docs/stage2/evidence/wp6/local-verification.json",
+      "size": 1757,
+      "sha256": "BCEDEC091F286E3AC8DA55A4C91B89F0C60EC69DEBEF3F539D6AAC9AD4F1BF40"
+    },
+    {
+      "path": "docs/stage2/evidence/wp6/security-scan-report.md",
+      "size": 1365,
+      "sha256": "73E024BD47DE62BA46A63A612BFC47A4156290FD609AC9B0F045D61FD72D646E"
+    },
+    {
+      "path": "docs/stage2/evidence/wp7/candidate-release-gate-2026-09-05.json",
+      "size": 2440,
+      "sha256": "0F57139BC0C3F29A36FEA3137F5CBFCB6B60A52E399215EF72992B7D8C211AE0"
+    },
+    {
+      "path": "docs/stage2/evidence/wp7/local-verification.json",
+      "size": 2080,
+      "sha256": "EA7F170F6A1C5BCFA6434B2A37694FC0134935556D33BA702CEB23C5B6140E1B"
+    },
+    {
+      "path": "docs/stage2/evidence/wp7/real-provider-validation.json",
+      "size": 3940,
+      "sha256": "7288F2C5B81BE2133763A22263EEC66512D6B82A3F901EBD8E1E6F4D4FE5E528"
+    },
+    {
+      "path": "docs/stage2/evidence/wp7/real-provider-validation.json.sha256",
+      "size": 96,
+      "sha256": "0F99BB4F1850F2FAD492364A3F2A509378219CBFA3C6F34061BA885A172150AB"
+    },
+    {
+      "path": "docs/stage2/release/stage2-release-candidate-manifest.schema.json",
+      "size": 4953,
+      "sha256": "986ECE248769C5BE65B7F10F652280CA5C5DD268DD908102CA3522348CBEBA9B"
+    },
+    {
+      "path": "docs/stage2/release/wp3-release-record-2026-09-04.md",
+      "size": 1012,
+      "sha256": "E74E7EFC3ACD700A79C2E292C1E6549DAC312BEDCD6536D70342A5EE409FA430"
+    },
+    {
+      "path": "docs/stage2/release/wp5-release-record-2026-09-04.md",
+      "size": 1717,
+      "sha256": "C085644AE7EA882F78FDF0042361E0BF30A0CA9E92838C4D0C6399F2406ED7EE"
+    },
+    {
+      "path": "docs/stage2/release/wp6-release-record-2026-09-05.md",
+      "size": 2198,
+      "sha256": "3BD115078ED64F2453D5FC58623B713403CA7F711CA2F49FB8A5F4F47455B67A"
+    },
+    {
+      "path": "docs/stage2/release/wp7-release-record-2026-09-05.md",
+      "size": 2570,
+      "sha256": "B4A18DBDB4CE57A4F02394231909C8314E5007AA6E6A30EB2CEA8C277D0617F6"
+    },
+    {
+      "path": "docs/stage2/release/wp8-execution-plan.md",
+      "size": 1361,
+      "sha256": "18E9143F5D7583135756E852C4793B7944B874DFA31F1DA52ED604A947BB134A"
+    },
+    {
+      "path": "docs/stage2/requirements/stage2-requirements-contract.md",
+      "size": 4103,
+      "sha256": "1A8BCE64466A7941CB176177456FF4F1C04BD64F6137B93BAD954F313984E6F7"
+    },
+    {
+      "path": "docs/stage2/requirements/wp5-draft-lifecycle-requirements.md",
+      "size": 2192,
+      "sha256": "67B79F9B4CF90C916525BE210B62318F129674E6E283CC504BE161142066D91A"
+    },
+    {
+      "path": "docs/stage2/requirements/wp6-ai-governance-requirements.md",
+      "size": 1893,
+      "sha256": "E1509E66688A0FC11C77CBD52EBB03A6ED7BA45146C52EE725B15771332E4005"
+    },
+    {
+      "path": "docs/stage2/requirements/wp7-real-provider-frontend-safety-requirements.md",
+      "size": 2807,
+      "sha256": "0B7CBBEC77DA8D5FD75D27489F1D2AC68B316B52AB7BE676155F88971D0146F8"
+    },
+    {
+      "path": "docs/stage2/risk/stage2-risk-register.md",
+      "size": 3161,
+      "sha256": "DCB5D3004DCB6282669A18EDD1C791987D6CA3A482E19127746529C8DFE3FD75"
+    }
+  ]
+}
