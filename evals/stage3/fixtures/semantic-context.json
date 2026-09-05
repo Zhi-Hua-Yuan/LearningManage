@@ -1,0 +1,35 @@
+{
+  "personal-standard": {
+    "asOfDate": "2026-09-05",
+    "project": {
+      "projectId": 920001,
+      "name": "Stage3 个人清单",
+      "goal": "验证个人场景",
+      "scope": "PRIVATE"
+    },
+    "tasks": [
+      {"taskId": 930001, "title": "实现鉴权接口", "description": "完成权限验证", "status": "PENDING", "priority": 3, "dueDate": "2026-09-05"},
+      {"taskId": 930002, "title": "补充自动化测试", "description": "覆盖异常分支", "status": "PENDING", "priority": 2, "dueDate": "2026-09-05"},
+      {"taskId": 930003, "title": "整理接口文档", "description": "更新示例", "status": "PENDING", "priority": 1, "dueDate": "2026-09-05"},
+      {"taskId": 930004, "title": "准备演示数据", "description": "匿名化数据", "status": "PENDING", "priority": 2, "dueDate": "2026-09-05"},
+      {"taskId": 930005, "title": "完成需求分析", "description": "已完成事实", "status": "COMPLETED", "priority": 2, "dueDate": "2026-09-04", "completedAt": "2026-09-04T18:00:00+08:00"},
+      {"taskId": 930006, "title": "完成数据库设计", "description": "已完成事实", "status": "COMPLETED", "priority": 3, "dueDate": "2026-09-05", "completedAt": "2026-09-05T17:00:00+08:00"}
+    ]
+  },
+  "team-standard": {
+    "asOfDate": "2026-09-05",
+    "project": {
+      "projectId": 920002,
+      "name": "Stage3 团队清单",
+      "goal": "验证团队场景",
+      "scope": "TEAM"
+    },
+    "tasks": [
+      {"taskId": 930101, "title": "团队接口联调", "description": "团队任务", "status": "PENDING", "priority": 3, "dueDate": "2026-09-05"},
+      {"taskId": 930102, "title": "团队测试验收", "description": "团队任务", "status": "PENDING", "priority": 2, "dueDate": "2026-09-05"},
+      {"taskId": 930103, "title": "团队风险复盘", "description": "团队任务", "status": "PENDING", "priority": 1, "dueDate": "2026-09-05"},
+      {"taskId": 930104, "title": "团队发布准备", "description": "团队任务", "status": "PENDING", "priority": 2, "dueDate": "2026-09-05"},
+      {"taskId": 930105, "title": "团队需求确认", "description": "已完成团队任务", "status": "COMPLETED", "priority": 2, "dueDate": "2026-09-04", "completedAt": "2026-09-04T18:00:00+08:00"}
+    ]
+  }
+}

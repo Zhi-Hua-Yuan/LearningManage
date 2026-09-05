@@ -9,36 +9,187 @@ headers, request bodies, prompts, or model responses.
 import json
 import logging
 import os
+import re
 import time
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 HOST = os.environ.get("AI_STUB_HOST", "0.0.0.0")
 PORT = int(os.environ.get("AI_STUB_PORT", "8080"))
-RESPONSE_CONTENT = json.dumps(
-    [
-        {
-            "name": "阶段一：基础准备",
-            "tasks": [
-                {"name": "完成目标拆解", "priority": 2, "dueDate": "2099-01-15"},
-                {"name": "建立执行清单", "priority": 1, "dueDate": "2099-01-31"},
+USAGE = {"prompt_tokens": 120, "completion_tokens": 80, "total_tokens": 200}
+
+
+def compact_json(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def message_text(messages):
+    return "\n".join(
+        str(message.get("content") or "")
+        for message in messages
+        if isinstance(message, dict)
+    )
+
+
+def stage3_fault(text):
+    match = re.search(r"\[\[STAGE3_STUB:([a-z0-9-]+)\]\]", text)
+    return match.group(1) if match else None
+
+
+def stage3_scene(text):
+    if "任务智能重排助手" in text:
+        return "list-replan"
+    if "任务命名优化助手" in text:
+        return "daily-rename"
+    if "任务调度助手" in text:
+        return "today-order"
+    if "周复盘总结" in text:
+        return "weekly-polish"
+    return "task-breakdown"
+
+
+def task_ids(text, pending_only=False):
+    source = text
+    if pending_only and "未完成任务(JSON):" in source:
+        source = source.rsplit("未完成任务(JSON):", 1)[1]
+    elif "任务列表(JSON)：" in source:
+        source = source.rsplit("任务列表(JSON)：", 1)[1]
+    elif "任务列表(JSON):" in source:
+        source = source.rsplit("任务列表(JSON):", 1)[1]
+    ids = []
+    for value in re.findall(r'"taskId"\s*:\s*(\d+)', source):
+        parsed = int(value)
+        if parsed not in ids:
+            ids.append(parsed)
+    return ids
+
+
+def breakdown_content(text, detailed=False):
+    milestone_count = 3 if detailed else 2
+    task_count = 4 if detailed else 2
+    today_match = re.search(r"今天日期：(\d{4}-\d{2}-\d{2})", text)
+    duration_match = re.search(r"周期：([^，。]+)", text)
+    start = date.fromisoformat(today_match.group(1)) if today_match else date.today()
+    duration = duration_match.group(1) if duration_match else "1个月"
+    amount_match = re.search(r"(\d+)", duration)
+    amount = int(amount_match.group(1)) if amount_match else 1
+    total_days = amount * (7 if "周" in duration else 30)
+    total_tasks = milestone_count * task_count
+    milestones = []
+    for milestone_index in range(milestone_count):
+        tasks = []
+        for task_index in range(task_count):
+            tasks.append({
+                "name": f"完成阶段{milestone_index + 1}执行项{task_index + 1}",
+                "priority": (task_index % 3) + 1,
+                "dueDate": (start + timedelta(days=max(1, total_days * (milestone_index * task_count + task_index + 1) // total_tasks))).isoformat(),
+            })
+        milestones.append({"name": f"阶段{milestone_index + 1}：计划与交付", "tasks": tasks})
+    return compact_json(milestones)
+
+
+def valid_stage3_content(scene, text):
+    if scene == "weekly-polish":
+        review = (
+            "本周围绕既定目标完成了主要任务，并根据任务记录形成了可核对的阶段成果。"
+            "推进过程中能够及时识别优先事项，关键进展总体符合计划。"
+            "目前主要问题是部分工作估时偏乐观，测试与复盘安排相对靠后，导致收尾压力增加。"
+            "下周将提前明确验收条件，减少并行事项，按优先级逐项完成并及时记录结果。"
+        )
+        return compact_json({"review": review})
+    if scene == "today-order":
+        ids = task_ids(text)
+        return compact_json({
+            "strategy": "balanced",
+            "items": [
+                {
+                    "taskId": task_id,
+                    "difficulty": 3,
+                    "cost": 2,
+                    "benefit": 4,
+                    "estimatedMinutes": 45,
+                    "reason": "综合截止时间、优先级和完成收益排序",
+                }
+                for task_id in ids
             ],
-        },
-        {
-            "name": "阶段二：持续执行",
-            "tasks": [
-                {"name": "完成阶段检查", "priority": 2, "dueDate": "2099-02-15"},
-                {"name": "提交阶段复盘", "priority": 3, "dueDate": "2099-02-28"},
-            ],
-        },
-    ],
-    ensure_ascii=False,
-    separators=(",", ":"),
-)
+        })
+    if scene == "daily-rename":
+        ids = task_ids(text, pending_only=True)
+        return compact_json({
+            "items": [
+                {
+                    "taskId": task_id,
+                    "newTitle": f"完成任务{task_id}并记录验收结果",
+                    "reason": "补充动作和可验收产出",
+                    "confidence": 88,
+                }
+                for task_id in ids
+            ]
+        })
+    if scene == "list-replan":
+        ids = task_ids(text, pending_only=True)
+        return compact_json({
+            "items": [
+                {
+                    "taskId": task_id,
+                    "newTitle": f"完成任务{task_id}并提交结果",
+                    "newPriority": 2,
+                    "newDueDate": None,
+                    "confidence": 86,
+                    "reason": "结合当前完成进度调整执行顺序，截止日期保持不变",
+                }
+                for task_id in ids
+            ]
+        })
+    return breakdown_content(text, "更细颗粒度" in text)
+
+
+def fault_content(scene, fault, text, valid_content):
+    if fault == "invalid-json":
+        return "{invalid-json"
+    if fault == "invalid-structure":
+        return "{}" if scene != "task-breakdown" else "[]"
+    if fault == "markdown-wrapped":
+        return f"```json\n{valid_content}\n```"
+    ids = task_ids(text, pending_only=scene in {"daily-rename", "list-replan"})
+    first_id = ids[0] if ids else 930001
+    if fault == "unknown-id" and scene == "today-order":
+        return compact_json({"strategy": "balanced", "items": [{
+            "taskId": 99999999, "difficulty": 3, "cost": 2,
+            "benefit": 4, "estimatedMinutes": 45, "reason": "故障注入",
+        }]})
+    if fault == "duplicate-id" and scene == "today-order":
+        return compact_json({"strategy": "balanced", "items": [{
+            "taskId": first_id, "difficulty": 3, "cost": 2,
+            "benefit": 4, "estimatedMinutes": 45, "reason": "故障注入",
+        }, {
+            "taskId": first_id, "difficulty": 2, "cost": 2,
+            "benefit": 3, "estimatedMinutes": 30, "reason": "故障注入",
+        }]})
+    if fault == "unauthorized-id" and scene == "daily-rename":
+        return compact_json({"items": [{
+            "taskId": 930201, "newTitle": "不应被放行的任务", "reason": "故障注入", "confidence": 99,
+        }]})
+    if fault == "overlong-title" and scene == "daily-rename":
+        return compact_json({"items": [{
+            "taskId": first_id, "newTitle": "超长标题" * 30, "reason": "故障注入", "confidence": 80,
+        }]})
+    if fault == "completed-id" and scene == "list-replan":
+        return compact_json({"items": [{
+            "taskId": 930005, "newTitle": "不应重排已完成任务", "newPriority": 3,
+            "newDueDate": None, "confidence": 99, "reason": "故障注入",
+        }]})
+    if fault == "invalid-date" and scene == "list-replan":
+        return compact_json({"items": [{
+            "taskId": first_id, "newTitle": f"完成任务{first_id}", "newPriority": 2,
+            "newDueDate": "not-a-date", "confidence": 80, "reason": "故障注入",
+        }]})
+    return valid_content
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "LearningManageCiAiStub/2"
+    server_version = "LearningManageCiAiStub/3"
 
     def _send_json(self, status, body, request_id="ci-ai-stub-request"):
         encoded = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -176,7 +327,28 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, self._completion("未返回用量"))
             return
 
-        self._send_json(200, self._completion(RESPONSE_CONTENT))
+        text = message_text(messages)
+        fault = stage3_fault(text)
+        if fault == "http-429":
+            self._send_json(429, {"error": {"type": "rate_limit", "status": 429}})
+            return
+        if fault == "http-500":
+            self._send_json(500, {"error": {"type": "server_error", "status": 500}})
+            return
+        if fault == "timeout":
+            time.sleep(6)
+        if fault == "missing-choices":
+            self._send_json(200, {"id": "stage3-missing-choices", "model": "ci-ai-stub"})
+            return
+        if fault == "empty":
+            self._send_json(200, self._completion(None, usage=USAGE))
+            return
+
+        scene = stage3_scene(text)
+        valid_content = valid_stage3_content(scene, text)
+        content = fault_content(scene, fault, text, valid_content)
+        usage = None if fault == "missing-usage" else USAGE
+        self._send_json(200, self._completion(content, usage=usage))
 
     def log_message(self, fmt, *args):
         logging.info("request=%s status=%s", self.path, args[1] if len(args) > 1 else "unknown")

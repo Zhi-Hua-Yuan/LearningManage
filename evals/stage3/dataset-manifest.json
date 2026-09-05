@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "1.0.0",
+  "syntheticOrAnonymizedOnly": true,
+  "qualityCases": 170,
+  "failureInjectionCases": 40,
+  "combinedSha256": "A888EFF531A7592851C5982DB22430CD3FD1E92BC2F565A33B6DE1D2E236725C",
+  "datasets": [
+    {
+      "file": "development.jsonl",
+      "split": "development",
+      "cases": 102,
+      "sha256": "E59476538B3ECFCEAAFED65F46AB73F4EE29724F44746C9CA23A32BA1C2BBAEE",
+      "labelVersions": [
+        1
+      ]
+    },
+    {
+      "file": "regression.jsonl",
+      "split": "regression",
+      "cases": 34,
+      "sha256": "5EAA67745F8C7D90527095912126C6911F52686C54136C3C52848BA845265263",
+      "labelVersions": [
+        1
+      ]
+    },
+    {
+      "file": "holdout.jsonl",
+      "split": "holdout",
+      "cases": 34,
+      "sha256": "54A2658FC1CA4B909E1C4411BB65C3D54EADA82914B47CE90493B2256B0CCD55",
+      "labelVersions": [
+        1
+      ]
+    },
+    {
+      "file": "failure-injection.jsonl",
+      "split": "failure-injection",
+      "cases": 40,
+      "sha256": "A2C24ABD81DF8A906AAC9745DE9AE45C6338AC0B7415C363A6EF7ACC5933A059",
+      "labelVersions": [
+        1,
+        2
+      ]
+    }
+  ]
+}

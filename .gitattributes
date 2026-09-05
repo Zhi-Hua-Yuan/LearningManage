@@ -6,11 +6,15 @@
 /src/main/java/com/spt/learningmanage/service/impl/AiCallLogServiceImpl.java text eol=lf
 /mvnw text eol=lf
 /.dockerignore text eol=lf
+/.gitignore text eol=lf
 /Dockerfile text eol=lf
 /deploy/*.yml text eol=lf
 /.github/workflows/*.yml text eol=lf
+/evals/stage3/** text eol=lf
+/docs/stage3/** text eol=lf
 *.cmd text eol=crlf
 /scripts/**/*.sh text eol=lf
+/scripts/ci/stubs/*.py text eol=lf
 /src/main/resources/db/migration/*.sql text eol=lf
 /src/test/resources/db/legacy/*.sql text eol=lf
 /src/test/resources/db/stage1/*.sql text eol=lf

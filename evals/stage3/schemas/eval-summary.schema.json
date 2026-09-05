@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://learningmanage.local/schemas/stage3-eval-summary.schema.json",
+  "title": "LearningManage Stage 3 evaluation summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "status", "run", "counts", "metrics", "scenes", "failures"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "run": {
+      "type": "object",
+      "required": ["backendSha", "datasetVersion", "datasetSha256", "model", "graderModel", "roundCount"],
+      "properties": {
+        "backendSha": {"type": ["string", "null"]},
+        "datasetVersion": {"type": "string"},
+        "datasetSha256": {"type": "string"},
+        "model": {"type": "string"},
+        "graderModel": {"type": ["string", "null"]},
+        "roundCount": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "counts": {
+      "type": "object",
+      "required": ["total", "passed", "failed"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "deterministicPassed": {"type": "integer", "minimum": 0},
+        "deterministicFailed": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "metrics": {"type": "object"},
+    "scenes": {"type": "object"},
+    "failures": {"type": "array", "items": {"type": "object"}}
+  }
+}

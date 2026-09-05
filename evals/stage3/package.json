@@ -1,0 +1,33 @@
+{
+  "name": "learningmanage-stage3-evals",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline and real-provider evaluation gates for LearningManage Stage 3",
+  "type": "commonjs",
+  "engines": {
+    "node": "22.13.1",
+    "npm": "10.9.2"
+  },
+  "scripts": {
+    "generate:datasets": "node scripts/generate-datasets.mjs",
+    "datasets:manifest": "node scripts/create-dataset-manifest.mjs",
+    "validate:datasets": "node scripts/validate-datasets.mjs",
+    "build:tests": "node scripts/build-tests.mjs",
+    "prompt:manifest": "node scripts/export-prompt-manifest.mjs",
+    "prepare:eval": "npm run validate:datasets && npm run build:tests",
+    "validate": "npm run prepare:eval && node scripts/run-promptfoo.mjs validate config -c promptfooconfig.yaml",
+    "eval:stub": "npm run prepare:eval && node scripts/run-promptfoo.mjs eval -c promptfooconfig.yaml -o output.json --no-cache --no-share --max-concurrency 1",
+    "eval:real": "npm run prepare:eval && node scripts/run-promptfoo.mjs eval -c promptfooconfig.yaml -o output.json --no-cache --no-share --max-concurrency 1",
+    "report": "node scripts/summarize-results.mjs output.json summary.json report.md",
+    "gate": "node scripts/verify-thresholds.mjs summary.json",
+    "human:sample": "node scripts/create-human-review-sample.mjs",
+    "human:verify": "node scripts/verify-human-review.mjs",
+    "real:aggregate": "node scripts/aggregate-real-results.mjs",
+    "test": "npm run validate:datasets && node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "ajv": "8.17.1",
+    "mysql2": "3.14.4",
+    "promptfoo": "0.120.7"
+  }
+}

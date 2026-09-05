@@ -1,0 +1,216 @@
+name: Stage 3 Real Model Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_sha:
+        description: Immutable backend commit to evaluate
+        required: true
+        type: string
+      frontend_sha:
+        description: Paired immutable frontend commit
+        required: true
+        type: string
+      dataset_version:
+        description: Expected dataset version
+        required: true
+        default: '1.0.0'
+        type: string
+      baseline_summary_path:
+        description: Optional repository-relative frozen Stage 3 candidate summary for regression comparison
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage3-real-${{ inputs.backend_sha }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty_stage3_real_eval
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy_stage3_real_eval
+  DB_NAME: learning_manage_ci_empty_stage3_real_eval
+  FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty_stage3_real_eval
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13316'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+  STAGE3_API_BASE_URL: http://127.0.0.1:18133/api
+  STAGE3_DB_HOST: 127.0.0.1
+  STAGE3_DB_PORT: '13316'
+  STAGE3_DB_NAME: learning_manage_ci_empty_stage3_real_eval
+  STAGE3_DB_USERNAME: learning_manage_stage3_reader
+  STAGE3_SUT_MODEL: qwen-plus
+  STAGE3_GRADER_MODEL: qwen-max
+  STAGE3_ENABLE_MODEL_GRADING: 'true'
+  STAGE3_REQUIRE_USAGE: 'true'
+  STAGE3_REQUIRE_PROVIDER_REQUEST_ID: 'true'
+  STAGE3_ROUND_COUNT: '3'
+
+jobs:
+  real-eval:
+    name: Protected qwen-plus regression and holdout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: stage3-real-ai
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_real
+        ports: [13316:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_real --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_real
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_real
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_real
+      STAGE3_DB_READER_USERNAME: learning_manage_stage3_reader
+      STAGE3_DB_READER_PASSWORD: ci_reader_${{ github.run_id }}_${{ github.run_attempt }}_real
+      STAGE3_DB_PASSWORD: ci_reader_${{ github.run_id }}_${{ github.run_attempt }}_real
+      STAGE3_EVAL_PASSWORD: Stage3_${{ github.run_id }}_${{ github.run_attempt }}_Real_Aa9
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      STAGE3_BACKEND_SHA: ${{ inputs.backend_sha }}
+      STAGE3_DATASET_VERSION: ${{ inputs.dataset_version }}
+      ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
+      STAGE3_DASHSCOPE_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      AI_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      AI_MODEL: qwen-plus
+      AI_BREAKDOWN_MODEL: qwen-plus
+      AI_POLISH_MODEL: qwen-plus
+      AI_FALLBACK_MODEL: qwen-plus
+      AI_RATE_LIMIT_ENABLED: 'false'
+      AI_PRICE_VERSION: ${{ vars.AI_PRICE_VERSION }}
+      AI_PRICE_CURRENCY: ${{ vars.AI_PRICE_CURRENCY }}
+      QWEN_PLUS_INPUT_PRICE: ${{ vars.QWEN_PLUS_INPUT_PRICE }}
+      QWEN_PLUS_OUTPUT_PRICE: ${{ vars.QWEN_PLUS_OUTPUT_PRICE }}
+      STAGE3_GRADER_PRICE_VERSION: ${{ vars.STAGE3_GRADER_PRICE_VERSION }}
+      STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: ${{ vars.STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION }}
+      STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: ${{ vars.STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION }}
+      JWT_SECRET: stage3-real-evaluation-jwt-secret-with-at-least-32-bytes
+      SPRING_PROFILES_ACTIVE: prod
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.backend_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify immutable input and dataset version
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$STAGE3_BACKEND_SHA" ]]
+          [[ "$(jq -r .datasetVersion evals/stage3/dataset-manifest.json)" == "$STAGE3_DATASET_VERSION" ]]
+          [[ -n "${{ inputs.frontend_sha }}" ]]
+          [[ "$AI_PRICE_CURRENCY" == "CNY" ]]
+          [[ -n "$AI_PRICE_VERSION" && -n "$STAGE3_GRADER_PRICE_VERSION" ]]
+          [[ "$QWEN_PLUS_INPUT_PRICE" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          [[ "$QWEN_PLUS_OUTPUT_PRICE" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          [[ "$STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          [[ "$STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION" =~ ^[0-9]+([.][0-9]+)?$ ]]
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: evals/stage3/package-lock.json
+      - name: Install MySQL client and migrate temporary database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+          bash scripts/ci/provision-stage3-eval-reader.sh
+      - name: Start candidate backend and seed fixtures
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw -B -ntp -DskipTests package
+          DB_USERNAME="$TEST_DB_USERNAME" DB_PASSWORD="$TEST_DB_PASSWORD" DB_NAME="$DB_NAME" DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" \
+            FLYWAY_ENABLED=false java -jar target/LearningManage-0.0.1-SNAPSHOT.jar >"$RUNNER_TEMP/stage3-real-backend.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/stage3-real-backend.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail --max-time 3 "$STAGE3_API_BASE_URL/health" >/dev/null; then break; fi
+            [[ "$attempt" != 60 ]] || { cat "$RUNNER_TEMP/stage3-real-backend.log"; exit 1; }
+            sleep 2
+          done
+          bash scripts/ci/seed-stage3-eval.sh
+      - name: Run three regression and holdout rounds
+        working-directory: evals/stage3
+        env:
+          STAGE3_PROMPT_MANIFEST: prompt-manifest.json
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts
+          npm run validate
+          mkdir -p real-results
+          for split in regression holdout; do
+            for round in 1 2 3; do
+              STAGE3_EVAL_SPLIT="$split" npm run eval:real
+              STAGE3_EVAL_SPLIT="$split" STAGE3_ROUND_COUNT=1 npm run report
+              STAGE3_REQUIRE_USAGE=true npm run gate
+              mv output.json "real-results/${split}-round-${round}-raw.json"
+              mv summary.json "real-results/${split}-round-${round}-summary.json"
+              mv report.md "real-results/${split}-round-${round}-report.md"
+            done
+          done
+          node scripts/create-human-review-sample.mjs real-results/*-raw.json
+      - name: Aggregate six immutable rounds and enforce candidate thresholds
+        working-directory: evals/stage3
+        env:
+          STAGE3_BASELINE_CANDIDATE_SUMMARY: ${{ inputs.baseline_summary_path }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -n "$STAGE3_BASELINE_CANDIDATE_SUMMARY" ]]; then
+            [[ "$STAGE3_BASELINE_CANDIDATE_SUMMARY" != /* && "$STAGE3_BASELINE_CANDIDATE_SUMMARY" != *..* ]]
+            STAGE3_BASELINE_CANDIDATE_SUMMARY="$(realpath "../../$STAGE3_BASELINE_CANDIDATE_SUMMARY")"
+            export STAGE3_BASELINE_CANDIDATE_SUMMARY
+            test -s "$STAGE3_BASELINE_CANDIDATE_SUMMARY"
+          fi
+          npm run real:aggregate -- real-results/candidate-summary.json real-results/*-summary.json
+          jq -n --arg backendSha "$STAGE3_BACKEND_SHA" --arg frontendSha "${{ inputs.frontend_sha }}" \
+            --arg datasetHash "$(jq -r .combinedSha256 dataset-manifest.json)" \
+            --arg candidateSummarySha "$(cut -d' ' -f1 real-results/candidate-summary.json.sha256)" \
+            '{schemaVersion:1,status:"PASS",backendSha:$backendSha,frontendSha:$frontendSha,datasetHash:$datasetHash,candidateSummarySha256:$candidateSummarySha}' \
+            > real-results/candidate-evidence-binding.json
+      - name: Scan raw evidence for credentials
+        working-directory: evals/stage3
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ! grep -R --fixed-strings "$ALIYUN_API_KEY" real-results human-review-sample.json
+          ! grep -R --fixed-strings "$STAGE3_EVAL_PASSWORD" real-results human-review-sample.json
+          ! grep -R -E 'Bearer [A-Za-z0-9._-]{20,}' real-results human-review-sample.json
+      - name: Upload protected evaluation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage3-real-eval-${{ inputs.backend_sha }}-${{ github.run_id }}
+          path: |
+            evals/stage3/real-results
+            evals/stage3/human-review-sample.json
+            evals/stage3/dataset-manifest.json
+            evals/stage3/prompt-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Stop backend
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/stage3-real-backend.pid" ]]; then kill "$(cat "$RUNNER_TEMP/stage3-real-backend.pid")" || true; fi

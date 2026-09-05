@@ -1,0 +1,183 @@
+name: Stage 3 AI Evaluation
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'evals/stage3/**'
+      - 'src/main/java/com/spt/learningmanage/**'
+      - 'src/main/resources/db/migration/**'
+      - 'scripts/ci/**'
+      - 'deploy/docker-compose.stage3-eval.yml'
+      - '.github/workflows/stage3-eval.yml'
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage3-eval-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+  CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty_stage3_eval
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy_stage3_eval
+  DB_NAME: learning_manage_ci_empty_stage3_eval
+  FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty_stage3_eval
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13316'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+
+jobs:
+  contracts:
+    name: Dataset, config and prompt contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: evals/stage3/package-lock.json
+      - name: Install locked evaluation dependencies
+        working-directory: evals/stage3
+        run: npm ci --ignore-scripts
+      - name: Verify datasets, assertions and Promptfoo configuration
+        working-directory: evals/stage3
+        run: |
+          set -Eeuo pipefail
+          npm run generate:datasets
+          npm run datasets:manifest
+          npm run prompt:manifest
+          npm test
+          npm run validate
+          git diff --exit-code -- datasets dataset-manifest.json prompt-manifest.json
+      - name: Verify Stage 3 repository boundaries
+        shell: bash
+        run: bash scripts/ci/verify-stage3-acceptance.sh
+
+  offline-eval:
+    name: Production-path offline evaluation
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage3
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage3
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_stage3
+      STAGE3_DB_READER_USERNAME: learning_manage_stage3_reader
+      STAGE3_DB_READER_PASSWORD: ci_reader_${{ github.run_id }}_${{ github.run_attempt }}_stage3
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      CI_BACKEND_IMAGE: learningmanage-stage3-eval:${{ github.sha }}
+      CI_COMPOSE_FILE: deploy/docker-compose.stage3-eval.yml
+      CI_COMPOSE_PROJECT_NAME: learningmanage-stage3-${{ github.run_id }}-${{ github.run_attempt }}
+      STAGE3_API_BASE_URL: http://127.0.0.1:18133/api
+      STAGE3_EVAL_PASSWORD: Stage3_${{ github.run_id }}_${{ github.run_attempt }}_Aa9
+      STAGE3_DB_HOST: 127.0.0.1
+      STAGE3_DB_PORT: '13316'
+      STAGE3_DB_NAME: learning_manage_ci_empty_stage3_eval
+      STAGE3_DB_USERNAME: learning_manage_ci_app
+      STAGE3_EVAL_SPLIT: regression
+      STAGE3_INCLUDE_FAILURES: 'true'
+      STAGE3_SUT_MODEL: ci-ai-stub
+      STAGE3_BACKEND_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: evals/stage3/package-lock.json
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Package and build candidate image
+        run: |
+          ./mvnw -B -ntp -DskipTests package
+          docker build --pull \
+            --build-arg RUNTIME_IMAGE=eclipse-temurin:17-jre-alpine@sha256:b0ae54a36f82e04dc6c45e40ca5c55762e20b9a0858ee457faf557d440a9b571 \
+            --tag "$CI_BACKEND_IMAGE" .
+      - name: Migrate isolated evaluation database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" config --quiet
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d mysql
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+          bash scripts/ci/provision-stage3-eval-reader.sh
+      - name: Start application and seed synthetic fixtures
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d ai-stub backend
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail --max-time 3 "$STAGE3_API_BASE_URL/health" >/dev/null; then break; fi
+            [[ "$attempt" != 60 ]] || exit 1
+            sleep 2
+          done
+          bash scripts/ci/seed-stage3-eval.sh
+      - name: Run deterministic application-path evaluation
+        working-directory: evals/stage3
+        env:
+          STAGE3_DB_USERNAME: ${{ env.STAGE3_DB_READER_USERNAME }}
+          STAGE3_DB_PASSWORD: ${{ env.STAGE3_DB_READER_PASSWORD }}
+          STAGE3_PROMPT_MANIFEST: prompt-manifest.json
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts
+          npm run generate:datasets
+          npm run datasets:manifest
+          npm run prompt:manifest
+          npm run eval:stub
+          npm run report
+          npm run gate
+      - name: Scan evaluation outputs for forbidden secrets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ! grep -R --fixed-strings "$STAGE3_EVAL_PASSWORD" evals/stage3/output.json evals/stage3/summary.json evals/stage3/report.md
+          ! grep -R -E 'Bearer [A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9_-]{16,}' evals/stage3/output.json evals/stage3/summary.json evals/stage3/report.md
+      - name: Upload expiring raw and sanitized reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage3-offline-eval-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evals/stage3/output.json
+            evals/stage3/summary.json
+            evals/stage3/report.md
+            evals/stage3/prompt-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Capture diagnostics
+        if: ${{ failure() }}
+        shell: bash
+        run: docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" logs --no-color || true
+      - name: Tear down isolated stack
+        if: ${{ always() }}
+        shell: bash
+        run: docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" down --volumes --remove-orphans || true

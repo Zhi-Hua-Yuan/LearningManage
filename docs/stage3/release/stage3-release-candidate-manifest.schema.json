@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage3-release-candidate-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stage", "candidateId", "status", "backend", "frontend", "flyway", "evaluation", "regression", "evidence", "workflow"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "stage": {"const": "stage3"},
+    "candidateId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+    "status": {"const": "PASS"},
+    "backend": {"$ref": "#/$defs/repository"},
+    "frontend": {"$ref": "#/$defs/repository"},
+    "flyway": {"type": "object", "additionalProperties": false, "required": ["head", "historyTotal", "v4Present"], "properties": {"head": {"const": "V3"}, "historyTotal": {"const": 3}, "v4Present": {"const": false}}},
+    "evaluation": {"type": "object", "additionalProperties": false, "required": ["qualityCases", "failureInjectionCases", "promptCodes", "regressionRounds", "holdoutRounds", "model", "graderModel", "datasetManifestSha256", "datasetContentSha256", "promptManifestSha256", "candidateSummarySha256", "humanReviewSha256"], "properties": {"qualityCases": {"const": 170}, "failureInjectionCases": {"const": 40}, "promptCodes": {"const": 6}, "regressionRounds": {"const": 3}, "holdoutRounds": {"const": 3}, "model": {"const": "qwen-plus"}, "graderModel": {"const": "qwen-max"}, "datasetManifestSha256": {"$ref": "#/$defs/sha256"}, "datasetContentSha256": {"$ref": "#/$defs/sha256"}, "promptManifestSha256": {"$ref": "#/$defs/sha256"}, "candidateSummarySha256": {"$ref": "#/$defs/sha256"}, "humanReviewSha256": {"$ref": "#/$defs/sha256"}}},
+    "regression": {"type": "object", "additionalProperties": false, "required": ["backendTests", "frontendTests", "status"], "properties": {"backendTests": {"type": "integer", "minimum": 710}, "frontendTests": {"type": "integer", "minimum": 484}, "status": {"const": "PASS"}}},
+    "evidence": {"type": "object", "additionalProperties": false, "required": ["indexSha256", "rawRetentionDays"], "properties": {"indexSha256": {"$ref": "#/$defs/sha256"}, "rawRetentionDays": {"const": 30}}},
+    "workflow": {"type": "object", "additionalProperties": false, "required": ["runId", "runAttempt", "workflowSha", "triggeredBy", "executedAt"], "properties": {"runId": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "runAttempt": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "workflowSha": {"$ref": "#/$defs/sha"}, "triggeredBy": {"type": "string", "minLength": 1}, "executedAt": {"type": "string", "format": "date-time"}}}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9A-F]{64}$"},
+    "repository": {"type": "object", "additionalProperties": false, "required": ["repository", "sha"], "properties": {"repository": {"type": "string", "minLength": 1}, "sha": {"$ref": "#/$defs/sha"}}}
+  }
+}
