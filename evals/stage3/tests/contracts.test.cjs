@@ -116,7 +116,8 @@ test('semantic grading and human review receive complete synthetic facts', () =>
   }
 
   const generatedPath = path.join(root, 'tests', 'generated.json');
-  const originalGenerated = fs.readFileSync(generatedPath);
+  const generatedExisted = fs.existsSync(generatedPath);
+  const originalGenerated = generatedExisted ? fs.readFileSync(generatedPath) : null;
   try {
     execFileSync(process.execPath, [path.join(root, 'scripts', 'build-tests.mjs')], {
       cwd: root,
@@ -130,7 +131,8 @@ test('semantic grading and human review receive complete synthetic facts', () =>
     assert.match(semanticAssertion.value, /Complete synthetic input facts/);
     assert.match(semanticAssertion.value, /lowest dimension/);
   } finally {
-    fs.writeFileSync(generatedPath, originalGenerated);
+    if (generatedExisted) fs.writeFileSync(generatedPath, originalGenerated);
+    else fs.rmSync(generatedPath, { force: true });
   }
 });
 
