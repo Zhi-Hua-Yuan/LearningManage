@@ -49,7 +49,9 @@ for (const split of requestedSplits) {
       assertions.push({
         type: 'llm-rubric',
         provider: 'file://providers/dashscope-grader.js',
-        threshold: 0.8,
+        // Collect every valid semantic score. Candidate quality is gated after
+        // the immutable three regression plus three holdout rounds are aggregated.
+        threshold: 0,
         metric: `${item.scene}_semantic_quality`,
         value: [
           'Evaluate only the data field of the provider JSON output.',

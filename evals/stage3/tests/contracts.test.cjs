@@ -151,6 +151,7 @@ test('semantic grading and human review receive complete synthetic facts', () =>
     const semanticAssertion = orderCase.assert.find((item) => item.type === 'llm-rubric');
     assert.match(semanticAssertion.value, /Complete synthetic input facts/);
     assert.match(semanticAssertion.value, /lowest dimension/);
+    assert.equal(semanticAssertion.threshold, 0);
   } finally {
     if (generatedExisted) fs.writeFileSync(generatedPath, originalGenerated);
     else fs.rmSync(generatedPath, { force: true });
@@ -219,7 +220,10 @@ test('real-result aggregation requires and binds three regression plus three hol
       schemaVersion: 1, generatedAt: new Date(0).toISOString(), status: 'PASS', run,
       counts: { total: 34, passed: 34, failed: 0, deterministicPassed: 34, deterministicFailed: 0 },
       metrics: { structureParseRate: 1, businessValidationRate: 1, deterministicPassRate: 1, degradationSuccessRate: null, traceCoverageRate: 1, usageRecordRate: 1, providerRequestIdHashCoverageRate: 1, semanticScore: 0.85, minimumSemanticDimensionScore: 0.8, p95LatencyMs: 1000, formalBusinessWrites: 0, totalEstimatedCost: 0.1 },
-      scenes: {}, failures: []
+      scenes: {
+        'task-breakdown': { averageSemanticScore: 0.85, averageTotalTokens: 100, averageEstimatedCost: 0.01, p95LatencyMs: 1000 }
+      },
+      failures: []
     };
     const files = [];
     for (const split of ['regression', 'holdout']) {
@@ -235,8 +239,17 @@ test('real-result aggregation requires and binds three regression plus three hol
     assert.equal(aggregate.status, 'PASS');
     assert.equal(aggregate.run.regressionRounds, 3);
     assert.ok(Math.abs(aggregate.metrics.totalEstimatedCostCny - 0.6) < 1e-9);
+    assert.equal(aggregate.metrics.minimumSemanticDimensionScore, 0.85);
     assert.equal(aggregate.inputEvidence.length, 6);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
+});
+
+test('real evaluation preserves failed round evidence and defers semantic gating to aggregation', () => {
+  const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'stage3-real-eval.yml'), 'utf8');
+  assert.match(workflow, /eval_status=\$\?/);
+  assert.match(workflow, /\[\[ -s output\.json \]\] && mv output\.json/);
+  assert.match(workflow, /STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate/);
+  assert.match(workflow, /eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0/);
 });
