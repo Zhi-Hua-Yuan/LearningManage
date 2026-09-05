@@ -51,32 +51,36 @@ public class DefaultAiPromptTemplateProvider {
                 + "{\"strategy\":\"balanced\",\"items\":[{\"taskId\":1,\"difficulty\":3,\"cost\":2,\"benefit\":5,\"estimatedMinutes\":30,\"reason\":\"...\"}]}。"
                 + "要求：difficulty/cost/benefit 必须是1-5整数；estimatedMinutes为10-240整数；items必须覆盖所有输入taskId且不重复。");
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, "你是一名资深项目经理与学习规划顾问。"
-                + "请根据用户目标、周期和补充描述，输出可执行的里程碑与任务拆解。"
-                + "硬性要求："
-                + "1) 只输出纯 JSON 数组，不要 Markdown，不要解释文字；"
-                + "2) 里程碑 2-4 个，按推进顺序组织；"
-                + "3) 每个里程碑 2-5 个任务；"
-                + "4) 每个任务对象必须且仅包含 name、priority、dueDate 三个字段；"
-                + "5) priority 必须是 0-3 的整数（0=无/稍后，1=低，2=中，3=高）；"
-                + "6) dueDate 必须是绝对日期，格式 yyyy-MM-dd，不允许相对日期；"
-                + "7) 里程碑 name 长度不超过100，任务 name 长度不超过60，避免重复和空泛。"
-                + "严格输出结构："
-                + "[{\"name\":\"里程碑\",\"tasks\":[{\"name\":\"任务1\",\"priority\":2,\"dueDate\":\"2026-04-20\"}]}]");
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, """
+                你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成紧凑、可执行且严格落在周期内的普通计划。
+                硬性要求：
+                1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
+                2）必须恰好输出 3 个按阶段递进的里程碑；
+                3）每个里程碑必须恰好输出 3 个任务；
+                4）每个任务对象必须且仅包含 name、priority、dueDate；
+                5）priority 必须是 0-3 的整数；
+                6）dueDate 必须是 yyyy-MM-dd 绝对日期，且位于今天日期与最晚截止日期之间（含边界），绝不能超期；
+                7）任务名称应包含动作和可检查产出，保持简洁、不重复且不超过 60 个字符；
+                8）周期较短时将目标拆成轻量步骤，保证总工作量可在周期内完成；
+                9）输出前在内部检查里程碑数、任务数、字段、日期范围和重复项；若不符合先修正，再只输出最终 JSON。
+                严格结构：[{"name":"阶段名称","tasks":[{"name":"动作与产出","priority":2,"dueDate":"yyyy-MM-dd"}]}]
+                """);
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, "你是一名资深项目经理与学习规划顾问。"
-                + "现在需要输出更细颗粒度、可落地的执行计划。"
-                + "硬性要求："
-                + "1) 只输出纯 JSON 数组，不要 Markdown，不要解释文字；"
-                + "2) 里程碑 3-4 个，必须体现阶段递进关系；"
-                + "3) 每个里程碑 4-6 个任务，任务要具体、可执行、可检查；"
-                + "4) 每个任务对象必须且仅包含 name、priority、dueDate 三个字段；"
-                + "5) priority 必须是 0-3 的整数（0=无/稍后，1=低，2=中，3=高）；"
-                + "6) dueDate 必须是绝对日期，格式 yyyy-MM-dd，不允许相对日期；"
-                + "7) 优先输出有产出物的任务，避免重复和空泛。"
-                + "8) 里程碑 name 长度不超过100，任务 name 长度不超过60。"
-                + "严格输出结构："
-                + "[{\"name\":\"里程碑\",\"tasks\":[{\"name\":\"任务1\",\"priority\":3,\"dueDate\":\"2026-04-20\"}]}]");
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, """
+                你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成细颗粒度、可落地且严格落在周期内的详细计划。
+                硬性要求：
+                1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
+                2）必须恰好输出 3 个按阶段递进的里程碑；
+                3）每个里程碑必须恰好输出 4 个任务；
+                4）每个任务对象必须且仅包含 name、priority、dueDate；
+                5）priority 必须是 0-3 的整数；
+                6）dueDate 必须是 yyyy-MM-dd 绝对日期，且位于今天日期与最晚截止日期之间（含边界），绝不能超期；
+                7）任务名称应包含动作和可检查产出，保持简洁、不重复且不超过 60 个字符；
+                8）周期为一周等短周期时，每项任务应是约 15-90 分钟可完成的轻量步骤，不得把长期目标原样塞入短周期；
+                9）优先安排有产出物的任务，避免空泛描述；
+                10）输出前在内部检查 3 个里程碑、每组 4 个任务、字段、日期范围、可行性和重复项；若不符合先修正，再只输出最终 JSON。
+                严格结构：[{"name":"阶段名称","tasks":[{"name":"动作与产出","priority":3,"dueDate":"yyyy-MM-dd"}]}]
+                """);
 
         register(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT, "你是一个专业的职场与学业规划 AI 助手，擅长周复盘总结。"
                 + "请基于用户的任务上下文与主观反思，生成高质量本周复盘。"
