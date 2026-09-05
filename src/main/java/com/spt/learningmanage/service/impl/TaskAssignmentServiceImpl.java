@@ -3,6 +3,8 @@ package com.spt.learningmanage.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.TaskAssignmentActionEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -18,6 +20,7 @@ import com.spt.learningmanage.model.vo.task.AssignmentUserSummaryVO;
 import com.spt.learningmanage.model.vo.task.TaskAssignmentHistoryVO;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskAssignmentService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -43,6 +46,9 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
 
     @Resource
     private TaskAssigneePolicy taskAssigneePolicy;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -93,6 +99,11 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         log.setCreateTime(assignedAt);
         if (taskAssignmentLogMapper.insert(log) != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "负责人变更日志写入失败");
+        }
+
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publish(
+                    KnowledgeSourceTypeEnum.TASK, task.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
         }
 
         return toVo(task, true, targetAssigneeUserId, actorUserId, assignedAt);

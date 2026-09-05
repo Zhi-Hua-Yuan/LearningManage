@@ -18,6 +18,20 @@ services:
       - ./mysql-data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
+  qdrant:
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.18.2}
+    container_name: learning_qdrant
+    restart: always
+    ports:
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   # ---------------- 2. 后端集装箱 ----------------
   backend:
     build:
@@ -28,6 +42,7 @@ services:
       - "${BACKEND_PORT:-8124}:8123"
     depends_on:
       - mysql
+      - qdrant
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_HOST: mysql
@@ -40,6 +55,16 @@ services:
       FLYWAY_DB_PASSWORD: ${FLYWAY_DB_PASSWORD:-__flyway_migrator_not_configured__}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       ALIYUN_API_KEY: ${ALIYUN_API_KEY:?ALIYUN_API_KEY is required}
+      AI_KNOWLEDGE_WORKER_ENABLED: ${AI_KNOWLEDGE_WORKER_ENABLED:-false}
+      AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:-${ALIYUN_API_KEY}}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-v4}
+      AI_EMBEDDING_DIMENSION: ${AI_EMBEDDING_DIMENSION:-1024}
+      QDRANT_BASE_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-learning_knowledge_v1_1024}
+      QDRANT_ALIAS: ${QDRANT_ALIAS:-learning_knowledge_current}
+      QDRANT_REQUIRE_SECURE_TRANSPORT: 'false'
 
   # ---------------- 3. 前端集装箱 ----------------
   frontend:
@@ -53,3 +78,6 @@ services:
     volumes:
       - ./dist:/usr/share/nginx/html
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
+volumes:
+  qdrant-data:

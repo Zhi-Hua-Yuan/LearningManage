@@ -73,7 +73,7 @@ class PermissionServiceBatchMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(3, currentVersion);
+        assertEquals(4, currentVersion);
 
         String insertSql = "INSERT INTO task "
                 + "(id, project_id, user_id, title, status, priority, is_delete, "

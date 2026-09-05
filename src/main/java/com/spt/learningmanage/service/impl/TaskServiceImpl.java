@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -35,6 +37,7 @@ import com.spt.learningmanage.model.vo.task.TaskVo;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.permission.TaskCapabilities;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.TaskService;
@@ -82,6 +85,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private TaskAssigneePolicy taskAssigneePolicy;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     /** 创建任务，返回任务 ID；项目范围由 PermissionService 判定。 */
     @Override
@@ -199,6 +205,7 @@ public class TaskServiceImpl implements TaskService {
      * 处理状态变化：从未完成到已完成设置 completedAt，从已完成到未完成清空 completedAt。
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(TaskUpdateRequest request) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -271,6 +278,8 @@ public class TaskServiceImpl implements TaskService {
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新任务失败");
         }
+
+        publishTask(request.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
 
     }
 
@@ -354,6 +363,7 @@ public class TaskServiceImpl implements TaskService {
                 finalStatus = targetStatus;
                 finalCompletedAt = newCompletedAt;
                 calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
+                publishTask(request.getTaskId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
             } else {
                 Task latest = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
                         .eq(Task::getId, request.getTaskId())
@@ -395,6 +405,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -424,6 +435,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
+        publishTask(id, KnowledgeEventTypeEnum.SOURCE_DELETED);
     }
 
     /**
@@ -519,6 +531,7 @@ public class TaskServiceImpl implements TaskService {
         result.setSuccessCount(successCount);
         result.setSkipCount(skipCount);
         result.setUpdatedTaskIds(updatedTaskIds);
+        publishTasks(updatedTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
         return result;
     }
 
@@ -544,6 +557,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         int rollbackCount = 0;
+        List<Long> rolledBackTaskIds = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
         for (TaskTitleRenameLog log : logs) {
             if (log == null || log.getTaskId() == null) {
@@ -560,14 +574,29 @@ public class TaskServiceImpl implements TaskService {
                         .set(TaskTitleRenameLog::getIsRollback, 1)
                         .set(TaskTitleRenameLog::getRollbackAt, now));
                 rollbackCount++;
+                rolledBackTaskIds.add(log.getTaskId());
             }
         }
 
         TaskBatchRollbackVO result = new TaskBatchRollbackVO();
         result.setOperationId(operationId);
         result.setRollbackCount(rollbackCount);
+        publishTasks(rolledBackTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
         return result;
     }
+
+    private void publishTask(Long taskId, KnowledgeEventTypeEnum eventType) {
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publish(KnowledgeSourceTypeEnum.TASK, taskId, eventType);
+        }
+    }
+
+    private void publishTasks(List<Long> taskIds, KnowledgeEventTypeEnum eventType) {
+        if (knowledgeIndexEventPublisher != null && taskIds != null && !taskIds.isEmpty()) {
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK, taskIds, eventType);
+        }
+    }
+
     private void calculateAndUpdateProgress(Long projectId, Long milestoneId) {
         if (projectId != null) {
             BigDecimal projectProgress = calculateProgressByCondition(projectId, null);

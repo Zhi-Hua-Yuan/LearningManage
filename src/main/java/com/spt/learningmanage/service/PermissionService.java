@@ -17,6 +17,9 @@ public interface PermissionService {
 
     void requireActiveActor(Long actorUserId);
 
+    /** Platform operations only; does not grant access to private business resources. */
+    void requireSystemAdmin(Long actorUserId);
+
     ProjectAccessScope requireProjectView(Long actorUserId, Long projectId);
 
     ProjectAccessScope requireProjectCreateTask(Long actorUserId, Long projectId);

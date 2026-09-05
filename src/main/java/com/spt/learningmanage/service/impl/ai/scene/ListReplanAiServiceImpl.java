@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.TaskStatusEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -23,6 +25,8 @@ import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import jakarta.annotation.Resource;
 import com.spt.learningmanage.service.ai.scene.ListReplanAiService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
@@ -71,6 +75,9 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     private final AiReplanWriteGuard replanWriteGuard;
     private final AiModelSelector modelSelector;
     private final AiJsonResponseSanitizer jsonSanitizer;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     public ListReplanAiServiceImpl(TaskMapper taskMapper,
                                    ProjectMapper projectMapper,
@@ -265,6 +272,11 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                 throw new BusinessException(ErrorCode.OPERATION_ERROR,
                         "任务快照已变化，重排确认失败，请重新预览");
             }
+        }
+        if (knowledgeIndexEventPublisher != null && !changedItems.isEmpty()) {
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK,
+                    changedItems.stream().map(AiReplanItem::getTaskId).toList(),
+                    KnowledgeEventTypeEnum.SOURCE_CHANGED);
         }
 
         Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()

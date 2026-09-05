@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.WeeklyReviewVisibilityScopeEnum;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.exception.PermissionDeniedException;
@@ -25,6 +27,7 @@ import com.spt.learningmanage.model.query.review.WeeklyReviewFocusProjectRow;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewDetailVO;
 import com.spt.learningmanage.model.vo.review.WeeklyReviewSharedVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
 import com.spt.learningmanage.service.WeeklyReviewReadAssociationResolver;
 import com.spt.learningmanage.service.WeeklyReviewService;
@@ -63,6 +66,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private PermissionService permissionService;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Resource
     private WeeklyReviewAssociationValidator associationValidator;
@@ -130,6 +136,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             existing.setCompletedTaskCount(stats.completedTaskCount());
             updateReviewRow(existing);
             replaceTaskAssociations(existing.getId(), associations.taskIds());
+            publishReview(existing.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
             return;
         }
 
@@ -158,6 +165,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "该周总结已存在");
         }
         replaceTaskAssociations(toSave.getId(), associations.taskIds());
+        publishReview(toSave.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
     }
 
     @Override
@@ -209,6 +217,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
         updateReviewRow(existing);
         replaceTaskAssociations(existing.getId(), associations.taskIds());
+        publishReview(existing.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
     }
 
     @Override
@@ -229,6 +238,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (weeklyReviewMapper.deleteById(id) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除周总结失败");
         }
+        publishReview(id, KnowledgeEventTypeEnum.SOURCE_DELETED);
     }
 
     @Override
@@ -266,6 +276,13 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
         if (weeklyReviewMapper.updateForWrite(review) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新周总结失败");
+        }
+    }
+
+    private void publishReview(Long reviewId, KnowledgeEventTypeEnum eventType) {
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publish(
+                    KnowledgeSourceTypeEnum.WEEKLY_REVIEW, reviewId, eventType);
         }
     }
 

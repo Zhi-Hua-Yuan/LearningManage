@@ -5,6 +5,8 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.spt.learningmanage.constant.AiSceneEnum;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
@@ -12,9 +14,11 @@ import com.spt.learningmanage.model.dto.ai.draft.WeeklyReviewPolishConfirmationC
 import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.ai.draft.AiDraftHandler;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.Resource;
 
 import java.util.List;
 import java.util.Objects;
@@ -26,6 +30,9 @@ public class WeeklyReviewPolishDraftHandler implements AiDraftHandler<WeeklyRevi
     private final WeeklyReviewMapper weeklyReviewMapper;
     private final PermissionService permissionService;
     private final AiJsonResponseSanitizer jsonSanitizer;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     public WeeklyReviewPolishDraftHandler(WeeklyReviewMapper weeklyReviewMapper,
                                           PermissionService permissionService,
@@ -87,6 +94,10 @@ public class WeeklyReviewPolishDraftHandler implements AiDraftHandler<WeeklyRevi
         review.setReflection(reviewText);
         if (weeklyReviewMapper.updateById(review) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结更新失败");
+        }
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publish(KnowledgeSourceTypeEnum.WEEKLY_REVIEW,
+                    reviewId, KnowledgeEventTypeEnum.SOURCE_CHANGED);
         }
         return reviewId;
     }

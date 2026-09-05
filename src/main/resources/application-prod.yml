@@ -30,6 +30,9 @@ ai:
   polish-model: ${AI_POLISH_MODEL:qwen-flash}
   fallback-model: ${AI_FALLBACK_MODEL:qwen-plus}
 
+qdrant:
+  require-secure-transport: ${QDRANT_REQUIRE_SECURE_TRANSPORT:true}
+
 rate-limit:
   ai:
     enabled: ${AI_RATE_LIMIT_ENABLED:true}

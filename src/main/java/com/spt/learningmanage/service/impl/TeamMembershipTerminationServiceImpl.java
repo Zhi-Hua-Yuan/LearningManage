@@ -1,6 +1,9 @@
 package com.spt.learningmanage.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.TaskAssignmentActionEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -8,12 +11,17 @@ import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
+import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.team.TeamMemberRemoveRequest;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.entity.TeamMember;
+import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow;
 import com.spt.learningmanage.model.vo.team.TeamMembershipTerminationVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.TeamMembershipTerminationPolicy;
 import com.spt.learningmanage.service.TeamMembershipTerminationService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -46,6 +54,15 @@ public class TeamMembershipTerminationServiceImpl
 
     @Resource
     private TeamMembershipTerminationPolicy terminationPolicy;
+
+    @Resource
+    private ProjectMapper projectMapper;
+
+    @Resource
+    private WeeklyReviewMapper weeklyReviewMapper;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -118,6 +135,7 @@ public class TeamMembershipTerminationServiceImpl
                 lockedTasks,
                 targetMember.getUserId()
         );
+        List<Long> affectedReviewIds = findAffectedReviewIds(targetMember);
 
         int updatedCount = 0;
         if (!taskIds.isEmpty()) {
@@ -168,6 +186,13 @@ public class TeamMembershipTerminationServiceImpl
             );
         }
 
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK,
+                    taskIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.WEEKLY_REVIEW,
+                    affectedReviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
+        }
+
         TeamMembershipTerminationVO result =
                 new TeamMembershipTerminationVO();
         result.setTeamId(targetMember.getTeamId());
@@ -176,6 +201,24 @@ public class TeamMembershipTerminationServiceImpl
         result.setUnassignedTaskCount(updatedCount);
         result.setTerminatedAt(operationTime);
         return result;
+    }
+
+    private List<Long> findAffectedReviewIds(TeamMember targetMember) {
+        if (projectMapper == null || weeklyReviewMapper == null) {
+            return List.of();
+        }
+        List<Long> projectIds = projectMapper.selectList(new LambdaQueryWrapper<Project>()
+                        .eq(Project::getTeamId, targetMember.getTeamId())
+                        .eq(Project::getIsDelete, 0)
+                        .isNull(Project::getDeletedAt))
+                .stream().map(Project::getId).toList();
+        if (projectIds.isEmpty()) {
+            return List.of();
+        }
+        return weeklyReviewMapper.selectList(new LambdaQueryWrapper<WeeklyReview>()
+                        .eq(WeeklyReview::getUserId, targetMember.getUserId())
+                        .in(WeeklyReview::getFocusProjectId, projectIds))
+                .stream().map(WeeklyReview::getId).toList();
     }
 
     private List<Long> validateLockedTasks(

@@ -4,22 +4,29 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.constant.TeamRoleEnum;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.UserMapper;
+import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.team.TeamCreateRequest;
 import com.spt.learningmanage.model.dto.team.TeamJoinRequest;
 import com.spt.learningmanage.model.dto.team.TeamMemberRoleUpdateRequest;
 import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.entity.User;
+import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.vo.team.TeamCreateVO;
 import com.spt.learningmanage.model.vo.team.TeamMemberVO;
 import com.spt.learningmanage.model.vo.team.TeamVO;
 import com.spt.learningmanage.service.TeamService;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -61,6 +68,15 @@ public class TeamServiceImpl implements TeamService {
 
     @Resource
     private PermissionService permissionService;
+
+    @Resource
+    private ProjectMapper projectMapper;
+
+    @Resource
+    private WeeklyReviewMapper weeklyReviewMapper;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -151,6 +167,7 @@ public class TeamServiceImpl implements TeamService {
             if (updateRows != 1) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "加入团队失败");
             }
+            publishReviewAccessRestored(team.getId(), userId);
             return;
         }
 
@@ -163,6 +180,27 @@ public class TeamServiceImpl implements TeamService {
         if (rows != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "加入团队失败");
         }
+        publishReviewAccessRestored(team.getId(), userId);
+    }
+
+    private void publishReviewAccessRestored(Long teamId, Long userId) {
+        if (knowledgeIndexEventPublisher == null || projectMapper == null || weeklyReviewMapper == null) {
+            return;
+        }
+        List<Long> projectIds = projectMapper.selectList(new LambdaQueryWrapper<Project>()
+                        .eq(Project::getTeamId, teamId)
+                        .eq(Project::getIsDelete, 0)
+                        .isNull(Project::getDeletedAt))
+                .stream().map(Project::getId).toList();
+        if (projectIds.isEmpty()) {
+            return;
+        }
+        List<Long> reviewIds = weeklyReviewMapper.selectList(new LambdaQueryWrapper<WeeklyReview>()
+                        .eq(WeeklyReview::getUserId, userId)
+                        .in(WeeklyReview::getFocusProjectId, projectIds))
+                .stream().map(WeeklyReview::getId).toList();
+        knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.WEEKLY_REVIEW,
+                reviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
     }
 
     @Override

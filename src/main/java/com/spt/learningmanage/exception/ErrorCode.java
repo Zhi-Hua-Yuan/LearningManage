@@ -44,7 +44,18 @@ public enum ErrorCode {
     AI_DRAFT_CONFLICT(30008, "AI 草稿状态冲突"),
     AI_DISABLED(30009, "AI 生成功能已关闭"),
     AI_CONCURRENCY_LIMIT(30010, "AI 服务当前请求较多"),
-    AI_CONTENT_BLOCKED(30011, "请求包含禁止发送的敏感信息");
+    AI_CONTENT_BLOCKED(30011, "请求包含禁止发送的敏感信息"),
+
+    /** Knowledge index operations (31xxx). */
+    KNOWLEDGE_INDEX_DISABLED(31001, "知识索引服务未启用"),
+    KNOWLEDGE_EVENT_NOT_FOUND(31002, "知识索引事件不存在"),
+    KNOWLEDGE_EVENT_NOT_REPLAYABLE(31003, "知识索引事件不可重放"),
+    KNOWLEDGE_BACKFILL_NOT_FOUND(31004, "知识索引回填任务不存在"),
+    KNOWLEDGE_BACKFILL_CONFLICT(31005, "知识索引回填任务冲突"),
+    EMBEDDING_UNAVAILABLE(31006, "Embedding 服务暂时不可用"),
+    EMBEDDING_DIMENSION_MISMATCH(31007, "Embedding 向量维度不匹配"),
+    VECTOR_STORE_UNAVAILABLE(31008, "向量库暂时不可用"),
+    VECTOR_COLLECTION_INVALID(31009, "向量集合配置不合法");
 
     private final int code;
     private final String message;

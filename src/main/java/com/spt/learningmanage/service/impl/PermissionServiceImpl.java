@@ -651,6 +651,17 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
+    @Override
+    public void requireSystemAdmin(Long actorUserId) {
+        ActorPermissionRow row = permissionQueryMapper.selectActorPermissionRow(actorUserId);
+        if (row == null
+                || !Objects.equals(row.getActorUserId(), actorUserId)
+                || !Objects.equals(row.getActorIsDelete(), 0)
+                || !SystemRoleEnum.isSystemAdmin(row.getActorSystemRole())) {
+            throw denied();
+        }
+    }
+
     private record TaskPermissionDecision(
             boolean readable,
             boolean canEditContent,

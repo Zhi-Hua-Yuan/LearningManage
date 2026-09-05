@@ -63,6 +63,35 @@ ai:
       qwen-plus:
         input-per-million: ${QWEN_PLUS_INPUT_PRICE:}
         output-per-million: ${QWEN_PLUS_OUTPUT_PRICE:}
+  knowledge-index:
+    # Outbox rows are always captured after V4. This switch controls consumers only.
+    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:false}
+    poll-interval-ms: ${AI_KNOWLEDGE_POLL_MS:2000}
+    claim-batch-size: ${AI_KNOWLEDGE_CLAIM_BATCH_SIZE:20}
+    worker-concurrency: ${AI_KNOWLEDGE_WORKER_CONCURRENCY:4}
+    lease-seconds: ${AI_KNOWLEDGE_LEASE_SECONDS:60}
+    max-attempts: ${AI_KNOWLEDGE_MAX_ATTEMPTS:5}
+    embedding-max-concurrent-calls: ${AI_KNOWLEDGE_EMBEDDING_CONCURRENCY:4}
+    vector-max-concurrent-calls: ${AI_KNOWLEDGE_VECTOR_CONCURRENCY:8}
+    circuit-sliding-window-size: ${AI_KNOWLEDGE_CB_WINDOW_SIZE:20}
+    circuit-minimum-calls: ${AI_KNOWLEDGE_CB_MINIMUM_CALLS:10}
+    circuit-failure-rate-threshold: ${AI_KNOWLEDGE_CB_FAILURE_RATE:50}
+    circuit-open-wait-ms: ${AI_KNOWLEDGE_CB_OPEN_WAIT_MS:30000}
+  embedding:
+    base-url: ${AI_EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api-key: ${AI_EMBEDDING_API_KEY:${ALIYUN_API_KEY:}}
+    model: ${AI_EMBEDDING_MODEL:text-embedding-v4}
+    dimension: ${AI_EMBEDDING_DIMENSION:1024}
+    max-batch-size: ${AI_EMBEDDING_BATCH_SIZE:10}
+    connect-timeout-ms: ${AI_EMBEDDING_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${AI_EMBEDDING_READ_TIMEOUT_MS:30000}
+
+qdrant:
+  base-url: ${QDRANT_BASE_URL:}
+  api-key: ${QDRANT_API_KEY:}
+  collection: ${QDRANT_COLLECTION:learning_knowledge_v1_1024}
+  alias: ${QDRANT_ALIAS:learning_knowledge_current}
+  require-secure-transport: ${QDRANT_REQUIRE_SECURE_TRANSPORT:false}
 
 security:
   jwt:

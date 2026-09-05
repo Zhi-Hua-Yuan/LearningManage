@@ -1,0 +1,62 @@
+name: Stage 4 real embedding validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_sha:
+        description: Exact backend commit SHA to validate
+        required: true
+        type: string
+      embedding_base_url:
+        description: Protected Alibaba Model Studio compatible-mode base URL
+        required: true
+        type: string
+      embedding_model:
+        description: Embedding model ID
+        required: true
+        default: text-embedding-v4
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage4-real-embedding-${{ inputs.backend_sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: real-ai-validation
+    env:
+      STAGE4_REAL_EMBEDDING_ENABLED: 'true'
+      AI_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url }}
+      AI_EMBEDDING_MODEL: ${{ inputs.embedding_model }}
+      ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.backend_sha }}
+          persist-credentials: false
+      - name: Verify immutable SHA
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "${{ inputs.backend_sha }}" ]]
+          [[ "${{ inputs.backend_sha }}" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Validate real embedding protocol
+        run: ./mvnw -B -ntp -Dtest=RealEmbeddingValidationIT test
+      - name: Upload sanitized test report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage4-real-embedding-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/surefire-reports
+          if-no-files-found: error
+          retention-days: 7

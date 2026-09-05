@@ -7,6 +7,7 @@ headers, request bodies, prompts, or model responses.
 """
 
 import json
+import hashlib
 import logging
 import os
 import re
@@ -191,7 +192,7 @@ def fault_content(scene, fault, text, valid_content):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "LearningManageCiAiStub/3"
+    server_version = "LearningManageCiAiStub/4"
 
     def _send_json(self, status, body, request_id="ci-ai-stub-request"):
         encoded = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -258,6 +259,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "not_found"})
 
     def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        if self.path == "/compatible-mode/v1/embeddings":
+            self._handle_embeddings()
+            return
         if self.path != "/compatible-mode/v1/chat/completions":
             self._send_json(404, {"error": "not_found"})
             return
@@ -351,6 +355,40 @@ class Handler(BaseHTTPRequestHandler):
         content = fault_content(scene, fault, text, valid_content)
         usage = None if fault == "missing-usage" else USAGE
         self._send_json(200, self._completion(content, usage=usage))
+
+    def _handle_embeddings(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(content_length).decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "invalid_request"})
+            return
+        inputs = request.get("input") if isinstance(request, dict) else None
+        if isinstance(inputs, str):
+            inputs = [inputs]
+        dimension = request.get("dimensions", 1024) if isinstance(request, dict) else 1024
+        if not isinstance(inputs, list) or not inputs or len(inputs) > 10:
+            self._send_json(400, {"error": "invalid_embedding_input"})
+            return
+        if not isinstance(dimension, int) or dimension <= 0 or dimension > 2048:
+            self._send_json(400, {"error": "invalid_dimension"})
+            return
+        data = []
+        for index, value in enumerate(inputs):
+            if not isinstance(value, str) or not value.strip():
+                self._send_json(400, {"error": "invalid_embedding_text"})
+                return
+            digest = hashlib.sha256(value.encode("utf-8")).digest()
+            vector = [((digest[offset % len(digest)] / 255.0) * 2.0) - 1.0 for offset in range(dimension)]
+            data.append({"object": "embedding", "index": index, "embedding": vector})
+        prompt_tokens = sum(max(1, len(value) // 4) for value in inputs)
+        self._send_json(200, {
+            "id": "ci-embedding-stub-response",
+            "object": "list",
+            "model": request.get("model", "text-embedding-v4"),
+            "data": data,
+            "usage": {"prompt_tokens": prompt_tokens, "total_tokens": prompt_tokens},
+        }, request_id="ci-embedding-stub-request")
 
     def log_message(self, fmt, *args):
         logging.info("request=%s status=%s", self.path, args[1] if len(args) > 1 else "unknown")
