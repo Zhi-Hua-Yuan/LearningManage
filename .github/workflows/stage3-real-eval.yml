@@ -194,9 +194,19 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          ! grep -R --fixed-strings "$ALIYUN_API_KEY" real-results human-review-sample.json
-          ! grep -R --fixed-strings "$STAGE3_EVAL_PASSWORD" real-results human-review-sample.json
-          ! grep -R -E 'Bearer [A-Za-z0-9._-]{20,}' real-results human-review-sample.json
+          scan_targets=(real-results human-review-sample.json)
+          if grep -R -q --fixed-strings "$ALIYUN_API_KEY" "${scan_targets[@]}"; then
+            echo "::error::Provider API key was found in protected evaluation evidence"
+            exit 1
+          fi
+          if grep -R -q --fixed-strings "$STAGE3_EVAL_PASSWORD" "${scan_targets[@]}"; then
+            echo "::error::Stage 3 evaluation password was found in protected evaluation evidence"
+            exit 1
+          fi
+          if grep -R -q -E '(^|[^A-Za-z0-9_])Bearer[[:space:]]+[A-Za-z0-9._-]{20,}|(^|[^A-Za-z0-9_])sk-[A-Za-z0-9_-]{16,}' "${scan_targets[@]}"; then
+            echo "::error::Credential-shaped content was found in protected evaluation evidence"
+            exit 1
+          fi
       - name: Upload protected evaluation evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

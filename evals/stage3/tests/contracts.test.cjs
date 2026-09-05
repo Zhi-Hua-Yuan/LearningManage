@@ -59,6 +59,19 @@ test('locked evaluation dependencies are cross-platform and use the restricted n
   }
 });
 
+test('credential scan distinguishes task names from standalone secret-shaped values', () => {
+  const credentialPattern = /(^|[^A-Za-z0-9_])(?:Bearer\s+[A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9_-]{16,})/;
+  assert.equal(credentialPattern.test('task-breakdown_business_contract'), false);
+  assert.equal(credentialPattern.test('{"token":"sk-ABCDEFGHIJKLMNOPQRST"}'), true);
+  assert.equal(credentialPattern.test('{"authorization":"Bearer abcdefghijklmnopqrstuvwxyz"}'), true);
+
+  for (const workflow of ['stage3-eval.yml', 'stage3-real-eval.yml']) {
+    const source = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', workflow), 'utf8');
+    assert.match(source, /grep -R -q/);
+    assert.match(source, /\(\^\|\[\^A-Za-z0-9_\]\)sk-/);
+  }
+});
+
 test('release manifest schema compiles', () => {
   const Ajv2020 = require('ajv/dist/2020');
   const schema = JSON.parse(fs.readFileSync(path.resolve(root, '..', '..', 'docs', 'stage3', 'release', 'stage3-release-candidate-manifest.schema.json'), 'utf8'));

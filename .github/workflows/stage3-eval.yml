@@ -159,8 +159,15 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          ! grep -R --fixed-strings "$STAGE3_EVAL_PASSWORD" evals/stage3/output.json evals/stage3/summary.json evals/stage3/report.md
-          ! grep -R -E 'Bearer [A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9_-]{16,}' evals/stage3/output.json evals/stage3/summary.json evals/stage3/report.md
+          scan_targets=(evals/stage3/output.json evals/stage3/summary.json evals/stage3/report.md)
+          if grep -R -q --fixed-strings "$STAGE3_EVAL_PASSWORD" "${scan_targets[@]}"; then
+            echo "::error::Stage 3 evaluation password was found in evaluation output"
+            exit 1
+          fi
+          if grep -R -q -E '(^|[^A-Za-z0-9_])Bearer[[:space:]]+[A-Za-z0-9._-]{20,}|(^|[^A-Za-z0-9_])sk-[A-Za-z0-9_-]{16,}' "${scan_targets[@]}"; then
+            echo "::error::Credential-shaped content was found in evaluation output"
+            exit 1
+          fi
       - name: Upload expiring raw and sanitized reports
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
