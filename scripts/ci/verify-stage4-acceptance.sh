@@ -21,6 +21,7 @@ required=(
   sql/flyway/stage4/preflight_v4.sql
   sql/flyway/stage4/post_verify_v4.sql
   .github/workflows/stage4-knowledge-index.yml
+  .github/workflows/stage4-real-embedding.yml
 )
 for file in "${required[@]}"; do
   [[ -s "$file" ]] || { printf 'missing Stage 4 contract file: %s\n' "$file" >&2; exit 1; }
