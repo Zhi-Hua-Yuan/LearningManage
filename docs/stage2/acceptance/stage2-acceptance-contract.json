@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "stage": "stage2",
   "status": "FROZEN",
-  "generatedAt": "2026-09-04T15:31:16Z",
+  "generatedAt": "2026-09-05T03:52:37Z",
   "baseline": {
     "stage1Tag": "stage1-v1.0.0",
     "backendSha": "505715860cce7f04a52c00a4e4258ac8ed838b8d",
@@ -31,7 +31,7 @@
   "risks": [
     {"id":"S2-R-001","status":"CLOSED","title":"阶段 2 分支已完成 develop 对齐和阶段 1 候选祖先校验","owner":"release owner","targetWp":"WP1"},
     {"id":"S2-R-002","status":"CLOSED","title":"全部调用已迁移，精确架构边界和 MySQL 终态已通过候选 CI","owner":"AI platform owner","targetWp":"WP3"},
-    {"id":"S2-R-003","status":"OPEN","title":"真实供应商 Tool Calls/Usage/请求 ID 协议差异仍待受控验证","owner":"AI platform owner","targetWp":"WP7"},
+    {"id":"S2-R-003","status":"CLOSED","title":"真实 qwen-plus 的文本、Tool Calls、Usage 和请求 ID 已完成三轮受控验证","owner":"AI platform owner","targetWp":"WP7"},
     {"id":"S2-R-004","status":"CLOSED","title":"草稿级重放、并发终态和原子回滚已通过候选 MySQL CI","owner":"backend owner","targetWp":"WP5"},
     {"id":"S2-R-005","status":"CLOSED","title":"AI 日志敏感正文泄漏","owner":"security owner","targetWp":"WP6"},
     {"id":"S2-R-006","status":"CLOSED","title":"模型回退造成额外成本","owner":"AI platform owner","targetWp":"WP6"},
@@ -39,6 +39,6 @@
     {"id":"S2-R-008","status":"OPEN","title":"WP4 候选 Docker/API 已通过，仍待 WP8 跨仓最终兼容验收","owner":"backend/frontend owner","targetWp":"WP8"},
     {"id":"S2-R-009","status":"CLOSED","title":"运维日志查询形成内容权限旁路","owner":"security owner","targetWp":"WP8"}
   ],
-  "summary": {"pass": 11, "pending": 1, "fail": 0, "openRisk": 2},
+  "summary": {"pass": 11, "pending": 1, "fail": 0, "openRisk": 1},
   "policy": {"publishedMigrationHead": "3", "v1Modified": false, "v2Modified": false, "v3Modified": false, "ragOrAgentImplemented": false, "requiredFailureCount": 0}
 }

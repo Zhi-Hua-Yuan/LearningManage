@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "workPackage": "WP7",
+  "status": "PASS",
+  "candidateId": "stage2-wp7-20260905-11d2f66",
+  "workflow": {
+    "runId": 33942635736,
+    "headSha": "11d2f6604cc4f32fc7605627427c04e642d07000",
+    "url": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33942635736",
+    "result": "success",
+    "executedAt": "2026-09-05T03:52:31Z"
+  },
+  "repositories": {
+    "backendSha": "11d2f6604cc4f32fc7605627427c04e642d07000",
+    "frontendSha": "ff896ea7e297eb4865a3540552a9333641e278c5"
+  },
+  "jobs": {
+    "freezeReleaseCandidate": 101242872466,
+    "guardBackend": 101242894035,
+    "guardBothRepositories": 101242913450,
+    "backendVerification": 101242931355,
+    "frontendTestsAndStatic": 101243160026,
+    "frontendProductionBuild": 101243322398,
+    "flywayEmpty": 101243391792,
+    "flywayExisting": 101243535390,
+    "fullStackRuntime": 101243765855,
+    "candidateManifest": 101243988812
+  },
+  "testEvidence": {
+    "backendTests": 710,
+    "frontendTests": 484,
+    "flywayEmpty": "PASS",
+    "flywayExisting": "PASS",
+    "dockerBackendRuntime": "PASS"
+  },
+  "runtimeApiContract": {
+    "legacyOperationCount": 37,
+    "frontendOperationCount": 44,
+    "runtimeOperationCount": 65,
+    "matchedOperationCount": 44,
+    "missingOperationCount": 0,
+    "reportSha256": "AF13A31207019571A9FCFF5C61E4FECB0195831C88A03BE8AA073A31C4CFB5DE",
+    "status": "PASS"
+  },
+  "dockerStub": {
+    "provider": "deterministic-ci-stub",
+    "frontendViaNginx": "PASS",
+    "apiProxy": "PASS",
+    "aiBreakdownFlow": "PASS",
+    "cancelFlow": "PASS",
+    "confirmFlow": "PASS",
+    "idempotentReplay": "PASS",
+    "businessCounts": {"projects": 1, "milestones": 2, "tasks": 4},
+    "evidenceSha256": "CB4EC8D490A505ABA868840605C317B7AA71CF5463D252FEC4C55B7753C80FF6",
+    "status": "PASS"
+  },
+  "artifactScanning": {
+    "backend": "PASS",
+    "frontend": "PASS",
+    "backendReportSha256": "23BE9CA90305CAE015BD927DB5818CA75D58B47101D77E508A9D431575097306",
+    "frontendReportSha256": "C2F9EDD5E0CC43FB02C3C691F34EB7432111F38FBD02AB30BFEB6CFC1B883FE9"
+  },
+  "candidateManifest": {
+    "artifact": "release-candidate-stage2-wp7-20260905-11d2f66-33942635736-1",
+    "sha256": "5AB6D15936BB0C1A2C0334E67D9112FDCDAE31122796F425B1083FC472B05955",
+    "status": "PASS"
+  },
+  "closedRisk": {"id": "S2-R-003", "status": "CLOSED"}
+}
