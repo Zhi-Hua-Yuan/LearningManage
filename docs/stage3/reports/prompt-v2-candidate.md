@@ -1,6 +1,6 @@
 # Stage 3 Prompt v2 candidate
 
-Status: **PENDING PROTECTED REAL-MODEL QUALIFICATION**
+Status: **IMPLEMENTED / REAL-MODEL QUALIFICATION DEFERRED TO STAGE 7**
 
 ## Evidence that triggered this candidate
 
@@ -26,4 +26,8 @@ The candidate Prompt rows are installed only into a protected `_eval` database. 
 
 ## Acceptance decision
 
-No Stage 3 threshold is weakened. This candidate must pass the development qualification, three regression rounds, three holdout rounds, deterministic and security gates on every round, aggregate semantic gates, performance and cost gates, and the 20% human-review agreement check before promotion or sealing.
+PR `#134` merged the candidate implementation at backend SHA `5a98b4b9b39fef1303c0d68b653dbf2d3c129a7f`. The project may use that engineering baseline to continue Stage 4 development, but the merge is not a real-model quality approval.
+
+No Stage 3 threshold is weakened. Qualification is deferred under `../release/deferred-acceptance.md`. In Stage 7 this candidate, or its then-current replacement, must pass the development qualification, three regression rounds, three holdout rounds, deterministic and security gates on every round, aggregate semantic gates, performance and cost gates, and the 20% human-review agreement check before any verified-quality or promotion claim.
+
+No Stage 3 GitHub Release or release tag will be published now.

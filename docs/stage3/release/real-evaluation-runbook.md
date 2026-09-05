@@ -1,4 +1,8 @@
-# Real evaluation and release runbook
+# Real evaluation and evidence-sealing runbook
+
+Status: **DEFERRED TO STAGE 7**
+
+Do not run this procedure as a condition for starting Stage 4. The deferral decision and frozen handoff are recorded in `deferred-acceptance.md`. When Stage 7 reopens acceptance, first inventory all Prompt, dataset, fixture, model, RAG, and Agent changes and regenerate their manifests; do not assume the Stage 3 hashes are still current.
 
 1. Select an immutable backend SHA and its paired frontend SHA.
 2. Run `Stage 3 Real Model Evaluation` through the protected `stage3-real-ai` GitHub Environment.
@@ -13,6 +17,6 @@
 9. If a Prompt candidate passes, enable exactly one version per Prompt Code in a transaction. Roll back by re-enabling the last sealed version.
 10. Generate the evidence index with `STAGE3_EVIDENCE_INDEX_OUTPUT=... bash scripts/ci/create-stage3-evidence-index.sh`.
 11. Generate and validate the candidate manifest with `create-stage3-release-manifest.sh` and `verify-stage3-release-manifest.sh`. These scripts refuse a candidate without six passing real rounds and a passing human-review result.
-12. Create an annotated `stage3-v1.0.0` tag and publish the Release only after the manifest SHA-256 sidecar is present.
+12. Commit the sanitized final result, manifest, and SHA-256 evidence index. Do not create an annotated tag or publish a GitHub Release unless a separate future decision explicitly requests it.
 
-Do not create a release while `docs/stage3/reports/current-baseline.md` is pending or while any required human-review, frontend SHA, or real-run evidence is absent.
+Until this procedure passes, keep Stage 3 marked `IMPLEMENTATION_COMPLETE / ACCEPTANCE_DEFERRED`; do not present Prompt v2 as having passed real-model qualification. Raw model output remains an expiring restricted Artifact even when no GitHub Release is published.
