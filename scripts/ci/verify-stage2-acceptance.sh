@@ -164,8 +164,12 @@ wp7_protocol_risk_status="$(jq -r '.risks[] | select(.id == "S2-R-003") | .statu
 if [[ "$wp7_protocol_risk_status" == "CLOSED" ]]; then
   wp7_verification="${project_root}/docs/stage2/evidence/wp7/local-verification.json"
   wp7_real_provider="${project_root}/docs/stage2/evidence/wp7/real-provider-validation.json"
-  [[ -s "$wp7_verification" && -s "$wp7_real_provider" ]] \
+  wp7_real_provider_sha="${wp7_real_provider}.sha256"
+  [[ -s "$wp7_verification" && -s "$wp7_real_provider" && -s "$wp7_real_provider_sha" ]] \
     || ci_fail "stage2_wp7_evidence_missing"
+  (cd "$(dirname "$wp7_real_provider")" \
+    && sha256sum -c "$(basename "$wp7_real_provider_sha")" >/dev/null) \
+    || ci_fail "stage2_wp7_evidence_checksum_invalid"
   wp7_expected_backend_sha="$(jq -r '.verification.realProvider.backendSha // empty' "$wp7_verification")"
   wp7_expected_workflow_run_id="$(jq -r '.verification.realProvider.workflowRunId // empty' "$wp7_verification")"
   [[ "$wp7_expected_backend_sha" =~ ^[0-9a-f]{40}$ ]] \
