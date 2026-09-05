@@ -47,7 +47,7 @@ class QdrantVectorStoreClientHttpTest {
             if ("GET".equals(exchange.getRequestMethod()) && path.equals("/collections/test_collection")) {
                 respond(exchange, 404, "{\"status\":\"not_found\"}");
             } else if ("GET".equals(exchange.getRequestMethod()) && path.equals("/aliases/test_alias")) {
-                respond(exchange, 404, "{\"status\":\"not_found\"}");
+                respond(exchange, 404, "");
             } else if (path.endsWith("/points/scroll")) {
                 respond(exchange, 200, "{\"result\":{\"points\":[{\"id\":\"point-1\",\"payload\":{\"documentKey\":\"TASK:1:PRIVATE:2\"}}]}}");
             } else {

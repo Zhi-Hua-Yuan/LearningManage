@@ -30,11 +30,23 @@ public class KnowledgeRestTransport {
                     .body(body == null ? "" : body)
                     .exchange((request, response) -> new RestTransportResponse(
                             response.getStatusCode().value(),
-                            new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8),
+                            readBodySafely(response),
                             firstHeader(response.getHeaders(), "x-request-id", "request-id")
                     ));
         } catch (Exception exception) {
             throw new TransportFailureException("Knowledge dependency HTTP request failed", exception);
+        }
+    }
+
+    private String readBodySafely(org.springframework.http.client.ClientHttpResponse response) {
+        try {
+            return new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+        } catch (java.io.FileNotFoundException exception) {
+            // JDK HttpURLConnection represents an HTTP 404 body as FileNotFoundException.
+            // The status code remains authoritative for create-if-missing flows.
+            return "";
+        } catch (java.io.IOException exception) {
+            throw new TransportFailureException("Unable to read dependency HTTP response", exception);
         }
     }
 

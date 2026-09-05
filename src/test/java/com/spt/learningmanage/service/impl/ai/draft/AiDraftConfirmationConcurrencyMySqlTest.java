@@ -123,7 +123,7 @@ class AiDraftConfirmationConcurrencyMySqlTest {
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*"),
                 "WP5 concurrency test must use an isolated test database");
-        assertEquals(3, jdbcTemplate.queryForObject(
+        assertEquals(4, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success = 1",
                 Integer.class));
     }
