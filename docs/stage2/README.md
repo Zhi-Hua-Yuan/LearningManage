@@ -1,6 +1,6 @@
 # 阶段 2：AI 调用治理与协议升级
 
-状态：`WP0～WP6 PASS · STAGE FROZEN`
+状态：`WP0～WP7 PASS · STAGE FROZEN`
 
 阶段 2 不新增 RAG、Embedding、Qdrant 或 Agent 业务能力，目标是把现有 AI 调用收敛为可扩展、可观测、可降级且保持 API 兼容的基础设施，为阶段 3 评测和阶段 4～6 的 RAG/Agent 提供稳定底座。
 
@@ -36,6 +36,10 @@
 - [WP6 Release 记录](release/wp6-release-record-2026-09-05.md)
 - [WP7 需求合同](requirements/wp7-real-provider-frontend-safety-requirements.md)
 - [WP7 前端错误与安全渲染合同](api/wp7-frontend-error-and-rendering-contract.md)
+- [WP7 验收记录](acceptance/wp7-real-provider-frontend-safety-acceptance-2026-09-05.md)
+- [WP7 真实模型证据](evidence/wp7/real-provider-validation.json)
+- [WP7 跨仓候选门禁证据](evidence/wp7/candidate-release-gate-2026-09-05.json)
+- [WP7 Release 记录](release/wp7-release-record-2026-09-05.md)
 
 ## 实施边界
 
@@ -47,7 +51,8 @@
 4. AI 日志脱敏、截断、Trace、Usage、成本和价格版本；
 5. 通用草稿确认 Handler、Schema 版本和草稿级幂等；
 6. Chat 外部调用的超时、重试、熔断和并发隔离；
-7. 现有前端和 API 契约兼容回归。
+7. 真实模型协议验证、前端 TraceId/错误动作与 AI 纯文本安全渲染；
+8. 现有前端和 API 契约兼容回归。
 
 本阶段不实施数据库 V4、Qdrant、Embedding、Rerank、RAG 查询、Agent Tool 或新的 AI 业务场景。
 
@@ -57,4 +62,4 @@
 scripts/ci/verify-stage2-acceptance.sh
 ```
 
-WP0～WP6 已正式通过，S2-A-005～S2-A-011 为 `PASS`。WP6 候选 Release Gate 已完成后端、前端、Flyway、Docker 全栈、API 契约和产物敏感信息扫描；阶段总状态继续保持 `FROZEN`，只有 WP7～WP8 全部正式通过后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+WP0～WP7 已正式通过，S2-A-005～S2-A-011 为 `PASS`。WP7 已完成真实 `qwen-plus` 三轮协议验证、前端 TraceId/错误语义/纯文本渲染和跨仓 Release Gate，`S2-R-003` 已关闭。阶段总状态继续保持 `FROZEN`；只有 WP8 最终兼容验收完成后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。

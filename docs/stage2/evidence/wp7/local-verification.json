@@ -1,0 +1,65 @@
+{
+  "workPackage": "WP7",
+  "generatedAt": "2026-09-05T03:52:37Z",
+  "baseline": {
+    "tag": "stage2-wp6-v1.0.0",
+    "backendStartSha": "88e09bb2c9487ba04a2245355fcdc59152ad8639",
+    "publishedMigrationHead": "3"
+  },
+  "verification": {
+    "realProvider": {
+      "status": "PASS",
+      "model": "qwen-plus",
+      "rounds": 3,
+      "scenarios": 9,
+      "backendSha": "11d2f6604cc4f32fc7605627427c04e642d07000",
+      "workflowRunId": "33942527673",
+      "reportSha256": "7288f2c5b81be2133763a22263eec66512d6b82a3f901ebd8e1e6f4d4fe5e528",
+      "sourceArtifactReportSha256": "1060af9fef9ce592a7f2f4e578e2814937737fed82b73b7a7227dc8b21c29c39"
+    },
+    "frontendSafety": {
+      "status": "PASS",
+      "traceId": "PASS",
+      "errorMapping": "PASS",
+      "plainTextRendering": "PASS",
+      "staticGuard": "PASS",
+      "noAutomaticRetry": "PASS",
+      "frontendSha": "ff896ea7e297eb4865a3540552a9333641e278c5",
+      "pullRequest": 54,
+      "ciRunId": "33910827041"
+    },
+    "fullRegression": {
+      "backend": {"status": "PASS", "tests": 710, "failures": 0, "errors": 0},
+      "frontend": {"status": "PASS", "tests": 484, "failures": 0, "errors": 0},
+      "candidateRunId": "33942635736",
+      "jobs": 10
+    },
+    "publishedMigrations": {
+      "status": "PASS",
+      "head": "3",
+      "evidence": "V1/V2/V3 unchanged; empty and existing database gates passed; no V4"
+    },
+    "runtimeApiComparison": {
+      "status": "PASS",
+      "legacyOperations": 37,
+      "frontendOperations": 44,
+      "runtimeOperations": 65,
+      "matchedOperations": 44,
+      "missingOperations": 0
+    },
+    "dockerStub": {
+      "status": "PASS",
+      "provider": "deterministic-ci-stub",
+      "aiBreakdownFlow": "PASS",
+      "cancelFlow": "PASS",
+      "confirmFlow": "PASS",
+      "idempotentReplay": "PASS"
+    },
+    "candidateManifest": {
+      "status": "PASS",
+      "candidateId": "stage2-wp7-20260905-11d2f66",
+      "sha256": "5AB6D15936BB0C1A2C0334E67D9112FDCDAE31122796F425B1083FC472B05955"
+    }
+  },
+  "risk": {"id": "S2-R-003", "status": "CLOSED"}
+}
