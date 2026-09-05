@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage2-release-candidate-manifest.schema.json",
+  "title": "LearningManage Stage 2 Release Candidate Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","stage","candidateId","status","backend","frontend","environment","flyway","apiContract","regression","realProvider","stage2Acceptance","riskClosure","artifacts","workflow"],
+  "properties": {
+    "schemaVersion":{"const":1}, "stage":{"const":"stage2"},
+    "candidateId":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+    "status":{"enum":["CANDIDATE_PASS","PASS"]},
+    "backend":{"$ref":"#/$defs/repository"}, "frontend":{"$ref":"#/$defs/repository"},
+    "environment":{"type":"object","additionalProperties":false,"required":["java","node","npm","mysql"],"properties":{"java":{"const":"17"},"node":{"const":"22.13.1"},"npm":{"const":"10.9.2"},"mysql":{"const":"8.0.41"}}},
+    "flyway":{"type":"object","additionalProperties":false,"required":["publishedManifestSha256","v1Sha256","v2Sha256","v3Sha256","historyTotal","emptyDatabase","existingDatabase","v4Present"],"properties":{"publishedManifestSha256":{"$ref":"#/$defs/sha256"},"v1Sha256":{"$ref":"#/$defs/sha256"},"v2Sha256":{"$ref":"#/$defs/sha256"},"v3Sha256":{"$ref":"#/$defs/sha256"},"historyTotal":{"const":3},"emptyDatabase":{"const":"PASS"},"existingDatabase":{"const":"PASS"},"v4Present":{"const":false}}},
+    "apiContract":{"type":"object","additionalProperties":false,"required":["legacyOperationCount","frontendOperationCount","runtimeOperationCount","matchedOperationCount","missingOperationCount","comparisonSha256"],"properties":{"legacyOperationCount":{"const":37},"frontendOperationCount":{"const":44},"runtimeOperationCount":{"type":"integer","minimum":65},"matchedOperationCount":{"const":44},"missingOperationCount":{"const":0},"comparisonSha256":{"$ref":"#/$defs/sha256"}}},
+    "regression":{"type":"object","additionalProperties":false,"required":["backendTests","frontendTests","aiBreakdownFlow","dockerRuntime","status"],"properties":{"backendTests":{"type":"integer","minimum":710},"frontendTests":{"type":"integer","minimum":484},"aiBreakdownFlow":{"const":"PASS"},"dockerRuntime":{"const":"PASS"},"status":{"const":"PASS"}}},
+    "realProvider":{"type":"object","additionalProperties":false,"required":["status","model","validatedBackendSha","workflowRunId","rounds","scenarios","inputTokens","outputTokens","totalTokens","estimatedCost","currency","reportSha256"],"properties":{"status":{"const":"BOUND"},"model":{"const":"qwen-plus"},"validatedBackendSha":{"$ref":"#/$defs/sha"},"workflowRunId":{"type":"string","pattern":"^[1-9][0-9]*$"},"rounds":{"const":3},"scenarios":{"const":9},"inputTokens":{"type":"integer","minimum":1},"outputTokens":{"type":"integer","minimum":1},"totalTokens":{"type":"integer","minimum":1},"estimatedCost":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$"},"currency":{"const":"CNY"},"reportSha256":{"$ref":"#/$defs/sha256"}}},
+    "stage2Acceptance":{"type":"object","additionalProperties":false,"required":["contractSha256","schemaSha256","riskRegisterSha256","sourceEvidenceIndexSha256","gatesPassed"],"properties":{"contractSha256":{"$ref":"#/$defs/sha256"},"schemaSha256":{"$ref":"#/$defs/sha256"},"riskRegisterSha256":{"$ref":"#/$defs/sha256"},"sourceEvidenceIndexSha256":{"$ref":"#/$defs/sha256"},"gatesPassed":{"type":"array","uniqueItems":true,"items":{"type":"string","pattern":"^S2-A-[0-9]{3}$"},"minItems":11,"maxItems":12}}},
+    "riskClosure":{"type":"object","additionalProperties":false,"required":["s2R008","openBlockingRiskCount"],"properties":{"s2R008":{"enum":["ELIGIBLE","CLOSED"]},"openBlockingRiskCount":{"type":"integer","minimum":0,"maximum":1}}},
+    "artifacts":{"type":"object","additionalProperties":false,"required":["backendJarSha256","frontendDistManifestSha256","files"],"properties":{"backendJarSha256":{"$ref":"#/$defs/sha256"},"frontendDistManifestSha256":{"$ref":"#/$defs/sha256"},"files":{"type":"array","minItems":5,"uniqueItems":true,"items":{"type":"string"}}}},
+    "workflow":{"type":"object","additionalProperties":false,"required":["runId","runAttempt","workflowSha","triggeredBy","executedAt"],"properties":{"runId":{"type":"string","pattern":"^[1-9][0-9]*$"},"runAttempt":{"type":"string","pattern":"^[1-9][0-9]*$"},"workflowSha":{"$ref":"#/$defs/sha"},"triggeredBy":{"type":"string","minLength":1},"executedAt":{"type":"string","format":"date-time"}}}
+  },
+  "$defs": {
+    "sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},
+    "sha256":{"type":"string","pattern":"^[0-9A-F]{64}$"},
+    "repository":{"type":"object","additionalProperties":false,"required":["repository","sha","developShaAtStart","developShaAtEnd"],"properties":{"repository":{"type":"string","minLength":1},"sha":{"$ref":"#/$defs/sha"},"developShaAtStart":{"$ref":"#/$defs/sha"},"developShaAtEnd":{"$ref":"#/$defs/sha"}}}
+  }
+}
