@@ -29,7 +29,7 @@ done
 
 jq -e '
   .schemaVersion == 1 and .stage == "stage4" and
-  (.status == "IN_PROGRESS" or .status == "PASS") and
+  (.status == "IN_PROGRESS" or .status == "IMPLEMENTATION_COMPLETE" or .status == "PASS") and
   (.requiredGates | length) == 16 and
   .thresholds.businessOutboxAtomicityPercent == 100 and
   .thresholds.duplicatePointCount == 0 and

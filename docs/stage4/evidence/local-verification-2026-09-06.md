@@ -13,12 +13,18 @@ Date: 2026-09-06
 - GitHub workflow and Compose YAML parse successfully through the repository's pinned Node YAML parser.
 - All 703 tests not requiring MySQL credentials or protected real-provider credentials pass with zero failures/errors.
 
-## External acceptance pending
+## Remote deterministic acceptance
 
-- The local Docker daemon rejects access, so the MySQL-Qdrant end-to-end test cannot run locally.
-- `gh auth status` reports an invalid GitHub token and GitHub API access is unavailable, so PR creation, Linux Runner execution, Tag, Release, image digest binding, and remote evidence sealing cannot be performed in this session.
-- The protected real `text-embedding-v4` smoke requires restored GitHub credentials and protected `ALIYUN_API_KEY`; no real credential is placed in local evidence.
-- The manual `stage4-real-embedding.yml` workflow and gated `RealEmbeddingValidationIT` are implemented and ready for that protected run.
+- PR #136 was merged as `525f681dc7563147ff36964973c56343861a0b47`.
+- Candidate Backend CI `33982828631`, Stage 4 integration `33982828637`, and Stage 3 evaluation `33982828668` passed.
+- Post-merge Backend CI `33983320260` and Stage 3 evaluation `33983320203` passed.
+- The Linux runner verified 764/764 tests, V4 empty install, V1-to-V4 upgrade, tested-JAR Docker runtime, and the MySQL-Outbox-EmbeddingStub-Qdrant lifecycle.
+
+## Protected acceptance pending
+
+- The protected real `text-embedding-v4` smoke requires manual workflow dispatch and the `real-ai-validation` environment's `ALIYUN_API_KEY`; no real credential is available to this session.
+- `stage4-real-embedding.yml` and `RealEmbeddingValidationIT` are ready and use ten synthetic texts only.
+- Release/tag and final PASS sealing remain pending that protected run.
 
 ## Expected remote gates
 
@@ -33,4 +39,4 @@ private fields in TEAM vectors: 0
 duplicate/stale points after replay/rebuild: 0
 ```
 
-This document proves local implementation and deterministic verification only. Stage 4 remains remote-acceptance pending until the protected workflows pass.
+This document proves implementation and deterministic remote verification. It intentionally does not claim protected real-provider acceptance.
