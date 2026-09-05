@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "candidateId": "stage2-rc3-20260905",
+  "frontendViaNginx": "PASS",
+  "apiProxy": "PASS",
+  "aiProvider": "deterministic-ci-stub",
+  "aiBreakdown": {
+    "preview": "PASS",
+    "cancel": "PASS",
+    "confirm": "PASS",
+    "idempotentReplay": "PASS",
+    "previewMilestoneCount": 2,
+    "previewTaskCount": 4,
+    "confirmedProjectCount": 1,
+    "confirmedMilestoneCount": 2,
+    "confirmedTaskCount": 4,
+    "successfulTaskBreakdownCallLogCount": 2
+  }
+}

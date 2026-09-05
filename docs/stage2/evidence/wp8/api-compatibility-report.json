@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "status": "PASS",
+  "baselineSha256": "93C854302288DB56428FE51922EB9DCFA7F0C2D590D67284A1E1C08847352EF3",
+  "frontendContractSha256": "4F8CB8D3B92252E4375B49DD102E7CDE75F819827713060D6E521BED19F0B2F6",
+  "runtimeOpenapiSha256": "875BA74F2C5AC83A276A7C978861099D9218A36462D0AAB5C6412DB5E8CACC93",
+  "legacyOperationCount": 37,
+  "frontendOperationCount": 44,
+  "runtimeOperationCount": 65,
+  "matchedOperationCount": 44,
+  "legacyMissingFromCurrentCount": 0,
+  "legacyMissingFromRuntimeCount": 0,
+  "missingOperationCount": 0
+}

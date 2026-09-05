@@ -1,6 +1,6 @@
 # 阶段 2 风险登记表
 
-状态：`WP7 PASS / STAGE FROZEN`
+状态：`WP8 CANDIDATE PASS / STAGE SEALED PENDING`
 建立日期：2026-09-04
 
 | ID | 状态 | 风险 | 触发条件 | 缓解措施 | 目标工作包 |
@@ -12,7 +12,7 @@
 | S2-R-005 | CLOSED | AI 请求/响应日志泄漏私人内容或凭据 | 脱敏发生在持久化之后 | WP6 统一脱敏、先哈希后截断和唯一日志写入口已通过候选 Gitleaks、MySQL 与 JAR/dist 产物扫描；Release Gate `33903357653` 通过 | WP6 |
 | S2-R-006 | CLOSED | 重试和模型回退造成不可控成本 | 网络抖动、429 或上游 5xx | WP6 限制主/兜底各一次并按实际模型聚合 Usage/成本；候选故障注入和成本验证通过 | WP3/WP6 |
 | S2-R-007 | CLOSED | 熔断或 Bulkhead 配置错误阻塞核心业务 | 外部模型不可用或并发耗尽 | WP6 全局 Semaphore Bulkhead、模型级熔断、总期限和启动校验已通过候选 Docker/CI | WP6 |
-| S2-R-008 | OPEN | 场景拆分导致旧 API 或前端行为回归 | 门面签名、响应字段或错误语义变化 | 候选 run `33875362611` 在后端合并 SHA `d3a9c673` 上通过 653 项后端验证、Docker 全栈、运行时 OpenAPI 44/44 匹配和 AI Stub 闭环；按计划保留至 WP8 最终跨仓兼容验收后关闭 | WP4/WP7/WP8 |
+| S2-R-008 | CLOSED | 场景拆分导致旧 API 或前端行为回归 | 门面签名、响应字段或错误语义变化 | WP8 最终候选 run `33950053176` 在后端 SHA `e92c115`、前端 SHA `ff896ea` 上通过 11 项门禁：legacy 37 保留、前端 44/44 匹配、运行时 65、V1～V3 迁移、Docker AI Stub 草稿闭环与幂等重放均通过 | WP4/WP7/WP8 |
 | S2-R-009 | CLOSED | AI 日志查询暴露系统管理员不应读取的项目内容 | 运维查询绕过资源权限 | WP6 Mapper 依赖静态阻断和用户范围过滤已通过候选架构门禁；未新增全量正文读取接口 | WP6/WP8 |
 
 ## 使用规则

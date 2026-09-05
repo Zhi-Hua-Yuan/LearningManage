@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage2",
+  "status": "PASS",
+  "candidateId": "stage2-rc3-20260905",
+  "candidateWorkflowRunId": "33950053176",
+  "backend": {"sha": "e92c1157c671570584ba505bda0186a421a23a8f", "tests": 710},
+  "frontend": {"sha": "ff896ea7e297eb4865a3540552a9333641e278c5", "tests": 484},
+  "api": {"legacyOperations": 37, "frontendOperations": 44, "runtimeOperations": 65, "matchedFrontendOperations": 44, "missingOperations": 0},
+  "flyway": {"publishedMigrationHead": 3, "v1Modified": false, "v2Modified": false, "v3Modified": false, "v4Present": false},
+  "docker": {"status": "PASS", "projects": 1, "milestones": 2, "tasks": 4, "idempotentReplay": "PASS"},
+  "realProvider": {"model": "qwen-plus", "validatedBackendSha": "665678e5181835e0076a5517f7dc0940407fb75d", "workflowRunId": "33949480189", "rounds": 3, "scenarios": 9, "status": "PASS"},
+  "acceptance": {"pass": 12, "pending": 0, "fail": 0, "openRisk": 0, "s2R008": "CLOSED"}
+}

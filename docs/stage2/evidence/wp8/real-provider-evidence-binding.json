@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "candidateBackendSha": "e92c1157c671570584ba505bda0186a421a23a8f",
+  "validatedBackendSha": "665678e5181835e0076a5517f7dc0940407fb75d",
+  "workflowRunId": "33949480189",
+  "ancestorVerified": true,
+  "runtimeChangesAfterValidation": 0,
+  "reportSha256": "7FF49299D38D7E505E3F8615972CD0D544E60BF902D3C72EB24D089AEBEDF605"
+}
