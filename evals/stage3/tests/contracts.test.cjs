@@ -38,6 +38,27 @@ test('promptfoo config disables result sharing', () => {
   assert.match(config, /learning-manage-http\.js/);
 });
 
+test('locked evaluation dependencies are cross-platform and use the restricted native install', () => {
+  const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+  const missingVersions = Object.entries(lock.packages || {})
+    .filter(([packagePath, metadata]) => packagePath && !metadata.version)
+    .map(([packagePath]) => packagePath);
+  assert.deepEqual(missingVersions, []);
+  const nonOfficialResolvedUrls = Object.values(lock.packages || {})
+    .map((metadata) => metadata.resolved)
+    .filter(Boolean)
+    .filter((resolved) => new URL(resolved).hostname !== 'registry.npmjs.org');
+  assert.deepEqual(nonOfficialResolvedUrls, []);
+
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(packageJson.scripts['install:ci'], 'npm ci --ignore-scripts && npm rebuild better-sqlite3');
+  for (const workflow of ['stage3-eval.yml', 'stage3-real-eval.yml']) {
+    const source = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', workflow), 'utf8');
+    assert.match(source, /npm run install:ci/);
+    assert.doesNotMatch(source, /npm ci --ignore-scripts/);
+  }
+});
+
 test('release manifest schema compiles', () => {
   const Ajv2020 = require('ajv/dist/2020');
   const schema = JSON.parse(fs.readFileSync(path.resolve(root, '..', '..', 'docs', 'stage3', 'release', 'stage3-release-candidate-manifest.schema.json'), 'utf8'));

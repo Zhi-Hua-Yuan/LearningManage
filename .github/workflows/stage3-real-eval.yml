@@ -156,7 +156,7 @@ jobs:
           STAGE3_PROMPT_MANIFEST: prompt-manifest.json
         run: |
           set -Eeuo pipefail
-          npm ci --ignore-scripts
+          npm run install:ci
           npm run validate
           mkdir -p real-results
           for split in regression holdout; do

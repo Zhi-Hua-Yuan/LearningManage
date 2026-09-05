@@ -9,6 +9,7 @@
     "npm": "10.9.2"
   },
   "scripts": {
+    "install:ci": "npm ci --ignore-scripts && npm rebuild better-sqlite3",
     "generate:datasets": "node scripts/generate-datasets.mjs",
     "datasets:manifest": "node scripts/create-dataset-manifest.mjs",
     "validate:datasets": "node scripts/validate-datasets.mjs",

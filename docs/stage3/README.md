@@ -18,7 +18,7 @@ Stage 3 turns the five existing AI scenes into reproducible, comparable release 
 
 ```bash
 cd evals/stage3
-npm ci --ignore-scripts
+npm run install:ci
 npm run generate:datasets
 npm run datasets:manifest
 npm run prompt:manifest
