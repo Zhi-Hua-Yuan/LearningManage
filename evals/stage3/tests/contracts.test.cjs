@@ -94,9 +94,16 @@ test('deterministic model stub recognizes the candidate prompt vocabulary and pl
   const stub = fs.readFileSync(path.resolve(root, '..', '..', 'scripts', 'ci', 'stubs', 'ai-chat-completions-stub.py'), 'utf8');
   assert.match(stub, /今天日期\(\?:（含）\)\?/);
   assert.match(stub, /\(\?:原始\)\?周期/);
+  assert.match(stub, /最晚截止日期\(\?:（含）\)\?/);
+  assert.match(stub, /planning_end - start/);
   assert.match(stub, /"细颗粒度" in text/);
   assert.match(stub, /milestone_count = 3/);
   assert.match(stub, /task_count = 4 if detailed else 3/);
+});
+
+test('offline workflow binds summaries to dataset v1.1.0', () => {
+  const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'stage3-eval.yml'), 'utf8');
+  assert.match(workflow, /^\s*STAGE3_DATASET_VERSION:\s*['"]1\.1\.0['"]\s*$/m);
 });
 
 test('task-breakdown v2 assertion rejects the legacy 2-by-2 response shape', () => {

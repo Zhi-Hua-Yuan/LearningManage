@@ -69,12 +69,14 @@ def breakdown_content(text, detailed=False):
     milestone_count = 3
     task_count = 4 if detailed else 3
     today_match = re.search(r"今天日期(?:（含）)?：(\d{4}-\d{2}-\d{2})", text)
+    end_match = re.search(r"最晚截止日期(?:（含）)?：(\d{4}-\d{2}-\d{2})", text)
     duration_match = re.search(r"(?:原始)?周期：([^，。]+)", text)
     start = date.fromisoformat(today_match.group(1)) if today_match else date.today()
     duration = duration_match.group(1) if duration_match else "1个月"
     amount_match = re.search(r"(\d+)", duration)
     amount = int(amount_match.group(1)) if amount_match else 1
-    total_days = amount * (7 if "周" in duration else 30)
+    planning_end = date.fromisoformat(end_match.group(1)) if end_match else None
+    total_days = (planning_end - start).days if planning_end else amount * (7 if "周" in duration else 30)
     total_tasks = milestone_count * task_count
     milestones = []
     for milestone_index in range(milestone_count):
