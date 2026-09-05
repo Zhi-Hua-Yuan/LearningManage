@@ -17,13 +17,14 @@ const developmentDocument = {
 if (splitOf(developmentDocument.file) !== 'development') {
   throw new Error('STAGE3_DEVELOPMENT_SUMMARY must reference the development qualification summary');
 }
+const allEvidenceDocuments = [...documents, developmentDocument];
 for (const split of ['regression', 'holdout']) {
   const matching = documents.filter(({ file }) => splitOf(file) === split);
   if (matching.length !== 3) throw new Error(`Expected three ${split} summaries, received ${matching.length}`);
 }
 
 const first = documents[0].value;
-for (const { value } of [...documents, developmentDocument]) {
+for (const { value } of allEvidenceDocuments) {
   for (const key of ['backendSha', 'datasetVersion', 'datasetSha256', 'model', 'graderModel']) {
     if (value.run?.[key] !== first.run?.[key]) throw new Error(`Real-model evidence is not immutable: ${key} differs`);
   }
@@ -78,11 +79,14 @@ if (metrics.minimumSemanticDimensionScore == null || metrics.minimumSemanticDime
 if (metrics.maximumP95LatencyMs > 15000) failures.push('P95 latency exceeds 15 seconds');
 if (metrics.formalBusinessWrites !== 0) failures.push('formal business data was changed');
 if (metrics.totalEstimatedCostCny > 10) failures.push('candidate evaluation cost exceeds 10 CNY');
-for (const { value } of documents) {
+for (const { file, value } of allEvidenceDocuments) {
   if (JSON.stringify(value.run.requestedModels) !== JSON.stringify(['qwen-plus'])) failures.push('requested model binding is not qwen-plus');
   if (JSON.stringify(value.run.actualModels) !== JSON.stringify(['qwen-plus'])) failures.push('actual model binding is not qwen-plus');
   if (!Array.isArray(value.run.priceVersions) || value.run.priceVersions.length === 0) failures.push('price version is missing');
   if (!Array.isArray(value.run.promptBindings) || value.run.promptBindings.length !== 6) failures.push('six Prompt bindings were not captured');
+  if (JSON.stringify(value.run.promptBindings) !== JSON.stringify(first.run.promptBindings)) {
+    failures.push(`${path.basename(file)} did not use the exact candidate Prompt identities and hashes`);
+  }
 }
 
 const baselinePath = process.env.STAGE3_BASELINE_CANDIDATE_SUMMARY;
@@ -99,7 +103,7 @@ if (baselinePath) {
   }
 }
 
-const inputEvidence = [...documents, developmentDocument].map(({ file }) => ({
+const inputEvidence = allEvidenceDocuments.map(({ file }) => ({
   file: path.basename(file),
   sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').toUpperCase()
 }));

@@ -9,7 +9,7 @@ The release operator must replace this status with the sanitized three-round agg
 ## Deterministic implementation verification
 
 - Dataset contract: 170 quality cases + 40 failure-injection cases, all schema-valid and globally unique.
-- Promptfoo project contract tests: 21/21 passed, including development-round cost binding.
+- Promptfoo project contract tests: 21/21 passed, including development-round cost and exact candidate Prompt binding.
 - Promptfoo configuration validation: passed with sharing and cache disabled by the run wrapper.
 - Stage 3 repository acceptance: passed; V1/V2/V3 checksums unchanged and no V4 exists.
 - Full backend regression: 713/713 tests passed against a disposable, Flyway-managed `_ci_`/`_eval` MySQL database.

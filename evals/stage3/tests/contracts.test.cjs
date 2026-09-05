@@ -364,6 +364,19 @@ test('real-result aggregation requires and binds three regression plus three hol
     assert.ok(Math.abs(aggregate.costAccounting.developmentQualificationCostCny - 0.2) < 1e-9);
     assert.equal(aggregate.metrics.minimumSemanticDimensionScore, 0.85);
     assert.equal(aggregate.inputEvidence.length, 7);
+
+    const mismatchedPromptBindings = [...run.promptBindings];
+    mismatchedPromptBindings[0] = `prompt-0:1:BUILTIN:${'D'.repeat(64)}`;
+    fs.writeFileSync(development, JSON.stringify({
+      ...base,
+      run: { ...run, promptBindings: mismatchedPromptBindings },
+      metrics: { ...base.metrics, totalEstimatedCost: 0.2 }
+    }));
+    assert.throws(() => execFileSync(
+      process.execPath,
+      [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files],
+      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development } }
+    ));
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
