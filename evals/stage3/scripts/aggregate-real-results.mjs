@@ -46,7 +46,7 @@ const metrics = {
   minimumUsageRecordRate: min(values((summary) => summary.metrics.usageRecordRate)),
   minimumProviderRequestIdHashCoverageRate: min(values((summary) => summary.metrics.providerRequestIdHashCoverageRate)),
   averageSemanticScore: average(values((summary) => summary.metrics.semanticScore)),
-  minimumSemanticDimensionScore: min(values((summary) => summary.metrics.minimumSemanticDimensionScore)),
+  minimumSemanticDimensionScore: min(Object.values(scenes).map((scene) => scene.averageSemanticScore).filter(Number.isFinite)),
   maximumP95LatencyMs: max(values((summary) => summary.metrics.p95LatencyMs)),
   formalBusinessWrites: values((summary) => summary.metrics.formalBusinessWrites).reduce((sum, value) => sum + value, 0),
   totalEstimatedCostCny: totalCost
