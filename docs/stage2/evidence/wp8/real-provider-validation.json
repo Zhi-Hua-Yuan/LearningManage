@@ -1,0 +1,122 @@
+{
+  "schemaVersion" : 1,
+  "backendSha" : "665678e5181835e0076a5517f7dc0940407fb75d",
+  "workflowRunId" : "33949480189",
+  "model" : "qwen-plus",
+  "roundCount" : 3,
+  "scenarioCount" : 9,
+  "scenarioStatus" : "PASS",
+  "finishReason" : "stop",
+  "inputTokens" : 999,
+  "outputTokens" : 84,
+  "totalTokens" : 1083,
+  "estimatedCost" : 0.00096720,
+  "priceVersion" : "qwen-plus-2025-12-01-cn-beijing-0-128k-list-price-2026-09-05",
+  "currency" : "CNY",
+  "providerRequestIdHash" : "d54b848f89b5f8591075fbe05fffe97ecc0f3185fa9dc8e1981d52cbc8224dad",
+  "latencyMs" : 7778,
+  "executedAt" : "2026-09-05T06:19:45.847921284Z",
+  "rounds" : [ {
+    "round" : 1,
+    "scenarioStatus" : "PASS",
+    "scenarios" : [ {
+      "scenario" : "text",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 34,
+      "outputTokens" : 4,
+      "totalTokens" : 38,
+      "estimatedCost" : 0.00003520,
+      "providerRequestIdHash" : "2d52c8c54a10eb33e21fb46c6037ec3624668eff0ff7d8380c2969fd3de87bcd",
+      "latencyMs" : 2086
+    }, {
+      "scenario" : "forced-tool-call",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 214,
+      "outputTokens" : 12,
+      "totalTokens" : 226,
+      "estimatedCost" : 0.00019520,
+      "providerRequestIdHash" : "b37b7703548bc67871ac829cdc920317c25fa7328aa74eacb2f49f92a19ff39c",
+      "latencyMs" : 703
+    }, {
+      "scenario" : "tool-result-round-trip",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 85,
+      "outputTokens" : 12,
+      "totalTokens" : 97,
+      "estimatedCost" : 0.00009200,
+      "providerRequestIdHash" : "49e086e8337ee185acbb3a46eb8e983ae76614b77d3a0831b54f0125442d8407",
+      "latencyMs" : 722
+    } ]
+  }, {
+    "round" : 2,
+    "scenarioStatus" : "PASS",
+    "scenarios" : [ {
+      "scenario" : "text",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 34,
+      "outputTokens" : 4,
+      "totalTokens" : 38,
+      "estimatedCost" : 0.00003520,
+      "providerRequestIdHash" : "4040243ae497c4fe87a7991c88516b3cff8a1e9f9a53d2adb8b8ad1d3b89d325",
+      "latencyMs" : 658
+    }, {
+      "scenario" : "forced-tool-call",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 214,
+      "outputTokens" : 12,
+      "totalTokens" : 226,
+      "estimatedCost" : 0.00019520,
+      "providerRequestIdHash" : "c5e8761ae77df65630ade075011ddfa673f62cfcc7399f96a8a23fc76273d9a4",
+      "latencyMs" : 664
+    }, {
+      "scenario" : "tool-result-round-trip",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 85,
+      "outputTokens" : 12,
+      "totalTokens" : 97,
+      "estimatedCost" : 0.00009200,
+      "providerRequestIdHash" : "ac237bf7bee3a25697f6f6b2bb8161eae1e3b18673e87d72bf11d6b2dd833d22",
+      "latencyMs" : 732
+    } ]
+  }, {
+    "round" : 3,
+    "scenarioStatus" : "PASS",
+    "scenarios" : [ {
+      "scenario" : "text",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 34,
+      "outputTokens" : 4,
+      "totalTokens" : 38,
+      "estimatedCost" : 0.00003520,
+      "providerRequestIdHash" : "bba7950ee064bdac7adafef12c81d9b69d64255c608a9c0f0e8524da81e6dba6",
+      "latencyMs" : 778
+    }, {
+      "scenario" : "forced-tool-call",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 214,
+      "outputTokens" : 12,
+      "totalTokens" : 226,
+      "estimatedCost" : 0.00019520,
+      "providerRequestIdHash" : "0ad9d50c38d713a18eea9fc743663b7f765cb4cd7e879845d2d090d57fc4493c",
+      "latencyMs" : 681
+    }, {
+      "scenario" : "tool-result-round-trip",
+      "status" : "PASS",
+      "finishReason" : "stop",
+      "inputTokens" : 85,
+      "outputTokens" : 12,
+      "totalTokens" : 97,
+      "estimatedCost" : 0.00009200,
+      "providerRequestIdHash" : "3c7778f7dc5bfd94be905129b75369b8128a88a623c019ca00de049ced0d60c5",
+      "latencyMs" : 754
+    } ]
+  } ]
+}

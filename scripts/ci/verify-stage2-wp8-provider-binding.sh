@@ -6,21 +6,29 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "${script_dir}/../.." && pwd)"
 source "${script_dir}/lib/ci-common.sh"
 
+wp8_report="${project_root}/docs/stage2/evidence/wp8/real-provider-validation.json"
 verification="${project_root}/docs/stage2/evidence/wp7/local-verification.json"
-report="${project_root}/docs/stage2/evidence/wp7/real-provider-validation.json"
-sidecar="${report}.sha256"
+if [[ -s "$wp8_report" && -s "${wp8_report}.sha256" ]]; then
+  report="$wp8_report"
+  sidecar="${report}.sha256"
+  provider_sha="$(jq -er '.backendSha' "$report")"
+  run_id="$(jq -er '.workflowRunId' "$report")"
+else
+  report="${project_root}/docs/stage2/evidence/wp7/real-provider-validation.json"
+  sidecar="${report}.sha256"
+  provider_sha="$(jq -er '.verification.realProvider.backendSha' "$verification")"
+  run_id="$(jq -er '.verification.realProvider.workflowRunId' "$verification")"
+fi
 candidate_sha="${STAGE2_BACKEND_SHA:-$(git -C "$project_root" rev-parse HEAD)}"
 
 [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]] || ci_fail "stage2_candidate_sha_invalid"
-[[ -s "$verification" && -s "$report" && -s "$sidecar" ]] || ci_fail "stage2_wp7_provider_evidence_missing"
+[[ -s "$report" && -s "$sidecar" ]] || ci_fail "stage2_wp7_provider_evidence_missing"
 report_relative="${report#"$project_root/"}"
 expected_report_sha="$(awk 'NR == 1 {print toupper($1)}' "$sidecar")"
 canonical_report_sha="$(git -C "$project_root" show "${candidate_sha}:${report_relative}" | sha256sum | awk '{print toupper($1)}')"
 [[ "$canonical_report_sha" == "$expected_report_sha" ]] \
   || ci_fail "stage2_wp7_provider_checksum_invalid"
 
-provider_sha="$(jq -er '.verification.realProvider.backendSha' "$verification")"
-run_id="$(jq -er '.verification.realProvider.workflowRunId' "$verification")"
 [[ "$provider_sha" =~ ^[0-9a-f]{40}$ ]] || ci_fail "stage2_wp7_provider_sha_invalid"
 git -C "$project_root" merge-base --is-ancestor "$provider_sha" "$candidate_sha" \
   || ci_fail "stage2_wp7_provider_sha_not_ancestor"
