@@ -6,15 +6,24 @@ const outputPath = path.resolve(process.argv[2] || 'real-results/candidate-summa
 const inputs = process.argv.slice(3).map((file) => path.resolve(file));
 if (inputs.length !== 6) throw new Error(`Expected exactly six real-model summaries, received ${inputs.length}`);
 
-const documents = inputs.map((file) => ({ file, value: JSON.parse(fs.readFileSync(file, 'utf8')) }));
 const splitOf = (file) => path.basename(file).split('-round-')[0];
+const documents = inputs.map((file) => ({ file, value: JSON.parse(fs.readFileSync(file, 'utf8')) }));
+const developmentPath = process.env.STAGE3_DEVELOPMENT_SUMMARY;
+if (!developmentPath) throw new Error('STAGE3_DEVELOPMENT_SUMMARY is required for candidate cost accounting');
+const developmentDocument = {
+  file: path.resolve(developmentPath),
+  value: JSON.parse(fs.readFileSync(path.resolve(developmentPath), 'utf8'))
+};
+if (splitOf(developmentDocument.file) !== 'development') {
+  throw new Error('STAGE3_DEVELOPMENT_SUMMARY must reference the development qualification summary');
+}
 for (const split of ['regression', 'holdout']) {
   const matching = documents.filter(({ file }) => splitOf(file) === split);
   if (matching.length !== 3) throw new Error(`Expected three ${split} summaries, received ${matching.length}`);
 }
 
 const first = documents[0].value;
-for (const { value } of documents) {
+for (const { value } of [...documents, developmentDocument]) {
   for (const key of ['backendSha', 'datasetVersion', 'datasetSha256', 'model', 'graderModel']) {
     if (value.run?.[key] !== first.run?.[key]) throw new Error(`Real-model evidence is not immutable: ${key} differs`);
   }
@@ -24,7 +33,10 @@ const values = (selector) => documents.map(({ value }) => selector(value)).filte
 const average = (items) => items.length ? items.reduce((sum, value) => sum + value, 0) / items.length : null;
 const min = (items) => items.length ? Math.min(...items) : null;
 const max = (items) => items.length ? Math.max(...items) : null;
-const totalCost = values((summary) => summary.metrics.totalEstimatedCost).reduce((sum, value) => sum + value, 0);
+const sixRoundCost = values((summary) => summary.metrics.totalEstimatedCost).reduce((sum, value) => sum + value, 0);
+const developmentCost = Number(developmentDocument.value.metrics?.totalEstimatedCost);
+if (!Number.isFinite(developmentCost)) throw new Error('Development qualification cost is missing');
+const totalCost = sixRoundCost + developmentCost;
 const sceneNames = [...new Set(documents.flatMap(({ value }) => Object.keys(value.scenes || {})))].sort();
 const scenes = Object.fromEntries(sceneNames.map((name) => {
   const sceneValues = documents.map(({ value }) => value.scenes?.[name]).filter(Boolean);
@@ -87,7 +99,7 @@ if (baselinePath) {
   }
 }
 
-const inputEvidence = documents.map(({ file }) => ({
+const inputEvidence = [...documents, developmentDocument].map(({ file }) => ({
   file: path.basename(file),
   sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').toUpperCase()
 }));
@@ -97,11 +109,17 @@ const aggregate = {
   status: failures.length ? 'FAIL' : 'PASS',
   run: {
     ...first.run,
+    developmentQualificationRounds: 1,
     regressionRounds: 3,
     holdoutRounds: 3,
     providerRequestIdHashDigests: documents.map(({ value }) => value.run.providerRequestIdHashDigest).sort()
   },
   metrics,
+  costAccounting: {
+    developmentQualificationCostCny: developmentCost,
+    regressionAndHoldoutCostCny: sixRoundCost,
+    candidateTotalCostCny: totalCost
+  },
   scenes,
   failures,
   inputEvidence

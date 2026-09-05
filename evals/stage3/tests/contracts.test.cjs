@@ -327,7 +327,7 @@ test('real-result aggregation requires and binds three regression plus three hol
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-aggregate-'));
   try {
     const run = {
-      backendSha: 'a'.repeat(40), datasetVersion: '1.0.0', datasetSha256: 'B'.repeat(64), model: 'qwen-plus', graderModel: 'qwen-max', roundCount: 1,
+      backendSha: 'a'.repeat(40), datasetVersion: '1.1.0', datasetSha256: 'B'.repeat(64), model: 'qwen-plus', graderModel: 'qwen-max', roundCount: 1,
       requestedModels: ['qwen-plus'], actualModels: ['qwen-plus'], priceVersions: ['2026-09'],
       promptBindings: Array.from({ length: 6 }, (_, index) => `prompt-${index}:1:BUILTIN:${'A'.repeat(64)}`),
       providerRequestIdHashDigest: 'C'.repeat(64)
@@ -350,13 +350,20 @@ test('real-result aggregation requires and binds three regression plus three hol
       }
     }
     const output = path.join(temp, 'candidate-summary.json');
-    execFileSync(process.execPath, [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files], { cwd: root });
+    const development = path.join(temp, 'development-round-1-summary.json');
+    fs.writeFileSync(development, JSON.stringify({ ...base, metrics: { ...base.metrics, totalEstimatedCost: 0.2 } }));
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files], {
+      cwd: root,
+      env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development }
+    });
     const aggregate = JSON.parse(fs.readFileSync(output, 'utf8'));
     assert.equal(aggregate.status, 'PASS');
     assert.equal(aggregate.run.regressionRounds, 3);
-    assert.ok(Math.abs(aggregate.metrics.totalEstimatedCostCny - 0.6) < 1e-9);
+    assert.ok(Math.abs(aggregate.metrics.totalEstimatedCostCny - 0.8) < 1e-9);
+    assert.equal(aggregate.run.developmentQualificationRounds, 1);
+    assert.ok(Math.abs(aggregate.costAccounting.developmentQualificationCostCny - 0.2) < 1e-9);
     assert.equal(aggregate.metrics.minimumSemanticDimensionScore, 0.85);
-    assert.equal(aggregate.inputEvidence.length, 6);
+    assert.equal(aggregate.inputEvidence.length, 7);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
@@ -367,5 +374,6 @@ test('real evaluation preserves failed round evidence and defers semantic gating
   assert.match(workflow, /eval_status=\$\?/);
   assert.match(workflow, /\[\[ -s output\.json \]\] && mv output\.json/);
   assert.match(workflow, /STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate/);
+  assert.match(workflow, /STAGE3_DEVELOPMENT_SUMMARY:\s*real-results\/development-round-1-summary\.json/);
   assert.match(workflow, /eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0/);
 });

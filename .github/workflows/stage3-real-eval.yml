@@ -203,6 +203,7 @@ jobs:
         working-directory: evals/stage3
         env:
           STAGE3_BASELINE_CANDIDATE_SUMMARY: ${{ inputs.baseline_summary_path }}
+          STAGE3_DEVELOPMENT_SUMMARY: real-results/development-round-1-summary.json
         shell: bash
         run: |
           set -Eeuo pipefail
