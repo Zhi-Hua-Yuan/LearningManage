@@ -79,14 +79,28 @@ class AiChatRequestMapperTest {
     }
 
     @Test
-    void toJson_shouldMapNoneAndOmitToolFieldsWithoutTools() throws Exception {
+    void toJson_shouldOmitToolChoiceAndToolFieldsWithoutTools() throws Exception {
         AiChatCommand command = new AiChatCommand(
                 "model", List.of(AiChatMessage.user("x")), List.of(), AiToolChoice.none(), null, null);
 
         JsonNode json = objectMapper.readTree(mapper.toJson(command));
 
-        Assertions.assertEquals("none", json.get("tool_choice").asText());
+        Assertions.assertFalse(json.has("tool_choice"));
         Assertions.assertFalse(json.has("tools"));
         Assertions.assertFalse(json.has("parallel_tool_calls"));
+    }
+
+    @Test
+    void toJson_shouldMapNoneWhenToolsExist() throws Exception {
+        AiToolDefinition tool = AiToolDefinition.function(new AiFunctionDefinition(
+                "query_tasks", "查询任务", objectMapper.createObjectNode()));
+        AiChatCommand command = new AiChatCommand(
+                "model", List.of(AiChatMessage.user("x")), List.of(tool), AiToolChoice.none(), null, null);
+
+        JsonNode json = objectMapper.readTree(mapper.toJson(command));
+
+        Assertions.assertEquals("none", json.get("tool_choice").asText());
+        Assertions.assertTrue(json.has("tools"));
+        Assertions.assertFalse(json.get("parallel_tool_calls").asBoolean());
     }
 }
