@@ -95,6 +95,19 @@ test('deterministic model stub recognizes the candidate prompt vocabulary and pl
   assert.match(stub, /今天日期\(\?:（含）\)\?/);
   assert.match(stub, /\(\?:原始\)\?周期/);
   assert.match(stub, /"细颗粒度" in text/);
+  assert.match(stub, /milestone_count = 3/);
+  assert.match(stub, /task_count = 4 if detailed else 3/);
+});
+
+test('task-breakdown v2 assertion rejects the legacy 2-by-2 response shape', () => {
+  const assertion = require(path.join(root, 'assertions', 'task-breakdown.js'));
+  const tasks = [1, 2].map((index) => ({ name: `任务${index}`, priority: 2, dueDate: '2026-09-06' }));
+  const output = JSON.stringify({ success: true, data: { milestones: [
+    { name: '阶段1', tasks }, { name: '阶段2', tasks: tasks.map((task) => ({ ...task, name: `${task.name}B` })) }
+  ] } });
+  const result = assertion(output, { vars: { requestPayload: JSON.stringify({ detailed: false, duration: '1周' }) } });
+  assert.equal(result.pass, false);
+  assert.match(result.reason, /exactly 3 milestones/);
 });
 
 test('semantic grader retries transient provider failures without changing the model binding', async () => {

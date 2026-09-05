@@ -66,8 +66,8 @@ def task_ids(text, pending_only=False):
 
 
 def breakdown_content(text, detailed=False):
-    milestone_count = 3 if detailed else 2
-    task_count = 4 if detailed else 2
+    milestone_count = 3
+    task_count = 4 if detailed else 3
     today_match = re.search(r"今天日期(?:（含）)?：(\d{4}-\d{2}-\d{2})", text)
     duration_match = re.search(r"(?:原始)?周期：([^，。]+)", text)
     start = date.fromisoformat(today_match.group(1)) if today_match else date.today()
