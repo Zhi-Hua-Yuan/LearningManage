@@ -90,6 +90,13 @@ test('candidate prompt manifest and SQL bind the exact database V2 content', () 
   }
 });
 
+test('deterministic model stub recognizes the candidate prompt vocabulary and planning window', () => {
+  const stub = fs.readFileSync(path.resolve(root, '..', '..', 'scripts', 'ci', 'stubs', 'ai-chat-completions-stub.py'), 'utf8');
+  assert.match(stub, /今天日期\(\?:（含）\)\?/);
+  assert.match(stub, /\(\?:原始\)\?周期/);
+  assert.match(stub, /"细颗粒度" in text/);
+});
+
 test('semantic grader retries transient provider failures without changing the model binding', async () => {
   const providerPath = path.join(root, 'providers', 'dashscope-grader.js');
   const originalFetch = global.fetch;

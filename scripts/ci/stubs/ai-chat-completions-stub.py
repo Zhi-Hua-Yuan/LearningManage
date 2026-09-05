@@ -68,8 +68,8 @@ def task_ids(text, pending_only=False):
 def breakdown_content(text, detailed=False):
     milestone_count = 3 if detailed else 2
     task_count = 4 if detailed else 2
-    today_match = re.search(r"今天日期：(\d{4}-\d{2}-\d{2})", text)
-    duration_match = re.search(r"周期：([^，。]+)", text)
+    today_match = re.search(r"今天日期(?:（含）)?：(\d{4}-\d{2}-\d{2})", text)
+    duration_match = re.search(r"(?:原始)?周期：([^，。]+)", text)
     start = date.fromisoformat(today_match.group(1)) if today_match else date.today()
     duration = duration_match.group(1) if duration_match else "1个月"
     amount_match = re.search(r"(\d+)", duration)
@@ -142,7 +142,7 @@ def valid_stage3_content(scene, text):
                 for task_id in ids
             ]
         })
-    return breakdown_content(text, "更细颗粒度" in text)
+    return breakdown_content(text, "细颗粒度" in text)
 
 
 def fault_content(scene, fault, text, valid_content):
