@@ -32,6 +32,7 @@ env:
   NODE_VERSION: '22.13.1'
   NPM_VERSION: '10.9.2'
   CI_EXPECTED_TEST_COUNT: '710'
+  CI_EXPECTED_FRONTEND_TEST_COUNT: '484'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -145,8 +146,20 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Detect Stage 2 contract mode
+        id: contract-mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          status="$(jq -er '.status' docs/stage2/acceptance/stage2-acceptance-contract.json)"
+          case "$status" in
+            FROZEN) printf 'acceptance_mode=frozen\n' >> "$GITHUB_OUTPUT" ;;
+            PASS) printf 'acceptance_mode=sealed\n' >> "$GITHUB_OUTPUT" ;;
+            *) echo "unsupported Stage 2 contract status: $status" >&2; exit 1 ;;
+          esac
 
       - name: Scan backend repository for secrets
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
@@ -159,6 +172,7 @@ jobs:
         shell: bash
         env:
           BASE_REF: HEAD
+          STAGE2_ACCEPTANCE_MODE: ${{ steps.contract-mode.outputs.acceptance_mode }}
         run: |
           set -Eeuo pipefail
           find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
@@ -324,6 +338,8 @@ jobs:
     needs: [freeze-candidate, backend-test]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      test_count: ${{ steps.test-count.outputs.test_count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -346,7 +362,17 @@ jobs:
       - name: Run read-only lint and repository guards
         run: npm run lint:ci
       - name: Run tests and coverage gate
-        run: npm run test:coverage
+        run: npm run test:coverage -- --reporter=json --outputFile=ci-artifacts/vitest-results.json
+      - name: Record executed frontend test count
+        id: test-count
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s ci-artifacts/vitest-results.json
+          test_count="$(node -e "const result = require('./ci-artifacts/vitest-results.json'); process.stdout.write(String(result.numPassedTests));")"
+          [[ "$test_count" =~ ^[1-9][0-9]*$ ]]
+          [[ "$test_count" -ge "$CI_EXPECTED_FRONTEND_TEST_COUNT" ]]
+          printf 'test_count=%s\n' "$test_count" >> "$GITHUB_OUTPUT"
       - name: Type-check
         run: npm run type-check
       - name: Verify frontend API contract
@@ -680,6 +706,7 @@ jobs:
       - freeze-candidate
       - backend-test
       - frontend-build
+      - frontend-test
       - flyway-empty
       - flyway-existing
       - docker-gate
@@ -798,6 +825,7 @@ jobs:
       - freeze-candidate
       - backend-test
       - frontend-build
+      - frontend-test
       - flyway-empty
       - flyway-existing
       - docker-gate
@@ -918,6 +946,19 @@ jobs:
         shell: bash
         run: printf 'value=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
+      - name: Recheck protected branches before Stage 2 manifest
+        id: final-tips
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_PHASE: end
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+          RELEASE_REASON: ${{ inputs.reason }}
+          BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
+          FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
+        run: bash scripts/ci/validate-release-candidate.sh
+
       - name: Create Stage 2 candidate manifest
         shell: bash
         env:
@@ -926,12 +967,12 @@ jobs:
           STAGE2_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
           STAGE2_BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
           STAGE2_BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
-          STAGE2_BACKEND_DEVELOP_END: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          STAGE2_BACKEND_DEVELOP_END: ${{ steps.final-tips.outputs.backend_develop_end }}
           STAGE2_FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
           STAGE2_FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
-          STAGE2_FRONTEND_DEVELOP_END: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          STAGE2_FRONTEND_DEVELOP_END: ${{ steps.final-tips.outputs.frontend_develop_end }}
           STAGE2_BACKEND_TEST_COUNT: ${{ env.CI_EXPECTED_TEST_COUNT }}
-          STAGE2_FRONTEND_TEST_COUNT: '484'
+          STAGE2_FRONTEND_TEST_COUNT: ${{ needs.frontend-test.outputs.test_count }}
           STAGE2_FLYWAY_MANIFEST_SHA256: ${{ steps.reports.outputs.flyway_manifest_sha256 }}
           STAGE2_V1_SHA256: E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9
           STAGE2_V2_SHA256: B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1
