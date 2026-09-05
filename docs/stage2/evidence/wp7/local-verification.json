@@ -14,7 +14,7 @@
       "scenarios": 9,
       "backendSha": "11d2f6604cc4f32fc7605627427c04e642d07000",
       "workflowRunId": "33942527673",
-      "reportSha256": "87b94fd60e4069c7ba2705c10c9d99bb480f3709d93f2f2e9a953a56a5cbb3b2",
+      "reportSha256": "7288f2c5b81be2133763a22263eec66512d6b82a3f901ebd8e1e6f4d4fe5e528",
       "sourceArtifactReportSha256": "1060af9fef9ce592a7f2f4e578e2814937737fed82b73b7a7227dc8b21c29c39"
     },
     "frontendSafety": {
