@@ -83,19 +83,36 @@ class TaskBreakdownAiServiceImplTest {
 
     @Test
     void generateTaskBreakdownParsesAndNormalizesValidResponse() {
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2, false)));
 
         List<MilestoneDraftVO> result = service.generateTaskBreakdown("通过考试", "", "8周", false);
 
-        assertEquals(1, result.size());
-        assertEquals("准备阶段", result.get(0).getName());
+        assertEquals(3, result.size());
+        assertEquals("阶段1", result.get(0).getName());
+        assertEquals(3, result.get(0).getTasks().size());
         assertEquals(2, result.get(0).getTasks().get(0).getPriority());
         assertEquals(LocalDate.now().plusDays(5).toString(), result.get(0).getTasks().get(0).getDueDate());
     }
 
     @Test
+    void generateTaskBreakdownEnforcesModeSpecificResponseShape() {
+        when(modelClient.chat(any())).thenReturn(
+                chatResult(responseWithShape(2, 3, 3)),
+                chatResult(responseWithShape(2, 3, 4)),
+                chatResult(responseWithShape(2, 2, 3)),
+                chatResult(responseWithShape(2, 3, 4)));
+
+        assertEquals(3, service.generateTaskBreakdown("默认拆解", "", "8周", false).get(0).getTasks().size());
+        assertEquals(4, service.generateTaskBreakdown("详细拆解", "", "8周", true).get(0).getTasks().size());
+        assertEquals(ErrorCode.AI_RESPONSE_INVALID, assertThrows(BusinessException.class,
+                () -> service.generateTaskBreakdown("里程碑数量错误", "", "8周", false)).getErrorCode());
+        assertEquals(ErrorCode.AI_RESPONSE_INVALID, assertThrows(BusinessException.class,
+                () -> service.generateTaskBreakdown("默认任务数量错误", "", "8周", false)).getErrorCode());
+    }
+
+    @Test
     void generateTaskBreakdownSuppliesAnExplicitPlanningWindow() {
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2, false)));
 
         service.generateTaskBreakdown("通过考试", "", "8周", false);
 
@@ -110,7 +127,7 @@ class TaskBreakdownAiServiceImplTest {
 
     @Test
     void generateTaskBreakdownMapsBusinessValidationFailureToStableError() {
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(9)));
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(9, false)));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.generateTaskBreakdown("通过考试", "", "8周", false));
@@ -120,7 +137,7 @@ class TaskBreakdownAiServiceImplTest {
 
     @Test
     void generateTaskBreakdownRejectsDueDateOutsidePlanningWindow() {
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2, false)
                 .replace(LocalDate.now().plusDays(5).toString(), LocalDate.now().plusWeeks(8).plusDays(1).toString())));
 
         BusinessException exception = assertThrows(BusinessException.class,
@@ -131,7 +148,7 @@ class TaskBreakdownAiServiceImplTest {
 
     @Test
     void previewCreatesExistingDraftPayloadContract() {
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2, false)));
         AiDraft draft = new AiDraft();
         draft.setDraftId("draft-1");
         draft.setExpireAt(LocalDateTime.now().plusMinutes(20));
@@ -146,14 +163,14 @@ class TaskBreakdownAiServiceImplTest {
 
         assertEquals("draft-1", result.getDraftId());
         assertNotNull(result.getExpireAt());
-        assertEquals(1, result.getMilestones().size());
+        assertEquals(3, result.getMilestones().size());
         verify(draftLifecycleService).createDraft(any());
     }
 
     @Test
     void previewPropagatesHttpTraceToPipelineAndDraft() {
         MDC.put("traceId", "http_trace-12345");
-        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2)));
+        when(modelClient.chat(any())).thenReturn(chatResult(validResponse(2, false)));
         AiDraft draft = new AiDraft();
         draft.setDraftId("draft-trace");
         draft.setExpireAt(LocalDateTime.now().plusMinutes(20));
@@ -189,18 +206,27 @@ class TaskBreakdownAiServiceImplTest {
                 "qwen-test", "qwen-test", 0, false, null);
     }
 
-    private String validResponse(int priority) {
-        return """
-                ```json
-                [{
-                  "name": " 准备阶段 ",
-                  "tasks": [{
-                    "name": " 制定计划 ",
-                    "priority": %d,
-                    "dueDate": "%s"
-                  }]
-                }]
-                ```
-                """.formatted(priority, LocalDate.now().plusDays(5));
+    private String validResponse(int priority, boolean detailed) {
+        return responseWithShape(priority, 3, detailed ? 4 : 3);
+    }
+
+    private String responseWithShape(int priority, int milestoneCount, int tasksPerMilestone) {
+        StringBuilder response = new StringBuilder("```json\n[");
+        for (int milestone = 1; milestone <= milestoneCount; milestone++) {
+            if (milestone > 1) {
+                response.append(',');
+            }
+            response.append("{\"name\":\" 阶段").append(milestone).append(" \",\"tasks\":[");
+            for (int task = 1; task <= tasksPerMilestone; task++) {
+                if (task > 1) {
+                    response.append(',');
+                }
+                response.append("{\"name\":\" 任务").append(milestone).append('-').append(task)
+                        .append(" \",\"priority\":").append(priority)
+                        .append(",\"dueDate\":\"").append(LocalDate.now().plusDays(5)).append("\"}");
+            }
+            response.append("]}");
+        }
+        return response.append("]\n```").toString();
     }
 }

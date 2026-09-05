@@ -46,6 +46,9 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     private static final int TASK_TITLE_MAX_LEN = 60;
     private static final int TASK_PRIORITY_MIN = 0;
     private static final int TASK_PRIORITY_MAX = 3;
+    private static final int EXPECTED_MILESTONE_COUNT = 3;
+    private static final int DEFAULT_TASKS_PER_MILESTONE = 3;
+    private static final int DETAILED_TASKS_PER_MILESTONE = 4;
     private static final Pattern DURATION_PATTERN = Pattern.compile("^(\\d+)\\s*(天|周|个月|月|年)$");
 
     private final AiInvocationPipeline aiInvocationPipeline;
@@ -105,7 +108,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
             ), aiRawContent -> {
                 JSONArray jsonArray = JSONUtil.parseArray(jsonSanitizer.sanitizeArray(aiRawContent));
                 List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
-                normalizeAndValidateDrafts(result, today, planningEndDate);
+                normalizeAndValidateDrafts(result, today, planningEndDate, detailed);
                 logDraftLengthRisk(result, normalizedTarget, detailed);
                 if (result == null || result.isEmpty()) {
                     throw new BusinessException(ErrorCode.OPERATION_ERROR,
@@ -157,10 +160,18 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
 
     private void normalizeAndValidateDrafts(List<MilestoneDraftVO> drafts,
                                             LocalDate planningStartDate,
-                                            LocalDate planningEndDate) {
+                                            LocalDate planningEndDate,
+                                            boolean detailed) {
         if (drafts == null || drafts.isEmpty()) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 未生成有效里程碑，请重试");
         }
+        if (drafts.size() != EXPECTED_MILESTONE_COUNT) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    "AI 结果必须包含" + EXPECTED_MILESTONE_COUNT + "个里程碑");
+        }
+        int expectedTasksPerMilestone = detailed
+                ? DETAILED_TASKS_PER_MILESTONE
+                : DEFAULT_TASKS_PER_MILESTONE;
         for (int i = 0; i < drafts.size(); i++) {
             MilestoneDraftVO milestone = drafts.get(i);
             if (milestone == null) {
@@ -176,8 +187,10 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
             }
             milestone.setName(milestoneName);
             List<TaskDraftVO> tasks = milestone.getTasks();
-            if (tasks == null || tasks.isEmpty()) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 结果第" + (i + 1) + "个里程碑缺少任务");
+            if (tasks == null || tasks.size() != expectedTasksPerMilestone) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                        "AI 结果第" + (i + 1) + "个里程碑必须包含"
+                                + expectedTasksPerMilestone + "个任务");
             }
             for (int j = 0; j < tasks.size(); j++) {
                 TaskDraftVO task = tasks.get(j);
