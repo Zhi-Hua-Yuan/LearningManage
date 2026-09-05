@@ -1,6 +1,6 @@
 # Stage 4: Transactional Outbox and knowledge indexing
 
-Status: `IN_PROGRESS`
+Status: `IMPLEMENTATION_COMPLETE / REMOTE_ACCEPTANCE_PENDING`
 
 Stage 4 builds a permission-aware, rebuildable knowledge-index foundation for tasks and weekly reviews. It does not expose RAG question answering or Agent capabilities.
 
@@ -38,3 +38,5 @@ business mutation
 ## Completion definition
 
 Stage 4 is complete only when incremental capture, initial backfill, deletion/access reconciliation, concurrent idempotency, dependency-failure isolation, Qdrant rebuild, protected provider smoke, and evidence sealing all pass the machine acceptance contract.
+
+The local implementation and non-external verification are complete. GitHub PR/CI/Release execution, the MySQL-Qdrant Linux gate, image-digest binding, and protected real Embedding smoke remain pending because the current GitHub credential is invalid and the local Docker daemon is unavailable. These are acceptance/publishing dependencies rather than omitted implementation.

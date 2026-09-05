@@ -14,6 +14,8 @@ import com.spt.learningmanage.exception.KnowledgeIndexException;
 import com.spt.learningmanage.model.dto.knowledge.EmbeddingBatchResult;
 import com.spt.learningmanage.model.dto.knowledge.EmbeddingCallContext;
 import com.spt.learningmanage.service.EmbeddingClient;
+import com.spt.learningmanage.service.knowledge.KnowledgeDependencyType;
+import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
@@ -27,13 +29,16 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
     private final EmbeddingProperties properties;
     private final ObjectMapper objectMapper;
     private final AiContentSanitizer contentSanitizer;
+    private final KnowledgeResilientCallExecutor resilientCallExecutor;
 
     public AliyunEmbeddingClient(EmbeddingProperties properties,
                                  ObjectMapper objectMapper,
-                                 AiContentSanitizer contentSanitizer) {
+                                 AiContentSanitizer contentSanitizer,
+                                 KnowledgeResilientCallExecutor resilientCallExecutor) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.contentSanitizer = contentSanitizer;
+        this.resilientCallExecutor = resilientCallExecutor;
     }
 
     @Override
@@ -49,12 +54,17 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
 
         RestTransportResponse response;
         try {
-            response = transport().exchange(HttpMethod.POST, "/embeddings", request.toString(), true);
+            response = resilientCallExecutor.execute(KnowledgeDependencyType.EMBEDDING,
+                    () -> {
+                        RestTransportResponse value = transport().exchange(
+                                HttpMethod.POST, "/embeddings", request.toString(), true);
+                        requireSuccessful(value);
+                        return value;
+                    });
         } catch (KnowledgeRestTransport.TransportFailureException exception) {
             throw failure(KnowledgeFailureTypeEnum.NETWORK, true,
                     "Embedding 服务暂时不可用", "Embedding HTTP transport failed", exception);
         }
-        requireSuccessful(response);
         return parse(response, texts.size());
     }
 

@@ -9,6 +9,8 @@ import com.spt.learningmanage.config.EmbeddingProperties;
 import com.spt.learningmanage.constant.KnowledgeFailureTypeEnum;
 import com.spt.learningmanage.exception.KnowledgeIndexException;
 import com.spt.learningmanage.model.dto.knowledge.EmbeddingCallContext;
+import com.spt.learningmanage.config.KnowledgeIndexProperties;
+import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -89,7 +91,8 @@ class AliyunEmbeddingClientHttpTest {
         AiProperties aiProperties = new AiProperties();
         ObjectMapper mapper = new ObjectMapper();
         return new AliyunEmbeddingClient(properties, mapper,
-                new DefaultAiContentSanitizer(mapper, aiProperties));
+                new DefaultAiContentSanitizer(mapper, aiProperties),
+                new KnowledgeResilientCallExecutor(new KnowledgeIndexProperties()));
     }
 
     private HttpServer server(ExchangeHandler handler) throws IOException {

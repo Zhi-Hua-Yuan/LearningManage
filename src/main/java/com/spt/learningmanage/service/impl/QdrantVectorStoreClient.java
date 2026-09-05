@@ -16,6 +16,8 @@ import com.spt.learningmanage.model.dto.knowledge.VectorPayloadUpdate;
 import com.spt.learningmanage.model.dto.knowledge.VectorPoint;
 import com.spt.learningmanage.model.dto.knowledge.VectorPointMetadata;
 import com.spt.learningmanage.service.VectorStoreClient;
+import com.spt.learningmanage.service.knowledge.KnowledgeDependencyType;
+import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
@@ -33,13 +35,16 @@ public class QdrantVectorStoreClient implements VectorStoreClient {
     private final QdrantProperties qdrant;
     private final EmbeddingProperties embedding;
     private final ObjectMapper objectMapper;
+    private final KnowledgeResilientCallExecutor resilientCallExecutor;
 
     public QdrantVectorStoreClient(QdrantProperties qdrant,
                                    EmbeddingProperties embedding,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   KnowledgeResilientCallExecutor resilientCallExecutor) {
         this.qdrant = qdrant;
         this.embedding = embedding;
         this.objectMapper = objectMapper;
+        this.resilientCallExecutor = resilientCallExecutor;
     }
 
     @Override
@@ -171,9 +176,7 @@ public class QdrantVectorStoreClient implements VectorStoreClient {
             body.put("field_schema", entry.getValue());
             RestTransportResponse response = exchange(HttpMethod.PUT,
                     "/collections/" + qdrant.getCollection() + "/index?wait=true", body.toString());
-            if (response.statusCode() != 409) {
-                requireSuccess(response);
-            }
+            requireSuccess(response);
         }
     }
 
@@ -226,7 +229,8 @@ public class QdrantVectorStoreClient implements VectorStoreClient {
 
     private RestTransportResponse exchange(HttpMethod method, String path, String body) {
         try {
-            return transport().exchange(method, path, body, false);
+            return resilientCallExecutor.execute(KnowledgeDependencyType.VECTOR_STORE,
+                    () -> transport().exchange(method, path, body, false));
         } catch (KnowledgeRestTransport.TransportFailureException exception) {
             throw failure(KnowledgeFailureTypeEnum.VECTOR_STORE, true,
                     "向量库暂时不可用", "Qdrant HTTP transport failed", exception);
@@ -237,7 +241,7 @@ public class QdrantVectorStoreClient implements VectorStoreClient {
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             return;
         }
-        boolean retryable = response.statusCode() == 408 || response.statusCode() == 429
+        boolean retryable = response.statusCode() == 404 || response.statusCode() == 408 || response.statusCode() == 429
                 || response.statusCode() >= 500;
         throw failure(KnowledgeFailureTypeEnum.VECTOR_STORE, retryable,
                 "向量库操作失败", "Qdrant returned HTTP " + response.statusCode(), null);

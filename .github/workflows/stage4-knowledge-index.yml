@@ -1,0 +1,112 @@
+name: Stage 4 knowledge index gate
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage4-knowledge-index-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  DB_NAME: learning_manage_ci_empty
+  FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+  TEST_DB_HOST: 127.0.0.1
+  TEST_DB_PORT: '13306'
+  TEST_DB_NAME: learning_manage_ci_empty
+  QDRANT_BASE_URL: http://127.0.0.1:16333
+  AI_EMBEDDING_BASE_URL: http://127.0.0.1:18080/compatible-mode/v1
+  AI_EMBEDDING_API_KEY: ci-only-not-a-real-key
+  AI_EMBEDDING_MODEL: text-embedding-v4
+  AI_EMBEDDING_DIMENSION: '1024'
+  AI_KNOWLEDGE_WORKER_ENABLED: 'false'
+  STAGE4_KNOWLEDGE_IT_ENABLED: 'true'
+  ALIYUN_API_KEY: ci-only-not-a-real-key
+  JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage4
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage4 --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+      qdrant:
+        image: qdrant/qdrant:v1.18.2
+        ports: [16333:6333]
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage4
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage4
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_stage4
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Start deterministic embedding stub
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          AI_STUB_PORT=18080 python3 scripts/ci/stubs/ai-chat-completions-stub.py \
+            >"$RUNNER_TEMP/stage4-embedding-stub.log" 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:18080/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Provision V4 database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Wait for Qdrant
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:16333/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run MySQL-Outbox-Qdrant integration
+        run: ./mvnw -B -ntp -Dtest=KnowledgeIndexEndToEndIT test
+      - name: Upload sanitized diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage4-knowledge-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/stage4-embedding-stub.log
+            target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 7

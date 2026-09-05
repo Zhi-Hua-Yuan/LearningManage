@@ -61,6 +61,9 @@ class KnowledgeIndexWorkerTest {
         new KnowledgeIndexWorker(indexService, queue, lease).process(event);
 
         verify(queue).markFailure(event, KnowledgeFailureTypeEnum.RATE_LIMIT, true, "请求过多");
+        verify(indexService).markFailure(any(), any(),
+                org.mockito.ArgumentMatchers.eq(KnowledgeFailureTypeEnum.RATE_LIMIT),
+                org.mockito.ArgumentMatchers.eq("请求过多"));
         verify(lease).release(any(), any());
     }
 
@@ -69,6 +72,7 @@ class KnowledgeIndexWorkerTest {
         event.setId(1L);
         event.setSourceType("TASK");
         event.setSourceId(2L);
+        event.setEventType("SOURCE_CHANGED");
         event.setClaimToken("token");
         event.setTraceId("trace-id");
         return event;

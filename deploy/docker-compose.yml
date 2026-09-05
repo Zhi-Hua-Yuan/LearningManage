@@ -64,6 +64,7 @@ services:
       QDRANT_API_KEY: ${QDRANT_API_KEY:-}
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-learning_knowledge_v1_1024}
       QDRANT_ALIAS: ${QDRANT_ALIAS:-learning_knowledge_current}
+      QDRANT_REQUIRE_SECURE_TRANSPORT: 'false'
 
   # ---------------- 3. 前端集装箱 ----------------
   frontend:

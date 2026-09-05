@@ -31,6 +31,21 @@ public class KnowledgeIndexConfigurationValidator {
         requireRange("ai.knowledge-index.worker-concurrency", indexProperties.getWorkerConcurrency(), 1, 32);
         requireRange("ai.knowledge-index.lease-seconds", indexProperties.getLeaseSeconds(), 10, 3600);
         requireRange("ai.knowledge-index.max-attempts", indexProperties.getMaxAttempts(), 1, 20);
+        requireRange("ai.knowledge-index.embedding-max-concurrent-calls",
+                indexProperties.getEmbeddingMaxConcurrentCalls(), 1, 32);
+        requireRange("ai.knowledge-index.vector-max-concurrent-calls",
+                indexProperties.getVectorMaxConcurrentCalls(), 1, 64);
+        requireRange("ai.knowledge-index.circuit-sliding-window-size",
+                indexProperties.getCircuitSlidingWindowSize(), 2, 1000);
+        requireRange("ai.knowledge-index.circuit-minimum-calls",
+                indexProperties.getCircuitMinimumCalls(), 1,
+                indexProperties.getCircuitSlidingWindowSize());
+        if (indexProperties.getCircuitFailureRateThreshold() < 1.0f
+                || indexProperties.getCircuitFailureRateThreshold() > 100.0f) {
+            throw new IllegalStateException("ai.knowledge-index.circuit-failure-rate-threshold must be between 1 and 100");
+        }
+        requireRange("ai.knowledge-index.circuit-open-wait-ms",
+                indexProperties.getCircuitOpenWaitMs(), 1000, 600000);
         requireRange("ai.embedding.max-batch-size", embeddingProperties.getMaxBatchSize(), 1, 10);
         requireRange("ai.embedding.connect-timeout-ms", embeddingProperties.getConnectTimeoutMs(), 1000, 30000);
         requireRange("ai.embedding.read-timeout-ms", embeddingProperties.getReadTimeoutMs(), 1000, 300000);
@@ -46,6 +61,13 @@ public class KnowledgeIndexConfigurationValidator {
         requireText("qdrant.base-url", qdrantProperties.getBaseUrl());
         requireName("qdrant.collection", qdrantProperties.getCollection());
         requireName("qdrant.alias", qdrantProperties.getAlias());
+        if (qdrantProperties.isRequireSecureTransport()
+                && (!qdrantProperties.getBaseUrl().trim().startsWith("https://")
+                || qdrantProperties.getApiKey() == null
+                || qdrantProperties.getApiKey().isBlank())) {
+            throw new IllegalStateException(
+                    "qdrant requires HTTPS and api-key when secure transport is enabled");
+        }
         if (qdrantProperties.getCollection().equals(qdrantProperties.getAlias())) {
             throw new IllegalStateException("qdrant.collection and qdrant.alias must differ");
         }

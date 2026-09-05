@@ -24,7 +24,7 @@ env:
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
-  CI_EXPECTED_TEST_COUNT: '714'
+  CI_EXPECTED_TEST_COUNT: '762'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -86,6 +86,8 @@ jobs:
           bash scripts/ci/tests/static-guards-test.sh
           bash scripts/ci/verify-stage0-acceptance.sh
           bash scripts/ci/verify-stage2-acceptance.sh
+          bash scripts/ci/verify-stage3-acceptance.sh
+          bash scripts/ci/verify-stage4-acceptance.sh
           bash scripts/ci/verify-ai-invocation-boundary.sh
           bash scripts/ci/verify-published-migrations.sh
           git diff --check
@@ -291,7 +293,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-ci-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18123/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '3'
+      CI_EXPECTED_HISTORY_TOTAL: '4'
       CI_EMPTY_DB_NAME: learning_manage_ci_empty
       CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
     steps:

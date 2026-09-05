@@ -25,6 +25,7 @@ import com.spt.learningmanage.service.knowledge.KnowledgeChunker;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
 import com.spt.learningmanage.service.knowledge.KnowledgeRecoveryEventService;
 import com.spt.learningmanage.service.knowledge.KnowledgeSourceLeaseService;
+import com.spt.learningmanage.service.knowledge.KnowledgeVectorStoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -51,6 +52,7 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
     private final EmbeddingProperties embeddingProperties;
     private final KnowledgeSourceLeaseService leaseService;
     private final KnowledgeRecoveryEventService recoveryEventService;
+    private final KnowledgeVectorStoreManager vectorStoreManager;
 
     public KnowledgeIndexServiceImpl(KnowledgeDocumentFactory documentFactory,
                                      AiKnowledgeDocumentMapper documentMapper,
@@ -61,7 +63,8 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
                                      DeterministicPointIdFactory pointIdFactory,
                                      EmbeddingProperties embeddingProperties,
                                      KnowledgeSourceLeaseService leaseService,
-                                     KnowledgeRecoveryEventService recoveryEventService) {
+                                     KnowledgeRecoveryEventService recoveryEventService,
+                                     KnowledgeVectorStoreManager vectorStoreManager) {
         this.documentFactory = documentFactory;
         this.documentMapper = documentMapper;
         this.embeddingService = embeddingService;
@@ -73,10 +76,23 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
         this.embeddingProperties = embeddingProperties;
         this.leaseService = leaseService;
         this.recoveryEventService = recoveryEventService;
+        this.vectorStoreManager = vectorStoreManager;
     }
 
     @Override
     public void reconcileSource(KnowledgeSourceRef source, IndexExecutionContext context) {
+        try {
+            vectorStoreManager.ensureReady();
+            doReconcileSource(source, context);
+        } catch (KnowledgeIndexException exception) {
+            if (exception.getFailureType() == KnowledgeFailureTypeEnum.VECTOR_STORE) {
+                vectorStoreManager.invalidate();
+            }
+            throw exception;
+        }
+    }
+
+    private void doReconcileSource(KnowledgeSourceRef source, IndexExecutionContext context) {
         requireContext(context);
         leaseService.requireOwned(source, context.claimToken());
         List<KnowledgeDocumentProjection> desired = documentFactory.buildDesiredDocuments(source);
@@ -110,12 +126,15 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
         String contentHash = hashing.contentHash(canonicalText);
         String payloadHash = hashing.payloadHash(projection.payload());
         List<KnowledgeChunk> chunks = chunker.chunk(projection.repeatPrefix(), projection.semanticBody());
-        boolean contentChanged = existing == null
+        boolean forceRebuild = context.eventType() == com.spt.learningmanage.constant.KnowledgeEventTypeEnum.REBUILD;
+        boolean contentChanged = forceRebuild || existing == null
                 || !Objects.equals(existing.getIndexedContentHash(), contentHash)
                 || !Objects.equals(existing.getChunkCount(), chunks.size())
                 || !KnowledgeDocumentStatusEnum.INDEXED.name().equals(existing.getStatus());
         boolean payloadChanged = existing == null
                 || !Objects.equals(existing.getIndexedPayloadHash(), payloadHash);
+        int previousChunkCount = existing == null || existing.getChunkCount() == null
+                ? 0 : existing.getChunkCount();
         AiKnowledgeDocument document = prepareDocument(projection, existing, contentHash, payloadHash,
                 chunks.size(), context);
 
@@ -140,10 +159,9 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
                 ));
             }
             vectorStoreClient.upsertPoints(points);
-            int oldCount = existing == null || existing.getChunkCount() == null ? 0 : existing.getChunkCount();
-            if (oldCount > chunks.size()) {
+            if (previousChunkCount > chunks.size()) {
                 List<String> obsolete = new ArrayList<>();
-                for (int index = chunks.size(); index < oldCount; index++) {
+                for (int index = chunks.size(); index < previousChunkCount; index++) {
                     obsolete.add(pointIdFactory.pointId(projection.documentKey(), index));
                 }
                 vectorStoreClient.deletePoints(obsolete);
@@ -168,6 +186,24 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
         }
         finishDocument(document, context, KnowledgeDocumentStatusEnum.INDEXED,
                 contentHash, payloadHash, chunks.size(), null, indexedAt);
+    }
+
+    @Override
+    public void markFailure(KnowledgeSourceRef source,
+                            IndexExecutionContext context,
+                            KnowledgeFailureTypeEnum failureType,
+                            String safeError) {
+        String error = safeError == null ? null
+                : safeError.replace('\r', ' ').replace('\n', ' ').trim();
+        if (error != null && error.length() > 1000) {
+            error = error.substring(0, 1000);
+        }
+        documentMapper.update(null, new UpdateWrapper<AiKnowledgeDocument>()
+                .eq("source_type", source.sourceType().name())
+                .eq("source_id", source.sourceId())
+                .eq("worker_token", context.claimToken())
+                .set("status", KnowledgeDocumentStatusEnum.FAILED.name())
+                .set("last_error", failureType.name() + (error == null ? "" : ": " + error)));
     }
 
     private List<List<Float>> embed(KnowledgeSourceRef source,

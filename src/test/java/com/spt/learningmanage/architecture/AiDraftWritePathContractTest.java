@@ -41,10 +41,12 @@ class AiDraftWritePathContractTest {
     }
 
     @Test
-    void wp5AddsNoV4Migration() throws Exception {
-        try (var files = Files.list(Path.of("src/main/resources/db/migration"))) {
-            assertFalse(files.anyMatch(path -> path.getFileName().toString().startsWith("V4__")));
-        }
+    void stage2DraftSafetyRemainsIntactAfterStage4Migration() throws Exception {
+        String v4 = Files.readString(Path.of(
+                "src/main/resources/db/migration/V4__stage4_knowledge_index_and_outbox.sql"));
+        assertTrue(v4.contains("CREATE TABLE `ai_knowledge_index_event`"));
+        assertFalse(v4.matches("(?is).*ALTER\\s+TABLE\\s+`?ai_draft`?.*"));
+        assertFalse(v4.matches("(?is).*ALTER\\s+TABLE\\s+`?ai_draft_confirm_log`?.*"));
         String taskMapper = source("mapper/TaskMapper.java");
         String replanScene = source("service/impl/ai/scene/ListReplanAiServiceImpl.java");
         assertTrue(taskMapper.contains("compareAndSetReplan"));

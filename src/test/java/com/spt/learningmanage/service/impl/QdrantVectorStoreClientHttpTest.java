@@ -5,10 +5,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.spt.learningmanage.config.EmbeddingProperties;
 import com.spt.learningmanage.config.QdrantProperties;
+import com.spt.learningmanage.config.KnowledgeIndexProperties;
 import com.spt.learningmanage.constant.KnowledgeFailureTypeEnum;
 import com.spt.learningmanage.exception.KnowledgeIndexException;
 import com.spt.learningmanage.model.dto.knowledge.VectorPayloadUpdate;
 import com.spt.learningmanage.model.dto.knowledge.VectorPoint;
+import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -91,7 +93,8 @@ class QdrantVectorStoreClientHttpTest {
         qdrant.setAlias("test_alias");
         EmbeddingProperties embedding = new EmbeddingProperties();
         embedding.setDimension(dimension);
-        return new QdrantVectorStoreClient(qdrant, embedding, new ObjectMapper());
+        return new QdrantVectorStoreClient(qdrant, embedding, new ObjectMapper(),
+                new KnowledgeResilientCallExecutor(new KnowledgeIndexProperties()));
     }
 
     private void respond(HttpExchange exchange, int status, String body) throws IOException {

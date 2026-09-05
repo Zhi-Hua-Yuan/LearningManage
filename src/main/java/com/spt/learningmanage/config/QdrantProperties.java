@@ -13,4 +13,5 @@ public class QdrantProperties {
     private String apiKey;
     private String collection = "learning_knowledge_v1_1024";
     private String alias = "learning_knowledge_current";
+    private boolean requireSecureTransport = false;
 }

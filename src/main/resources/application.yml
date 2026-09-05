@@ -71,6 +71,12 @@ ai:
     worker-concurrency: ${AI_KNOWLEDGE_WORKER_CONCURRENCY:4}
     lease-seconds: ${AI_KNOWLEDGE_LEASE_SECONDS:60}
     max-attempts: ${AI_KNOWLEDGE_MAX_ATTEMPTS:5}
+    embedding-max-concurrent-calls: ${AI_KNOWLEDGE_EMBEDDING_CONCURRENCY:4}
+    vector-max-concurrent-calls: ${AI_KNOWLEDGE_VECTOR_CONCURRENCY:8}
+    circuit-sliding-window-size: ${AI_KNOWLEDGE_CB_WINDOW_SIZE:20}
+    circuit-minimum-calls: ${AI_KNOWLEDGE_CB_MINIMUM_CALLS:10}
+    circuit-failure-rate-threshold: ${AI_KNOWLEDGE_CB_FAILURE_RATE:50}
+    circuit-open-wait-ms: ${AI_KNOWLEDGE_CB_OPEN_WAIT_MS:30000}
   embedding:
     base-url: ${AI_EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
     api-key: ${AI_EMBEDDING_API_KEY:${ALIYUN_API_KEY:}}
@@ -85,6 +91,7 @@ qdrant:
   api-key: ${QDRANT_API_KEY:}
   collection: ${QDRANT_COLLECTION:learning_knowledge_v1_1024}
   alias: ${QDRANT_ALIAS:learning_knowledge_current}
+  require-secure-transport: ${QDRANT_REQUIRE_SECURE_TRANSPORT:false}
 
 security:
   jwt:

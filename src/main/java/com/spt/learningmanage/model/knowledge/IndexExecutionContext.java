@@ -1,4 +1,9 @@
 package com.spt.learningmanage.model.knowledge;
 
-public record IndexExecutionContext(Long eventId, String claimToken, String traceId) {
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+
+public record IndexExecutionContext(Long eventId,
+                                    String claimToken,
+                                    String traceId,
+                                    KnowledgeEventTypeEnum eventType) {
 }

@@ -56,4 +56,23 @@ class KnowledgeIndexConfigurationValidatorTest {
         assertThrows(IllegalStateException.class, () -> new KnowledgeIndexConfigurationValidator(
                 index, embedding, qdrant).validate());
     }
+
+    @Test
+    void secureQdrantModeRequiresHttpsAndApiKey() {
+        KnowledgeIndexProperties index = new KnowledgeIndexProperties();
+        index.setWorkerEnabled(true);
+        EmbeddingProperties embedding = new EmbeddingProperties();
+        embedding.setBaseUrl("https://embedding.example/v1");
+        embedding.setApiKey("embedding-key");
+        QdrantProperties qdrant = new QdrantProperties();
+        qdrant.setBaseUrl("http://qdrant.internal:6333");
+        qdrant.setRequireSecureTransport(true);
+
+        assertThrows(IllegalStateException.class, () -> new KnowledgeIndexConfigurationValidator(
+                index, embedding, qdrant).validate());
+
+        qdrant.setBaseUrl("https://qdrant.example");
+        qdrant.setApiKey("qdrant-key");
+        assertDoesNotThrow(() -> new KnowledgeIndexConfigurationValidator(index, embedding, qdrant).validate());
+    }
 }

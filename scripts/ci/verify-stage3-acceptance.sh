@@ -30,7 +30,10 @@ for file in "${required[@]}"; do
   [[ -f "$file" ]] || { printf 'missing Stage 3 contract file: %s\n' "$file" >&2; exit 1; }
 done
 
-[[ "$(find src/main/resources/db/migration -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" == 3 ]]
+[[ "$(find src/main/resources/db/migration -maxdepth 1 -type f -name 'V*.sql' | wc -l | tr -d ' ')" -ge 3 ]]
+[[ -f src/main/resources/db/migration/V1__baseline_schema.sql ]]
+[[ -f src/main/resources/db/migration/V2__stage1_business_semantics_and_permissions.sql ]]
+[[ -f src/main/resources/db/migration/V3__stage2_ai_invocation_governance.sql ]]
 [[ ! -e src/main/resources/db/migration/V4__stage3.sql ]]
 sha256sum --check docs/stage3/requirements/published-migrations.sha256
 
@@ -69,6 +72,4 @@ NODE
 
 git check-ignore -q evals/stage3/output.json
 git check-ignore -q evals/stage3/node_modules/example
-! find src/main/resources/db/migration -maxdepth 1 -type f -name 'V4*' | grep -q .
-
 printf 'stage3.acceptance=PASS\n'
