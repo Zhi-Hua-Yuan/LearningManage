@@ -241,6 +241,18 @@ class PermissionServiceImplTest {
     }
 
     @Test
+    void systemAdminCanUsePlatformOperationsButUserCannot() {
+        when(permissionQueryMapper.selectActorPermissionRow(99L))
+                .thenReturn(activeActor(99L, SystemRoleEnum.SYSTEM_ADMIN));
+        permissionService.requireSystemAdmin(99L);
+
+        when(permissionQueryMapper.selectActorPermissionRow(10L))
+                .thenReturn(activeActor(10L, SystemRoleEnum.USER));
+        assertThrows(PermissionDeniedException.class,
+                () -> permissionService.requireSystemAdmin(10L));
+    }
+
+    @Test
     void onlyOwnerCanChangeTeamMemberRole() {
         when(permissionQueryMapper.selectTeamMemberPermissionRow(10L, 200L, 20L))
                 .thenReturn(teamMember(200L, 10L, 10L, TeamRoleEnum.OWNER, 20L, TeamRoleEnum.MEMBER));

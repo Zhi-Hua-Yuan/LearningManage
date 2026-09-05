@@ -16,6 +16,7 @@ public class AiKnowledgeBackfillRun {
     private String runKey;
     private String runType;
     private String sourceScope;
+    private Integer batchSize;
     private String status;
     private Long cursorTaskId;
     private Long cursorReviewId;
@@ -25,6 +26,7 @@ public class AiKnowledgeBackfillRun {
     private Long failedCount;
     private Long deadCount;
     private String workerId;
+    private String claimToken;
     private LocalDateTime leaseUntil;
     private String traceId;
     private LocalDateTime startedAt;

@@ -60,6 +60,15 @@ class FlywayV4MigrationStaticTest {
         assertFalse(sql.matches("(?is).*(UPDATE|DELETE)\\s+`?(task|project|weekly_review|user)`?.*"));
     }
 
+    @Test
+    void backfillPersistsBatchSizeAndUsesFencedEnqueuedState() throws IOException {
+        String sql = read();
+        assertTrue(sql.contains("`batch_size` int NOT NULL DEFAULT 500"));
+        assertTrue(sql.contains("`claim_token` char(36)"));
+        assertTrue(sql.contains("'PENDING', 'RUNNING', 'ENQUEUED', 'SUCCEEDED', 'PARTIAL', 'FAILED'"));
+        assertTrue(sql.contains("`batch_size` BETWEEN 100 AND 1000"));
+    }
+
     private String read() throws IOException {
         return Files.readString(MIGRATION, StandardCharsets.UTF_8);
     }

@@ -9,7 +9,7 @@ V4 introduces four tables and does not alter existing business columns.
 | `ai_knowledge_index_event` | Durable transaction Outbox | auto-increment order; fenced claim; immutable source identity |
 | `ai_knowledge_source_lock` | Cross-worker source serialization | unique source; renewable lease/token |
 | `ai_knowledge_document` | Desired/indexed document metadata | unique document key; hashes and chunk count; no body/vector |
-| `ai_knowledge_backfill_run` | Resumable keyset backfill | unique run key; monotonic cursors and counts |
+| `ai_knowledge_backfill_run` | Resumable keyset backfill | unique run key; persisted batch size; fenced claim; ENQUEUED waits for child-event terminal counts |
 
 Enums are stored as uppercase ASCII values and checked in MySQL. Timestamps use `datetime(3)` for lease accuracy. Event and backfill IDs use auto-increment because they are queue/order records; document IDs use the existing application ID convention.
 

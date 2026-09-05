@@ -175,6 +175,7 @@ CREATE TABLE `ai_knowledge_backfill_run` (
   `run_key` varchar(64) NOT NULL,
   `run_type` varchar(16) NOT NULL,
   `source_scope` varchar(32) NOT NULL,
+  `batch_size` int NOT NULL DEFAULT 500,
   `status` varchar(24) NOT NULL DEFAULT 'PENDING',
   `cursor_task_id` bigint NOT NULL DEFAULT 0,
   `cursor_review_id` bigint NOT NULL DEFAULT 0,
@@ -184,6 +185,7 @@ CREATE TABLE `ai_knowledge_backfill_run` (
   `failed_count` bigint NOT NULL DEFAULT 0,
   `dead_count` bigint NOT NULL DEFAULT 0,
   `worker_id` varchar(64) DEFAULT NULL,
+  `claim_token` char(36) DEFAULT NULL,
   `lease_until` datetime(3) DEFAULT NULL,
   `trace_id` varchar(64) DEFAULT NULL,
   `started_at` datetime(3) DEFAULT NULL,
@@ -202,11 +204,12 @@ CREATE TABLE `ai_knowledge_backfill_run` (
       BINARY `source_scope` IN ('TASK', 'WEEKLY_REVIEW', 'ALL')
   ),
   CONSTRAINT `chk_kbr_status` CHECK (
-      BINARY `status` IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'PARTIAL', 'FAILED')
+      BINARY `status` IN ('PENDING', 'RUNNING', 'ENQUEUED', 'SUCCEEDED', 'PARTIAL', 'FAILED')
   ),
   CONSTRAINT `chk_kbr_counts` CHECK (
       `cursor_task_id` >= 0
       AND `cursor_review_id` >= 0
+      AND `batch_size` BETWEEN 100 AND 1000
       AND `discovered_count` >= 0
       AND `enqueued_count` >= 0
       AND `success_count` >= 0
