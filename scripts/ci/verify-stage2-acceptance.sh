@@ -60,6 +60,9 @@ case "$mode" in
   sealed)
     jq -e '
       .schemaVersion == 1 and .stage == "stage2" and .status == "PASS" and
+      .baseline.stage1Tag == "stage1-v1.0.0" and
+      .baseline.backendSha == "505715860cce7f04a52c00a4e4258ac8ed838b8d" and
+      .baseline.frontendSha == "2ef907f292fbbacecf8a68f7d24c4701a555aa8a" and
       ([.gates[].status] | all(. == "PASS")) and
       .policy.publishedMigrationHead == "3" and
       .policy.v1Modified == false and .policy.v2Modified == false and .policy.v3Modified == false and
