@@ -32,8 +32,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBreakdownAiService {
@@ -43,6 +46,10 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
     private static final int TASK_TITLE_MAX_LEN = 60;
     private static final int TASK_PRIORITY_MIN = 0;
     private static final int TASK_PRIORITY_MAX = 3;
+    private static final int EXPECTED_MILESTONE_COUNT = 3;
+    private static final int DEFAULT_TASKS_PER_MILESTONE = 3;
+    private static final int DETAILED_TASKS_PER_MILESTONE = 4;
+    private static final Pattern DURATION_PATTERN = Pattern.compile("^(\\d+)\\s*(天|周|个月|月|年)$");
 
     private final AiInvocationPipeline aiInvocationPipeline;
     private final AiDraftLifecycleService draftLifecycleService;
@@ -79,8 +86,16 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
         if (normalizedTarget.length() > PROJECT_NAME_MAX_LEN) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标长度不能超过100个字符");
         }
-        String userPrompt = String.format("目标：%s，周期：%s，今天日期：%s。",
-                normalizedTarget, duration.trim(), LocalDate.now());
+        String normalizedDuration = duration.trim();
+        LocalDate today = LocalDate.now();
+        LocalDate planningEndDate = resolvePlanningEndDate(today, normalizedDuration);
+        if (planningEndDate == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                    "周期格式不支持或超出可计算范围，请使用正整数加天、周、月或年，例如8周、3个月");
+        }
+        String userPrompt = String.format("目标：%s，原始周期：%s，今天日期（含）：%s，最晚截止日期（含）：%s。"
+                + "所有 dueDate 必须位于这两个日期之间，绝不能晚于最晚截止日期。",
+                normalizedTarget, normalizedDuration, today, planningEndDate);
         if (StrUtil.isNotBlank(description)) {
             userPrompt += String.format("补充描述：%s。", description.trim());
         }
@@ -94,7 +109,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
             ), aiRawContent -> {
                 JSONArray jsonArray = JSONUtil.parseArray(jsonSanitizer.sanitizeArray(aiRawContent));
                 List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
-                normalizeAndValidateDrafts(result);
+                normalizeAndValidateDrafts(result, today, planningEndDate, detailed);
                 logDraftLengthRisk(result, normalizedTarget, detailed);
                 if (result == null || result.isEmpty()) {
                     throw new BusinessException(ErrorCode.OPERATION_ERROR,
@@ -144,10 +159,20 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                 new TaskBreakdownConfirmationContext(projectName, projectGoal)));
     }
 
-    private void normalizeAndValidateDrafts(List<MilestoneDraftVO> drafts) {
+    private void normalizeAndValidateDrafts(List<MilestoneDraftVO> drafts,
+                                            LocalDate planningStartDate,
+                                            LocalDate planningEndDate,
+                                            boolean detailed) {
         if (drafts == null || drafts.isEmpty()) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 未生成有效里程碑，请重试");
         }
+        if (drafts.size() != EXPECTED_MILESTONE_COUNT) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    "AI 结果必须包含" + EXPECTED_MILESTONE_COUNT + "个里程碑");
+        }
+        int expectedTasksPerMilestone = detailed
+                ? DETAILED_TASKS_PER_MILESTONE
+                : DEFAULT_TASKS_PER_MILESTONE;
         for (int i = 0; i < drafts.size(); i++) {
             MilestoneDraftVO milestone = drafts.get(i);
             if (milestone == null) {
@@ -163,8 +188,10 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
             }
             milestone.setName(milestoneName);
             List<TaskDraftVO> tasks = milestone.getTasks();
-            if (tasks == null || tasks.isEmpty()) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 结果第" + (i + 1) + "个里程碑缺少任务");
+            if (tasks == null || tasks.size() != expectedTasksPerMilestone) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                        "AI 结果第" + (i + 1) + "个里程碑必须包含"
+                                + expectedTasksPerMilestone + "个任务");
             }
             for (int j = 0; j < tasks.size(); j++) {
                 TaskDraftVO task = tasks.get(j);
@@ -200,10 +227,42 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                             "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1)
                                     + "个任务截止日期格式非法，需为yyyy-MM-dd");
                 }
+                if (parsedDueDate.isBefore(planningStartDate) || parsedDueDate.isAfter(planningEndDate)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                            "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1)
+                                    + "个任务截止日期超出计划周期");
+                }
                 task.setName(taskName);
                 task.setPriority(priority);
                 task.setDueDate(parsedDueDate.toString());
             }
+        }
+    }
+
+    private LocalDate resolvePlanningEndDate(LocalDate startDate, String duration) {
+        Matcher matcher = DURATION_PATTERN.matcher(duration);
+        if (!matcher.matches()) {
+            return null;
+        }
+        long amount;
+        try {
+            amount = Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+        if (amount <= 0) {
+            return null;
+        }
+        try {
+            return switch (matcher.group(2)) {
+                case "天" -> startDate.plusDays(amount);
+                case "周" -> startDate.plusWeeks(amount);
+                case "个月", "月" -> startDate.plusMonths(amount);
+                case "年" -> startDate.plusYears(amount);
+                default -> null;
+            };
+        } catch (DateTimeException | ArithmeticException exception) {
+            return null;
         }
     }
 

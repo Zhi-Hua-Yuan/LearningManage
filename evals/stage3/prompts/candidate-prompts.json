@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "prompts": [
+    {
+      "id": "700000000000000101",
+      "code": "task-breakdown.default",
+      "scene": "task-breakdown",
+      "name": "任务拆解-普通模式 V2 候选",
+      "version": 2,
+      "file": "task-breakdown-default-v2.txt",
+      "remark": "Stage 3 candidate: bounded dates, fixed compact shape, silent self-check"
+    },
+    {
+      "id": "700000000000000102",
+      "code": "task-breakdown.detailed",
+      "scene": "task-breakdown",
+      "name": "任务拆解-详细模式 V2 候选",
+      "version": 2,
+      "file": "task-breakdown-detailed-v2.txt",
+      "remark": "Stage 3 candidate: bounded dates, feasible short-cycle tasks, compact output"
+    },
+    {
+      "id": "700000000000000105",
+      "code": "daily-review-rename.default",
+      "scene": "daily-review-rename",
+      "name": "日报任务改名 V2 候选",
+      "version": 2,
+      "file": "daily-review-rename-v2.txt",
+      "remark": "Stage 3 candidate: preserve clear titles and avoid unnecessary edits"
+    }
+  ]
+}

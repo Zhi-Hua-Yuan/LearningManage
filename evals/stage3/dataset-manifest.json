@@ -1,43 +1,46 @@
 {
   "schemaVersion": 1,
-  "datasetVersion": "1.0.0",
+  "datasetVersion": "1.1.0",
   "syntheticOrAnonymizedOnly": true,
   "qualityCases": 170,
   "failureInjectionCases": 40,
-  "combinedSha256": "A888EFF531A7592851C5982DB22430CD3FD1E92BC2F565A33B6DE1D2E236725C",
+  "combinedSha256": "025AFAC654E2EDD10B57EEE3336742AEA9C0F765A06C42A2EBE13D7C0C0F201C",
   "datasets": [
     {
       "file": "development.jsonl",
       "split": "development",
       "cases": 102,
-      "sha256": "E59476538B3ECFCEAAFED65F46AB73F4EE29724F44746C9CA23A32BA1C2BBAEE",
+      "sha256": "456A9353C0AF169DEB262D1518489B3D4D8079EC975835CCD16E79C1DEDE6C48",
       "labelVersions": [
-        1
+        1,
+        2
       ]
     },
     {
       "file": "regression.jsonl",
       "split": "regression",
       "cases": 34,
-      "sha256": "5EAA67745F8C7D90527095912126C6911F52686C54136C3C52848BA845265263",
+      "sha256": "C2F8DCB4F4D938FB5073D89F60374373C0C83AD61EA470D95CF08CDB1BD0C14A",
       "labelVersions": [
-        1
+        1,
+        2
       ]
     },
     {
       "file": "holdout.jsonl",
       "split": "holdout",
       "cases": 34,
-      "sha256": "54A2658FC1CA4B909E1C4411BB65C3D54EADA82914B47CE90493B2256B0CCD55",
+      "sha256": "C6E6F875E9BDC058C364FE3DCF947071D047BBC42D50C031BEE369181C597FDA",
       "labelVersions": [
-        1
+        1,
+        2
       ]
     },
     {
       "file": "failure-injection.jsonl",
       "split": "failure-injection",
       "cases": 40,
-      "sha256": "A2C24ABD81DF8A906AAC9745DE9AE45C6338AC0B7415C363A6EF7ACC5933A059",
+      "sha256": "03C78C0C52961173B319ACB32139CFCBFBE05DBFD4DE2CFE8DB668902ECD9EA1",
       "labelVersions": [
         1,
         2

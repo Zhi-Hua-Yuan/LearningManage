@@ -9,13 +9,14 @@ The release operator must replace this status with the sanitized three-round agg
 ## Deterministic implementation verification
 
 - Dataset contract: 170 quality cases + 40 failure-injection cases, all schema-valid and globally unique.
-- Promptfoo project contract tests: 15/15 passed.
+- Promptfoo project contract tests: 22/22 passed, including response-body retries, retry cost reserves, development-round cost, and direct candidate Prompt Manifest binding.
 - Promptfoo configuration validation: passed with sharing and cache disabled by the run wrapper.
 - Stage 3 repository acceptance: passed; V1/V2/V3 checksums unchanged and no V4 exists.
-- Full backend regression: 710/710 tests passed against a disposable, Flyway-managed `_ci_`/`_eval` MySQL database.
+- Full backend regression: 714/714 tests passed against a disposable, Flyway-managed `_ci_`/`_eval` MySQL database.
 - Scene-aware protocol Stub: Python syntax and a detailed task-breakdown response/Usage smoke test passed.
 - Production-path offline evaluation: 74/74 regression and fault-injection cases passed through the public API, `AiInvocationPipeline`, scene parsing, business validation, permission checks, and correlated `ai_call_log` metadata.
 - Offline deterministic metrics: structure parsing 100%, business validation 100%, expected degradation 100%, Trace-to-`ai_call_log` correlation 100%, formal project/milestone/task content mutations 0, P50 8 ms, and P95 5012 ms. The P95 includes deliberate five-second timeout injections.
-- Offline dataset digest: `A888EFF531A7592851C5982DB22430CD3FD1E92BC2F565A33B6DE1D2E236725C`.
+- Offline dataset contract: version `1.1.0`, with both task-breakdown Prompt modes represented in development, regression, and holdout.
+- Offline dataset digest: `025AFAC654E2EDD10B57EEE3336742AEA9C0F765A06C42A2EBE13D7C0C0F201C`.
 
 These figures describe the deterministic `ci-ai-stub` baseline only. They are not evidence of `qwen-plus` semantic quality, real-provider latency, Token use, or cost. The isolated Linux CI job must reproduce this gate, and the protected six-round real-model workflow must still pass before Stage 3 can be sealed.

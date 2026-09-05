@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const datasetDir = path.join(root, 'datasets');
 fs.mkdirSync(datasetDir, { recursive: true });
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const TASKS = Object.freeze({
   personalPending: [930001, 930002, 930003, 930004],
   personalCompleted: [930005, 930006],
@@ -38,7 +38,7 @@ function addQuality(scene, prefix, index, split, requestPayload, options = {}) {
     semanticRubric: options.semanticRubric,
     allowedResourceIds: options.allowedResourceIds || [],
     datasetVersion: VERSION,
-    labelVersion: 1
+    labelVersion: options.labelVersion || 1
   });
 }
 
@@ -60,7 +60,7 @@ const durations = ['1周', '1个月', '3个月', '6个月', '12周'];
 
 for (let index = 0; index < 60; index += 1) {
   const [domain, description] = domains[index % domains.length];
-  const detailed = index >= 30;
+  const detailed = index % 2 === 1;
   const split = qualitySplit(index, 36, 12);
   const boundaryTarget = index === 59 ? `${domain}${'阶段目标'.repeat(11)}`.slice(0, 100) : domain;
   addQuality('task-breakdown', 'TB', index, split, {
@@ -70,6 +70,7 @@ for (let index = 0; index < 60; index += 1) {
     detailed
   }, {
     tags: ['quality', 'task-breakdown', detailed ? 'detailed' : 'default', `domain-${index % domains.length + 1}`],
+    labelVersion: 2,
     semanticRubric: [
       'The milestones cover the stated goal and form a sensible progression.',
       'Tasks are concrete, executable, independently checkable, and avoid unnecessary duplication.',

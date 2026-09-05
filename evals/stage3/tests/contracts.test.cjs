@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,6 +18,17 @@ test('all generated case IDs are globally unique and stable-looking', () => {
   assert.equal(ids.length, 210);
   assert.equal(new Set(ids).size, 210);
   assert.ok(ids.every((id) => /^(TB|WP|TO|DR|LR)-(DEV|REG|HOLD)-\d{3}$|^FI-\d{3}$/.test(id)));
+});
+
+test('every quality split exercises both task-breakdown prompt modes', () => {
+  for (const split of ['development', 'regression', 'holdout']) {
+    const cases = fs.readFileSync(path.join(root, 'datasets', `${split}.jsonl`), 'utf8')
+      .split(/\r?\n/).filter(Boolean).map(JSON.parse)
+      .filter((item) => item.scene === 'task-breakdown');
+    assert.ok(cases.some((item) => item.requestPayload.detailed === true), `${split} lacks detailed mode`);
+    assert.ok(cases.some((item) => item.requestPayload.detailed === false), `${split} lacks default mode`);
+    assert.ok(cases.every((item) => item.datasetVersion === '1.1.0' && item.labelVersion === 2));
+  }
 });
 
 test('provider requires one of the fixed synthetic actors', async () => {
@@ -44,6 +56,167 @@ test('real evaluation supplies required production runtime ports', () => {
   assert.match(workflow, /^\s*STAGE3_API_BASE_URL:\s*http:\/\/127\.0\.0\.1:18133\/api\s*$/m);
   assert.match(workflow, /^\s*REDIS_HOST:\s*127\.0\.0\.1\s*$/m);
   assert.match(workflow, /^\s*REDIS_PORT:\s*['"]?6379['"]?\s*$/m);
+  assert.match(workflow, /run_round development 1 false/);
+  assert.match(workflow, /real-results\/regression-\*-summary\.json real-results\/holdout-\*-summary\.json/);
+});
+
+test('candidate prompt manifest and SQL bind the exact database V2 content', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-prompts-'));
+  const promptManifestPath = path.join(root, 'prompt-manifest.json');
+  const originalManifest = fs.readFileSync(promptManifestPath);
+  try {
+    const sqlPath = path.join(temp, 'candidate.sql');
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'build-candidate-prompt-sql.mjs'), sqlPath], { cwd: root });
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'export-prompt-manifest.mjs')], { cwd: root });
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    const manifest = JSON.parse(fs.readFileSync(promptManifestPath, 'utf8'));
+    const config = JSON.parse(fs.readFileSync(path.join(root, 'prompts', 'candidate-prompts.json'), 'utf8'));
+    assert.equal((sql.match(/INSERT INTO prompt_template/g) || []).length, 3);
+    assert.match(sql, /^START TRANSACTION;/);
+    assert.match(sql, /COMMIT;\s*$/);
+    for (const candidate of config.prompts) {
+      const entry = manifest.prompts.find((prompt) => prompt.code === candidate.code);
+      const content = fs.readFileSync(path.join(root, 'prompts', candidate.file), 'utf8').trim();
+      const expectedHash = crypto.createHash('sha256').update(content).digest('hex').toUpperCase();
+      assert.equal(entry.version, 2);
+      assert.equal(entry.source, 'DATABASE');
+      assert.equal(entry.sha256, expectedHash);
+      assert.equal(entry.contentLength, [...content].length);
+    }
+    assert.equal(manifest.prompts.length, 6);
+  } finally {
+    fs.writeFileSync(promptManifestPath, originalManifest);
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('deterministic model stub recognizes the candidate prompt vocabulary and planning window', () => {
+  const stub = fs.readFileSync(path.resolve(root, '..', '..', 'scripts', 'ci', 'stubs', 'ai-chat-completions-stub.py'), 'utf8');
+  assert.match(stub, /今天日期\(\?:（含）\)\?/);
+  assert.match(stub, /\(\?:原始\)\?周期/);
+  assert.match(stub, /最晚截止日期\(\?:（含）\)\?/);
+  assert.match(stub, /planning_end - start/);
+  assert.match(stub, /"细颗粒度" in text/);
+  assert.match(stub, /milestone_count = 3/);
+  assert.match(stub, /task_count = 4 if detailed else 3/);
+});
+
+test('offline workflow binds summaries to dataset v1.1.0', () => {
+  const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'stage3-eval.yml'), 'utf8');
+  assert.match(workflow, /^\s*STAGE3_DATASET_VERSION:\s*['"]1\.1\.0['"]\s*$/m);
+});
+
+test('task-breakdown v2 assertion rejects the legacy 2-by-2 response shape', () => {
+  const assertion = require(path.join(root, 'assertions', 'task-breakdown.js'));
+  const tasks = [1, 2].map((index) => ({ name: `任务${index}`, priority: 2, dueDate: '2026-09-06' }));
+  const output = JSON.stringify({ success: true, data: { milestones: [
+    { name: '阶段1', tasks }, { name: '阶段2', tasks: tasks.map((task) => ({ ...task, name: `${task.name}B` })) }
+  ] } });
+  const result = assertion(output, { vars: { requestPayload: JSON.stringify({ detailed: false, duration: '1周' }) } });
+  assert.equal(result.pass, false);
+  assert.match(result.reason, /exactly 3 milestones/);
+});
+
+test('semantic grader retries transient provider failures without changing the model binding', async () => {
+  const providerPath = path.join(root, 'providers', 'dashscope-grader.js');
+  const originalFetch = global.fetch;
+  const previous = Object.fromEntries(['ALIYUN_API_KEY', 'STAGE3_GRADER_MODEL', 'STAGE3_SUT_MODEL',
+    'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
+    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS',
+    'STAGE3_GRADER_MAX_COMPLETION_TOKENS'].map((key) => [key, process.env[key]]));
+  let attempts = 0;
+  let cancelledResponses = 0;
+  let requestedMaxCompletionTokens = null;
+  try {
+    Object.assign(process.env, {
+      ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
+      STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: '1', STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: '2',
+      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3',
+      STAGE3_GRADER_MAX_COMPLETION_TOKENS: '1024'
+    });
+    global.fetch = async (_url, options) => {
+      attempts += 1;
+      requestedMaxCompletionTokens = JSON.parse(options.body).max_tokens;
+      if (attempts === 1) {
+        return {
+          ok: false, status: 503,
+          body: { async cancel() { cancelledResponses += 1; } }
+        };
+      }
+      return {
+        ok: true, status: 200,
+        async json() {
+          return { id: 'synthetic-request', choices: [{ message: { content: '{"pass":true,"score":1,"reason":"ok"}' } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } };
+        }
+      };
+    };
+    delete require.cache[require.resolve(providerPath)];
+    const Provider = require(providerPath);
+    const result = await new Provider().callApi('synthetic rubric');
+    assert.equal(attempts, 2);
+    assert.equal(cancelledResponses, 1);
+    assert.equal(result.metadata.model, 'qwen-max');
+    assert.equal(result.tokenUsage.total, 15);
+    assert.equal(requestedMaxCompletionTokens, 1024);
+    assert.equal(result.metadata.unmeteredRetryAttempts, 1);
+    assert.ok(result.metadata.retryCostReserve > 0);
+    assert.ok(result.cost > result.metadata.usageEstimatedCost);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('semantic grader retries transient response-body failures inside the bounded loop', async () => {
+  const providerPath = path.join(root, 'providers', 'dashscope-grader.js');
+  const originalFetch = global.fetch;
+  const previous = Object.fromEntries(['ALIYUN_API_KEY', 'STAGE3_GRADER_MODEL', 'STAGE3_SUT_MODEL',
+    'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
+    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS',
+    'STAGE3_GRADER_MAX_COMPLETION_TOKENS'].map((key) => [key, process.env[key]]));
+  let attempts = 0;
+  let cancelledResponses = 0;
+  try {
+    Object.assign(process.env, {
+      ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
+      STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: '1', STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: '2',
+      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3',
+      STAGE3_GRADER_MAX_COMPLETION_TOKENS: '1024'
+    });
+    global.fetch = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return {
+          ok: true, status: 200,
+          body: { async cancel() { cancelledResponses += 1; } },
+          async json() { throw new Error('synthetic truncated response body'); }
+        };
+      }
+      return {
+        ok: true, status: 200,
+        async json() {
+          return { id: 'synthetic-request', choices: [{ message: { content: '{"pass":true,"score":1,"reason":"ok"}' } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } };
+        }
+      };
+    };
+    delete require.cache[require.resolve(providerPath)];
+    const Provider = require(providerPath);
+    const result = await new Provider().callApi('synthetic rubric');
+    assert.equal(attempts, 2);
+    assert.equal(cancelledResponses, 1);
+    assert.equal(result.metadata.unmeteredRetryAttempts, 1);
+    assert.ok(result.metadata.retryCostReserve > 0);
+    assert.ok(result.cost > result.metadata.usageEstimatedCost);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test('locked evaluation dependencies are cross-platform and use the restricted native install', () => {
@@ -211,7 +384,7 @@ test('real-result aggregation requires and binds three regression plus three hol
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-aggregate-'));
   try {
     const run = {
-      backendSha: 'a'.repeat(40), datasetVersion: '1.0.0', datasetSha256: 'B'.repeat(64), model: 'qwen-plus', graderModel: 'qwen-max', roundCount: 1,
+      backendSha: 'a'.repeat(40), datasetVersion: '1.1.0', datasetSha256: 'B'.repeat(64), model: 'qwen-plus', graderModel: 'qwen-max', roundCount: 1,
       requestedModels: ['qwen-plus'], actualModels: ['qwen-plus'], priceVersions: ['2026-09'],
       promptBindings: Array.from({ length: 6 }, (_, index) => `prompt-${index}:1:BUILTIN:${'A'.repeat(64)}`),
       providerRequestIdHashDigest: 'C'.repeat(64)
@@ -234,13 +407,51 @@ test('real-result aggregation requires and binds three regression plus three hol
       }
     }
     const output = path.join(temp, 'candidate-summary.json');
-    execFileSync(process.execPath, [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files], { cwd: root });
+    const development = path.join(temp, 'development-round-1-summary.json');
+    const promptManifest = path.join(temp, 'prompt-manifest.json');
+    fs.writeFileSync(promptManifest, JSON.stringify({
+      schemaVersion: 1,
+      prompts: run.promptBindings.map((binding) => {
+        const [code, version, source, sha256] = binding.split(':');
+        return { code, version: Number(version), source, sha256 };
+      })
+    }));
+    fs.writeFileSync(development, JSON.stringify({ ...base, metrics: { ...base.metrics, totalEstimatedCost: 0.2 } }));
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files], {
+      cwd: root,
+      env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest }
+    });
     const aggregate = JSON.parse(fs.readFileSync(output, 'utf8'));
     assert.equal(aggregate.status, 'PASS');
     assert.equal(aggregate.run.regressionRounds, 3);
-    assert.ok(Math.abs(aggregate.metrics.totalEstimatedCostCny - 0.6) < 1e-9);
+    assert.ok(Math.abs(aggregate.metrics.totalEstimatedCostCny - 0.8) < 1e-9);
+    assert.equal(aggregate.run.developmentQualificationRounds, 1);
+    assert.ok(Math.abs(aggregate.costAccounting.developmentQualificationCostCny - 0.2) < 1e-9);
     assert.equal(aggregate.metrics.minimumSemanticDimensionScore, 0.85);
-    assert.equal(aggregate.inputEvidence.length, 6);
+    assert.equal(aggregate.inputEvidence.length, 8);
+
+    const mismatchedPromptBindings = [...run.promptBindings];
+    mismatchedPromptBindings[0] = `prompt-0:1:BUILTIN:${'D'.repeat(64)}`;
+    fs.writeFileSync(development, JSON.stringify({
+      ...base,
+      run: { ...run, promptBindings: mismatchedPromptBindings },
+      metrics: { ...base.metrics, totalEstimatedCost: 0.2 }
+    }));
+    assert.throws(() => execFileSync(
+      process.execPath,
+      [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files],
+      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest } }
+    ));
+
+    fs.writeFileSync(development, JSON.stringify({ ...base, metrics: { ...base.metrics, totalEstimatedCost: 0.2 } }));
+    const tamperedManifest = JSON.parse(fs.readFileSync(promptManifest, 'utf8'));
+    tamperedManifest.prompts[0].sha256 = 'D'.repeat(64);
+    fs.writeFileSync(promptManifest, JSON.stringify(tamperedManifest));
+    assert.throws(() => execFileSync(
+      process.execPath,
+      [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files],
+      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest } }
+    ));
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
@@ -251,5 +462,8 @@ test('real evaluation preserves failed round evidence and defers semantic gating
   assert.match(workflow, /eval_status=\$\?/);
   assert.match(workflow, /\[\[ -s output\.json \]\] && mv output\.json/);
   assert.match(workflow, /STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate/);
+  assert.match(workflow, /STAGE3_DEVELOPMENT_SUMMARY:\s*real-results\/development-round-1-summary\.json/);
+  assert.match(workflow, /STAGE3_PROMPT_MANIFEST:\s*prompt-manifest\.json/);
+  assert.match(workflow, /promptManifestSha256:\$promptManifestHash/);
   assert.match(workflow, /eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0/);
 });

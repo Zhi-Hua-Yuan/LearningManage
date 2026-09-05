@@ -6,15 +6,35 @@ const outputPath = path.resolve(process.argv[2] || 'real-results/candidate-summa
 const inputs = process.argv.slice(3).map((file) => path.resolve(file));
 if (inputs.length !== 6) throw new Error(`Expected exactly six real-model summaries, received ${inputs.length}`);
 
-const documents = inputs.map((file) => ({ file, value: JSON.parse(fs.readFileSync(file, 'utf8')) }));
 const splitOf = (file) => path.basename(file).split('-round-')[0];
+const documents = inputs.map((file) => ({ file, value: JSON.parse(fs.readFileSync(file, 'utf8')) }));
+const developmentPath = process.env.STAGE3_DEVELOPMENT_SUMMARY;
+if (!developmentPath) throw new Error('STAGE3_DEVELOPMENT_SUMMARY is required for candidate cost accounting');
+const developmentDocument = {
+  file: path.resolve(developmentPath),
+  value: JSON.parse(fs.readFileSync(path.resolve(developmentPath), 'utf8'))
+};
+if (splitOf(developmentDocument.file) !== 'development') {
+  throw new Error('STAGE3_DEVELOPMENT_SUMMARY must reference the development qualification summary');
+}
+const allEvidenceDocuments = [...documents, developmentDocument];
+const promptManifestPath = process.env.STAGE3_PROMPT_MANIFEST;
+if (!promptManifestPath) throw new Error('STAGE3_PROMPT_MANIFEST is required for candidate Prompt binding');
+const resolvedPromptManifestPath = path.resolve(promptManifestPath);
+const promptManifest = JSON.parse(fs.readFileSync(resolvedPromptManifestPath, 'utf8'));
+const expectedPromptBindings = (promptManifest.prompts || []).map((prompt) =>
+  `${prompt.code}:${prompt.version}:${prompt.source}:${prompt.sha256}`
+).sort();
+if (expectedPromptBindings.length !== 6 || new Set(expectedPromptBindings).size !== 6) {
+  throw new Error('Prompt manifest must contain exactly six unique candidate bindings');
+}
 for (const split of ['regression', 'holdout']) {
   const matching = documents.filter(({ file }) => splitOf(file) === split);
   if (matching.length !== 3) throw new Error(`Expected three ${split} summaries, received ${matching.length}`);
 }
 
 const first = documents[0].value;
-for (const { value } of documents) {
+for (const { value } of allEvidenceDocuments) {
   for (const key of ['backendSha', 'datasetVersion', 'datasetSha256', 'model', 'graderModel']) {
     if (value.run?.[key] !== first.run?.[key]) throw new Error(`Real-model evidence is not immutable: ${key} differs`);
   }
@@ -24,7 +44,10 @@ const values = (selector) => documents.map(({ value }) => selector(value)).filte
 const average = (items) => items.length ? items.reduce((sum, value) => sum + value, 0) / items.length : null;
 const min = (items) => items.length ? Math.min(...items) : null;
 const max = (items) => items.length ? Math.max(...items) : null;
-const totalCost = values((summary) => summary.metrics.totalEstimatedCost).reduce((sum, value) => sum + value, 0);
+const sixRoundCost = values((summary) => summary.metrics.totalEstimatedCost).reduce((sum, value) => sum + value, 0);
+const developmentCost = Number(developmentDocument.value.metrics?.totalEstimatedCost);
+if (!Number.isFinite(developmentCost)) throw new Error('Development qualification cost is missing');
+const totalCost = sixRoundCost + developmentCost;
 const sceneNames = [...new Set(documents.flatMap(({ value }) => Object.keys(value.scenes || {})))].sort();
 const scenes = Object.fromEntries(sceneNames.map((name) => {
   const sceneValues = documents.map(({ value }) => value.scenes?.[name]).filter(Boolean);
@@ -66,11 +89,17 @@ if (metrics.minimumSemanticDimensionScore == null || metrics.minimumSemanticDime
 if (metrics.maximumP95LatencyMs > 15000) failures.push('P95 latency exceeds 15 seconds');
 if (metrics.formalBusinessWrites !== 0) failures.push('formal business data was changed');
 if (metrics.totalEstimatedCostCny > 10) failures.push('candidate evaluation cost exceeds 10 CNY');
-for (const { value } of documents) {
+for (const { file, value } of allEvidenceDocuments) {
   if (JSON.stringify(value.run.requestedModels) !== JSON.stringify(['qwen-plus'])) failures.push('requested model binding is not qwen-plus');
   if (JSON.stringify(value.run.actualModels) !== JSON.stringify(['qwen-plus'])) failures.push('actual model binding is not qwen-plus');
   if (!Array.isArray(value.run.priceVersions) || value.run.priceVersions.length === 0) failures.push('price version is missing');
   if (!Array.isArray(value.run.promptBindings) || value.run.promptBindings.length !== 6) failures.push('six Prompt bindings were not captured');
+  if (JSON.stringify(value.run.promptBindings) !== JSON.stringify(first.run.promptBindings)) {
+    failures.push(`${path.basename(file)} did not use the exact candidate Prompt identities and hashes`);
+  }
+  if (JSON.stringify(value.run.promptBindings) !== JSON.stringify(expectedPromptBindings)) {
+    failures.push(`${path.basename(file)} Prompt bindings do not match the candidate manifest`);
+  }
 }
 
 const baselinePath = process.env.STAGE3_BASELINE_CANDIDATE_SUMMARY;
@@ -87,21 +116,30 @@ if (baselinePath) {
   }
 }
 
-const inputEvidence = documents.map(({ file }) => ({
+const inputEvidence = [...allEvidenceDocuments.map(({ file }) => ({
   file: path.basename(file),
   sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').toUpperCase()
-}));
+})), {
+  file: path.basename(resolvedPromptManifestPath),
+  sha256: crypto.createHash('sha256').update(fs.readFileSync(resolvedPromptManifestPath)).digest('hex').toUpperCase()
+}];
 const aggregate = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
   status: failures.length ? 'FAIL' : 'PASS',
   run: {
     ...first.run,
+    developmentQualificationRounds: 1,
     regressionRounds: 3,
     holdoutRounds: 3,
     providerRequestIdHashDigests: documents.map(({ value }) => value.run.providerRequestIdHashDigest).sort()
   },
   metrics,
+  costAccounting: {
+    developmentQualificationCostCny: developmentCost,
+    regressionAndHoldoutCostCny: sixRoundCost,
+    candidateTotalCostCny: totalCost
+  },
   scenes,
   failures,
   inputEvidence

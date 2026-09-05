@@ -1,6 +1,6 @@
 # Dataset governance
 
-Dataset version `1.0.0` contains 170 quality cases and 40 fault-injection cases. The authoritative hashes are in `evals/stage3/dataset-manifest.json`.
+Dataset version `1.1.0` contains 170 quality cases and 40 fault-injection cases. It distributes both task-breakdown Prompt modes across development, regression, and holdout while preserving stable Case IDs. The authoritative hashes are in `evals/stage3/dataset-manifest.json`.
 
 | Scene | Development | Regression | Holdout | Quality total | Faults |
 |---|---:|---:|---:|---:|---:|

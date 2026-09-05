@@ -114,5 +114,11 @@ SQL
 
 fixture_count="$(ci_mysql_app --database="$DB_NAME" --execute='SELECT COUNT(*) FROM task WHERE id BETWEEN 930001 AND 933007;')"
 ci_assert_equals "36" "$fixture_count" "stage3_fixture_task_count_invalid"
+candidate_prompt_sql="$work_dir/stage3-candidate-prompts.sql"
+node evals/stage3/scripts/build-candidate-prompt-sql.mjs "$candidate_prompt_sql"
+ci_mysql_app --default-character-set=utf8mb4 --database="$DB_NAME" < "$candidate_prompt_sql"
+candidate_prompt_count="$(ci_mysql_app --database="$DB_NAME" --execute='SELECT COUNT(*) FROM prompt_template WHERE enabled=1 AND version=2;')"
+ci_assert_equals "3" "$candidate_prompt_count" "stage3_candidate_prompt_count_invalid"
 ci_emit "stage3.seed.status" "PASS"
 ci_emit "stage3.seed.tasks" "$fixture_count"
+ci_emit "stage3.seed.candidate_prompts" "$candidate_prompt_count"
