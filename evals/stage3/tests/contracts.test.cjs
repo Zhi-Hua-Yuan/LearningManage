@@ -170,6 +170,55 @@ test('semantic grader retries transient provider failures without changing the m
   }
 });
 
+test('semantic grader retries transient response-body failures inside the bounded loop', async () => {
+  const providerPath = path.join(root, 'providers', 'dashscope-grader.js');
+  const originalFetch = global.fetch;
+  const previous = Object.fromEntries(['ALIYUN_API_KEY', 'STAGE3_GRADER_MODEL', 'STAGE3_SUT_MODEL',
+    'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
+    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS',
+    'STAGE3_GRADER_MAX_COMPLETION_TOKENS'].map((key) => [key, process.env[key]]));
+  let attempts = 0;
+  let cancelledResponses = 0;
+  try {
+    Object.assign(process.env, {
+      ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
+      STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: '1', STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: '2',
+      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3',
+      STAGE3_GRADER_MAX_COMPLETION_TOKENS: '1024'
+    });
+    global.fetch = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return {
+          ok: true, status: 200,
+          body: { async cancel() { cancelledResponses += 1; } },
+          async json() { throw new Error('synthetic truncated response body'); }
+        };
+      }
+      return {
+        ok: true, status: 200,
+        async json() {
+          return { id: 'synthetic-request', choices: [{ message: { content: '{"pass":true,"score":1,"reason":"ok"}' } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } };
+        }
+      };
+    };
+    delete require.cache[require.resolve(providerPath)];
+    const Provider = require(providerPath);
+    const result = await new Provider().callApi('synthetic rubric');
+    assert.equal(attempts, 2);
+    assert.equal(cancelledResponses, 1);
+    assert.equal(result.metadata.unmeteredRetryAttempts, 1);
+    assert.ok(result.metadata.retryCostReserve > 0);
+    assert.ok(result.cost > result.metadata.usageEstimatedCost);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test('locked evaluation dependencies are cross-platform and use the restricted native install', () => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
   const missingVersions = Object.entries(lock.packages || {})

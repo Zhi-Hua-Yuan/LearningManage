@@ -20,22 +20,23 @@ async function requestWithRetry(url, options) {
   let lastError;
   let unmeteredRetryAttempts = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let response;
     try {
-      const response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
-      if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) {
-        return { response, unmeteredRetryAttempts };
+      response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
+      if (RETRYABLE_STATUS.has(response.status) && attempt < maxAttempts) {
+        throw new Error(`Grader request failed with retryable HTTP ${response.status}`);
       }
-      lastError = new Error(`Grader request failed with retryable HTTP ${response.status}`);
-      unmeteredRetryAttempts += 1;
-      try {
-        await response.body?.cancel();
-      } catch {
-        // Releasing the failed response is best effort; the bounded retry still proceeds.
-      }
+      const body = await response.json();
+      return { response, body, unmeteredRetryAttempts };
     } catch (error) {
       lastError = error;
       if (attempt === maxAttempts) throw error;
       unmeteredRetryAttempts += 1;
+      try {
+        await response?.body?.cancel();
+      } catch {
+        // Releasing a failed or partially consumed response is best effort.
+      }
     }
     await sleep(250 * (2 ** (attempt - 1)));
   }
@@ -64,12 +65,11 @@ module.exports = class DashscopeGraderProvider {
       throw new Error('STAGE3_GRADER_MAX_COMPLETION_TOKENS must be 64-4096');
     }
     const baseUrl = (process.env.STAGE3_DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
-    const { response, unmeteredRetryAttempts } = await requestWithRetry(`${baseUrl}/chat/completions`, {
+    const { response, body, unmeteredRetryAttempts } = await requestWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model, temperature: 0, max_tokens: maxCompletionTokens, messages: [{ role: 'user', content: prompt }] })
     });
-    const body = await response.json();
     if (!response.ok) throw new Error(`Grader request failed with HTTP ${response.status}`);
     const output = body?.choices?.[0]?.message?.content;
     if (typeof output !== 'string' || !output.trim()) throw new Error('Grader returned no content');
