@@ -1,0 +1,13 @@
+title = "LearningManage secret scanning configuration"
+
+# These two immutable evidence checksums predate Stage 2.  Their hexadecimal
+# values match gitleaks' generic-api-key heuristic but are not credentials.
+# Keep the exemption exact and line-scoped so the historical scan remains
+# enabled for every other file and value.
+[allowlist]
+description = "Published evidence checksum false positives"
+regexTarget = "line"
+regexes = [
+  '''"apiContractSha256":\s*"4f8cb8d3b92252e4375b49dd102e7cde75f819827713060d6e521bed19f0b2f6"''',
+  '''2ad2526a2f2c16aa2d3da716b326576960739a0f323a78675b2837c51a31b31f\s{2}openapi-document\.json'''
+]
