@@ -351,10 +351,18 @@ test('real-result aggregation requires and binds three regression plus three hol
     }
     const output = path.join(temp, 'candidate-summary.json');
     const development = path.join(temp, 'development-round-1-summary.json');
+    const promptManifest = path.join(temp, 'prompt-manifest.json');
+    fs.writeFileSync(promptManifest, JSON.stringify({
+      schemaVersion: 1,
+      prompts: run.promptBindings.map((binding) => {
+        const [code, version, source, sha256] = binding.split(':');
+        return { code, version: Number(version), source, sha256 };
+      })
+    }));
     fs.writeFileSync(development, JSON.stringify({ ...base, metrics: { ...base.metrics, totalEstimatedCost: 0.2 } }));
     execFileSync(process.execPath, [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files], {
       cwd: root,
-      env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development }
+      env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest }
     });
     const aggregate = JSON.parse(fs.readFileSync(output, 'utf8'));
     assert.equal(aggregate.status, 'PASS');
@@ -363,7 +371,7 @@ test('real-result aggregation requires and binds three regression plus three hol
     assert.equal(aggregate.run.developmentQualificationRounds, 1);
     assert.ok(Math.abs(aggregate.costAccounting.developmentQualificationCostCny - 0.2) < 1e-9);
     assert.equal(aggregate.metrics.minimumSemanticDimensionScore, 0.85);
-    assert.equal(aggregate.inputEvidence.length, 7);
+    assert.equal(aggregate.inputEvidence.length, 8);
 
     const mismatchedPromptBindings = [...run.promptBindings];
     mismatchedPromptBindings[0] = `prompt-0:1:BUILTIN:${'D'.repeat(64)}`;
@@ -375,7 +383,17 @@ test('real-result aggregation requires and binds three regression plus three hol
     assert.throws(() => execFileSync(
       process.execPath,
       [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files],
-      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development } }
+      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest } }
+    ));
+
+    fs.writeFileSync(development, JSON.stringify({ ...base, metrics: { ...base.metrics, totalEstimatedCost: 0.2 } }));
+    const tamperedManifest = JSON.parse(fs.readFileSync(promptManifest, 'utf8'));
+    tamperedManifest.prompts[0].sha256 = 'D'.repeat(64);
+    fs.writeFileSync(promptManifest, JSON.stringify(tamperedManifest));
+    assert.throws(() => execFileSync(
+      process.execPath,
+      [path.join(root, 'scripts', 'aggregate-real-results.mjs'), output, ...files],
+      { cwd: root, env: { ...process.env, STAGE3_DEVELOPMENT_SUMMARY: development, STAGE3_PROMPT_MANIFEST: promptManifest } }
     ));
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
@@ -388,5 +406,7 @@ test('real evaluation preserves failed round evidence and defers semantic gating
   assert.match(workflow, /\[\[ -s output\.json \]\] && mv output\.json/);
   assert.match(workflow, /STAGE3_MIN_SEMANTIC_SCORE=0 STAGE3_MIN_SEMANTIC_DIMENSION_SCORE=0 npm run gate/);
   assert.match(workflow, /STAGE3_DEVELOPMENT_SUMMARY:\s*real-results\/development-round-1-summary\.json/);
+  assert.match(workflow, /STAGE3_PROMPT_MANIFEST:\s*prompt-manifest\.json/);
+  assert.match(workflow, /promptManifestSha256:\$promptManifestHash/);
   assert.match(workflow, /eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0/);
 });

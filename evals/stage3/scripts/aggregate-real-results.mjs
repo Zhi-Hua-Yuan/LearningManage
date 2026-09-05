@@ -18,6 +18,16 @@ if (splitOf(developmentDocument.file) !== 'development') {
   throw new Error('STAGE3_DEVELOPMENT_SUMMARY must reference the development qualification summary');
 }
 const allEvidenceDocuments = [...documents, developmentDocument];
+const promptManifestPath = process.env.STAGE3_PROMPT_MANIFEST;
+if (!promptManifestPath) throw new Error('STAGE3_PROMPT_MANIFEST is required for candidate Prompt binding');
+const resolvedPromptManifestPath = path.resolve(promptManifestPath);
+const promptManifest = JSON.parse(fs.readFileSync(resolvedPromptManifestPath, 'utf8'));
+const expectedPromptBindings = (promptManifest.prompts || []).map((prompt) =>
+  `${prompt.code}:${prompt.version}:${prompt.source}:${prompt.sha256}`
+).sort();
+if (expectedPromptBindings.length !== 6 || new Set(expectedPromptBindings).size !== 6) {
+  throw new Error('Prompt manifest must contain exactly six unique candidate bindings');
+}
 for (const split of ['regression', 'holdout']) {
   const matching = documents.filter(({ file }) => splitOf(file) === split);
   if (matching.length !== 3) throw new Error(`Expected three ${split} summaries, received ${matching.length}`);
@@ -87,6 +97,9 @@ for (const { file, value } of allEvidenceDocuments) {
   if (JSON.stringify(value.run.promptBindings) !== JSON.stringify(first.run.promptBindings)) {
     failures.push(`${path.basename(file)} did not use the exact candidate Prompt identities and hashes`);
   }
+  if (JSON.stringify(value.run.promptBindings) !== JSON.stringify(expectedPromptBindings)) {
+    failures.push(`${path.basename(file)} Prompt bindings do not match the candidate manifest`);
+  }
 }
 
 const baselinePath = process.env.STAGE3_BASELINE_CANDIDATE_SUMMARY;
@@ -103,10 +116,13 @@ if (baselinePath) {
   }
 }
 
-const inputEvidence = allEvidenceDocuments.map(({ file }) => ({
+const inputEvidence = [...allEvidenceDocuments.map(({ file }) => ({
   file: path.basename(file),
   sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').toUpperCase()
-}));
+})), {
+  file: path.basename(resolvedPromptManifestPath),
+  sha256: crypto.createHash('sha256').update(fs.readFileSync(resolvedPromptManifestPath)).digest('hex').toUpperCase()
+}];
 const aggregate = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),

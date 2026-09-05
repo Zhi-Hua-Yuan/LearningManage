@@ -204,6 +204,7 @@ jobs:
         env:
           STAGE3_BASELINE_CANDIDATE_SUMMARY: ${{ inputs.baseline_summary_path }}
           STAGE3_DEVELOPMENT_SUMMARY: real-results/development-round-1-summary.json
+          STAGE3_PROMPT_MANIFEST: prompt-manifest.json
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -217,8 +218,9 @@ jobs:
             real-results/regression-*-summary.json real-results/holdout-*-summary.json
           jq -n --arg backendSha "$STAGE3_BACKEND_SHA" --arg frontendSha "${{ inputs.frontend_sha }}" \
             --arg datasetHash "$(jq -r .combinedSha256 dataset-manifest.json)" \
+            --arg promptManifestHash "$(sha256sum prompt-manifest.json | cut -d' ' -f1)" \
             --arg candidateSummarySha "$(cut -d' ' -f1 real-results/candidate-summary.json.sha256)" \
-            '{schemaVersion:1,status:"PASS",backendSha:$backendSha,frontendSha:$frontendSha,datasetHash:$datasetHash,candidateSummarySha256:$candidateSummarySha}' \
+            '{schemaVersion:1,status:"PASS",backendSha:$backendSha,frontendSha:$frontendSha,datasetHash:$datasetHash,promptManifestSha256:$promptManifestHash,candidateSummarySha256:$candidateSummarySha}' \
             > real-results/candidate-evidence-binding.json
       - name: Scan raw evidence for credentials
         working-directory: evals/stage3
