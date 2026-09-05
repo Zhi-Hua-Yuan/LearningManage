@@ -38,8 +38,10 @@ test('promptfoo config disables result sharing', () => {
   assert.match(config, /learning-manage-http\.js/);
 });
 
-test('real evaluation supplies required production Redis placeholders', () => {
+test('real evaluation supplies required production runtime ports', () => {
   const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'stage3-real-eval.yml'), 'utf8');
+  assert.match(workflow, /^\s*SERVER_PORT:\s*['"]?18133['"]?\s*$/m);
+  assert.match(workflow, /^\s*STAGE3_API_BASE_URL:\s*http:\/\/127\.0\.0\.1:18133\/api\s*$/m);
   assert.match(workflow, /^\s*REDIS_HOST:\s*127\.0\.0\.1\s*$/m);
   assert.match(workflow, /^\s*REDIS_PORT:\s*['"]?6379['"]?\s*$/m);
 });

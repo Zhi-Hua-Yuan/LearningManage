@@ -38,6 +38,7 @@ env:
   FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty_stage3_real_eval
   DB_HOST: 127.0.0.1
   DB_PORT: '13316'
+  SERVER_PORT: '18133'
   REDIS_HOST: 127.0.0.1
   REDIS_PORT: '6379'
   CI_DB_GATE_AUTHORIZED: 'true'
