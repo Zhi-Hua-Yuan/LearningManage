@@ -23,6 +23,11 @@ async function requestWithRetry(url, options) {
       const response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
       if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) return response;
       lastError = new Error(`Grader request failed with retryable HTTP ${response.status}`);
+      try {
+        await response.body?.cancel();
+      } catch {
+        // Releasing the failed response is best effort; the bounded retry still proceeds.
+      }
     } catch (error) {
       lastError = error;
       if (attempt === maxAttempts) throw error;

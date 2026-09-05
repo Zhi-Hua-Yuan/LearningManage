@@ -104,6 +104,7 @@ test('semantic grader retries transient provider failures without changing the m
     'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
     'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS'].map((key) => [key, process.env[key]]));
   let attempts = 0;
+  let cancelledResponses = 0;
   try {
     Object.assign(process.env, {
       ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
@@ -112,7 +113,12 @@ test('semantic grader retries transient provider failures without changing the m
     });
     global.fetch = async () => {
       attempts += 1;
-      if (attempts === 1) throw new TypeError('synthetic fetch failure');
+      if (attempts === 1) {
+        return {
+          ok: false, status: 503,
+          body: { async cancel() { cancelledResponses += 1; } }
+        };
+      }
       return {
         ok: true, status: 200,
         async json() {
@@ -124,6 +130,7 @@ test('semantic grader retries transient provider failures without changing the m
     const Provider = require(providerPath);
     const result = await new Provider().callApi('synthetic rubric');
     assert.equal(attempts, 2);
+    assert.equal(cancelledResponses, 1);
     assert.equal(result.metadata.model, 'qwen-max');
     assert.equal(result.tokenUsage.total, 15);
   } finally {
