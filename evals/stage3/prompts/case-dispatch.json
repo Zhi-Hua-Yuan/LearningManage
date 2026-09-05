@@ -1,0 +1,6 @@
+[
+  {
+    "role": "user",
+    "content": "Evaluate LearningManage case {{caseId}} for scene {{scene}}. The application provider must use context variables and the production HTTP API; this dispatch prompt is not a copy of the production system prompt."
+  }
+]

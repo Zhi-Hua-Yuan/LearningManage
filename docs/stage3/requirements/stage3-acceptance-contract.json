@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage3",
+  "flywayHead": "V3",
+  "scope": {
+    "qualityCases": 170,
+    "failureInjectionCases": 40,
+    "scenes": 5,
+    "promptCodes": 6,
+    "newPublicApis": 0,
+    "newRuntimeTables": 0,
+    "ragEnabled": false,
+    "agentEnabled": false
+  },
+  "thresholds": {
+    "averageParseRate": 0.95,
+    "minimumSingleRoundParseRate": 0.90,
+    "businessValidationRate": 1.0,
+    "illegalResourceIdsAllowed": 0,
+    "degradationSuccessRate": 1.0,
+    "formalWritesAfterModelFailure": 0,
+    "traceCoverageRate": 1.0,
+    "realUsageRecordRate": 1.0,
+    "averageSemanticScore": 0.80,
+    "minimumSemanticDimensionScore": 0.70,
+    "humanGraderAgreementRate": 0.80,
+    "maximumP95LatencyMs": 15000,
+    "maximumTokenOrCostRegressionRatio": 1.25,
+    "maximumP95LatencyRegressionRatio": 1.50,
+    "maximumCandidateCostCny": 10.0
+  },
+  "requiredRealRounds": {
+    "regression": 3,
+    "holdout": 3
+  }
+}

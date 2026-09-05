@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: LearningManage Stage 3 AI scene regression
+
+prompts:
+  - file://prompts/case-dispatch.json
+
+providers:
+  - id: file://providers/learning-manage-http.js
+    label: learning-manage-application
+
+defaultTest:
+  assert:
+    - type: is-json
+      metric: provider_contract
+    - type: javascript
+      value: file://assertions/common.js
+      metric: common_invariants
+
+tests: file://tests/generated.json
+
+sharing: false
