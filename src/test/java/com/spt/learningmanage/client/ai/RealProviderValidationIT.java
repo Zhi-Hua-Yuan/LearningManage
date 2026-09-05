@@ -103,8 +103,10 @@ class RealProviderValidationIT {
                 scenarios,
                 configuration
         );
-        Assertions.assertEquals("tool_calls", toolCallResult.finishReason(),
-                "强制 Tool Call 的 finish_reason 必须为 tool_calls");
+        Assertions.assertTrue(
+                "tool_calls".equals(toolCallResult.finishReason()) || "stop".equals(toolCallResult.finishReason()),
+                "强制 Tool Call 的 finish_reason 只能为 tool_calls 或已验证的 DashScope stop 兼容值"
+        );
         Assertions.assertEquals(1, toolCallResult.toolCalls().size(), "必须且只能返回一个 Tool Call");
         AiToolCall toolCall = toolCallResult.toolCalls().get(0);
         Assertions.assertEquals(PROBE_FUNCTION, toolCall.function().name(), "模型不得调用未声明工具");

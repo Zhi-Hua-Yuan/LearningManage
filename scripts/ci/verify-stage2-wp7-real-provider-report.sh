@@ -24,7 +24,7 @@ jq -e --arg expectedBackendSha "$expected_backend_sha" \
   .roundCount == 3 and
   .scenarioCount == 9 and
   .scenarioStatus == "PASS" and
-  (.finishReason | contains("stop") and contains("tool_calls")) and
+  (.finishReason | contains("stop")) and
   (.inputTokens | type == "number" and . >= 0) and
   (.outputTokens | type == "number" and . >= 0) and
   (.totalTokens | type == "number" and . > 0) and
@@ -38,6 +38,14 @@ jq -e --arg expectedBackendSha "$expected_backend_sha" \
   ([.rounds[].scenarioStatus] | all(. == "PASS")) and
   ([.rounds[].scenarios[]] | length == 9) and
   ([.rounds[].scenarios[].status] | all(. == "PASS")) and
+  ([.rounds[].scenarios[] | select(.scenario == "text")] | length == 3) and
+  ([.rounds[].scenarios[] | select(.scenario == "text") | .finishReason] | all(. == "stop")) and
+  ([.rounds[].scenarios[] | select(.scenario == "forced-tool-call")] | length == 3) and
+  ([.rounds[].scenarios[] | select(.scenario == "forced-tool-call") | .finishReason] |
+    all(. == "tool_calls" or . == "stop")) and
+  ([.rounds[].scenarios[] | select(.scenario == "tool-result-round-trip")] | length == 3) and
+  ([.rounds[].scenarios[] | select(.scenario == "tool-result-round-trip") | .finishReason] |
+    all(. == "stop")) and
   ([.rounds[].scenarios[].providerRequestIdHash] | all(test("^[0-9a-f]{64}$")))
 ' "$report" >/dev/null || ci_fail "wp7_real_provider_report_invalid"
 

@@ -53,6 +53,12 @@ class AiChatResponseParserTest {
         Assertions.assertEquals(2, result.toolCalls().size());
         Assertions.assertEquals("query_tasks", result.toolCalls().get(0).function().name());
         Assertions.assertNull(result.usage());
+
+        AiChatResult dashScopeCompatibilityResult = parser.parse(response(
+                toolResponse("call-3", "function", "query_tasks", "{}", "stop"), Map.of()),
+                "model", "model", 0, null);
+        Assertions.assertEquals("stop", dashScopeCompatibilityResult.finishReason());
+        Assertions.assertEquals(1, dashScopeCompatibilityResult.toolCalls().size());
     }
 
     @Test
@@ -99,7 +105,7 @@ class AiChatResponseParserTest {
         assertInvalid(toolResponse("call-1", "function", "invalid name", "{}", "tool_calls"));
         assertInvalid(toolResponse("call-1", "function", "query_tasks", "not-json", "tool_calls"));
         assertInvalid(toolResponse("call-1", "function", "query_tasks", "[]", "tool_calls"));
-        assertInvalid(toolResponse("call-1", "function", "query_tasks", "{}", "stop"));
+        assertInvalid(toolResponse("call-1", "function", "query_tasks", "{}", "length"));
     }
 
     @Test
