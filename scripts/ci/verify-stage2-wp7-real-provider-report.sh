@@ -33,7 +33,9 @@ jq -e --arg expectedBackendSha "$expected_backend_sha" \
   (.currency | test("^[A-Z]{3}$")) and
   (.providerRequestIdHash | test("^[0-9a-f]{64}$")) and
   (.latencyMs | type == "number" and . >= 0) and
-  (.executedAt | fromdateiso8601 | type == "number") and
+  (.executedAt |
+    if test("\\.[0-9]+Z$") then sub("\\.[0-9]+Z$"; "Z") else . end |
+    fromdateiso8601 | type == "number") and
   (.rounds | length == 3) and
   ([.rounds[].scenarioStatus] | all(. == "PASS")) and
   ([.rounds[].scenarios[]] | length == 9) and
