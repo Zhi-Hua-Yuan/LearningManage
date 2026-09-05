@@ -92,11 +92,12 @@ public class AiChatRequestMapper {
     }
 
     private void mapToolChoice(ObjectNode root, AiChatCommand command) {
+        if (command.tools().isEmpty()) {
+            return;
+        }
         AiToolChoice choice = command.toolChoice();
         if (choice == null) {
-            if (!command.tools().isEmpty()) {
-                root.put("tool_choice", "auto");
-            }
+            root.put("tool_choice", "auto");
             return;
         }
         switch (choice.mode()) {
