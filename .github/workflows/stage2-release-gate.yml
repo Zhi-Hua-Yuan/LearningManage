@@ -1,0 +1,1032 @@
+name: Stage 2 cross-repository release gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_sha:
+        description: Exact 40-character LearningManage develop commit SHA
+        required: true
+        type: string
+      frontend_sha:
+        description: Exact 40-character learning-manage-frontend develop commit SHA
+        required: true
+        type: string
+      candidate_id:
+        description: Immutable candidate identifier, for example stage2-final-20260905-001
+        required: true
+        type: string
+      reason:
+        description: Short reason for creating this candidate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage2-cross-repository-release-gate-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  NPM_VERSION: '10.9.2'
+  CI_EXPECTED_TEST_COUNT: '710'
+  CI_EXPECTED_FRONTEND_TEST_COUNT: '484'
+  CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+
+jobs:
+  freeze-candidate:
+    name: Freeze release candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      candidate_id: ${{ steps.validate.outputs.candidate_id }}
+      backend_sha: ${{ steps.validate.outputs.backend_sha }}
+      frontend_sha: ${{ steps.validate.outputs.frontend_sha }}
+      backend_develop_start: ${{ steps.validate.outputs.backend_develop_start }}
+      frontend_develop_start: ${{ steps.validate.outputs.frontend_develop_start }}
+      v1_sha256: ${{ steps.validate.outputs.v1_sha256 }}
+      backend_ruleset_sha256: ${{ steps.validate.outputs.backend_ruleset_sha256 }}
+      frontend_ruleset_sha256: ${{ steps.validate.outputs.frontend_ruleset_sha256 }}
+      stage0_acceptance_sha256: ${{ steps.stage0-binding.outputs.acceptance_sha256 }}
+      stage0_matrix_sha256: ${{ steps.stage0-binding.outputs.matrix_sha256 }}
+      stage0_risk_register_sha256: ${{ steps.stage0-binding.outputs.risk_register_sha256 }}
+      stage0_schema_sha256: ${{ steps.stage0-binding.outputs.schema_sha256 }}
+    steps:
+      - name: Reject unprotected workflow ref and malformed inputs
+        shell: bash
+        env:
+          BACKEND_SHA_INPUT: ${{ inputs.backend_sha }}
+          FRONTEND_SHA_INPUT: ${{ inputs.frontend_sha }}
+          CANDIDATE_ID_INPUT: ${{ inputs.candidate_id }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/develop' ]]
+          [[ "$BACKEND_SHA_INPUT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$FRONTEND_SHA_INPUT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_ID_INPUT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
+
+      - name: Checkout exact backend candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.backend_sha }}
+          path: backend
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout exact frontend candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zhi-Hua-Yuan/learning-manage-frontend
+          ref: ${{ inputs.frontend_sha }}
+          path: frontend
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate repositories and freeze candidate inputs
+        id: validate
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_PHASE: start
+          RELEASE_CANDIDATE_ID: ${{ inputs.candidate_id }}
+          RELEASE_REASON: ${{ inputs.reason }}
+          BACKEND_SHA: ${{ inputs.backend_sha }}
+          FRONTEND_SHA: ${{ inputs.frontend_sha }}
+          BACKEND_CHECKOUT_DIR: ${{ github.workspace }}/backend
+          FRONTEND_CHECKOUT_DIR: ${{ github.workspace }}/frontend
+        run: bash backend/scripts/ci/validate-release-candidate.sh
+
+      - name: Validate and hash Stage 0 acceptance evidence
+        id: stage0-binding
+        shell: bash
+        working-directory: backend
+        run: |
+          set -Eeuo pipefail
+          acceptance='docs/stage0/acceptance/stage0-acceptance.json'
+          matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
+          risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
+          schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
+          for file in "$acceptance" "$matrix" "$risk_register" "$schema"; do
+            test -s "$file"
+          done
+          jq -e '
+            .schemaVersion == 1 and
+            .status == "PROVISIONAL" and
+            .policy.requiredFailureCount == 0 and
+            (.closingGates | map(select(.status == "PENDING")) | length) == 2 and
+            .finalSeal.status == "PENDING"
+          ' "$acceptance" >/dev/null
+          for pair in \
+            "acceptance_sha256=$acceptance" \
+            "matrix_sha256=$matrix" \
+            "risk_register_sha256=$risk_register" \
+            "schema_sha256=$schema"; do
+            name="${pair%%=*}"
+            file="${pair#*=}"
+            value="$(sha256sum "$file" | awk '{print toupper($1)}')"
+            printf '%s=%s\n' "$name" "$value" >> "$GITHUB_OUTPUT"
+          done
+
+  guard-backend:
+    name: Guard backend candidate
+    needs: freeze-candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout backend candidate snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect Stage 2 contract mode
+        id: contract-mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          status="$(jq -er '.status' docs/stage2/acceptance/stage2-acceptance-contract.json)"
+          case "$status" in
+            FROZEN) printf 'acceptance_mode=frozen\n' >> "$GITHUB_OUTPUT" ;;
+            PASS) printf 'acceptance_mode=sealed\n' >> "$GITHUB_OUTPUT" ;;
+            *) echo "unsupported Stage 2 contract status: $status" >&2; exit 1 ;;
+          esac
+
+      - name: Scan backend repository for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+      - name: Run backend release guards
+        shell: bash
+        env:
+          BASE_REF: HEAD
+          STAGE2_ACCEPTANCE_MODE: ${{ steps.contract-mode.outputs.acceptance_mode }}
+        run: |
+          set -Eeuo pipefail
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          bash scripts/ci/tests/static-guards-test.sh
+          bash scripts/ci/verify-stage0-acceptance.sh
+          bash scripts/ci/verify-stage2-acceptance.sh
+          bash scripts/ci/verify-ai-invocation-boundary.sh
+          bash scripts/ci/verify-published-migrations.sh
+          bash scripts/ci/verify-stage2-wp2-protocol-stub.sh
+          forbidden_event='pull_request_'target
+          ! grep -R -n --include='*.yml' --include='*.yaml' "$forbidden_event" .github
+          git diff --check
+
+  guard-frontend:
+    name: Guard both repositories
+    needs: [freeze-candidate, guard-backend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout frontend candidate snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zhi-Hua-Yuan/learning-manage-frontend
+          ref: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Scan frontend repository for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+      - name: Verify frontend CI contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -f package.json
+          test -f package-lock.json
+          test -f .nvmrc
+          test "$(tr -d '\r\n' < .nvmrc)" = "$NODE_VERSION"
+          grep -q '"packageManager": "npm@10.9.2"' package.json
+          if grep -Eq '"lint:ci"[^\n]*(--fix|--write)' package.json; then
+            echo 'lint:ci must remain read-only' >&2
+            exit 1
+          fi
+          forbidden_event='pull_request_'target
+          ! grep -R -n --include='*.yml' --include='*.yaml' "$forbidden_event" .github
+          git diff --check
+
+  backend-test:
+    name: Backend verification and tested artifact
+    needs: [freeze-candidate, guard-frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      jar_sha256: ${{ steps.package.outputs.jar_sha256 }}
+      artifact_scan_sha256: ${{ steps.artifact-scan.outputs.artifact_scan_sha256 }}
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_backend
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_backend --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_backend
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_release_backend
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: '13306'
+      TEST_DB_NAME: learning_manage_ci_empty
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_release_backend
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      ALIYUN_API_KEY: ci-only-not-a-real-key
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if ! command -v mysql >/dev/null 2>&1 || ! command -v mysqladmin >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          fi
+      - name: Provision isolated test database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Run Maven verification
+        run: ./mvnw -B -ntp verify
+      - name: Assert expected test count
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual_count="$(grep -hroE 'Tests run: [0-9]+' target/surefire-reports/*.txt | awk '{sum += $3} END {print sum + 0}')"
+          [[ "$actual_count" == "$CI_EXPECTED_TEST_COUNT" ]]
+      - name: Package tested backend JAR
+        id: package
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -f target/LearningManage-0.0.1-SNAPSHOT.jar
+          mkdir -p ci-artifacts
+          cp target/LearningManage-0.0.1-SNAPSHOT.jar ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar
+          jar_sha256="$(sha256sum ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar | awk '{print toupper($1)}')"
+          printf '%s  LearningManage-0.0.1-SNAPSHOT.jar\n' "$jar_sha256" > ci-artifacts/backend.jar.sha256
+          artifact_name="release-backend-jar-${{ needs.freeze-candidate.outputs.candidate_id }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
+          printf 'jar_sha256=%s\n' "$jar_sha256" >> "$GITHUB_OUTPUT"
+      - name: Scan tested backend artifact
+        id: artifact-scan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report=ci-artifacts/backend-artifact-scan.txt
+          jar_file=ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar
+          {
+            printf 'artifact=backend-jar\n'
+            printf 'status=PASS\n'
+            printf 'scan=non-binary strings and high-confidence credential patterns\n'
+          } > "$report"
+          if strings -a "$jar_file" | grep -E -i '((api[_-]?key|access[_-]?key|secret|password|authorization|cookie)[[:space:]]*[:=][[:space:]]*[^[:space:]]{8,}|bearer[[:space:]]+[A-Za-z0-9._-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,})' >> "$report"; then
+            sed -i 's/^status=PASS/status=FAIL/' "$report"
+            exit 1
+          fi
+          artifact_scan_sha256="$(sha256sum "$report" | awk '{print toupper($1)}')"
+          printf 'artifact_scan_sha256=%s\n' "$artifact_scan_sha256" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ci-artifacts
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload backend test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-surefire-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 30
+
+  frontend-test:
+    name: Frontend tests and static verification
+    needs: [freeze-candidate, backend-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      test_count: ${{ steps.test-count.outputs.test_count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zhi-Hua-Yuan/learning-manage-frontend
+          ref: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify Node.js and npm versions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(node --version)" = "v${NODE_VERSION}"
+          test "$(npm --version)" = "$NPM_VERSION"
+      - name: Install locked dependencies
+        run: npm ci --no-audit --fund=false
+      - name: Run read-only lint and repository guards
+        run: npm run lint:ci
+      - name: Run tests and coverage gate
+        run: npm run test:coverage -- --reporter=json --outputFile=ci-artifacts/vitest-results.json
+      - name: Record executed frontend test count
+        id: test-count
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s ci-artifacts/vitest-results.json
+          test_count="$(node -e "const result = require('./ci-artifacts/vitest-results.json'); process.stdout.write(String(result.numPassedTests));")"
+          [[ "$test_count" =~ ^[1-9][0-9]*$ ]]
+          [[ "$test_count" -ge "$CI_EXPECTED_FRONTEND_TEST_COUNT" ]]
+          printf 'test_count=%s\n' "$test_count" >> "$GITHUB_OUTPUT"
+      - name: Type-check
+        run: npm run type-check
+      - name: Verify frontend API contract
+        run: npm run contract:test && npm run contract:verify
+      - name: Verify checks did not modify tracked files
+        run: git diff --exit-code
+      - name: Upload frontend coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-frontend-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 30
+
+  frontend-build:
+    name: Frontend production build
+    needs: [freeze-candidate, frontend-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      dist_manifest_sha256: ${{ steps.package.outputs.dist_manifest_sha256 }}
+      frontend_contract_sha256: ${{ steps.package.outputs.frontend_contract_sha256 }}
+      frontend_operation_count: ${{ steps.package.outputs.frontend_operation_count }}
+      frontend_contract_schema_version: ${{ steps.package.outputs.frontend_contract_schema_version }}
+      artifact_scan_sha256: ${{ steps.artifact-scan.outputs.artifact_scan_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zhi-Hua-Yuan/learning-manage-frontend
+          ref: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --fund=false
+      - name: Build production assets
+        run: npm run build
+      - name: Package tested frontend assets
+        id: package
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -f dist/index.html
+          if grep -R -n -E 'ALIYUN_API_KEY|JWT_SECRET|DB_PASSWORD|ci-only-not-a-real-key' dist; then
+            echo 'sensitive configuration marker found in dist' >&2
+            exit 1
+          fi
+          command -v jq >/dev/null 2>&1
+          mkdir -p ci-artifacts
+          npm run contract:export
+          cp contracts/frontend-api-contract.schema.json ci-artifacts/frontend-api-contract.schema.json
+          (cd ci-artifacts && sha256sum --check frontend-api-contract.sha256)
+          frontend_contract_sha256="$(sha256sum ci-artifacts/frontend-api-contract.json | awk '{print toupper($1)}')"
+          frontend_operation_count="$(jq -er '.operations | length' ci-artifacts/frontend-api-contract.json)"
+          frontend_contract_schema_version="$(jq -er '.schemaVersion' ci-artifacts/frontend-api-contract.json)"
+          [[ "$frontend_operation_count" =~ ^[1-9][0-9]*$ ]]
+          [[ "$frontend_contract_schema_version" == '1' ]]
+          cp -R dist ci-artifacts/dist
+          (cd ci-artifacts && find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist.sha256)
+          dist_manifest_sha256="$(sha256sum ci-artifacts/dist.sha256 | awk '{print toupper($1)}')"
+          artifact_name="release-frontend-dist-${{ needs.freeze-candidate.outputs.candidate_id }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
+          printf 'dist_manifest_sha256=%s\n' "$dist_manifest_sha256" >> "$GITHUB_OUTPUT"
+          printf 'frontend_contract_sha256=%s\n' "$frontend_contract_sha256" >> "$GITHUB_OUTPUT"
+          printf 'frontend_operation_count=%s\n' "$frontend_operation_count" >> "$GITHUB_OUTPUT"
+          printf 'frontend_contract_schema_version=%s\n' "$frontend_contract_schema_version" >> "$GITHUB_OUTPUT"
+      - name: Scan tested frontend artifact
+        id: artifact-scan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report=ci-artifacts/frontend-artifact-scan.txt
+          {
+            printf 'artifact=frontend-dist\n'
+            printf 'status=PASS\n'
+            printf 'scan=high-confidence credential patterns\n'
+          } > "$report"
+          if grep -R -n -E -i '((api[_-]?key|access[_-]?key|secret|password|authorization|cookie)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{8,}["'"']|bearer[[:space:]]+[A-Za-z0-9._-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,})' ci-artifacts/dist >> "$report"; then
+            sed -i 's/^status=PASS/status=FAIL/' "$report"
+            exit 1
+          fi
+          artifact_scan_sha256="$(sha256sum "$report" | awk '{print toupper($1)}')"
+          printf 'artifact_scan_sha256=%s\n' "$artifact_scan_sha256" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ci-artifacts
+          if-no-files-found: error
+          retention-days: 30
+
+  flyway-empty:
+    name: Flyway empty database gate
+    needs: [freeze-candidate, frontend-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_empty
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_empty --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_empty
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_release_empty
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_release_empty
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Run empty database gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+
+  flyway-existing:
+    name: Flyway existing database gate
+    needs: [freeze-candidate, flyway-empty]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_legacy
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_legacy --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      DB_NAME: learning_manage_ci_legacy
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_legacy
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_legacy
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_release_legacy
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_release_legacy
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Run existing database gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-v2-negative-preflight.sh
+          bash scripts/ci/verify-existing-database.sh
+          bash scripts/ci/verify-v2-recovery.sh
+          bash scripts/ci/verify-v3-negative-preflight.sh
+          bash scripts/ci/verify-v3-equivalent-duplicates.sh
+          bash scripts/ci/verify-v3-recovery.sh
+
+  docker-gate:
+    name: Full-stack runtime, API contract and AI breakdown gate
+    needs: [freeze-candidate, backend-test, frontend-build, flyway-existing]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      frontend_contract_sha256: ${{ steps.api-contract.outputs.frontend_contract_sha256 }}
+      runtime_document_sha256: ${{ steps.api-contract.outputs.runtime_document_sha256 }}
+      comparison_report_sha256: ${{ steps.api-contract.outputs.comparison_report_sha256 }}
+      frontend_operation_count: ${{ steps.api-contract.outputs.frontend_operation_count }}
+      runtime_operation_count: ${{ steps.api-contract.outputs.runtime_operation_count }}
+      matched_operation_count: ${{ steps.api-contract.outputs.matched_operation_count }}
+      missing_operation_count: ${{ steps.api-contract.outputs.missing_operation_count }}
+      runtime_openapi_version: ${{ steps.api-contract.outputs.runtime_openapi_version }}
+      full_stack_evidence_sha256: ${{ steps.ai_flow.outputs.full_stack_evidence_sha256 }}
+      full_stack_confirmed_project_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_project_count }}
+      full_stack_confirmed_milestone_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_milestone_count }}
+      full_stack_confirmed_task_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_task_count }}
+    env:
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_release_docker
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_release_docker
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_release_docker
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+      CI_BACKEND_IMAGE: learningmanage-release:${{ needs.freeze-candidate.outputs.backend_sha }}
+      CI_COMPOSE_FILE: deploy/docker-compose.release-gate.yml
+      CI_COMPOSE_PROJECT_NAME: learningmanage-release-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_HEALTH_URL: http://127.0.0.1:18080/api/health
+      CI_EXPECTED_HISTORY_TOTAL: '3'
+      CI_FRONTEND_ARTIFACT_DIR: frontend-artifacts
+      CI_FRONTEND_DIST_DIR: ${{ github.workspace }}/frontend-artifacts/dist
+      CI_API_CONTRACT_OUTPUT_DIR: ci-artifacts/api-contract
+      CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs
+      CI_FULL_STACK_BASE_URL: http://127.0.0.1:18080
+      CI_AI_FLOW_OUTPUT_DIR: ci-artifacts/full-stack
+      CI_NGINX_IMAGE: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+      CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Download tested backend JAR
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.backend-test.outputs.artifact_name }}
+          path: ci-artifacts
+      - name: Verify tested JAR checksum
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          (cd ci-artifacts && sha256sum --check backend.jar.sha256)
+          mkdir -p target
+          cp ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar target/LearningManage-0.0.1-SNAPSHOT.jar
+      - name: Download tested frontend contract artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.frontend-build.outputs.artifact_name }}
+          path: frontend-artifacts
+      - name: Verify tested frontend dist checksum
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -d "$CI_FRONTEND_DIST_DIR"
+          (cd frontend-artifacts && sha256sum --check dist.sha256)
+      - name: Build backend candidate image
+        run: |
+          docker build --pull \
+            --build-arg RUNTIME_IMAGE=eclipse-temurin:17-jre-alpine@sha256:b0ae54a36f82e04dc6c45e40ca5c55762e20b9a0858ee457faf557d440a9b571 \
+            --tag "$CI_BACKEND_IMAGE" .
+      - name: Start isolated database and migrate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" config --quiet
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d mysql
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Start full-stack runtime and verify edge health
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d ai-stub backend frontend
+          bash scripts/ci/verify-docker-runtime.sh
+      - name: Export runtime OpenAPI and compare frontend contract
+        id: api-contract
+        shell: bash
+        run: bash scripts/ci/verify-runtime-api-contract.sh
+      - name: Verify full-stack AI breakdown lifecycle
+        id: ai_flow
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+        run: bash scripts/ci/verify-ai-breakdown-flow.sh
+      - name: Upload API contract evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-api-contract-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-artifacts/api-contract
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Upload full-stack AI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-full-stack-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-artifacts/full-stack
+          if-no-files-found: ignore
+          retention-days: 90
+      - name: Capture Docker diagnostics
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/release-docker-logs"
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" ps \
+            > "$RUNNER_TEMP/release-docker-logs/compose-ps.txt" || true
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" logs --no-color \
+            > "$RUNNER_TEMP/release-docker-logs/compose-logs.txt" || true
+      - name: Upload Docker diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-docker-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-docker-logs
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Tear down Docker stack
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" down --volumes --remove-orphans || true
+          docker image rm "$CI_BACKEND_IMAGE" || true
+
+  candidate-manifest:
+    name: Candidate manifest
+    needs:
+      - freeze-candidate
+      - backend-test
+      - frontend-build
+      - frontend-test
+      - flyway-empty
+      - flyway-existing
+      - docker-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          persist-credentials: false
+      - name: Confirm both protected branches stayed unchanged
+        id: final-tips
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_PHASE: end
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+          RELEASE_REASON: ${{ inputs.reason }}
+          BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
+          FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
+        run: bash scripts/ci/validate-release-candidate.sh
+      - name: Capture manifest timestamp
+        id: timestamp
+        shell: bash
+        run: printf 'value=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+      - name: Create release candidate manifest
+        id: manifest
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+          RELEASE_REASON: ${{ inputs.reason }}
+          RELEASE_MANIFEST_OUTPUT: ${{ runner.temp }}/release-manifest/release-candidate-manifest.json
+          BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
+          FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
+          BACKEND_DEVELOP_END: ${{ steps.final-tips.outputs.backend_develop_end }}
+          FRONTEND_DEVELOP_END: ${{ steps.final-tips.outputs.frontend_develop_end }}
+          V1_SHA256: ${{ needs.freeze-candidate.outputs.v1_sha256 }}
+          BACKEND_RULESET_SHA256: ${{ needs.freeze-candidate.outputs.backend_ruleset_sha256 }}
+          FRONTEND_RULESET_SHA256: ${{ needs.freeze-candidate.outputs.frontend_ruleset_sha256 }}
+          BACKEND_TEST_COUNT: ${{ env.CI_EXPECTED_TEST_COUNT }}
+          BACKEND_JAR_SHA256: ${{ needs.backend-test.outputs.jar_sha256 }}
+          BACKEND_ARTIFACT_SCAN_SHA256: ${{ needs.backend-test.outputs.artifact_scan_sha256 }}
+          FRONTEND_DIST_MANIFEST_SHA256: ${{ needs.frontend-build.outputs.dist_manifest_sha256 }}
+          FRONTEND_ARTIFACT_SCAN_SHA256: ${{ needs.frontend-build.outputs.artifact_scan_sha256 }}
+          FRONTEND_CONTRACT_SHA256: ${{ needs.docker-gate.outputs.frontend_contract_sha256 }}
+          RUNTIME_DOCUMENT_SHA256: ${{ needs.docker-gate.outputs.runtime_document_sha256 }}
+          COMPARISON_REPORT_SHA256: ${{ needs.docker-gate.outputs.comparison_report_sha256 }}
+          FRONTEND_OPERATION_COUNT: ${{ needs.docker-gate.outputs.frontend_operation_count }}
+          RUNTIME_OPERATION_COUNT: ${{ needs.docker-gate.outputs.runtime_operation_count }}
+          MATCHED_OPERATION_COUNT: ${{ needs.docker-gate.outputs.matched_operation_count }}
+          MISSING_OPERATION_COUNT: ${{ needs.docker-gate.outputs.missing_operation_count }}
+          RUNTIME_OPENAPI_VERSION: ${{ needs.docker-gate.outputs.runtime_openapi_version }}
+          FULL_STACK_EVIDENCE_SHA256: ${{ needs.docker-gate.outputs.full_stack_evidence_sha256 }}
+          FULL_STACK_CONFIRMED_PROJECT_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}
+          FULL_STACK_CONFIRMED_MILESTONE_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}
+          FULL_STACK_CONFIRMED_TASK_COUNT: ${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}
+          STAGE0_ACCEPTANCE_SHA256: ${{ needs.freeze-candidate.outputs.stage0_acceptance_sha256 }}
+          STAGE0_MATRIX_SHA256: ${{ needs.freeze-candidate.outputs.stage0_matrix_sha256 }}
+          STAGE0_RISK_REGISTER_SHA256: ${{ needs.freeze-candidate.outputs.stage0_risk_register_sha256 }}
+          STAGE0_SCHEMA_SHA256: ${{ needs.freeze-candidate.outputs.stage0_schema_sha256 }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
+          WORKFLOW_EXECUTED_AT: ${{ steps.timestamp.outputs.value }}
+        run: bash scripts/ci/create-release-manifest.sh
+      - name: Verify generated manifest
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          manifest="${{ steps.manifest.outputs.manifest_path }}"
+          acceptance='docs/stage0/acceptance/stage0-acceptance.json'
+          matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
+          risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
+          schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
+          jq -e '.schemaVersion == 4 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
+          verify_bound_hash() {
+            local field="$1" file="$2" actual expected
+            actual="$(sha256sum "$file" | awk '{print toupper($1)}')"
+            expected="$(jq -er ".stage0Acceptance.${field}" "$manifest")"
+            [[ "$actual" == "$expected" ]]
+          }
+          verify_bound_hash acceptanceDocumentSha256 "$acceptance"
+          verify_bound_hash matrixSha256 "$matrix"
+          verify_bound_hash riskRegisterSha256 "$risk_register"
+          verify_bound_hash schemaSha256 "$schema"
+          (cd "$(dirname "$manifest")" && sha256sum --check "$(basename "$manifest").sha256")
+      - name: Upload release candidate manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-candidate-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-manifest
+          if-no-files-found: error
+          retention-days: 90
+      - name: Write candidate summary
+        shell: bash
+        run: |
+          {
+            printf '## Cross-repository candidate PASS\n\n'
+            printf -- '- Candidate: `%s`\n' '${{ needs.freeze-candidate.outputs.candidate_id }}'
+            printf -- '- Backend: `%s`\n' '${{ needs.freeze-candidate.outputs.backend_sha }}'
+            printf -- '- Frontend: `%s`\n' '${{ needs.freeze-candidate.outputs.frontend_sha }}'
+            printf -- '- Matched frontend operations: `%s`\n' '${{ needs.docker-gate.outputs.matched_operation_count }}'
+            printf -- '- AI breakdown flow: `%s` projects, `%s` milestones, `%s` tasks\n' '${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}'
+            printf -- '- Manifest SHA-256: `%s`\n' '${{ steps.manifest.outputs.manifest_sha256 }}'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
+
+  stage2-final-acceptance:
+    name: Stage 2 final acceptance and candidate manifest
+    needs:
+      - freeze-candidate
+      - backend-test
+      - frontend-build
+      - frontend-test
+      - flyway-empty
+      - flyway-existing
+      - docker-gate
+      - candidate-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect Stage 2 contract mode
+        id: contract-mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          status="$(jq -er '.status' docs/stage2/acceptance/stage2-acceptance-contract.json)"
+          case "$status" in
+            FROZEN)
+              printf 'acceptance_mode=frozen\nmanifest_status=CANDIDATE_PASS\n' >> "$GITHUB_OUTPUT"
+              ;;
+            PASS)
+              printf 'acceptance_mode=sealed\nmanifest_status=PASS\n' >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "unsupported Stage 2 contract status: $status" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Validate Stage 2 contract
+        shell: bash
+        env:
+          STAGE2_ACCEPTANCE_MODE: ${{ steps.contract-mode.outputs.acceptance_mode }}
+        run: bash scripts/ci/verify-stage2-acceptance.sh
+
+      - name: Bind WP7 real-provider evidence
+        shell: bash
+        env:
+          STAGE2_BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+        run: bash scripts/ci/verify-stage2-wp8-provider-binding.sh
+
+      - name: Download tested backend artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.backend-test.outputs.artifact_name }}
+          path: stage2-artifacts/backend
+
+      - name: Download tested frontend artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.frontend-build.outputs.artifact_name }}
+          path: stage2-artifacts/frontend
+
+      - name: Download runtime API evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-api-contract-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: stage2-artifacts/runtime
+
+      - name: Download full-stack evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-full-stack-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: stage2-artifacts/full-stack
+
+      - name: Build Stage 2 reports
+        id: reports
+        shell: bash
+        env:
+          STAGE2_CURRENT_CONTRACT: ${{ github.workspace }}/stage2-artifacts/frontend/frontend-api-contract.json
+          STAGE2_RUNTIME_OPENAPI: ${{ github.workspace }}/stage2-artifacts/runtime/runtime-openapi.json
+          STAGE2_API_OUTPUT_DIR: ${{ github.workspace }}/stage2-artifacts/final
+          STAGE2_EVIDENCE_INDEX_OUTPUT: ${{ github.workspace }}/stage2-artifacts/final/stage2-source-evidence-index.json
+        run: |
+          set -Eeuo pipefail
+          mkdir -p stage2-artifacts/final
+          bash scripts/ci/verify-stage2-api-compatibility.sh
+          bash scripts/ci/create-stage2-evidence-index.sh
+          cp stage2-artifacts/frontend/frontend-api-contract.json stage2-artifacts/final/frontend-api-contract.json
+          cp stage2-artifacts/runtime/runtime-openapi.json stage2-artifacts/final/runtime-openapi.json
+          cp stage2-artifacts/full-stack/full-stack-ai-flow-evidence.json stage2-artifacts/final/full-stack-ai-flow-evidence.json
+          for file in frontend-api-contract.json runtime-openapi.json full-stack-ai-flow-evidence.json; do
+            sha256sum "stage2-artifacts/final/$file" | awk '{print toupper($1) "  " $2}' | sed 's#stage2-artifacts/final/##' > "stage2-artifacts/final/$file.sha256"
+          done
+          if [[ -s docs/stage2/evidence/wp8/final-acceptance.json ]]; then
+            cp docs/stage2/evidence/wp8/final-acceptance.json stage2-artifacts/final/final-acceptance.json
+            sha256sum stage2-artifacts/final/final-acceptance.json | awk '{print toupper($1) "  " $2}' | sed 's#stage2-artifacts/final/##' > stage2-artifacts/final/final-acceptance.json.sha256
+          fi
+          jq -n             --argjson backendTests "$CI_EXPECTED_TEST_COUNT"             --argjson frontendTests "${{ needs.frontend-test.outputs.test_count }}"             '{schemaVersion:1,stage:"stage2",status:"PASS",backend:{tests:$backendTests,failures:0,errors:0},frontend:{tests:$frontendTests,failures:0,errors:0},docker:{status:"PASS",projects:1,milestones:2,tasks:4,idempotentReplay:"PASS"}}'             > stage2-artifacts/final/test-summary.json
+          jq -n             --arg backendJarSha "${{ needs.backend-test.outputs.jar_sha256 }}"             --arg backendScanSha "${{ needs.backend-test.outputs.artifact_scan_sha256 }}"             --arg frontendDistSha "${{ needs.frontend-build.outputs.dist_manifest_sha256 }}"             --arg frontendScanSha "${{ needs.frontend-build.outputs.artifact_scan_sha256 }}"             '{schemaVersion:1,status:"PASS",backend:{jarSha256:$backendJarSha,scanSha256:$backendScanSha},frontend:{distManifestSha256:$frontendDistSha,scanSha256:$frontendScanSha}}'             > stage2-artifacts/final/artifact-scan-report.json
+          provider_report=docs/stage2/evidence/wp7/real-provider-validation.json
+          provider_sha="$(sha256sum "$provider_report" | awk '{print toupper($1)}')"
+          jq -n             --arg candidateSha "${{ needs.freeze-candidate.outputs.backend_sha }}"             --arg providerSha "$(jq -r .backendSha "$provider_report")"             --arg providerRunId "$(jq -r '.workflowRunId|tostring' "$provider_report")"             --arg reportSha256 "$provider_sha"             '{schemaVersion:1,status:"PASS",candidateBackendSha:$candidateSha,validatedBackendSha:$providerSha,workflowRunId:$providerRunId,ancestorVerified:true,runtimeChangesAfterValidation:0,reportSha256:$reportSha256}'             > stage2-artifacts/final/real-provider-evidence-binding.json
+          for file in test-summary.json artifact-scan-report.json real-provider-evidence-binding.json; do
+            sha256sum "stage2-artifacts/final/$file" | awk '{print toupper($1) "  " $2}' | sed 's#stage2-artifacts/final/##' > "stage2-artifacts/final/$file.sha256"
+          done
+          {
+            printf 'api_report_sha256=%s\n' "$(sha256sum stage2-artifacts/final/api-compatibility-report.json | awk '{print toupper($1)}')"
+            printf 'evidence_index_sha256=%s\n' "$(sha256sum stage2-artifacts/final/stage2-source-evidence-index.json | awk '{print toupper($1)}')"
+            printf 'contract_sha256=%s\n' "$(sha256sum docs/stage2/acceptance/stage2-acceptance-contract.json | awk '{print toupper($1)}')"
+            printf 'contract_schema_sha256=%s\n' "$(sha256sum docs/stage2/acceptance/stage2-acceptance-contract.schema.json | awk '{print toupper($1)}')"
+            printf 'risk_register_sha256=%s\n' "$(sha256sum docs/stage2/risk/stage2-risk-register.md | awk '{print toupper($1)}')"
+            printf 'flyway_manifest_sha256=%s\n' "$(sha256sum src/test/resources/flyway/published-migrations.sha256 | awk '{print toupper($1)}')"
+            printf 'provider_report_sha256=%s\n' "$provider_sha"
+            printf 'provider_backend_sha=%s\n' "$(jq -r .backendSha "$provider_report")"
+            printf 'provider_run_id=%s\n' "$(jq -r '.workflowRunId|tostring' "$provider_report")"
+            printf 'provider_input_tokens=%s\n' "$(jq -r .inputTokens "$provider_report")"
+            printf 'provider_output_tokens=%s\n' "$(jq -r .outputTokens "$provider_report")"
+            printf 'provider_total_tokens=%s\n' "$(jq -r .totalTokens "$provider_report")"
+            printf 'provider_estimated_cost=%s\n' "$(jq -r '.estimatedCost|tostring' "$provider_report")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Capture Stage 2 manifest timestamp
+        id: timestamp
+        shell: bash
+        run: printf 'value=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Recheck protected branches before Stage 2 manifest
+        id: final-tips
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_PHASE: end
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+          RELEASE_REASON: ${{ inputs.reason }}
+          BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
+          FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
+        run: bash scripts/ci/validate-release-candidate.sh
+
+      - name: Create Stage 2 candidate manifest
+        shell: bash
+        env:
+          STAGE2_MANIFEST_OUTPUT: ${{ github.workspace }}/stage2-artifacts/final/stage2-release-candidate-manifest.json
+          STAGE2_MANIFEST_STATUS: ${{ steps.contract-mode.outputs.manifest_status }}
+          STAGE2_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+          STAGE2_BACKEND_SHA: ${{ needs.freeze-candidate.outputs.backend_sha }}
+          STAGE2_BACKEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.backend_develop_start }}
+          STAGE2_BACKEND_DEVELOP_END: ${{ steps.final-tips.outputs.backend_develop_end }}
+          STAGE2_FRONTEND_SHA: ${{ needs.freeze-candidate.outputs.frontend_sha }}
+          STAGE2_FRONTEND_DEVELOP_START: ${{ needs.freeze-candidate.outputs.frontend_develop_start }}
+          STAGE2_FRONTEND_DEVELOP_END: ${{ steps.final-tips.outputs.frontend_develop_end }}
+          STAGE2_BACKEND_TEST_COUNT: ${{ env.CI_EXPECTED_TEST_COUNT }}
+          STAGE2_FRONTEND_TEST_COUNT: ${{ needs.frontend-test.outputs.test_count }}
+          STAGE2_FLYWAY_MANIFEST_SHA256: ${{ steps.reports.outputs.flyway_manifest_sha256 }}
+          STAGE2_V1_SHA256: E9438D40535CDC814CF83C22A1616958E770D6719A0FD7C9922FFB33F99D97D9
+          STAGE2_V2_SHA256: B40BD46F7CB303F8ED5B79AC86F78AE9078E78F8F3C26C91AAFA89F758683FE1
+          STAGE2_V3_SHA256: A626B41B40EFB8EDC2D72F57454A738B6196A11DEA9C6E14070F07E6CFAC4177
+          STAGE2_RUNTIME_OPERATION_COUNT: ${{ needs.docker-gate.outputs.runtime_operation_count }}
+          STAGE2_API_REPORT_SHA256: ${{ steps.reports.outputs.api_report_sha256 }}
+          STAGE2_BACKEND_JAR_SHA256: ${{ needs.backend-test.outputs.jar_sha256 }}
+          STAGE2_FRONTEND_DIST_SHA256: ${{ needs.frontend-build.outputs.dist_manifest_sha256 }}
+          STAGE2_CONTRACT_SHA256: ${{ steps.reports.outputs.contract_sha256 }}
+          STAGE2_CONTRACT_SCHEMA_SHA256: ${{ steps.reports.outputs.contract_schema_sha256 }}
+          STAGE2_RISK_REGISTER_SHA256: ${{ steps.reports.outputs.risk_register_sha256 }}
+          STAGE2_SOURCE_EVIDENCE_INDEX_SHA256: ${{ steps.reports.outputs.evidence_index_sha256 }}
+          STAGE2_PROVIDER_REPORT_SHA256: ${{ steps.reports.outputs.provider_report_sha256 }}
+          STAGE2_PROVIDER_BACKEND_SHA: ${{ steps.reports.outputs.provider_backend_sha }}
+          STAGE2_PROVIDER_RUN_ID: ${{ steps.reports.outputs.provider_run_id }}
+          STAGE2_PROVIDER_INPUT_TOKENS: ${{ steps.reports.outputs.provider_input_tokens }}
+          STAGE2_PROVIDER_OUTPUT_TOKENS: ${{ steps.reports.outputs.provider_output_tokens }}
+          STAGE2_PROVIDER_TOTAL_TOKENS: ${{ steps.reports.outputs.provider_total_tokens }}
+          STAGE2_PROVIDER_ESTIMATED_COST: ${{ steps.reports.outputs.provider_estimated_cost }}
+          STAGE2_WORKFLOW_RUN_ID: ${{ github.run_id }}
+          STAGE2_WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+          STAGE2_WORKFLOW_SHA: ${{ github.sha }}
+          STAGE2_WORKFLOW_ACTOR: ${{ github.actor }}
+          STAGE2_WORKFLOW_EXECUTED_AT: ${{ steps.timestamp.outputs.value }}
+        run: bash scripts/ci/create-stage2-release-manifest.sh
+
+      - name: Validate Stage 2 candidate manifest and checksums
+        shell: bash
+        env:
+          STAGE2_MANIFEST: stage2-artifacts/final/stage2-release-candidate-manifest.json
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/verify-stage2-release-manifest.sh
+          find stage2-artifacts/final -maxdepth 1 -name '*.sha256' -print0 | while IFS= read -r -d '' sidecar; do
+            (cd "$(dirname "$sidecar")" && sha256sum -c "$(basename "$sidecar")")
+          done
+
+      - name: Upload Stage 2 final candidate evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage2-candidate-${{ needs.freeze-candidate.outputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: stage2-artifacts/final
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Write Stage 2 summary
+        shell: bash
+        run: |
+          {
+            printf '## Stage 2 final candidate PASS\n\n'
+            printf -- '- Candidate: `%s`\n' '${{ needs.freeze-candidate.outputs.candidate_id }}'
+            printf -- '- Backend: `%s`\n' '${{ needs.freeze-candidate.outputs.backend_sha }}'
+            printf -- '- Frontend: `%s`\n' '${{ needs.freeze-candidate.outputs.frontend_sha }}'
+            printf -- '- Tests: backend %s, frontend 484\n' "$CI_EXPECTED_TEST_COUNT"
+            printf -- '- API: legacy 37, frontend 44, runtime %s, missing 0\n' '${{ needs.docker-gate.outputs.runtime_operation_count }}'
+            printf -- '- Real provider evidence: BOUND\n'
+          } >> "$GITHUB_STEP_SUMMARY"

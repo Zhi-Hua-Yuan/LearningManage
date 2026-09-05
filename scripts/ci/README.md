@@ -19,6 +19,11 @@
 | `verify-stage2-wp2-protocol-stub.sh` | 验证 WP2 文本、Usage、Tool Calls、多轮、协议异常、HTTP 故障和敏感内容不落日志 |
 | `verify-ai-invocation-boundary.sh` | 验证业务代码只能通过 `AiInvocationPipeline` 调用模型，Transport 依赖仅位于适配边界 |
 | `verify-stage2-acceptance.sh` | 校验阶段 2 验收合同，并阻止 WP3/WP4 在 MySQL、架构、Docker、API 与完整候选 CI 通过前提前关闭 |
+| `verify-stage2-wp8-provider-binding.sh` | 校验 WP7 真实模型证据、祖先关系，并拒绝验证后未经重跑的 AI 运行时变化 |
+| `verify-stage2-api-compatibility.sh` | 验证 legacy 37、前端 44 和运行时 OpenAPI 的阶段 2 最终兼容性 |
+| `create-stage2-evidence-index.sh` | 生成 WP0～WP7 阶段 2 来源证据索引和 SHA-256 |
+| `create-stage2-release-manifest.sh` | 生成 Stage 2 候选或 sealed 发布 Manifest |
+| `verify-stage2-release-manifest.sh` | 按 JSON Schema 和阶段不变量校验 Stage 2 Manifest 及 sidecar |
 | `validate-release-candidate.sh` | 验证跨仓候选输入、仓库身份、`develop` 最新性和运行期间分支稳定性 |
 | `create-release-manifest.sh` | 生成不含凭据的跨仓候选 Manifest 和 SHA-256 |
 | `verify-stage0-acceptance.sh` | 校验阶段 0 验收合同、残余风险分类、证据路径和封存前置条件 |

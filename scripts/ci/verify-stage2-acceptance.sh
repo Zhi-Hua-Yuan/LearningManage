@@ -167,8 +167,10 @@ if [[ "$wp7_protocol_risk_status" == "CLOSED" ]]; then
   wp7_real_provider_sha="${wp7_real_provider}.sha256"
   [[ -s "$wp7_verification" && -s "$wp7_real_provider" && -s "$wp7_real_provider_sha" ]] \
     || ci_fail "stage2_wp7_evidence_missing"
-  (cd "$(dirname "$wp7_real_provider")" \
-    && sha256sum -c "$(basename "$wp7_real_provider_sha")" >/dev/null) \
+  wp7_real_provider_relative="${wp7_real_provider#"$project_root/"}"
+  wp7_expected_report_sha="$(awk 'NR == 1 {print toupper($1)}' "$wp7_real_provider_sha")"
+  wp7_canonical_report_sha="$(git -C "$project_root" show "HEAD:${wp7_real_provider_relative}" | sha256sum | awk '{print toupper($1)}')"
+  [[ "$wp7_canonical_report_sha" == "$wp7_expected_report_sha" ]] \
     || ci_fail "stage2_wp7_evidence_checksum_invalid"
   wp7_expected_backend_sha="$(jq -r '.verification.realProvider.backendSha // empty' "$wp7_verification")"
   wp7_expected_workflow_run_id="$(jq -r '.verification.realProvider.workflowRunId // empty' "$wp7_verification")"

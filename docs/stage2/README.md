@@ -40,6 +40,8 @@
 - [WP7 真实模型证据](evidence/wp7/real-provider-validation.json)
 - [WP7 跨仓候选门禁证据](evidence/wp7/candidate-release-gate-2026-09-05.json)
 - [WP7 Release 记录](release/wp7-release-record-2026-09-05.md)
+- [WP8 最终验收与发布执行计划](release/wp8-execution-plan.md)
+- [Stage 2 候选 Manifest Schema](release/stage2-release-candidate-manifest.schema.json)
 
 ## 实施边界
 
@@ -63,3 +65,5 @@ scripts/ci/verify-stage2-acceptance.sh
 ```
 
 WP0～WP7 已正式通过，S2-A-005～S2-A-011 为 `PASS`。WP7 已完成真实 `qwen-plus` 三轮协议验证、前端 TraceId/错误语义/纯文本渲染和跨仓 Release Gate，`S2-R-003` 已关闭。阶段总状态继续保持 `FROZEN`；只有 WP8 最终兼容验收完成后，才能将阶段合同改为 `PASS` 并发布 `stage2-v1.0.0`。
+
+WP8 使用 `.github/workflows/stage2-release-gate.yml` 冻结精确前后端 SHA。工作流同时支持候选阶段的 `FROZEN` 合同和证据封存后的 `PASS` 合同；发布 Tag 只能来自 sealed 模式全量门禁通过的提交。
