@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage4",
+  "status": "IN_PROGRESS",
+  "requiredGates": [
+    "published_migrations_immutable",
+    "v4_empty_database_install",
+    "v3_to_v4_upgrade",
+    "business_outbox_atomicity",
+    "write_path_coverage",
+    "worker_claim_and_fencing",
+    "source_serialization",
+    "document_privacy",
+    "qdrant_idempotency",
+    "deletion_and_access_reconciliation",
+    "backfill_rebuild",
+    "dependency_failure_isolation",
+    "stage0_to_stage3_regression",
+    "real_embedding_protocol_smoke",
+    "scale_and_freshness",
+    "evidence_manifest"
+  ],
+  "thresholds": {
+    "businessOutboxAtomicityPercent": 100,
+    "duplicatePointCount": 0,
+    "staleOverwriteCount": 0,
+    "privateFieldInTeamPointCount": 0,
+    "externalFailureBusinessRollbackCount": 0,
+    "healthyIndexFreshnessP95Seconds": 60,
+    "backfillDifferenceCount": 0,
+    "embeddingDimension": 1024
+  },
+  "deferred": [
+    "rag_query_and_citation",
+    "reranking",
+    "agent",
+    "stage3_final_real_model_acceptance"
+  ]
+}
