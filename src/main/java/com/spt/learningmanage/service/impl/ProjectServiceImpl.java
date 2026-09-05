@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.spt.learningmanage.constant.DeleteSourceConstant;
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.ProjectConstant;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -11,6 +13,7 @@ import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
 import com.spt.learningmanage.model.dto.project.ProjectReorderRequest;
@@ -21,10 +24,12 @@ import com.spt.learningmanage.model.entity.Milestone;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.Team;
+import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -57,6 +62,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Resource
     private PermissionService permissionService;
+
+    @Resource
+    private WeeklyReviewMapper weeklyReviewMapper;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
@@ -413,6 +424,12 @@ public class ProjectServiceImpl implements ProjectService {
 
         LocalDateTime deleteTime = LocalDateTime.now();
 
+        List<Long> affectedTaskIds = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                        .eq(Task::getProjectId, id)
+                        .eq(Task::getIsDelete, 0))
+                .stream().map(Task::getId).toList();
+        List<Long> affectedReviewIds = reviewIdsForProject(id);
+
         LambdaUpdateWrapper<Task> taskDeleteWrapper = new LambdaUpdateWrapper<>();
         taskDeleteWrapper.eq(Task::getProjectId, id)
                 .eq(Task::getIsDelete, 0)
@@ -439,6 +456,8 @@ public class ProjectServiceImpl implements ProjectService {
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
+        publishTasks(affectedTaskIds, KnowledgeEventTypeEnum.SOURCE_DELETED);
+        publishReviews(affectedReviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
     }
 
     @Override
@@ -477,6 +496,33 @@ public class ProjectServiceImpl implements ProjectService {
 
         taskMapper.recoverByProjectId(userId, id);
         milestoneMapper.recoverByProjectId(userId, id);
+        List<Long> recoveredTaskIds = taskMapper.selectList(new LambdaQueryWrapper<Task>()
+                        .eq(Task::getProjectId, id)
+                        .eq(Task::getIsDelete, 0))
+                .stream().map(Task::getId).toList();
+        publishTasks(recoveredTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        publishReviews(reviewIdsForProject(id), KnowledgeEventTypeEnum.ACCESS_CHANGED);
+    }
+
+    private List<Long> reviewIdsForProject(Long projectId) {
+        if (weeklyReviewMapper == null) {
+            return List.of();
+        }
+        return weeklyReviewMapper.selectList(new LambdaQueryWrapper<WeeklyReview>()
+                        .eq(WeeklyReview::getFocusProjectId, projectId))
+                .stream().map(WeeklyReview::getId).toList();
+    }
+
+    private void publishTasks(List<Long> ids, KnowledgeEventTypeEnum eventType) {
+        if (knowledgeIndexEventPublisher != null && ids != null && !ids.isEmpty()) {
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK, ids, eventType);
+        }
+    }
+
+    private void publishReviews(List<Long> ids, KnowledgeEventTypeEnum eventType) {
+        if (knowledgeIndexEventPublisher != null && ids != null && !ids.isEmpty()) {
+            knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.WEEKLY_REVIEW, ids, eventType);
+        }
     }
 
     private ProjectVo toVo(Project project) {

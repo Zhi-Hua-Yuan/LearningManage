@@ -1,5 +1,7 @@
 package com.spt.learningmanage.service.impl;
 
+import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
+import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.TaskAssignmentActionEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
@@ -10,6 +12,7 @@ import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,9 @@ public class TaskCreationServiceImpl implements TaskCreationService {
 
     @Resource
     private TaskAssigneePolicy taskAssigneePolicy;
+
+    @Resource
+    private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -56,6 +62,10 @@ public class TaskCreationServiceImpl implements TaskCreationService {
             if (taskAssignmentLogMapper.insert(log) != 1) {
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR, "写入初始分配日志失败");
             }
+        }
+        if (knowledgeIndexEventPublisher != null) {
+            knowledgeIndexEventPublisher.publish(
+                    KnowledgeSourceTypeEnum.TASK, task.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
         }
         return task.getId();
     }
