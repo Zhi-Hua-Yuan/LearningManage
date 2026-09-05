@@ -2,6 +2,8 @@
 
 Stage 3 turns the five existing AI scenes into reproducible, comparable release gates. It adds no business API, UI, runtime evaluation table, RAG, vector store, or Agent capability. The Flyway head remains V3.
 
+Current status: **IMPLEMENTATION_COMPLETE / ACCEPTANCE_DEFERRED**. PR `#134` is merged at backend SHA `5a98b4b9b39fef1303c0d68b653dbf2d3c129a7f`. Protected real-model qualification, human review, and evidence sealing are deferred to Stage 7 so Stage 4 RAG development can proceed. This status is not a claim that Prompt v2 passed real-model acceptance. See `release/deferred-acceptance.md`.
+
 ## Implemented scope
 
 - A locked Node 22.13.1 evaluation project under `evals/stage3`.
@@ -30,7 +32,9 @@ The complete application-path evaluation requires Docker and the environment con
 
 ## Current completion state
 
-The implementation, deterministic contract suite, full 714-test backend regression, and a 74/74 local Docker application-path run are complete. A Stage 3 release is not considered sealed until CI reproduces the offline result, the protected workflow has produced three regression rounds and three holdout rounds against `qwen-plus`, the human review sample has met its agreement threshold, and the resulting immutable evidence has been bound to the backend and frontend SHAs.
+The implementation, deterministic contract suite, full 714-test backend regression, and a 74/74 local Docker application-path run are complete. The protected real-model development/regression/holdout matrix and 20% human review have not been completed for Prompt v2 and are intentionally deferred to Stage 7.
+
+Development may proceed to Stage 4, but Stage 3 must remain marked `ACCEPTANCE_DEFERRED`. No `stage3-v1.0.0` tag or GitHub Release will be published now. The acceptance thresholds remain frozen and must be applied when Stage 7 reopens the evaluation.
 
 ## Directory map
 
@@ -39,5 +43,5 @@ The implementation, deterministic contract suite, full 714-test backend regressi
 - `datasets/`: dataset design and holdout policy.
 - `reports/`: report templates and non-fabricated current status.
 - `risk/`: operational and evaluation risks.
-- `release/`: protected real-run, rollback, and sealing procedure.
+- `release/`: deferred-acceptance decision plus the protected real-run, rollback, and sealing procedure.
 - `evidence/`: evidence retention and binding rules.

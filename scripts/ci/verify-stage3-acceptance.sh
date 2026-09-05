@@ -14,7 +14,9 @@ required=(
   evals/stage3/fixtures/semantic-context.json
   docs/stage3/requirements/stage3-acceptance-contract.json
   docs/stage3/requirements/published-migrations.sha256
+  docs/stage3/release/deferred-acceptance.md
   docs/stage3/release/stage3-release-candidate-manifest.schema.json
+  docs/stage7/ai-final-acceptance-backlog.md
   deploy/docker-compose.stage3-eval.yml
   .github/workflows/stage3-eval.yml
   .github/workflows/stage3-real-eval.yml
