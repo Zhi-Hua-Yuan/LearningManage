@@ -45,6 +45,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class TaskBreakdownAiServiceImplTest {
@@ -123,6 +124,16 @@ class TaskBreakdownAiServiceImplTest {
         assertTrue(userPrompt.contains("今天日期（含）：" + today));
         assertTrue(userPrompt.contains("最晚截止日期（含）：" + today.plusWeeks(8)));
         assertTrue(userPrompt.contains("绝不能晚于最晚截止日期"));
+    }
+
+    @Test
+    void generateTaskBreakdownRejectsUnboundedDurationBeforeModelCall() {
+        for (String duration : List.of("三个月", "8 weeks", "999999999999999999999年")) {
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> service.generateTaskBreakdown("通过考试", "", duration, false));
+            assertEquals(ErrorCode.PARAMS_ERROR, exception.getErrorCode());
+        }
+        verifyNoInteractions(modelClient);
     }
 
     @Test

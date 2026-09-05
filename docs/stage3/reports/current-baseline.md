@@ -12,7 +12,7 @@ The release operator must replace this status with the sanitized three-round agg
 - Promptfoo project contract tests: 21/21 passed, including development-round cost and exact candidate Prompt binding.
 - Promptfoo configuration validation: passed with sharing and cache disabled by the run wrapper.
 - Stage 3 repository acceptance: passed; V1/V2/V3 checksums unchanged and no V4 exists.
-- Full backend regression: 713/713 tests passed against a disposable, Flyway-managed `_ci_`/`_eval` MySQL database.
+- Full backend regression: 714/714 tests passed against a disposable, Flyway-managed `_ci_`/`_eval` MySQL database.
 - Scene-aware protocol Stub: Python syntax and a detailed task-breakdown response/Usage smoke test passed.
 - Production-path offline evaluation: 74/74 regression and fault-injection cases passed through the public API, `AiInvocationPipeline`, scene parsing, business validation, permission checks, and correlated `ai_call_log` metadata.
 - Offline deterministic metrics: structure parsing 100%, business validation 100%, expected degradation 100%, Trace-to-`ai_call_log` correlation 100%, formal project/milestone/task content mutations 0, P50 8 ms, and P95 5012 ms. The P95 includes deliberate five-second timeout injections.

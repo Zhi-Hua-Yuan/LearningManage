@@ -89,11 +89,12 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
         String normalizedDuration = duration.trim();
         LocalDate today = LocalDate.now();
         LocalDate planningEndDate = resolvePlanningEndDate(today, normalizedDuration);
-        String userPrompt = planningEndDate == null
-                ? String.format("目标：%s，原始周期：%s，今天日期：%s。所有截止日期必须严格符合原始周期。",
-                normalizedTarget, normalizedDuration, today)
-                : String.format("目标：%s，原始周期：%s，今天日期（含）：%s，最晚截止日期（含）：%s。"
-                        + "所有 dueDate 必须位于这两个日期之间，绝不能晚于最晚截止日期。",
+        if (planningEndDate == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,
+                    "周期格式不支持或超出可计算范围，请使用正整数加天、周、月或年，例如8周、3个月");
+        }
+        String userPrompt = String.format("目标：%s，原始周期：%s，今天日期（含）：%s，最晚截止日期（含）：%s。"
+                + "所有 dueDate 必须位于这两个日期之间，绝不能晚于最晚截止日期。",
                 normalizedTarget, normalizedDuration, today, planningEndDate);
         if (StrUtil.isNotBlank(description)) {
             userPrompt += String.format("补充描述：%s。", description.trim());
@@ -226,8 +227,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                             "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1)
                                     + "个任务截止日期格式非法，需为yyyy-MM-dd");
                 }
-                if (parsedDueDate.isBefore(planningStartDate)
-                        || planningEndDate != null && parsedDueDate.isAfter(planningEndDate)) {
+                if (parsedDueDate.isBefore(planningStartDate) || parsedDueDate.isAfter(planningEndDate)) {
                     throw new BusinessException(ErrorCode.OPERATION_ERROR,
                             "AI 结果第" + (i + 1) + "个里程碑第" + (j + 1)
                                     + "个任务截止日期超出计划周期");

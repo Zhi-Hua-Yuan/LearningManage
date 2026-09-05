@@ -30,7 +30,7 @@ The complete application-path evaluation requires Docker and the environment con
 
 ## Current completion state
 
-The implementation, deterministic contract suite, full 713-test backend regression, and a 74/74 local Docker application-path run are complete. A Stage 3 release is not considered sealed until CI reproduces the offline result, the protected workflow has produced three regression rounds and three holdout rounds against `qwen-plus`, the human review sample has met its agreement threshold, and the resulting immutable evidence has been bound to the backend and frontend SHAs.
+The implementation, deterministic contract suite, full 714-test backend regression, and a 74/74 local Docker application-path run are complete. A Stage 3 release is not considered sealed until CI reproduces the offline result, the protected workflow has produced three regression rounds and three holdout rounds against `qwen-plus`, the human review sample has met its agreement threshold, and the resulting immutable evidence has been bound to the backend and frontend SHAs.
 
 ## Directory map
 
