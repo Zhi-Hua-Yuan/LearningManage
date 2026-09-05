@@ -38,6 +38,12 @@ test('promptfoo config disables result sharing', () => {
   assert.match(config, /learning-manage-http\.js/);
 });
 
+test('real evaluation supplies required production Redis placeholders', () => {
+  const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'stage3-real-eval.yml'), 'utf8');
+  assert.match(workflow, /^\s*REDIS_HOST:\s*127\.0\.0\.1\s*$/m);
+  assert.match(workflow, /^\s*REDIS_PORT:\s*['"]?6379['"]?\s*$/m);
+});
+
 test('locked evaluation dependencies are cross-platform and use the restricted native install', () => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
   const missingVersions = Object.entries(lock.packages || {})
