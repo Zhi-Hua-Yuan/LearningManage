@@ -18,11 +18,15 @@ async function requestWithRetry(url, options) {
     throw new Error('STAGE3_GRADER_TIMEOUT_MS must be 1000-120000');
   }
   let lastError;
+  let unmeteredRetryAttempts = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
-      if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) return response;
+      if (response.ok || !RETRYABLE_STATUS.has(response.status) || attempt === maxAttempts) {
+        return { response, unmeteredRetryAttempts };
+      }
       lastError = new Error(`Grader request failed with retryable HTTP ${response.status}`);
+      unmeteredRetryAttempts += 1;
       try {
         await response.body?.cancel();
       } catch {
@@ -31,6 +35,7 @@ async function requestWithRetry(url, options) {
     } catch (error) {
       lastError = error;
       if (attempt === maxAttempts) throw error;
+      unmeteredRetryAttempts += 1;
     }
     await sleep(250 * (2 ** (attempt - 1)));
   }
@@ -48,25 +53,37 @@ module.exports = class DashscopeGraderProvider {
     const model = process.env.STAGE3_GRADER_MODEL || 'qwen-max';
     const sutModel = process.env.STAGE3_SUT_MODEL || 'qwen-plus';
     if (model === sutModel) throw new Error('The grader model must differ from the system-under-test model');
+    const inputPrice = Number(process.env.STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION);
+    const outputPrice = Number(process.env.STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION);
+    const priceVersion = process.env.STAGE3_GRADER_PRICE_VERSION;
+    const maxCompletionTokens = Number(process.env.STAGE3_GRADER_MAX_COMPLETION_TOKENS || 1024);
+    if (!Number.isFinite(inputPrice) || inputPrice < 0 || !Number.isFinite(outputPrice) || outputPrice < 0 || !priceVersion) {
+      throw new Error('Stage 3 grader pricing and price version must be configured');
+    }
+    if (!Number.isInteger(maxCompletionTokens) || maxCompletionTokens < 64 || maxCompletionTokens > 4096) {
+      throw new Error('STAGE3_GRADER_MAX_COMPLETION_TOKENS must be 64-4096');
+    }
     const baseUrl = (process.env.STAGE3_DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
-    const response = await requestWithRetry(`${baseUrl}/chat/completions`, {
+    const { response, unmeteredRetryAttempts } = await requestWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, temperature: 0, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model, temperature: 0, max_tokens: maxCompletionTokens, messages: [{ role: 'user', content: prompt }] })
     });
     const body = await response.json();
     if (!response.ok) throw new Error(`Grader request failed with HTTP ${response.status}`);
     const output = body?.choices?.[0]?.message?.content;
     if (typeof output !== 'string' || !output.trim()) throw new Error('Grader returned no content');
-    const inputPrice = Number(process.env.STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION);
-    const outputPrice = Number(process.env.STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION);
-    const priceVersion = process.env.STAGE3_GRADER_PRICE_VERSION;
-    if (!Number.isFinite(inputPrice) || inputPrice < 0 || !Number.isFinite(outputPrice) || outputPrice < 0 || !priceVersion) {
-      throw new Error('Stage 3 grader pricing and price version must be configured');
-    }
-    const estimatedCost = body.usage
+    const usageEstimatedCost = body.usage
       ? (Number(body.usage.prompt_tokens || 0) * inputPrice + Number(body.usage.completion_tokens || 0) * outputPrice) / 1_000_000
       : undefined;
+    // A timed-out/retryable attempt may still be billable even when no Usage reaches the client.
+    // UTF-8 byte length plus protocol headroom is a conservative ceiling for input tokens;
+    // max_tokens provides a hard output ceiling for every attempt.
+    const maximumAttemptCost = ((Buffer.byteLength(prompt, 'utf8') + 256) * inputPrice
+      + maxCompletionTokens * outputPrice) / 1_000_000;
+    const unmeteredAttempts = unmeteredRetryAttempts + (body.usage ? 0 : 1);
+    const retryCostReserve = unmeteredAttempts * maximumAttemptCost;
+    const accountedCost = (usageEstimatedCost || 0) + retryCostReserve;
     return {
       output,
       tokenUsage: body.usage ? {
@@ -74,8 +91,16 @@ module.exports = class DashscopeGraderProvider {
         completion: body.usage.completion_tokens,
         total: body.usage.total_tokens
       } : undefined,
-      cost: estimatedCost,
-      metadata: { model, priceVersion, providerRequestIdHash: body.id ? crypto.createHash('sha256').update(String(body.id)).digest('hex').toUpperCase() : null }
+      cost: accountedCost,
+      metadata: {
+        model,
+        priceVersion,
+        providerRequestIdHash: body.id ? crypto.createHash('sha256').update(String(body.id)).digest('hex').toUpperCase() : null,
+        usageEstimatedCost: usageEstimatedCost ?? null,
+        unmeteredRetryAttempts: unmeteredAttempts,
+        retryCostReserve,
+        maximumAttemptCost
+      }
     };
   }
 };

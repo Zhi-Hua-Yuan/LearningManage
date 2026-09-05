@@ -2,7 +2,7 @@
 
 1. Select an immutable backend SHA and its paired frontend SHA.
 2. Run `Stage 3 Real Model Evaluation` through the protected `stage3-real-ai` GitHub Environment.
-   Configure the existing `AI_PRICE_VERSION`, `AI_PRICE_CURRENCY=CNY`, `QWEN_PLUS_INPUT_PRICE`, and `QWEN_PLUS_OUTPUT_PRICE` variables, plus `STAGE3_GRADER_PRICE_VERSION`, `STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION`, and `STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION`. The workflow rejects missing or malformed prices instead of reporting a false zero cost.
+   Configure the existing `AI_PRICE_VERSION`, `AI_PRICE_CURRENCY=CNY`, `QWEN_PLUS_INPUT_PRICE`, and `QWEN_PLUS_OUTPUT_PRICE` variables, plus `STAGE3_GRADER_PRICE_VERSION`, `STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION`, and `STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION`. The grader output is capped at 1024 tokens, and every retry without Usage adds a conservative maximum-attempt reserve to the candidate cost. The workflow rejects missing or malformed prices instead of reporting a false zero cost.
 3. Confirm that the target database is temporary, loopback-only, non-3306, and ends in `_eval`.
 4. Run regression and holdout splits three times each with cache and sharing disabled.
 5. Use `qwen-plus` at temperature 0 and a different grader model (default `qwen-max`). If the grader is unavailable, stop semantic automation and attach an approved manual score sheet.

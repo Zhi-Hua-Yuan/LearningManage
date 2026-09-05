@@ -122,17 +122,21 @@ test('semantic grader retries transient provider failures without changing the m
   const originalFetch = global.fetch;
   const previous = Object.fromEntries(['ALIYUN_API_KEY', 'STAGE3_GRADER_MODEL', 'STAGE3_SUT_MODEL',
     'STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION', 'STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION',
-    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS'].map((key) => [key, process.env[key]]));
+    'STAGE3_GRADER_PRICE_VERSION', 'STAGE3_GRADER_MAX_ATTEMPTS',
+    'STAGE3_GRADER_MAX_COMPLETION_TOKENS'].map((key) => [key, process.env[key]]));
   let attempts = 0;
   let cancelledResponses = 0;
+  let requestedMaxCompletionTokens = null;
   try {
     Object.assign(process.env, {
       ALIYUN_API_KEY: 'synthetic-key', STAGE3_GRADER_MODEL: 'qwen-max', STAGE3_SUT_MODEL: 'qwen-plus',
       STAGE3_GRADER_INPUT_PRICE_CNY_PER_MILLION: '1', STAGE3_GRADER_OUTPUT_PRICE_CNY_PER_MILLION: '2',
-      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3'
+      STAGE3_GRADER_PRICE_VERSION: 'test', STAGE3_GRADER_MAX_ATTEMPTS: '3',
+      STAGE3_GRADER_MAX_COMPLETION_TOKENS: '1024'
     });
-    global.fetch = async () => {
+    global.fetch = async (_url, options) => {
       attempts += 1;
+      requestedMaxCompletionTokens = JSON.parse(options.body).max_tokens;
       if (attempts === 1) {
         return {
           ok: false, status: 503,
@@ -153,6 +157,10 @@ test('semantic grader retries transient provider failures without changing the m
     assert.equal(cancelledResponses, 1);
     assert.equal(result.metadata.model, 'qwen-max');
     assert.equal(result.tokenUsage.total, 15);
+    assert.equal(requestedMaxCompletionTokens, 1024);
+    assert.equal(result.metadata.unmeteredRetryAttempts, 1);
+    assert.ok(result.metadata.retryCostReserve > 0);
+    assert.ok(result.cost > result.metadata.usageEstimatedCost);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previous)) {
