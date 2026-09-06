@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class QdrantVectorSearchClientHttpTest {
@@ -68,6 +69,16 @@ class QdrantVectorSearchClientHttpTest {
         assertTrue(body.contains("\"teamId\""));
         assertTrue(body.contains("\"PRIVATE\""));
         assertTrue(body.contains("\"ownerUserId\""));
+    }
+
+    @Test
+    void queryOmitsProviderThresholdWhenApplicationDisablesIt() throws Exception {
+        AtomicReference<String> requestBody = startServer("{\"result\":{\"points\":[]}}");
+
+        client().query(new VectorSearchRequest(
+                List.of(0.1f, 0.2f, 0.3f), new VectorAccessFilter(10L, 7L, null), 20, -1));
+
+        assertFalse(requestBody.get().contains("score_threshold"));
     }
 
     private AtomicReference<String> startServer(String responseBody) throws IOException {

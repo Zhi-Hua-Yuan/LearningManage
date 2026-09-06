@@ -46,7 +46,12 @@ public class QdrantVectorSearchClient implements VectorSearchClient {
         body.set("query", objectMapper.valueToTree(request.vector()));
         body.set("filter", accessFilter(request.accessFilter()));
         body.put("limit", request.limit());
-        body.put("score_threshold", request.scoreThreshold());
+        // A negative configured value is the application's explicit "disabled"
+        // sentinel. Do not forward it as a provider threshold: omitting the
+        // optional field is the only portable way to request the full top-K.
+        if (request.scoreThreshold() >= 0) {
+            body.put("score_threshold", request.scoreThreshold());
+        }
         body.put("with_payload", true);
         body.put("with_vector", false);
         RestTransportResponse response = exchange(dataPath("/points/query"), body.toString());
