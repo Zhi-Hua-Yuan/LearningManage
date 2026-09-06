@@ -360,6 +360,8 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
             if (!RISK_LEVELS.contains(level) || summary.isBlank()) {
                 throw new IllegalArgumentException("风险分析字段缺失");
             }
+            Set<String> allowed = history.evidence().stream()
+                    .map(ProjectHistoryEvidence::citationId).collect(java.util.stream.Collectors.toSet());
             List<AgentRiskItem> items = new ArrayList<>();
             for (JsonNode item : root.path("riskItems")) {
                 String category = item.path("category").asText();
@@ -369,10 +371,8 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                 }
                 items.add(new AgentRiskItem(category, severity, item.path("reason").asText(),
                         item.path("impact").asText(), item.path("recommendation").asText(),
-                        stringList(item.path("evidenceIds"))));
+                        permittedEvidenceIds(stringList(item.path("evidenceIds")), allowed)));
             }
-            Set<String> allowed = history.evidence().stream()
-                    .map(ProjectHistoryEvidence::citationId).collect(java.util.stream.Collectors.toSet());
             List<String> citations = stringList(root.path("citations"));
             if (!allowed.containsAll(citations)) {
                 throw new IllegalArgumentException("风险引用不存在");
@@ -541,6 +541,10 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
 
     static long stableReportVersion(long startVersion, long endVersion) {
         return startVersion == endVersion ? endVersion : startVersion;
+    }
+
+    static List<String> permittedEvidenceIds(List<String> requested, Set<String> allowed) {
+        return requested.stream().filter(allowed::contains).toList();
     }
 
     private AgentOrchestrationResult result(AgentReportDraftPayload payload,
