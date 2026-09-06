@@ -147,6 +147,9 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         String task = "分析当前项目风险。必须先调用 queryTaskStats 和 queryOverdueTasks。";
         if (ragProperties.isEnabled()) {
             task += "需要历史证据时调用 retrieveProjectHistory。";
+        } else {
+            task += "当前未提供历史引用工具，最终 citations 以及每个风险项的 evidenceIds 必须是空数组，"
+                    + "不得把任务 localId 当作可持久化引用。";
         }
         messages.add(AiChatMessage.user(task));
         List<AiToolDefinition> definitions = projectToolDefinitions();
@@ -357,6 +360,8 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
             if (!RISK_LEVELS.contains(level) || summary.isBlank()) {
                 throw new IllegalArgumentException("风险分析字段缺失");
             }
+            Set<String> allowed = history.evidence().stream()
+                    .map(ProjectHistoryEvidence::citationId).collect(java.util.stream.Collectors.toSet());
             List<AgentRiskItem> items = new ArrayList<>();
             for (JsonNode item : root.path("riskItems")) {
                 String category = item.path("category").asText();
@@ -366,10 +371,8 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                 }
                 items.add(new AgentRiskItem(category, severity, item.path("reason").asText(),
                         item.path("impact").asText(), item.path("recommendation").asText(),
-                        stringList(item.path("evidenceIds"))));
+                        permittedEvidenceIds(stringList(item.path("evidenceIds")), allowed)));
             }
-            Set<String> allowed = history.evidence().stream()
-                    .map(ProjectHistoryEvidence::citationId).collect(java.util.stream.Collectors.toSet());
             List<String> citations = stringList(root.path("citations"));
             if (!allowed.containsAll(citations)) {
                 throw new IllegalArgumentException("风险引用不存在");
@@ -538,6 +541,10 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
 
     static long stableReportVersion(long startVersion, long endVersion) {
         return startVersion == endVersion ? endVersion : startVersion;
+    }
+
+    static List<String> permittedEvidenceIds(List<String> requested, Set<String> allowed) {
+        return requested.stream().filter(allowed::contains).toList();
     }
 
     private AgentOrchestrationResult result(AgentReportDraftPayload payload,
