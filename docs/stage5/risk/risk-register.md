@@ -10,5 +10,6 @@
 | Raw question/source leaks to call log | keyed HMAC query audit + METADATA_ONLY call logging | Low |
 | Rerank outage | explicit vector-order fallback and degraded response | Medium |
 | Embedding/Qdrant outage hallucinates answer | fail closed; no Chat call | Low |
-| Local MySQL integration unavailable | remote isolated MySQL/Qdrant workflow | Open until remote run |
-| Real-model quality unknown | 50-case protected three-run evaluation | Open until protected run |
+| Local MySQL integration unavailable | authoritative isolated MySQL/Qdrant workflow passed remotely | Closed for implementation acceptance |
+| Real-provider protocol or cited path differs from deterministic CI | protected real document/query Embedding, qwen3-rerank and cited Chat run passed | Low |
+| Broad real-model semantic quality variance | deterministic 50-case retrieval gate plus protected real smoke; broader semantic qualification remains Stage 7 scope | Medium / deferred to Stage 7 |

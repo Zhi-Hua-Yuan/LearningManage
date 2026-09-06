@@ -1,6 +1,6 @@
 # Stage 5 local verification — 2026-09-06
 
-Status: `LOCAL_PASS / REMOTE_GATES_PENDING`
+Status: `LOCAL_AND_REMOTE_IMPLEMENTATION_PASS / RELEASE_NOT_PLANNED`
 
 ## Backend
 
@@ -34,3 +34,18 @@ Holdout: 20
 ```
 
 The application-path evaluation itself requires the isolated Stage 5 workflow because it starts MySQL, Qdrant, the application, indexing workers, and deterministic providers.
+
+## Remote implementation evidence
+
+- Backend candidate: `b1b20a818ce629aa02f7ff339153e83eb48681b4`.
+- Frontend candidate: `9c60170ea36cf2b4e64278fede544cabe608defb`.
+- Backend CI: 801 tests plus V6 empty/existing database and Docker gates passed in
+  [run 34028032327](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/34028032327).
+- Stage 5 deterministic RAG: 50/50 application-path cases passed in
+  [run 34027708375](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/34027708375).
+- Frontend CI: 487 tests, type-check, API contract and production build passed in
+  [run 34022440726](https://github.com/Zhi-Hua-Yuan/learning-manage-frontend/actions/runs/34022440726).
+- Protected real document/query Embedding, qwen3-rerank and cited Chat path:
+  [run 34028167239](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/34028167239), PASS for the backend candidate.
+- Formal cross-repository Release candidate, manifest, tag and GitHub Release:
+  not planned by project-owner decision.
