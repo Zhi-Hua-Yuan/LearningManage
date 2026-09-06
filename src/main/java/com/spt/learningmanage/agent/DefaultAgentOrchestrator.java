@@ -18,6 +18,7 @@ import com.spt.learningmanage.ai.pipeline.AiExecutionResult;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.config.AgentProperties;
 import com.spt.learningmanage.config.AiProperties;
+import com.spt.learningmanage.config.RagProperties;
 import com.spt.learningmanage.constant.AgentOrchestrationModeEnum;
 import com.spt.learningmanage.constant.AgentSceneEnum;
 import com.spt.learningmanage.constant.AiPromptCodeEnum;
@@ -57,6 +58,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
 
     private final AgentProperties properties;
     private final AiProperties aiProperties;
+    private final RagProperties ragProperties;
     private final PermissionService permissionService;
     private final BusinessDataVersionService versionService;
     private final AgentToolExecutor toolExecutor;
@@ -69,6 +71,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
 
     public DefaultAgentOrchestrator(AgentProperties properties,
                                     AiProperties aiProperties,
+                                    RagProperties ragProperties,
                                     PermissionService permissionService,
                                     BusinessDataVersionService versionService,
                                     AgentToolExecutor toolExecutor,
@@ -80,6 +83,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                                     AgentToolPolicy toolPolicy) {
         this.properties = properties;
         this.aiProperties = aiProperties;
+        this.ragProperties = ragProperties;
         this.permissionService = permissionService;
         this.versionService = versionService;
         this.toolExecutor = toolExecutor;
@@ -135,7 +139,11 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                                                           ToolExecutionContext context,
                                                           Map<String, AgentToolExecution> outputs) {
         List<AiChatMessage> messages = new ArrayList<>();
-        messages.add(AiChatMessage.user("分析当前项目风险。必须先调用 queryTaskStats 和 queryOverdueTasks；需要历史证据时调用 retrieveProjectHistory。"));
+        String task = "分析当前项目风险。必须先调用 queryTaskStats 和 queryOverdueTasks。";
+        if (ragProperties.isEnabled()) {
+            task += "需要历史证据时调用 retrieveProjectHistory。";
+        }
+        messages.add(AiChatMessage.user(task));
         List<AiToolDefinition> definitions = projectToolDefinitions();
         boolean corrected = false;
         int round = 1;
@@ -182,12 +190,14 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         ensureTool(run, context, outputs, "queryOverdueTasks", "{}");
         boolean partial = false;
         String reason = null;
-        try {
-            ensureTool(run, context, outputs, "retrieveProjectHistory",
-                    "{\"query\":\"项目延期、阻塞、风险和最近进展\"}");
-        } catch (RuntimeException exception) {
-            partial = true;
-            reason = "历史检索不可用，使用结构化任务数据完成分析";
+        if (ragProperties.isEnabled()) {
+            try {
+                ensureTool(run, context, outputs, "retrieveProjectHistory",
+                        "{\"query\":\"项目延期、阻塞、风险和最近进展\"}");
+            } catch (RuntimeException exception) {
+                partial = true;
+                reason = "历史检索不可用，使用结构化任务数据完成分析";
+            }
         }
         String prompt = toJson(Map.of(
                 "taskStats", outputs.get("queryTaskStats").result(),
@@ -470,11 +480,14 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         JsonNode history = objectMapper.createObjectNode().put("type", "object")
                 .set("properties", objectMapper.createObjectNode().set("query",
                         objectMapper.createObjectNode().put("type", "string").put("maxLength", 200)));
-        return List.of(
+        List<AiToolDefinition> definitions = new ArrayList<>(List.of(
                 tool("queryProjectTasks", "查询当前项目任务摘要", empty),
                 tool("queryOverdueTasks", "查询当前项目逾期任务", empty),
-                tool("queryTaskStats", "查询当前项目任务统计", empty),
-                tool("retrieveProjectHistory", "检索当前项目历史证据", history));
+                tool("queryTaskStats", "查询当前项目任务统计", empty)));
+        if (ragProperties.isEnabled()) {
+            definitions.add(tool("retrieveProjectHistory", "检索当前项目历史证据", history));
+        }
+        return List.copyOf(definitions);
     }
 
     private AiToolDefinition tool(String name, String description, JsonNode parameters) {
