@@ -19,7 +19,7 @@ import com.spt.learningmanage.model.rag.RagCandidate;
 import com.spt.learningmanage.model.rag.RagRetrievalOutcome;
 import com.spt.learningmanage.service.EmbeddingClient;
 import com.spt.learningmanage.service.RerankClient;
-import com.spt.learningmanage.service.VectorStoreClient;
+import com.spt.learningmanage.service.VectorSearchClient;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
 import org.springframework.stereotype.Service;
 
@@ -34,20 +34,20 @@ import java.util.Map;
 public class RagRetrievalService {
     private final RagProperties properties;
     private final EmbeddingClient embeddingClient;
-    private final VectorStoreClient vectorStoreClient;
+    private final VectorSearchClient vectorSearchClient;
     private final RerankClient rerankClient;
     private final RagCandidateHydrator hydrator;
     private final KnowledgeHashing hashing;
 
     public RagRetrievalService(RagProperties properties,
                                EmbeddingClient embeddingClient,
-                               VectorStoreClient vectorStoreClient,
+                               VectorSearchClient vectorSearchClient,
                                RerankClient rerankClient,
                                RagCandidateHydrator hydrator,
                                KnowledgeHashing hashing) {
         this.properties = properties;
         this.embeddingClient = embeddingClient;
-        this.vectorStoreClient = vectorStoreClient;
+        this.vectorSearchClient = vectorSearchClient;
         this.rerankClient = rerankClient;
         this.hydrator = hydrator;
         this.hashing = hashing;
@@ -67,7 +67,7 @@ public class RagRetrievalService {
             }
             VectorAccessFilter access = new VectorAccessFilter(
                     scope.projectId(), actorUserId, scope.teamId());
-            List<VectorSearchHit> hits = vectorStoreClient.query(new VectorSearchRequest(
+            List<VectorSearchHit> hits = vectorSearchClient.query(new VectorSearchRequest(
                     embedding.vectors().get(0), access, properties.getInitialTopK(),
                     properties.getVectorScoreThreshold()));
             List<RagCandidate> hydrated = hydrator.hydrate(actorUserId, scope, hits);

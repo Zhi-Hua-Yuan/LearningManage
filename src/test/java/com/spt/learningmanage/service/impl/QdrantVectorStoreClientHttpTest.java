@@ -10,8 +10,6 @@ import com.spt.learningmanage.constant.KnowledgeFailureTypeEnum;
 import com.spt.learningmanage.exception.KnowledgeIndexException;
 import com.spt.learningmanage.model.dto.knowledge.VectorPayloadUpdate;
 import com.spt.learningmanage.model.dto.knowledge.VectorPoint;
-import com.spt.learningmanage.model.dto.knowledge.VectorAccessFilter;
-import com.spt.learningmanage.model.dto.knowledge.VectorSearchRequest;
 import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,59 +84,6 @@ class QdrantVectorStoreClientHttpTest {
         KnowledgeIndexException exception = assertThrows(KnowledgeIndexException.class,
                 () -> client(3).ensureCollection());
         assertEquals(KnowledgeFailureTypeEnum.DIMENSION_MISMATCH, exception.getFailureType());
-    }
-
-    @Test
-    void queryBuildsPersonalPermissionFilterAndParsesHits() throws Exception {
-        AtomicReference<String> requestBody = new AtomicReference<>();
-        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            respond(exchange, 200, """
-                    {"result":{"points":[{"id":"point-1","score":0.91,"payload":{
-                      "projectId":10,"visibilityType":"PRIVATE","ownerUserId":7,
-                      "sourceType":"TASK","sourceId":20,"documentKey":"TASK:20:PRIVATE:10",
-                      "chunkIndex":0,"sourceVersion":"v"
-                    }}]}}
-                    """);
-        });
-        server.start();
-
-        var hits = client(3).query(new VectorSearchRequest(
-                List.of(0.1f, 0.2f, 0.3f), new VectorAccessFilter(10L, 7L, null), 20, 0.25));
-
-        assertEquals(1, hits.size());
-        assertEquals("point-1", hits.get(0).pointId());
-        assertEquals(0.91, hits.get(0).score());
-        String body = requestBody.get();
-        assertTrue(body.contains("\"projectId\""));
-        assertTrue(body.contains("\"visibilityType\""));
-        assertTrue(body.contains("\"PRIVATE\""));
-        assertTrue(body.contains("\"ownerUserId\""));
-        assertTrue(body.contains("\"score_threshold\":0.25"));
-        assertTrue(body.contains("\"with_vector\":false"));
-    }
-
-    @Test
-    void queryBuildsTeamOrOwnPrivateBranches() throws Exception {
-        AtomicReference<String> requestBody = new AtomicReference<>();
-        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            respond(exchange, 200, "{\"result\":{\"points\":[]}}");
-        });
-        server.start();
-
-        client(3).query(new VectorSearchRequest(
-                List.of(0.1f, 0.2f, 0.3f), new VectorAccessFilter(10L, 7L, 99L), 20, 0.25));
-
-        String body = requestBody.get();
-        assertTrue(body.contains("\"min_should\""));
-        assertTrue(body.contains("\"min_count\":1"));
-        assertTrue(body.contains("\"TEAM\""));
-        assertTrue(body.contains("\"teamId\""));
-        assertTrue(body.contains("\"PRIVATE\""));
-        assertTrue(body.contains("\"ownerUserId\""));
     }
 
     private QdrantVectorStoreClient client(int dimension) {

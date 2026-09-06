@@ -13,7 +13,7 @@ import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.rag.RagCandidate;
 import com.spt.learningmanage.service.EmbeddingClient;
 import com.spt.learningmanage.service.RerankClient;
-import com.spt.learningmanage.service.VectorStoreClient;
+import com.spt.learningmanage.service.VectorSearchClient;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 
 class RagRetrievalServiceTest {
     private final EmbeddingClient embedding = mock(EmbeddingClient.class);
-    private final VectorStoreClient vectors = mock(VectorStoreClient.class);
+    private final VectorSearchClient vectors = mock(VectorSearchClient.class);
     private final RerankClient rerank = mock(RerankClient.class);
     private final RagCandidateHydrator hydrator = mock(RagCandidateHydrator.class);
     private RagProperties properties;
