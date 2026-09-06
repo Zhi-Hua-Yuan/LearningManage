@@ -7,4 +7,3 @@ public record TeamManagerAnalysis(String managerSummary, List<String> recommenda
         recommendations = recommendations == null ? List.of() : List.copyOf(recommendations);
     }
 }
-

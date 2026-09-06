@@ -32,4 +32,3 @@ public record AgentReportDraftPayload(
         sources = sources == null ? List.of() : List.copyOf(sources);
     }
 }
-

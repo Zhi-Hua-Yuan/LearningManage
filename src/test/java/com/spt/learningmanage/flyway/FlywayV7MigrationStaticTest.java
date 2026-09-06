@@ -25,4 +25,3 @@ class FlywayV7MigrationStaticTest {
         assertTrue(sql.contains("uk_analysis_report_run_type"));
     }
 }
-

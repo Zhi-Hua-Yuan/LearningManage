@@ -4,4 +4,3 @@ public enum AnalysisReportTypeEnum {
     PROJECT_RISK,
     TEAM_WORKLOAD
 }
-

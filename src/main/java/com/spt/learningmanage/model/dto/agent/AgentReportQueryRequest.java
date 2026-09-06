@@ -14,4 +14,3 @@ public class AgentReportQueryRequest {
     @Min(1) @Max(50)
     private long pageSize = 10;
 }
-

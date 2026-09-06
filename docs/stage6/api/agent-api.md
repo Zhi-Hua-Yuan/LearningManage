@@ -38,4 +38,3 @@ Confirmation rechecks Run ownership/status, target permission, data version and
 stored citation hashes. Report list/detail responses are permission-shaped:
 team OWNER/ADMIN receive manager data; MEMBER receives only public summary and
 their own metrics.
-

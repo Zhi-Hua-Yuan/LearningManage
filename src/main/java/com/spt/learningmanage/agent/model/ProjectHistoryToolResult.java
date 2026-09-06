@@ -9,4 +9,3 @@ public record ProjectHistoryToolResult(List<ProjectHistoryEvidence> evidence,
         evidence = evidence == null ? List.of() : List.copyOf(evidence);
     }
 }
-

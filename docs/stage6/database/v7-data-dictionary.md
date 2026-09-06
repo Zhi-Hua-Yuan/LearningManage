@@ -20,4 +20,3 @@ exactly one target column for every scene/report type
 
 The migration is forward-only. Disabling Agent leaves V7 tables dormant and
 does not affect Stage 0-5 behavior.
-

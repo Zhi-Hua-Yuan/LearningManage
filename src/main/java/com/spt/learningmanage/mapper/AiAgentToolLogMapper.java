@@ -7,4 +7,3 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface AiAgentToolLogMapper extends BaseMapper<AiAgentToolLog> {
 }
-

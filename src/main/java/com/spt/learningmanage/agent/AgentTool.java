@@ -13,4 +13,3 @@ public interface AgentTool<A> {
 
     Object execute(ToolExecutionContext context, A arguments);
 }
-

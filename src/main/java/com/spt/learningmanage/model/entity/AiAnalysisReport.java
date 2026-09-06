@@ -37,4 +37,3 @@ public class AiAnalysisReport {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-

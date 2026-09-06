@@ -43,4 +43,3 @@ public class QueryOverdueTasksAgentTool implements AgentTool<EmptyToolArguments>
                 .toList();
     }
 }
-

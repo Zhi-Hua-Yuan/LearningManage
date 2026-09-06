@@ -11,4 +11,3 @@ public record ProjectTaskToolItem(
         boolean assigned
 ) {
 }
-

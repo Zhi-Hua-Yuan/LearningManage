@@ -14,4 +14,3 @@ public record ProjectRiskAnalysis(String riskLevel,
         citations = citations == null ? List.of() : List.copyOf(citations);
     }
 }
-

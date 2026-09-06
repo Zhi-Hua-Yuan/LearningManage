@@ -1,7 +1,7 @@
 # Stage 6 local runtime API contract
 
-Date: 2026-09-06  
-Backend: local Stage 6 candidate on isolated V7 MySQL 8.0.41  
+Date: 2026-09-06
+Backend: local Stage 6 candidate on isolated V7 MySQL 8.0.41
 Frontend: generated `ci-artifacts/frontend-api-contract.json`
 
 ```text

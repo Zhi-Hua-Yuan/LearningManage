@@ -56,4 +56,3 @@ public class QueryTeamMemberWorkloadAgentTool implements AgentTool<EmptyToolArgu
 
     private long value(Long value) { return value == null ? 0 : value; }
 }
-

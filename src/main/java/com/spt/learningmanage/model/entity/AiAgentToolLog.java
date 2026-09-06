@@ -30,4 +30,3 @@ public class AiAgentToolLog {
     private LocalDateTime finishedAt;
     private LocalDateTime createTime;
 }
-

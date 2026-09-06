@@ -15,4 +15,3 @@ public interface AgentReportService {
 
     boolean delete(String reportId);
 }
-

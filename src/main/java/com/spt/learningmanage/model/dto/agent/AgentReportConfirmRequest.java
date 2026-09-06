@@ -11,4 +11,3 @@ public class AgentReportConfirmRequest {
     @NotBlank @Size(max = 64)
     private String operationId;
 }
-

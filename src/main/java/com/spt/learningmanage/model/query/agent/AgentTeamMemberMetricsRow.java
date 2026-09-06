@@ -12,4 +12,3 @@ public class AgentTeamMemberMetricsRow {
     private Long completedWithDueDateLast30Days;
     private Long onTimeCompletedLast30Days;
 }
-

@@ -13,4 +13,3 @@ public enum AgentSceneEnum {
         this.draftScene = draftScene;
     }
 }
-

@@ -16,4 +16,3 @@ public class AgentProjectTaskRow {
     private LocalDateTime completedAt;
     private LocalDateTime updateTime;
 }
-

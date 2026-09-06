@@ -17,4 +17,3 @@ class AgentRunStatusEnumTest {
         assertTrue(AgentRunStatusEnum.CANCELED.isTerminal());
     }
 }
-

@@ -20,4 +20,3 @@ class AgentRunStateMachineTest {
                 () -> stateMachine.requireTransition(AgentRunStatusEnum.FAILED, AgentRunStatusEnum.RUNNING));
     }
 }
-

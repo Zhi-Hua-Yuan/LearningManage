@@ -44,4 +44,3 @@ public class AnalysisReportController {
         return ResultUtils.success(reportService.delete(reportId));
     }
 }
-

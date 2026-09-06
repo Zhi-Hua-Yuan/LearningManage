@@ -12,4 +12,3 @@ public record AgentRiskItem(String category,
         evidenceIds = evidenceIds == null ? List.of() : List.copyOf(evidenceIds);
     }
 }
-

@@ -41,4 +41,3 @@ public class QueryProjectTasksAgentTool implements AgentTool<EmptyToolArguments>
                 .toList();
     }
 }
-

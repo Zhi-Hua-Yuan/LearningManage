@@ -84,4 +84,3 @@ fs.writeFileSync(runtimeFile, `${JSON.stringify({
   createdAt: new Date().toISOString(),
 }, null, 2)}\n`);
 console.log(`Stage 6 fixture ready: project=${projectId}, team=${teamId}, faultProjects=5`);
-

@@ -17,4 +17,3 @@ public record AnalysisReportVO(
         LocalDateTime generatedAt
 ) {
 }
-

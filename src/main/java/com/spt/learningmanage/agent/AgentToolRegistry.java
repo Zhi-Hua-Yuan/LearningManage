@@ -73,4 +73,3 @@ public class AgentToolRegistry {
         return tool.execute(context, (A) arguments);
     }
 }
-

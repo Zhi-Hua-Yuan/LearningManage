@@ -15,4 +15,3 @@ public interface AgentRunQueueService {
 
     boolean complete(AiAgentRun run, AgentRunCompletion completion);
 }
-

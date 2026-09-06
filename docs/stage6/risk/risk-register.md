@@ -11,4 +11,3 @@
 | Provider Tool Calling fails | fixed read-only workflow and explicit partial reason | Medium |
 | Agent executor saturation | bounded executor; durable lease-based retry; per-user admission limit | Low |
 | Tool logs leak source bodies | metadata-only summaries and hashes | Low |
-

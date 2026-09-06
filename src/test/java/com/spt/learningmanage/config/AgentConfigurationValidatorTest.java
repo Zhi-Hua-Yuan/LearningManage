@@ -32,4 +32,3 @@ class AgentConfigurationValidatorTest {
                 () -> new AgentConfigurationValidator(properties).validate());
     }
 }
-

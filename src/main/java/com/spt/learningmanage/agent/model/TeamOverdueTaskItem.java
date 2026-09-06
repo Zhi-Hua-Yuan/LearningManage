@@ -8,4 +8,3 @@ public record TeamOverdueTaskItem(String localId,
                                   Integer priority,
                                   LocalDate dueDate) {
 }
-

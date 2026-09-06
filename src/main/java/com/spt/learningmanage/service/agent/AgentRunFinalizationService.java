@@ -8,4 +8,3 @@ public interface AgentRunFinalizationService {
 
     void completeWithoutDraft(AiAgentRun run, String terminalStatus, String failureType, String safeMessage);
 }
-

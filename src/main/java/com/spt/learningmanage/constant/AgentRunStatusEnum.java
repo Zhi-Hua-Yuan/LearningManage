@@ -19,4 +19,3 @@ public enum AgentRunStatusEnum {
         return TERMINAL.contains(this);
     }
 }
-

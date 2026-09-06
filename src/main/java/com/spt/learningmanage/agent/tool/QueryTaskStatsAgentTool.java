@@ -46,4 +46,3 @@ public class QueryTaskStatsAgentTool implements AgentTool<EmptyToolArguments> {
 
     private long value(Long value) { return value == null ? 0 : value; }
 }
-

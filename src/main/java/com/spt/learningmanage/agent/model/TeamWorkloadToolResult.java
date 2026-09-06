@@ -7,4 +7,3 @@ public record TeamWorkloadToolResult(List<TeamMemberWorkloadMetric> members) {
         members = members == null ? List.of() : List.copyOf(members);
     }
 }
-

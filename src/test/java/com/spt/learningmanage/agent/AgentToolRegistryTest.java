@@ -56,4 +56,3 @@ class AgentToolRegistryTest {
         @Override public Object execute(ToolExecutionContext context, Args arguments) { return arguments.query(); }
     }
 }
-

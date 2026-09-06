@@ -15,4 +15,3 @@ public record TeamMemberWorkloadMetric(
         String ruleVersion
 ) {
 }
-

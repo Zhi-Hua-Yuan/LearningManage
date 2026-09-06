@@ -12,4 +12,3 @@ public class AgentProjectStatsRow {
     private Long dueNext7DaysCount;
     private Long completedLast30DaysCount;
 }
-

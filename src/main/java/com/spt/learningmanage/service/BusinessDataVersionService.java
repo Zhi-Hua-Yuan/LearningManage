@@ -11,4 +11,3 @@ public interface BusinessDataVersionService {
 
     void incrementProjectAndOwningTeam(Long projectId);
 }
-

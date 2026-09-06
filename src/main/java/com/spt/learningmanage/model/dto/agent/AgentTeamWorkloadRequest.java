@@ -13,4 +13,3 @@ public class AgentTeamWorkloadRequest {
     @NotBlank @Size(max = 64)
     private String clientRequestId;
 }
-

@@ -19,4 +19,3 @@ public record AgentRunVO(
         LocalDateTime finishedAt
 ) {
 }
-

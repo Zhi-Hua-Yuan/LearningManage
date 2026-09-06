@@ -1,7 +1,7 @@
 # Stage 6 deterministic application-path evaluation
 
-Date: 2026-09-06  
-Environment: MySQL 8.0.41 container, Spring Boot candidate, local OpenAI-compatible deterministic Stub  
+Date: 2026-09-06
+Environment: MySQL 8.0.41 container, Spring Boot candidate, local OpenAI-compatible deterministic Stub
 Promptfoo: cache disabled, sharing disabled, concurrency 1
 
 ## Result

@@ -44,4 +44,3 @@ public class AiAgentRun {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-
