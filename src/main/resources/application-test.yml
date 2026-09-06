@@ -21,7 +21,7 @@ spring:
 ai:
   api-key: ${ALIYUN_API_KEY:test-only-not-a-real-key}
   knowledge-index:
-    worker-enabled: false
+    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:false}
   embedding:
     base-url: ${AI_EMBEDDING_BASE_URL:http://127.0.0.1:18080/compatible-mode/v1}
     query-base-url: ${AI_EMBEDDING_QUERY_BASE_URL:http://127.0.0.1:18080/api/v1}

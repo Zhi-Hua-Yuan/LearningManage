@@ -135,6 +135,7 @@ jobs:
           SERVER_PORT: '18133'
           APP_SCHEDULING_ENABLED: 'true'
           AI_KNOWLEDGE_WORKER_ENABLED: 'true'
+          RATE_LIMIT_AI_ENABLED: 'false'
         run: |
           set -Eeuo pipefail
           ./mvnw -B -ntp -DskipTests package
