@@ -5,7 +5,7 @@
   "backend": {
     "repository": "Zhi-Hua-Yuan/LearningManage",
     "branch": "codex/stage6-agent",
-    "sha": "f541a9636e56f6d7d6c1f6a8d81769ed712390c8"
+    "sha": "468bd7aee32806c92ec41239b76e8f04a0dd74ff"
   },
   "frontend": {
     "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
