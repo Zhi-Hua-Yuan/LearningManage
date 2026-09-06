@@ -71,7 +71,9 @@ def task_ids(text, pending_only=False):
 def breakdown_content(text, detailed=False):
     milestone_count = 3
     task_count = 4 if detailed else 3
-    if "CI deterministic AI breakdown flow" in text:
+    target_match = re.search(r"(?:^|\n)目标：([^，\n]+)", text)
+    release_target = target_match.group(1).strip() if target_match else ""
+    if release_target.startswith("D2-C-"):
         milestone_count = 2
         task_count = 2
     today_match = re.search(r"今天日期(?:（含）)?：(\d{4}-\d{2}-\d{2})", text)
