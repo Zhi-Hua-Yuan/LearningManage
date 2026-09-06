@@ -49,6 +49,8 @@ class QdrantVectorSearchClientHttpTest {
         assertEquals(0.91, hits.get(0).score());
         String body = requestBody.get();
         assertTrue(body.contains("\"projectId\""));
+        assertTrue(body.contains("\"vector\":[0.1,0.2,0.3]"));
+        assertFalse(body.contains("\"query\""));
         assertTrue(body.contains("\"PRIVATE\""));
         assertTrue(body.contains("\"ownerUserId\""));
         assertTrue(body.contains("\"score_threshold\":0.25"));
