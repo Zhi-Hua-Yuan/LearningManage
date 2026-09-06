@@ -1,0 +1,167 @@
+name: Stage 6 controlled Agent gate
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage6-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  DB_NAME: learning_manage_ci_empty
+  TEST_DB_HOST: 127.0.0.1
+  TEST_DB_PORT: '13306'
+  TEST_DB_NAME: learning_manage_ci_empty
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+  JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+  ALIYUN_API_KEY: ci-only-not-a-real-key
+  AI_BASE_URL: http://127.0.0.1:18080/compatible-mode/v1
+  AI_MODEL: ci-ai-stub
+  AI_FALLBACK_MODEL: ci-ai-stub
+  AI_AGENT_ENABLED: 'true'
+  AI_AGENT_WORKER_ENABLED: 'false'
+  AI_AGENT_TOOL_CALLING_ENABLED: 'true'
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage6
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage6 --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage6
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage6
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_stage6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: evals/stage3/package-lock.json
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Start deterministic Stage 6 AI Stub
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          AI_STUB_PORT=18080 python3 scripts/ci/stubs/ai-chat-completions-stub.py \
+            >"$RUNNER_TEMP/stage6-ai-stub.log" 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:18080/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Provision database through V7
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Run Stage 6 deterministic contracts
+        run: >-
+          ./mvnw -B -ntp
+          -Dtest=Agent*Test,AgentRunWorkerTest,AgentRunMapperContractTest,
+          FlywayV7MigrationStaticTest,FlywayPublishedMigrationImmutabilityTest,
+          LearningManageApplicationTests test
+      - name: Run Stage 6 application-path Agent integration
+        env:
+          STAGE6_AGENT_IT_ENABLED: 'true'
+        run: ./mvnw -B -ntp -Dtest=AgentEndToEndIT test
+      - name: Start Stage 6 application candidate
+        shell: bash
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SERVER_PORT: '18133'
+          APP_SCHEDULING_ENABLED: 'true'
+          AI_AGENT_ENABLED: 'true'
+          AI_AGENT_WORKER_ENABLED: 'true'
+          AI_AGENT_TOOL_CALLING_ENABLED: 'true'
+          AI_AGENT_POLL_DELAY_MS: '100'
+          AI_AGENT_OVERALL_TIMEOUT_SECONDS: '15'
+          AI_RAG_ENABLED: 'false'
+          RATE_LIMIT_AI_ENABLED: 'false'
+          FLYWAY_ENABLED: 'false'
+        run: |
+          set -Eeuo pipefail
+          ./mvnw -B -ntp -DskipTests package
+          java -jar target/LearningManage-0.0.1-SNAPSHOT.jar \
+            >"$RUNNER_TEMP/stage6-application.log" 2>&1 &
+          echo "$!" >"$RUNNER_TEMP/stage6-application.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:18133/api/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run 100-case Stage 6 application-path evaluation
+        working-directory: evals/stage6
+        env:
+          STAGE6_API_BASE_URL: http://127.0.0.1:18133/api
+          STAGE6_EVAL_ACCOUNT: stage6eval
+          STAGE6_EVAL_PASSWORD: ci-only-stage6-eval-password
+          STAGE6_EVAL_ALLOW_REGISTER: 'true'
+          STAGE6_AGENT_TIMEOUT_MS: '25000'
+        run: |
+          set -Eeuo pipefail
+          npm run prepare:fixture
+          npm run eval
+      - name: Validate Stage 6 Promptfoo suite
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --prefix evals/stage3
+          npm rebuild better-sqlite3 --prefix evals/stage3
+          npm test --prefix evals/stage6
+          npm run validate --prefix evals/stage6
+          git diff --exit-code -- evals/stage6/tests/generated.json
+          bash scripts/ci/verify-stage6-acceptance.sh
+      - name: Upload test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage6-agent-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/surefire-reports
+            ${{ runner.temp }}/stage6-ai-stub.log
+            ${{ runner.temp }}/stage6-application.log
+            evals/stage6/output.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop Stage 6 application candidate
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/stage6-application.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/stage6-application.pid")" || true
+          fi

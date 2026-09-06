@@ -5,6 +5,9 @@ target/
 evals/stage5/.promptfoo/
 evals/stage5/.runtime-fixture.json
 evals/stage5/output.json
+evals/stage6/.promptfoo/
+evals/stage6/.runtime-fixture.json
+evals/stage6/output.json
 *.jar
 *.war
 *.ear

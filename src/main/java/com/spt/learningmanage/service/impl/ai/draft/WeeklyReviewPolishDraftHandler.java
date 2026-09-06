@@ -15,6 +15,7 @@ import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.entity.WeeklyReview;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.ai.draft.AiDraftHandler;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,9 @@ public class WeeklyReviewPolishDraftHandler implements AiDraftHandler<WeeklyRevi
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     public WeeklyReviewPolishDraftHandler(WeeklyReviewMapper weeklyReviewMapper,
                                           PermissionService permissionService,
@@ -98,6 +102,13 @@ public class WeeklyReviewPolishDraftHandler implements AiDraftHandler<WeeklyRevi
         if (knowledgeIndexEventPublisher != null) {
             knowledgeIndexEventPublisher.publish(KnowledgeSourceTypeEnum.WEEKLY_REVIEW,
                     reviewId, KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        }
+        if (businessDataVersionService != null) {
+            if (review.getFocusProjectId() != null) {
+                businessDataVersionService.incrementProjectAndOwningTeam(review.getFocusProjectId());
+            } else if (review.getTeamId() != null) {
+                businessDataVersionService.incrementTeam(review.getTeamId());
+            }
         }
         return reviewId;
     }

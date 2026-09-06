@@ -118,6 +118,11 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    public void requireTeamWorkloadAnalyze(Long actorUserId, Long teamId) {
+        requireTeamManageProject(actorUserId, teamId);
+    }
+
+    @Override
     public void requireTaskView(Long actorUserId, Long taskId) {
         requireTaskAction(actorUserId, taskId, PermissionActionEnum.TASK_VIEW);
     }

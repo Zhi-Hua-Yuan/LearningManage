@@ -39,6 +39,12 @@ def stage3_fault(text):
 
 
 def stage3_scene(text):
+    if "受控的项目风险分析 Agent" in text:
+        return "agent-project-risk"
+    if "团队负载公开摘要助手" in text:
+        return "agent-team-public"
+    if "团队负载分析助手" in text:
+        return "agent-team-manager"
     if "基于项目证据回答问题" in text:
         return "rag-project"
     if "任务智能重排助手" in text:
@@ -276,6 +282,88 @@ class Handler(BaseHTTPRequestHandler):
             tool_call.get("id") for tool_call in tool_calls
         }
 
+    def _agent_called_tools(self, messages):
+        called = []
+        for message in messages if isinstance(messages, list) else []:
+            if not isinstance(message, dict) or message.get("role") != "assistant":
+                continue
+            for tool_call in message.get("tool_calls") or []:
+                try:
+                    name = tool_call["function"]["name"]
+                except (KeyError, TypeError):
+                    continue
+                if name not in called:
+                    called.append(name)
+        return called
+
+    def _handle_stage6_agent(self, request, messages, text):
+        scene = stage3_scene(text)
+        if scene == "agent-team-manager":
+            self._send_json(200, self._completion(compact_json({
+                "managerSummary": "团队负载主要集中在临近到期与逾期任务，建议由管理者复核优先级。",
+                "recommendations": ["优先处理逾期任务", "均衡未来七天集中到期事项"],
+            }), usage=USAGE))
+            return True
+        if scene == "agent-team-public":
+            self._send_json(200, self._completion(compact_json({
+                "publicSummary": "团队近期存在一定任务压力，建议共同确认优先级和阻塞事项。",
+            }), usage=USAGE))
+            return True
+        if scene != "agent-project-risk":
+            return False
+
+        tools = request.get("tools") or []
+        called = self._agent_called_tools(messages)
+        fault_match = re.search(r"\[\[STAGE6_AGENT:([a-z0-9-]+)\]\]", text)
+        fault = fault_match.group(1) if fault_match else None
+        if fault == "timeout":
+            time.sleep(6)
+        if fault == "unregistered-tool":
+            call = self._tool_call(0, "agent-bad-tool", "deleteProject", "{}")
+            self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
+            return True
+        if fault == "invalid-arguments":
+            call = self._tool_call(0, "agent-bad-args", "queryProjectTasks", '{"projectId":999999}')
+            self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
+            return True
+        if fault == "duplicate-tool" and called:
+            call = self._tool_call(0, "agent-duplicate", called[0], "{}")
+            self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
+            return True
+
+        if tools and "queryTaskStats" not in called:
+            call = self._tool_call(0, "agent-stats", "queryTaskStats", "{}")
+            self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
+            return True
+        if tools and "queryOverdueTasks" not in called:
+            call = self._tool_call(0, "agent-overdue", "queryOverdueTasks", "{}")
+            self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
+            return True
+        if fault == "invalid-json":
+            self._send_json(200, self._completion("{invalid-json", usage=USAGE))
+            return True
+
+        evidence_ids = []
+        for value in re.findall(r'"citationId"\s*:\s*"(S\d+)"', text):
+            if value not in evidence_ids:
+                evidence_ids.append(value)
+        self._send_json(200, self._completion(compact_json({
+            "riskLevel": "MEDIUM",
+            "summary": "项目存在待完成和逾期任务，需要优先处理交付风险。",
+            "riskItems": [{
+                "category": "OVERDUE",
+                "severity": "MEDIUM",
+                "reason": "存在未按期完成的任务",
+                "impact": "可能影响项目交付节奏",
+                "recommendation": "复核逾期任务的阻塞原因并重新确认优先级",
+                "evidenceIds": evidence_ids[:1],
+            }],
+            "positiveSignals": ["系统已形成可核对的任务统计"],
+            "insufficientEvidence": False,
+            "citations": evidence_ids[:1],
+        }), usage=USAGE))
+        return True
+
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
         if self.path == "/health":
             self._send_json(200, {"status": "ok"})
@@ -331,6 +419,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, self._completion(None, "tool_calls", [call]))
             return
         messages = request.get("messages") or []
+        text = message_text(messages)
+        if self._handle_stage6_agent(request, messages, text):
+            return
         if model == "stub-tool-call" and messages and isinstance(messages[-1], dict) \
                 and messages[-1].get("role") == "tool":
             if not self._valid_tool_round_trip(messages):
@@ -363,7 +454,6 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, self._completion("未返回用量"))
             return
 
-        text = message_text(messages)
         fault = stage3_fault(text)
         if fault == "http-429":
             self._send_json(429, {"error": {"type": "rate_limit", "status": 429}})

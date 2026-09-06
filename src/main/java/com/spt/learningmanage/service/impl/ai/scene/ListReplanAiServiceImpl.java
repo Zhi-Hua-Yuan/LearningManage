@@ -26,6 +26,7 @@ import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import jakarta.annotation.Resource;
 import com.spt.learningmanage.service.ai.scene.ListReplanAiService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
@@ -78,6 +79,9 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     public ListReplanAiServiceImpl(TaskMapper taskMapper,
                                    ProjectMapper projectMapper,
@@ -277,6 +281,9 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
             knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK,
                     changedItems.stream().map(AiReplanItem::getTaskId).toList(),
                     KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        }
+        if (businessDataVersionService != null && !changedItems.isEmpty()) {
+            businessDataVersionService.incrementProjectAndOwningTeam(listId);
         }
 
         Project project = projectMapper.selectOne(new LambdaQueryWrapper<Project>()

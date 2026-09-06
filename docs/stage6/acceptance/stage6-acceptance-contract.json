@@ -1,0 +1,40 @@
+{
+  "stage": 6,
+  "name": "controlled-asynchronous-agent",
+  "status": "IMPLEMENTATION_COMPLETE_EXTERNAL_ACCEPTANCE_PENDING",
+  "required": {
+    "v7MigrationImmutable": true,
+    "durableRunQueue": true,
+    "leaseAndFencingToken": true,
+    "explicitActorToolContext": true,
+    "readOnlyRegisteredTools": 6,
+    "maximumToolCalls": 4,
+    "projectRiskToolCalling": true,
+    "projectRiskFixedFallback": true,
+    "teamWorkloadPrivatePublicSplit": true,
+    "draftBeforeFormalWrite": true,
+    "reportPermissionShaping": true,
+    "stage5RegressionRequired": true,
+    "promptfooCases": 100,
+    "agentEndToEndCases": 4
+  },
+  "acceptanceThresholds": {
+    "unauthorizedToolCalls": 0,
+    "directBusinessWrites": 0,
+    "publicPrivacyLeaks": 0,
+    "structuredParseRateMinimum": 0.95,
+    "fixedWorkflowFallbackRate": 1.0
+  },
+  "localEvidence": {
+    "emptyDatabaseV1ToV7": "PASS",
+    "existingDatabaseV6ToV7": "PASS",
+    "v7PostVerify": "PASS_8_OF_8",
+    "agentEndToEnd": "PASS_4_OF_4",
+    "promptfooApplicationPath": "PASS_100_OF_100",
+    "frontendTests": "PASS_491_OF_491",
+    "frontendApiOperations": 54,
+    "runtimeApiOperations": 80,
+    "matchedFrontendOperations": 54,
+    "missingFrontendOperations": 0
+  }
+}

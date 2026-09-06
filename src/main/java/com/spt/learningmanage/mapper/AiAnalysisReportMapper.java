@@ -1,0 +1,56 @@
+package com.spt.learningmanage.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.spt.learningmanage.model.entity.AiAnalysisReport;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+
+@Mapper
+public interface AiAnalysisReportMapper extends BaseMapper<AiAnalysisReport> {
+    @Select("""
+            <script>
+            SELECT DISTINCT r.*
+            FROM ai_analysis_report r
+            LEFT JOIN project p ON p.id = r.project_id AND p.is_delete = 0
+            LEFT JOIN team_member pm ON pm.team_id = p.team_id AND pm.user_id = #{actorUserId} AND pm.is_delete = 0
+            LEFT JOIN team_member tm ON tm.team_id = r.team_id AND tm.user_id = #{actorUserId} AND tm.is_delete = 0
+            WHERE r.is_delete = 0
+              AND ((r.report_type = 'PROJECT_RISK' AND (p.user_id = #{actorUserId} OR pm.id IS NOT NULL))
+                OR (r.report_type = 'TEAM_WORKLOAD' AND tm.id IS NOT NULL))
+            <if test="reportType != null and reportType != ''">AND r.report_type = #{reportType}</if>
+            <if test="projectId != null">AND r.project_id = #{projectId}</if>
+            <if test="teamId != null">AND r.team_id = #{teamId}</if>
+            ORDER BY r.create_time DESC, r.id DESC
+            LIMIT #{limit} OFFSET #{offset}
+            </script>
+            """)
+    List<AiAnalysisReport> selectAccessiblePage(@Param("actorUserId") Long actorUserId,
+                                                 @Param("reportType") String reportType,
+                                                 @Param("projectId") Long projectId,
+                                                 @Param("teamId") Long teamId,
+                                                 @Param("offset") long offset,
+                                                 @Param("limit") long limit);
+
+    @Select("""
+            <script>
+            SELECT COUNT(DISTINCT r.id)
+            FROM ai_analysis_report r
+            LEFT JOIN project p ON p.id = r.project_id AND p.is_delete = 0
+            LEFT JOIN team_member pm ON pm.team_id = p.team_id AND pm.user_id = #{actorUserId} AND pm.is_delete = 0
+            LEFT JOIN team_member tm ON tm.team_id = r.team_id AND tm.user_id = #{actorUserId} AND tm.is_delete = 0
+            WHERE r.is_delete = 0
+              AND ((r.report_type = 'PROJECT_RISK' AND (p.user_id = #{actorUserId} OR pm.id IS NOT NULL))
+                OR (r.report_type = 'TEAM_WORKLOAD' AND tm.id IS NOT NULL))
+            <if test="reportType != null and reportType != ''">AND r.report_type = #{reportType}</if>
+            <if test="projectId != null">AND r.project_id = #{projectId}</if>
+            <if test="teamId != null">AND r.team_id = #{teamId}</if>
+            </script>
+            """)
+    long countAccessible(@Param("actorUserId") Long actorUserId,
+                         @Param("reportType") String reportType,
+                         @Param("projectId") Long projectId,
+                         @Param("teamId") Long teamId);
+}

@@ -66,7 +66,27 @@ public enum ErrorCode {
     RAG_RESULT_EXPIRED(32006, "RAG 结果已过期"),
     RAG_CITATION_INVALID(32007, "RAG 引用校验失败"),
     RAG_SOURCE_CHANGED(32008, "回答生成期间知识来源发生变化"),
-    RERANK_UNAVAILABLE(32009, "重排服务暂时不可用");
+    RERANK_UNAVAILABLE(32009, "重排服务暂时不可用"),
+
+    /** Controlled asynchronous Agent and reports (33xxx). */
+    AGENT_DISABLED(33001, "Agent 功能未启用"),
+    AGENT_QUEUE_FULL(33002, "Agent 队列已满"),
+    AGENT_CONCURRENCY_LIMIT(33003, "Agent 并发数量已达上限"),
+    AGENT_RUN_NOT_FOUND(33004, "Agent 运行不存在"),
+    AGENT_RUN_NOT_FINISHED(33005, "Agent 运行尚未完成"),
+    AGENT_RUN_ALREADY_FINISHED(33006, "Agent 运行已经结束"),
+    AGENT_TIMEOUT(33007, "Agent 运行超时"),
+    AGENT_CANCELED(33008, "Agent 运行已取消"),
+    AGENT_WORKER_LOST(33009, "Agent Worker 执行中断"),
+    AGENT_DATA_CHANGED(33010, "Agent 分析期间业务数据发生变化"),
+    AGENT_REPORT_STALE(33011, "Agent 报告所依据的数据已变化"),
+    TOOL_NOT_ALLOWED(33012, "Agent Tool 不允许调用"),
+    TOOL_ARGUMENT_INVALID(33013, "Agent Tool 参数不合法"),
+    TOOL_CALL_LIMIT_EXCEEDED(33014, "Agent Tool 调用次数超限"),
+    TOOL_EXECUTION_FAILED(33015, "Agent Tool 执行失败"),
+    REPORT_NOT_FOUND(33016, "分析报告不存在"),
+    REPORT_NO_ACCESS(33017, "无权访问分析报告"),
+    REPORT_ALREADY_DELETED(33018, "分析报告已删除");
 
     private final int code;
     private final String message;

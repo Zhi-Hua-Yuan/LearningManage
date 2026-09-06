@@ -104,6 +104,24 @@ ai:
     question-hmac-secret: ${AI_RAG_QUESTION_HMAC_SECRET:}
     status-refresh-ms: ${AI_RAG_STATUS_REFRESH_MS:600000}
     status-refresh-batch-size: ${AI_RAG_STATUS_REFRESH_BATCH_SIZE:100}
+  agent:
+    enabled: ${AI_AGENT_ENABLED:false}
+    worker-enabled: ${AI_AGENT_WORKER_ENABLED:false}
+    tool-calling-enabled: ${AI_AGENT_TOOL_CALLING_ENABLED:false}
+    poll-delay-ms: ${AI_AGENT_POLL_DELAY_MS:1000}
+    batch-size: ${AI_AGENT_BATCH_SIZE:5}
+    max-concurrent-runs: ${AI_AGENT_MAX_CONCURRENT_RUNS:4}
+    max-concurrent-runs-per-user: ${AI_AGENT_MAX_CONCURRENT_RUNS_PER_USER:2}
+    lease-seconds: ${AI_AGENT_LEASE_SECONDS:90}
+    heartbeat-seconds: ${AI_AGENT_HEARTBEAT_SECONDS:15}
+    overall-timeout-seconds: ${AI_AGENT_OVERALL_TIMEOUT_SECONDS:60}
+    tool-timeout-seconds: ${AI_AGENT_TOOL_TIMEOUT_SECONDS:10}
+    max-tool-calls: ${AI_AGENT_MAX_TOOL_CALLS:4}
+    max-attempts: ${AI_AGENT_MAX_ATTEMPTS:2}
+    max-tool-output-chars: ${AI_AGENT_MAX_TOOL_OUTPUT_CHARS:20000}
+    project-task-limit: ${AI_AGENT_PROJECT_TASK_LIMIT:50}
+    history-limit: ${AI_AGENT_HISTORY_LIMIT:5}
+    draft-ttl-minutes: ${AI_AGENT_DRAFT_TTL_MINUTES:30}
   rerank:
     base-url: ${AI_RERANK_BASE_URL:https://dashscope.aliyuncs.com/compatible-api/v1}
     api-key: ${AI_RERANK_API_KEY:${ALIYUN_API_KEY:}}

@@ -36,6 +36,9 @@ public interface PermissionService {
 
     void requireTeamMemberList(Long actorUserId, Long teamId);
 
+    /** OWNER/ADMIN-only access to member-level workload analysis. */
+    void requireTeamWorkloadAnalyze(Long actorUserId, Long teamId);
+
     void requireTaskView(Long actorUserId, Long taskId);
 
     void requireTaskEditContent(Long actorUserId, Long taskId);

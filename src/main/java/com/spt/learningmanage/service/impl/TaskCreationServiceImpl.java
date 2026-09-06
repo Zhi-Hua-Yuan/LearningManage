@@ -13,6 +13,7 @@ import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,9 @@ public class TaskCreationServiceImpl implements TaskCreationService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -66,6 +70,9 @@ public class TaskCreationServiceImpl implements TaskCreationService {
         if (knowledgeIndexEventPublisher != null) {
             knowledgeIndexEventPublisher.publish(
                     KnowledgeSourceTypeEnum.TASK, task.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        }
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementProjectAndOwningTeam(task.getProjectId());
         }
         return task.getId();
     }

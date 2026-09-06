@@ -55,3 +55,12 @@ rate-limit:
       list-replan:
         window-seconds: 60
         max-requests: 3
+      rag-project-ask:
+        window-seconds: 60
+        max-requests: 10
+      project-risk-report:
+        window-seconds: 600
+        max-requests: 5
+      team-workload-report:
+        window-seconds: 600
+        max-requests: 5
