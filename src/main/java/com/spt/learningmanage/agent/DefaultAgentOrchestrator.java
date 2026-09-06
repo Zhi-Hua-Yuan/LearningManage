@@ -147,6 +147,9 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         String task = "分析当前项目风险。必须先调用 queryTaskStats 和 queryOverdueTasks。";
         if (ragProperties.isEnabled()) {
             task += "需要历史证据时调用 retrieveProjectHistory。";
+        } else {
+            task += "当前未提供历史引用工具，最终 citations 以及每个风险项的 evidenceIds 必须是空数组，"
+                    + "不得把任务 localId 当作可持久化引用。";
         }
         messages.add(AiChatMessage.user(task));
         List<AiToolDefinition> definitions = projectToolDefinitions();
