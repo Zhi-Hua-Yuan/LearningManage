@@ -25,9 +25,11 @@ done
 mapfile -t model_calls < <(
   grep -RInE --include='*.java' 'aiModelClient\.(chat|invoke)\(' "$main_source" || true
 )
-[[ "${#model_calls[@]}" -eq 1 ]] || ci_fail "ai_model_client_call_count_invalid:${#model_calls[@]}"
-[[ "${model_calls[0]}" == *'/ai/pipeline/AiInvocationPipeline.java:'* ]] \
-  || ci_fail "ai_model_client_call_outside_pipeline"
+[[ "${#model_calls[@]}" -eq 2 ]] || ci_fail "ai_model_client_call_count_invalid:${#model_calls[@]}"
+for model_call in "${model_calls[@]}"; do
+  [[ "$model_call" == *'/ai/pipeline/AiInvocationPipeline.java:'* ]] \
+    || ci_fail "ai_model_client_call_outside_pipeline"
+done
 
 mapfile -t transport_imports < <(
   grep -RIn --include='*.java' \

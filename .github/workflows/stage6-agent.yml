@@ -18,6 +18,7 @@ env:
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   DB_NAME: learning_manage_ci_empty
+  FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
   TEST_DB_HOST: 127.0.0.1
   TEST_DB_PORT: '13306'
   TEST_DB_NAME: learning_manage_ci_empty
