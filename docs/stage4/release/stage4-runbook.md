@@ -10,7 +10,10 @@
 6. Start Qdrant 1.18.2 with a persistent volume. Bind the final image digest in the release manifest.
 7. Start the application with `AI_KNOWLEDGE_WORKER_ENABLED=false`; verify core project/task/review APIs.
 8. Initialize/validate `learning_knowledge_v1_1024` and `learning_knowledge_current` through a controlled worker smoke.
-9. Run the protected 10-document `text-embedding-v4` smoke and verify dense dimension 1024. Do not use private production text.
+9. Verify that the GitHub Environment `real-ai-validation` contains a non-empty
+   `ALIYUN_API_KEY` secret. Run the protected 10-document `text-embedding-v4` smoke
+   against the exact release SHA and verify model identity, usage, and dense dimension
+   1024. Do not use private production text.
 10. Enable the worker, submit `stage4-initial-v1`, and wait for the backfill terminal state.
 11. Require event backlog zero, DEAD zero, MySQL/document/Qdrant reconciliation difference zero, and freshness P95 <= 60 seconds.
 12. Freeze evidence before enabling Stage 5 work.
