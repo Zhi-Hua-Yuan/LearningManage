@@ -163,11 +163,14 @@ public class QdrantVectorStoreClient implements VectorStoreClient {
     private void ensurePayloadIndexes() {
         Map<String, String> indexes = Map.of(
                 "visibilityType", "keyword",
+                "userId", "integer",
                 "ownerUserId", "integer",
                 "teamId", "integer",
                 "projectId", "integer",
                 "sourceType", "keyword",
                 "sourceId", "integer",
+                "sourceVersion", "keyword",
+                "updatedAt", "datetime",
                 "documentKey", "keyword"
         );
         for (Map.Entry<String, String> entry : indexes.entrySet()) {

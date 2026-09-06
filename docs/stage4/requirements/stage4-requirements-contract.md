@@ -22,6 +22,12 @@ Status: `FROZEN_FOR_IMPLEMENTATION`
 - Logs and admin APIs never return source text, vectors, credentials, or unredacted provider errors.
 - Qdrant is bound to loopback in local development; non-local deployments require TLS and an API key.
 - Payload scopes are server-derived and cannot be supplied by clients or models.
+- Every Qdrant point contains the stable contract fields `userId`, `teamId` when applicable,
+  `projectId`, `sourceType`, `sourceId`, `sourceVersion`, and `updatedAt`. The compatibility
+  alias `ownerUserId`, operational `indexedAt`, and hashes may also be present.
+- Queue freshness uses MySQL-generated `create_time` and `indexed_at` values so the metric
+  is independent of application-host and database-host time zones.
+- Qdrant datetime payload values are RFC 3339 strings with an explicit offset.
 
 ## Compatibility requirements
 

@@ -40,3 +40,8 @@ business mutation
 Stage 4 is complete only when incremental capture, initial backfill, deletion/access reconciliation, concurrent idempotency, dependency-failure isolation, Qdrant rebuild, protected provider smoke, and evidence sealing all pass the machine acceptance contract.
 
 Implementation, PR integration, MySQL migration gates, Qdrant integration, Docker runtime, and post-merge regression are complete. The protected real Embedding smoke and final release evidence remain pending because this session cannot dispatch the protected workflow or access its environment secret. No real-model quality or provider-smoke PASS is claimed.
+
+The final completion audit additionally enforces the original Qdrant payload names,
+database-clock freshness, idempotent INITIAL/REBUILD reconciliation, visibility and
+membership contraction, and retry/DEAD/replay behavior in the dedicated Stage 4
+integration workflow.

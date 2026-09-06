@@ -66,7 +66,7 @@ class QdrantVectorStoreClientHttpTest {
         client.deleteByDocumentKey("TASK:1:PRIVATE:2");
 
         assertTrue(calls.contains("PUT /collections/test_collection"));
-        assertEquals(7, calls.stream().filter(call -> call.equals("PUT /collections/test_collection/index")).count());
+        assertEquals(10, calls.stream().filter(call -> call.equals("PUT /collections/test_collection/index")).count());
         assertTrue(calls.contains("POST /collections/aliases"));
         assertTrue(calls.contains("PUT /collections/test_alias/points"));
         assertTrue(calls.contains("PUT /collections/test_alias/points/payload"));

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -64,6 +65,7 @@ class KnowledgeDocumentFactoryImplTest {
         task.setCreatedByUserId(1L);
         task.setTitle("实现索引");
         task.setDescription("完成可重复构建");
+        task.setUpdateTime(LocalDateTime.of(2026, 9, 6, 9, 0));
         when(fixture.taskMapper.selectOne(any(Wrapper.class))).thenReturn(task);
         when(fixture.projectMapper.selectOne(any(Wrapper.class))).thenReturn(project(10L, null, 1L));
 
@@ -73,7 +75,27 @@ class KnowledgeDocumentFactoryImplTest {
         assertEquals(1, documents.size());
         assertEquals("TASK:40:PRIVATE:10", documents.get(0).documentKey());
         assertEquals(1L, documents.get(0).ownerUserId());
+        assertEquals(1L, documents.get(0).payload().get("userId"));
+        assertEquals(1L, documents.get(0).payload().get("ownerUserId"));
+        assertEquals("2026-09-06T09:00:00+08:00", documents.get(0).payload().get("updatedAt"));
         assertFalse(documents.get(0).canonicalText().contains("用户"));
+    }
+
+    @Test
+    void reviewProducesNoDocumentAfterAuthorLosesProjectAccess() {
+        Fixture fixture = new Fixture();
+        WeeklyReview review = review();
+        Project project = project(10L, 20L, 2L);
+        when(fixture.weeklyReviewMapper.selectById(30L)).thenReturn(review);
+        when(fixture.projectMapper.selectOne(any(Wrapper.class))).thenReturn(project);
+        when(fixture.teamMapper.selectOne(any(Wrapper.class))).thenReturn(team(20L));
+        when(fixture.userMapper.selectById(1L)).thenReturn(user(1L));
+        when(fixture.permissionService.resolveProjectScopes(1L, List.of(10L))).thenReturn(Map.of());
+
+        var documents = fixture.factory().buildDesiredDocuments(
+                new KnowledgeSourceRef(KnowledgeSourceTypeEnum.WEEKLY_REVIEW, 30L));
+
+        assertTrue(documents.isEmpty());
     }
 
     private WeeklyReview review() {

@@ -13,6 +13,23 @@ Date: 2026-09-06
 - GitHub workflow and Compose YAML parse successfully through the repository's pinned Node YAML parser.
 - All 703 tests not requiring MySQL credentials or protected real-provider credentials pass with zero failures/errors.
 
+## Final acceptance hardening
+
+The post-merge completion audit added and locally passed five MySQL + Outbox + HTTP
+Embedding Stub + Qdrant end-to-end tests:
+
+1. create, payload-only update, delete, and mandatory payload fields;
+2. 100 committed events drained by four workers with database-clock P95 <= 60 seconds;
+3. idempotent INITIAL backfill and forced REBUILD with zero duplicate points;
+4. TEAM-to-PRIVATE visibility contraction and membership-loss point removal;
+5. retryable 429 recovery plus permanent protocol DEAD state and SYSTEM_ADMIN replay.
+
+The audit also fixed two issues found only under the stronger scenarios: TEAM review points
+are now removed when the author loses project access, and `indexed_at` uses the MySQL clock
+so freshness is correct when application and database hosts use different time zones.
+The manual-worker integration profile disables the actual scheduled-annotation processor;
+it does not rely on Spring Boot executor configuration to suppress `@EnableScheduling`.
+
 ## Remote deterministic acceptance
 
 - PR #136 was merged as `525f681dc7563147ff36964973c56343861a0b47`.
@@ -29,8 +46,8 @@ Date: 2026-09-06
 ## Expected remote gates
 
 ```text
-backend Maven suite: 765 tests after the provider-model response contract test
-Stage 4 dedicated IT: KnowledgeIndexEndToEndIT
+backend Maven suite: 766 tests after payload/access contract coverage
+Stage 4 dedicated IT: KnowledgeIndexEndToEndIT (5 tests)
 Flyway head: V4
 business tables: 27
 Flyway history rows: 4

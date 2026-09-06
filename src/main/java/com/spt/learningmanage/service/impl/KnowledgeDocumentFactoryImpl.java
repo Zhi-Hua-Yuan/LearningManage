@@ -23,12 +23,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
+
+    private static final ZoneId BUSINESS_TIME_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final TaskMapper taskMapper;
     private final WeeklyReviewMapper weeklyReviewMapper;
@@ -94,6 +99,7 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
         put(payload, "dueDate", task.getDueDate());
         put(payload, "assigneeUserId", task.getAssigneeUserId());
         put(payload, "sourceUpdatedAt", task.getUpdateTime());
+        putTimestamp(payload, "updatedAt", task.getUpdateTime());
         return List.of(new KnowledgeDocumentProjection(
                 key("TASK", task.getId(), visibility, project.getId()),
                 KnowledgeSourceTypeEnum.TASK, task.getId(), project.getId(), project.getTeamId(),
@@ -111,7 +117,8 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
             return List.of();
         }
         List<KnowledgeDocumentProjection> documents = new ArrayList<>(2);
-        if (authorCanViewProject(review.getUserId(), project.getId())) {
+        boolean authorCanViewProject = authorCanViewProject(review.getUserId(), project.getId());
+        if (authorCanViewProject) {
             Map<String, Object> payload = basePayload("WEEKLY_REVIEW", review.getId(), project,
                     review.getUserId(), KnowledgeVisibilityTypeEnum.PRIVATE);
             reviewPayload(payload, review);
@@ -123,7 +130,8 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
             ));
         }
 
-        if (WeeklyReviewVisibilityScopeEnum.TEAM.getValue().equals(review.getVisibilityScope())
+        if (authorCanViewProject
+                && WeeklyReviewVisibilityScopeEnum.TEAM.getValue().equals(review.getVisibilityScope())
                 && project.getTeamId() != null
                 && project.getTeamId().equals(review.getTeamId())
                 && StringUtils.hasText(review.getSharedSummary())
@@ -176,6 +184,9 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
         payload.put("sourceId", sourceId);
         payload.put("projectId", project.getId());
         put(payload, "teamId", project.getTeamId());
+        // Keep the original Stage 4 public payload contract. ownerUserId remains
+        // as an explicit compatibility alias for existing Stage 5 consumers.
+        payload.put("userId", ownerUserId);
         payload.put("ownerUserId", ownerUserId);
         payload.put("visibilityType", visibility.name());
         return payload;
@@ -185,6 +196,7 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
         put(payload, "year", review.getYear());
         put(payload, "weekNo", review.getWeekNo());
         put(payload, "sourceUpdatedAt", review.getUpdateTime());
+        putTimestamp(payload, "updatedAt", review.getUpdateTime());
     }
 
     private String reviewPrefix(WeeklyReview review) {
@@ -212,6 +224,13 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
     private void put(Map<String, Object> payload, String key, Object value) {
         if (value != null) {
             payload.put(key, value.toString());
+        }
+    }
+
+    private void putTimestamp(Map<String, Object> payload, String key, LocalDateTime value) {
+        if (value != null) {
+            payload.put(key, value.atZone(BUSINESS_TIME_ZONE)
+                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         }
     }
 }
