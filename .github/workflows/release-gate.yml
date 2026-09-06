@@ -558,7 +558,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.release-gate.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-release-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18080/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '4'
+      CI_EXPECTED_HISTORY_TOTAL: '6'
       CI_FRONTEND_ARTIFACT_DIR: frontend-artifacts
       CI_FRONTEND_DIST_DIR: ${{ github.workspace }}/frontend-artifacts/dist
       CI_API_CONTRACT_OUTPUT_DIR: ci-artifacts/api-contract
