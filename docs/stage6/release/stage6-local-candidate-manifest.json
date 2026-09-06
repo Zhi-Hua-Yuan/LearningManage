@@ -5,7 +5,7 @@
   "backend": {
     "repository": "Zhi-Hua-Yuan/LearningManage",
     "branch": "codex/stage6-agent",
-    "sha": "468bd7aee32806c92ec41239b76e8f04a0dd74ff"
+    "sha": "8daa82ebe03632da264ea5c954186c7ab219ded2"
   },
   "frontend": {
     "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
@@ -30,8 +30,8 @@
     "runtimeApiContract": "PASS_54_OF_54"
   },
   "externalEvidence": {
-    "realQwenToolCalling": "BLOCKED_NO_PROTECTED_CREDENTIAL",
-    "githubActions": "BLOCKED_INVALID_GH_AUTH",
+    "realQwenToolCalling": "READY_FOR_PROTECTED_WORKFLOW",
+    "githubActions": "READY_AUTHENTICATED",
     "crossRepositoryRemoteCandidate": "PENDING",
     "release": "NOT_CREATED"
   },

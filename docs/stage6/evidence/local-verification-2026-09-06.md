@@ -28,15 +28,17 @@ Status: `BACKEND_DETERMINISTIC_PASS / EXTERNAL_GATES_PENDING`
 
 ## Pending external evidence
 
-- Real Qwen Tool Calling smoke requires protected provider credentials;
-  deterministic 100-case application-path validation is complete.
+- Real Qwen Tool Calling application-path validation is defined in
+  `.github/workflows/stage6-real-agent.yml`; deterministic 100-case validation
+  is complete and the protected workflow is ready to dispatch.
 - The companion frontend implements Agent submission/polling/cancellation,
   draft confirmation, report list/detail, privacy-safe rendering and deletion.
   Its 491 tests, lint gates, 54-operation contract and production build pass.
 - Exact-SHA cross-repository runtime OpenAPI comparison remains a CI/release gate.
 - Local runtime OpenAPI comparison passed: frontend `54`, runtime `80`, matched
   `54`, missing `0`.
-- Protected real-Qwen execution is blocked locally because no Aliyun key is
-  exposed to this process and the configured GitHub CLI credential is invalid.
+- The GitHub CLI is authenticated and the `real-ai-validation` environment
+  exposes the required secret to its protected workflow. Real-provider status
+  remains pending until that exact-SHA workflow completes.
 
 No Stage 6 release or completion claim is made by this local record.
