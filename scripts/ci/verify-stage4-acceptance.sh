@@ -11,6 +11,8 @@ required=(
   docs/stage4/requirements/write-path-coverage.md
   docs/stage4/requirements/published-migrations.sha256
   docs/stage4/acceptance/stage4-acceptance-contract.json
+  docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json
+  docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json.sha256
   docs/stage4/architecture/ADR-001-transactional-outbox.md
   docs/stage4/architecture/ADR-002-knowledge-document-visibility.md
   docs/stage4/architecture/ADR-003-embedding-and-vector-store.md
@@ -39,6 +41,24 @@ jq -e '
   (.deferred | index("rag_query_and_citation")) != null and
   (.deferred | index("agent")) != null
 ' docs/stage4/acceptance/stage4-acceptance-contract.json >/dev/null
+
+jq -e '
+  .schemaVersion == 1 and .stage == "stage4" and .status == "DETERMINISTIC_PASS" and
+  .protectedRealEmbeddingStatus == "PENDING" and
+  (.sourceCommitSha | test("^[0-9a-f]{40}$")) and
+  .verified.backendTestCount == 766 and
+  .verified.stage4EndToEndTestCount == 5 and
+  .verified.embeddingDimension == 1024 and
+  .verified.duplicatePointCount == 0 and
+  .verified.backfillDifferenceCount == 0 and
+  .verified.externalFailureBusinessRollbackCount == 0 and
+  .verified.unauthorizedPointCountAfterAccessContraction == 0
+' docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json >/dev/null
+
+(cd docs/stage4/acceptance && sha256sum --check stage4-deterministic-evidence-manifest.json.sha256)
+jq -r '.sourceFiles | to_entries[] | "\(.value)  \(.key)"' \
+  docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json \
+  | sha256sum --check
 
 sha256sum --check docs/stage4/requirements/published-migrations.sha256
 grep -Fq 'CREATE TABLE `ai_knowledge_index_event`' src/main/resources/db/migration/V4__stage4_knowledge_index_and_outbox.sql

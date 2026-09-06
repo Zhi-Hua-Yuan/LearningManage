@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage4",
+  "status": "DETERMINISTIC_PASS",
+  "protectedRealEmbeddingStatus": "PENDING",
+  "sourceCommitSha": "3434b8856c4c9721f3fad866b3d5d7030ba66436",
+  "pullRequest": 138,
+  "candidateRuns": {
+    "backendCi": 34005358480,
+    "stage4KnowledgeIndex": 34005358486,
+    "stage3Evaluation": 34005358481
+  },
+  "postMergeRuns": {
+    "backendCi": 34005709679,
+    "stage3Evaluation": 34005709738
+  },
+  "verified": {
+    "backendTestCount": 766,
+    "stage4EndToEndTestCount": 5,
+    "embeddingDimension": 1024,
+    "duplicatePointCount": 0,
+    "backfillDifferenceCount": 0,
+    "externalFailureBusinessRollbackCount": 0,
+    "unauthorizedPointCountAfterAccessContraction": 0,
+    "freshnessP95ThresholdSeconds": 60
+  },
+  "sourceFiles": {
+    "src/main/resources/db/migration/V4__stage4_knowledge_index_and_outbox.sql": "fc54b59d07b3271fb9c899fd78ed6129d4e50708fc09d954304d4be9b6b784a3",
+    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeDocumentFactoryImpl.java": "73895e6e76d0950849109a665b44cd023537f06b323dfd8126aa32ca00ea6276",
+    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java": "2e23bde6a8271d1a152a365e9b0dc0f4fced6311fa491a10ff4942eb3b23b713",
+    "src/main/java/com/spt/learningmanage/service/impl/QdrantVectorStoreClient.java": "0dfa8c3a323cc9a28f4e6a61fca3f35d688c40bfcccc7ab75540db91fc997cf2",
+    "src/test/java/com/spt/learningmanage/integration/KnowledgeIndexEndToEndIT.java": "300be4373072d936b469beb2b821c052b61c026f869c488fb79e8a1b623b0ffc",
+    ".github/workflows/stage4-knowledge-index.yml": "d88bcb55632202a0290ec680037f8d8d1fdd4dff5c1f4b39efcdb7f1528cea9e",
+    ".github/workflows/stage4-real-embedding.yml": "1a97258293b3aa797825c738c114b727926d6c9af83d4cacc955828bf5bb4313",
+    "docs/stage4/requirements/stage4-requirements-contract.md": "371c307ac4e5358fe94ca9884faf0be612875bc28dbb2f52af118f42ef18348e"
+  }
+}
