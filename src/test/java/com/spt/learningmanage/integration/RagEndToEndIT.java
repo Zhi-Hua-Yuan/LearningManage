@@ -64,9 +64,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "STAGE5_RAG_IT_ENABLED", matches = "true")
 class RagEndToEndIT {
-    private static final long USER_ID = 9_950_001L;
-    private static final long PROJECT_ID = 9_950_002L;
-    private static final long OTHER_USER_ID = 9_950_003L;
+    private static final long USER_ID = 2_096_500_000_000_001L;
+    private static final long PROJECT_ID = 2_096_500_000_000_002L;
+    private static final long OTHER_USER_ID = 2_096_500_000_000_003L;
 
     @Autowired UserMapper userMapper;
     @Autowired ProjectMapper projectMapper;
@@ -118,7 +118,12 @@ class RagEndToEndIT {
         documentKey = "TASK:" + taskId + ":PRIVATE:" + PROJECT_ID;
         processOnlyReadyEvent();
         assertFalse(vectorStoreClient.inspectByDocumentKey(documentKey).points().isEmpty(),
-                "index worker must publish at least one Qdrant point");
+                () -> "index worker must publish at least one Qdrant point; event="
+                        + jdbcTemplate.queryForList("""
+                                SELECT status, failure_type, last_error
+                                FROM ai_knowledge_index_event
+                                WHERE source_type='TASK' AND source_id=?
+                                """, taskId));
     }
 
     @AfterEach
