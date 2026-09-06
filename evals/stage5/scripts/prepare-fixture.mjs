@@ -98,6 +98,7 @@ if (!ready) {
   const qdrantBaseUrl = (process.env.QDRANT_BASE_URL || '').replace(/\/$/, '')
   const qdrantAlias = process.env.QDRANT_ALIAS || 'learning_knowledge_current'
   let qdrantDocument = 'unavailable'
+  let qdrantSample = 'unavailable'
   if (qdrantBaseUrl) {
     try {
       const diagnostic = await fetch(`${qdrantBaseUrl}/collections/${qdrantAlias}/points/scroll`, {
@@ -113,10 +114,16 @@ if (!ready) {
         }),
       })
       qdrantDocument = await diagnostic.text()
+      const sample = await fetch(`${qdrantBaseUrl}/collections/${qdrantAlias}/points/scroll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 3, with_payload: true, with_vector: false }),
+      })
+      qdrantSample = await sample.text()
     } catch (error) {
       qdrantDocument = `diagnostic-error:${error?.name || 'Error'}`
     }
   }
-  throw new Error(`Stage 5 knowledge index did not become queryable within 60 seconds; lastProbe=${JSON.stringify(lastProbeBody)}; qdrantDocument=${qdrantDocument}`)
+  throw new Error(`Stage 5 knowledge index did not become queryable within 60 seconds; projectId=${projectId}; expectedSourceId=${expectedSourceId}; lastProbe=${JSON.stringify(lastProbeBody)}; qdrantDocument=${qdrantDocument}; qdrantSample=${qdrantSample}`)
 }
 console.log(`Stage 5 fixture ready: project=${projectId}, sources=${Object.keys(sources).length}`)
