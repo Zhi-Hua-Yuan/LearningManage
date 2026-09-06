@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RagReadinessService {
+    static final String REQUIRED_BACKFILL_RUN_KEY = "stage5-qdrant-numeric-payload-v1";
     private final RagProperties properties;
     private final AiKnowledgeBackfillRunMapper backfillRunMapper;
     private final KnowledgeVectorStoreManager vectorStoreManager;
@@ -30,6 +31,7 @@ public class RagReadinessService {
         }
         if (properties.isRequireCompletedBackfill()) {
             Long count = backfillRunMapper.selectCount(new LambdaQueryWrapper<AiKnowledgeBackfillRun>()
+                    .eq(AiKnowledgeBackfillRun::getRunKey, REQUIRED_BACKFILL_RUN_KEY)
                     .eq(AiKnowledgeBackfillRun::getSourceScope, "ALL")
                     .eq(AiKnowledgeBackfillRun::getStatus, KnowledgeBackfillStatusEnum.SUCCEEDED.name()));
             if (count == null || count == 0) {

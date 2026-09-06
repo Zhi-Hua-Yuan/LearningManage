@@ -43,7 +43,7 @@ public class QdrantVectorSearchClient implements VectorSearchClient {
     @Override
     public List<VectorSearchHit> query(VectorSearchRequest request) {
         ObjectNode body = objectMapper.createObjectNode();
-        body.set("vector", objectMapper.valueToTree(request.vector()));
+        body.set("query", objectMapper.valueToTree(request.vector()));
         body.set("filter", accessFilter(request.accessFilter()));
         body.put("limit", request.limit());
         // A negative configured value is the application's explicit "disabled"
@@ -54,7 +54,7 @@ public class QdrantVectorSearchClient implements VectorSearchClient {
         }
         body.put("with_payload", true);
         body.put("with_vector", false);
-        RestTransportResponse response = exchange(dataPath("/points/search"), body.toString());
+        RestTransportResponse response = exchange(dataPath("/points/query"), body.toString());
         requireSuccess(response);
         try {
             JsonNode result = objectMapper.readTree(response.body()).path("result");

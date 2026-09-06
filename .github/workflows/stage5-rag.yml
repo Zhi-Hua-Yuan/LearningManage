@@ -100,7 +100,7 @@ jobs:
             sleep 1
           done
           exit 1
-      - name: Provision V5 database
+      - name: Provision V6 database
         shell: bash
         run: |
           set -Eeuo pipefail

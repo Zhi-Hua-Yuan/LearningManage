@@ -6,11 +6,13 @@ cd "$root_dir"
 
 required_files=(
   src/main/resources/db/migration/V5__stage5_permission_aware_rag.sql
+  src/main/resources/db/migration/V6__stage5_qdrant_numeric_permission_payload_rebuild.sql
   src/main/java/com/spt/learningmanage/controller/RagController.java
   src/main/java/com/spt/learningmanage/service/impl/RagServiceImpl.java
   src/main/java/com/spt/learningmanage/service/rag/RagCandidateHydrator.java
   src/main/java/com/spt/learningmanage/service/rag/RagCitationValidator.java
   src/main/java/com/spt/learningmanage/service/impl/AliyunRerankClient.java
+  src/main/java/com/spt/learningmanage/service/impl/QdrantNumericPayloadVectorStoreClient.java
   src/test/java/com/spt/learningmanage/integration/RagEndToEndIT.java
   evals/stage5/promptfooconfig.yaml
   evals/stage5/tests/generated.json

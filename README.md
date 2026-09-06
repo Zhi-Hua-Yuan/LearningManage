@@ -60,7 +60,7 @@ src/main/java/com/spt/learningmanage
 ### 2. 初始化数据库
 
 1. 创建数据库：`learning_manage`。
-2. 使用独立迁移账号执行 Flyway；已发布的 V1-V5 迁移不可修改。空库安装、存量库 baseline 和升级步骤见 [阶段 0 Flyway 说明](docs/stage0/flyway/README.md)。
+2. 使用独立迁移账号执行 Flyway；已发布的 V1-V6 迁移不可修改。空库安装、存量库 baseline 和升级步骤见 [阶段 0 Flyway 说明](docs/stage0/flyway/README.md)。
 
 ### 3. 配置环境
 

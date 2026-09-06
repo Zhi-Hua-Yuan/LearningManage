@@ -59,8 +59,8 @@ class PermissionQueryMapperMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(5, currentVersion,
-                "permission Mapper integration tests require the current V5 schema");
+        assertEquals(6, currentVersion,
+                "permission Mapper integration tests require the current V6 schema");
     }
 
     @Test

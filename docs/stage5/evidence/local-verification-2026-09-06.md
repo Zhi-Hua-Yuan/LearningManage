@@ -8,7 +8,7 @@ Status: `LOCAL_PASS / REMOTE_GATES_PENDING`
 - Stage 5 migration/client/retrieval/permission/citation/lifecycle/controller tests: PASS.
 - All tests not requiring local MySQL or protected cloud credentials: PASS.
 - Candidate JAR package with tests skipped: PASS.
-- Full discovery reports 806 tests after adding the protected two-test dependency smoke and lifecycle cleanup test.
+- The candidate CI contract contains 800 deterministic tests; protected real-dependency tests run in their dedicated workflow.
 - Local full MySQL run is unavailable because protected `TEST_DB_USERNAME/TEST_DB_PASSWORD` are intentionally not injected into this desktop session. The isolated GitHub workflow is authoritative for those tests.
 
 ## Frontend

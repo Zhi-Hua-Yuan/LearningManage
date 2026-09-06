@@ -39,5 +39,8 @@ GET  /api/ai/rag/result/{requestId}
 
 - No chat history, query rewriting, file ingestion, hybrid keyword search, or Agent behavior.
 - Qdrant stores vector and metadata only; prompt text is reconstructed from current MySQL state.
+- V6 creates an idempotent `stage5-qdrant-numeric-payload-v1` REBUILD run. RAG
+  readiness requires that run to succeed so Qdrant integer permission indexes
+  cannot be queried against legacy string-encoded identifiers.
 - Raw questions and evidence bodies are absent from `ai_rag_query_log`, `ai_rag_result_source`, and RAG `ai_call_log` bodies.
 - Rerank failure may fall back to vector order and must be reported as degraded. Embedding or Qdrant failure cannot generate an answer.

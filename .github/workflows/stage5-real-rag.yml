@@ -104,7 +104,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - name: Install MySQL client and migrate isolated V5 database
+      - name: Install MySQL client and migrate isolated V6 database
         shell: bash
         run: |
           set -Eeuo pipefail
