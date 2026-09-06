@@ -18,6 +18,8 @@ required=(
   docs/stage4/architecture/ADR-003-embedding-and-vector-store.md
   docs/stage4/architecture/ADR-004-normalization-and-chunking.md
   docs/stage4/database/v4-data-dictionary.md
+  docs/stage4/release/stage4-release-candidate-manifest.json
+  docs/stage4/release/stage4-release-candidate-manifest.json.sha256
   docs/stage4/risk/risk-register.md
   src/main/resources/db/migration/V4__stage4_knowledge_index_and_outbox.sql
   sql/flyway/stage4/preflight_v4.sql
@@ -54,6 +56,24 @@ jq -e '
   .verified.externalFailureBusinessRollbackCount == 0 and
   .verified.unauthorizedPointCountAfterAccessContraction == 0
 ' docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json >/dev/null
+
+jq -e '
+  .schemaVersion == 1 and .stage == "stage4" and .status == "PASS" and
+  .releaseEligibility == "ELIGIBLE" and
+  (.validatedSourceSha | test("^[0-9a-f]{40}$")) and
+  .plannedTag == "stage4-v1.0.0" and
+  .deterministicEvidence.sha256 == "04eefa250be3ca3e64b8255248bf9a60bbbfe6b06af99306c1f7aefd72964a1d" and
+  .protectedProviderEvidence.runId == 34007915622 and
+  .protectedProviderEvidence.result == "PASS" and
+  .protectedProviderEvidence.model == "text-embedding-v4" and
+  .protectedProviderEvidence.syntheticInputCount == 10 and
+  .protectedProviderEvidence.embeddingDimension == 1024 and
+  .protectedProviderEvidence.usagePresent == true and
+  .acceptance.backendTestCount == 766 and
+  .acceptance.stage4EndToEndTestCount == 5
+' docs/stage4/release/stage4-release-candidate-manifest.json >/dev/null
+
+(cd docs/stage4/release && sha256sum --check stage4-release-candidate-manifest.json.sha256)
 
 (cd docs/stage4/acceptance && sha256sum --check stage4-deterministic-evidence-manifest.json.sha256)
 jq -r '.sourceFiles | to_entries[] | "\(.value)  \(.key)"' \
