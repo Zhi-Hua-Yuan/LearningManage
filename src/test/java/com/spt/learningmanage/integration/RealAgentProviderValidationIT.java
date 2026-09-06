@@ -1,5 +1,6 @@
 package com.spt.learningmanage.integration;
 
+import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.job.AgentRunWorker;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.UserMapper;
@@ -110,9 +111,9 @@ class RealAgentProviderValidationIT {
         assertFalse(successfulTools.contains("deleteTask"));
 
         Integer callCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM ai_call_log WHERE agent_run_id=? AND status='SUCCESS' "
+                "SELECT COUNT(*) FROM ai_call_log WHERE agent_run_id=? AND status=? "
                         + "AND provider_request_id IS NOT NULL AND total_tokens > 0",
-                Integer.class, submitted.runId());
+                Integer.class, submitted.runId(), AiCallLogStatusEnum.SUCCESS.getValue());
         assertNotNull(callCount);
         assertTrue(callCount >= 2, "真实 Tool Calling 至少需要工具请求轮次和最终分析轮次");
     }
