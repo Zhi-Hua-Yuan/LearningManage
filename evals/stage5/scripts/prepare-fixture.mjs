@@ -80,7 +80,7 @@ fs.writeFileSync(runtimeFile, `${JSON.stringify({
 
 if (qdrantBaseUrl) {
   let indexedCount = 0
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     // This gate owns an isolated Qdrant collection. Collection metadata avoids
     // converting Snowflake project IDs through JavaScript's unsafe Number type.
     const countResponse = await fetch(`${qdrantBaseUrl}/collections/${qdrantAlias}`)
