@@ -91,7 +91,7 @@ assert_success "$work_dir/preview-cancel.json"
 cancel_draft_id="$(jq -er '.data.draftId | select(type == "string" and length > 0)' "$work_dir/preview-cancel.json")"
 cancel_milestone_count="$(jq -er '.data.milestones | length' "$work_dir/preview-cancel.json")"
 cancel_task_count="$(jq -er '[.data.milestones[].tasks[]] | length' "$work_dir/preview-cancel.json")"
-[[ "$cancel_milestone_count" == "2" && "$cancel_task_count" == "4" ]] \
+[[ "$cancel_milestone_count" == "3" && "$cancel_task_count" == "9" ]] \
     || ci_fail "ai_stub_payload_shape_invalid"
 
 request_json GET "/api/ai/draft/${cancel_draft_id}" "" "$work_dir/cancel-detail-before.json" "$token"
