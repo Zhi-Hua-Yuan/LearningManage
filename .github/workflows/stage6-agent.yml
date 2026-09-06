@@ -91,11 +91,7 @@ jobs:
           bash scripts/ci/provision-ci-databases.sh
           bash scripts/ci/verify-empty-database.sh
       - name: Run Stage 6 deterministic contracts
-        run: >-
-          ./mvnw -B -ntp
-          -Dtest=Agent*Test,AgentRunWorkerTest,AgentRunMapperContractTest,
-          FlywayV7MigrationStaticTest,FlywayPublishedMigrationImmutabilityTest,
-          LearningManageApplicationTests test
+        run: ./mvnw -B -ntp '-Dtest=Agent*Test,AgentRunWorkerTest,AgentRunMapperContractTest,FlywayV7MigrationStaticTest,FlywayPublishedMigrationImmutabilityTest,LearningManageApplicationTests' test
       - name: Run Stage 6 application-path Agent integration
         env:
           STAGE6_AGENT_IT_ENABLED: 'true'
