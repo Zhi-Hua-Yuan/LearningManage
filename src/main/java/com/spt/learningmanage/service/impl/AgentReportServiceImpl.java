@@ -129,9 +129,11 @@ public class AgentReportServiceImpl implements AgentReportService {
         }
         String summary = AnalysisReportTypeEnum.TEAM_WORKLOAD.name().equals(report.getReportType()) && !manager
                 ? report.getPublicSummary() : report.getManagerSummary();
+        List<String> recommendations = AnalysisReportTypeEnum.TEAM_WORKLOAD.name().equals(report.getReportType())
+                && !manager ? List.of() : readRecommendations(report.getRecommendationsJson());
         return new AnalysisReportVO(report.getReportId(), report.getReportType(), report.getProjectId(),
                 report.getTeamId(), stale ? "STALE" : "ACTIVE", summary, visibleMetrics,
-                readRecommendations(report.getRecommendationsJson()), visibleSources(actor, report),
+                recommendations, visibleSources(actor, report),
                 report.getGeneratedAt());
     }
 

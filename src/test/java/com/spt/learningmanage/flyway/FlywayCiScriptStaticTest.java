@@ -212,7 +212,7 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
             assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '7'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '826'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '828'"));
         }
         assertTrue(provision.contains("CREATE TEMPORARY TABLES"));
         assertTrue(stage2Acceptance.contains("stage2_wp2_pass_without_full_ci"));

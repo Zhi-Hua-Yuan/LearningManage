@@ -25,6 +25,7 @@ import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AgentReadMapper;
+import com.spt.learningmanage.mapper.AiAgentToolLogMapper;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.dto.ai.chat.AiFunctionDefinition;
@@ -65,6 +66,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
     private final AgentRunQueueService queueService;
     private final AiInvocationPipeline pipeline;
     private final AgentReadMapper readMapper;
+    private final AiAgentToolLogMapper toolLogMapper;
     private final ObjectMapper objectMapper;
     private final AiJsonResponseSanitizer responseSanitizer;
     private final AgentToolPolicy toolPolicy;
@@ -78,6 +80,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                                     AgentRunQueueService queueService,
                                     AiInvocationPipeline pipeline,
                                     AgentReadMapper readMapper,
+                                    AiAgentToolLogMapper toolLogMapper,
                                     ObjectMapper objectMapper,
                                     AiJsonResponseSanitizer responseSanitizer,
                                     AgentToolPolicy toolPolicy) {
@@ -90,6 +93,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         this.queueService = queueService;
         this.pipeline = pipeline;
         this.readMapper = readMapper;
+        this.toolLogMapper = toolLogMapper;
         this.objectMapper = objectMapper;
         this.responseSanitizer = responseSanitizer;
         this.toolPolicy = toolPolicy;
@@ -126,13 +130,14 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         }
 
         long endVersion = versionService.projectVersion(run.getProjectId());
+        long reportVersion = stableReportVersion(startVersion, endVersion);
         if (endVersion != startVersion) {
             partial = true;
-            partialReason = joinReason(partialReason, "分析期间项目数据发生变化");
+            partialReason = joinReason(partialReason, "分析期间项目数据发生变化，草稿不可确认，请重新分析");
         }
-        AgentReportDraftPayload payload = projectPayload(run, endVersion, outcome.analysis(),
+        AgentReportDraftPayload payload = projectPayload(run, reportVersion, outcome.analysis(),
                 outputs.get("retrieveProjectHistory"), outcome.modelResult());
-        return result(payload, endVersion, outputs.size(), partial, partialReason, outcome.modelResult());
+        return result(payload, reportVersion, outputs.size(), partial, partialReason, outcome.modelResult());
     }
 
     private ProjectModelOutcome executeProjectToolCalling(AiAgentRun run,
@@ -267,18 +272,19 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
 
         List<TeamMemberMetricSnapshot> snapshots = memberSnapshots(run.getTeamId(), workload);
         long endVersion = versionService.teamVersion(run.getTeamId());
+        long reportVersion = stableReportVersion(startVersion, endVersion);
         if (endVersion != startVersion) {
             partial = true;
-            partialReason = joinReason(partialReason, "分析期间团队数据发生变化");
+            partialReason = joinReason(partialReason, "分析期间团队数据发生变化，草稿不可确认，请重新分析");
         }
         AgentReportDraftPayload payload = new AgentReportDraftPayload(
-                run.getRunId(), "TEAM_WORKLOAD", 1, null, run.getTeamId(), endVersion,
+                run.getRunId(), "TEAM_WORKLOAD", 1, null, run.getTeamId(), reportVersion,
                 null, manager.managerSummary(), publicAnalysis.publicSummary(), snapshots,
                 manager.recommendations(), List.of(), List.of(), List.of(),
                 managerCall == null ? null : managerCall.actualModel(),
                 AiPromptCodeEnum.AGENT_TEAM_WORKLOAD_MANAGER.getCode(),
                 managerCall == null ? 1 : managerCall.promptVersion(), run.getTraceId(), LocalDateTime.now());
-        return result(payload, endVersion, outputs.size(), partial, partialReason, managerCall);
+        return result(payload, reportVersion, outputs.size(), partial, partialReason, managerCall);
     }
 
     private AgentToolExecution ensureTool(AiAgentRun run,
@@ -302,12 +308,14 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                                        String name,
                                        String arguments) {
         checkCanceled(run);
-        if (sequence > properties.getMaxToolCalls()) {
+        int persistedSequence = toolLogMapper.selectMaxSequence(run.getRunId(), run.getAttemptCount());
+        int nextSequence = Math.max(sequence, persistedSequence + 1);
+        if (nextSequence > properties.getMaxToolCalls()) {
             throw new BusinessException(ErrorCode.TOOL_CALL_LIMIT_EXCEEDED);
         }
-        queueService.updateProgress(run, "TOOL:" + name, sequence - 1, context.dataVersion());
-        AgentToolExecution value = toolExecutor.execute(run, context, sequence, toolCallId, name, arguments);
-        queueService.updateProgress(run, "TOOL_COMPLETED:" + name, sequence, context.dataVersion());
+        queueService.updateProgress(run, "TOOL:" + name, nextSequence - 1, context.dataVersion());
+        AgentToolExecution value = toolExecutor.execute(run, context, nextSequence, toolCallId, name, arguments);
+        queueService.updateProgress(run, "TOOL_COMPLETED:" + name, nextSequence, context.dataVersion());
         return value;
     }
 
@@ -526,6 +534,10 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         if (first == null || first.isBlank()) return second;
         if (second == null || second.isBlank()) return first;
         return first + "；" + second;
+    }
+
+    static long stableReportVersion(long startVersion, long endVersion) {
+        return startVersion == endVersion ? endVersion : startVersion;
     }
 
     private AgentOrchestrationResult result(AgentReportDraftPayload payload,

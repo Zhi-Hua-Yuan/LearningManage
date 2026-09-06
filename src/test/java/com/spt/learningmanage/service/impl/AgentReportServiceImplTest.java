@@ -56,6 +56,7 @@ class AgentReportServiceImplTest {
         assertEquals("public", result.summary());
         assertTrue(result.memberMetrics().containsKey("self"));
         assertFalse(result.memberMetrics().containsKey("members"));
+        assertTrue(result.recommendations().isEmpty());
     }
 
     @Test
@@ -73,6 +74,7 @@ class AgentReportServiceImplTest {
 
         assertEquals("manager", result.summary());
         assertTrue(result.memberMetrics().containsKey("members"));
+        assertEquals(List.of("manager-only"), result.recommendations());
     }
 
     private AiAnalysisReport teamReport() throws Exception {
@@ -84,7 +86,7 @@ class AgentReportServiceImplTest {
         report.setManagerSummary("manager");
         report.setPublicSummary("public");
         report.setGeneratedAt(LocalDateTime.now());
-        report.setRecommendationsJson("[]");
+        report.setRecommendationsJson("[\"manager-only\"]");
         report.setMemberMetricsJson(objectMapper.writeValueAsString(List.of(
                 new TeamMemberMetricSnapshot(7L, 2, 0, 1, 3, 3, 3,
                         BigDecimal.valueOf(100), "LOW", "team-workload-v1"),
