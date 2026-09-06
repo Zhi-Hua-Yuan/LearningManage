@@ -80,6 +80,9 @@ public interface PermissionService {
      */
     Set<Long> filterReadableTaskIds(Long actorUserId, Collection<Long> taskIds);
 
+    /** Filter server-side weekly-review candidates in one permission query. */
+    Set<Long> filterReadableWeeklyReviewIds(Long actorUserId, Collection<Long> reviewIds);
+
     /**
      * Require every supplied task ID to be readable and return the normalized
      * IDs. A missing, deleted, malformed or unauthorized ID rejects the whole

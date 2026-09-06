@@ -1,0 +1,31 @@
+{
+  "stage": 5,
+  "name": "permission-aware-rag",
+  "status": "REMOTE_ACCEPTANCE_PENDING",
+  "required": {
+    "v5MigrationImmutable": true,
+    "queryEmbedding": true,
+    "qdrantServerSidePermissionFilter": true,
+    "batchSecondaryAuthorization": true,
+    "mysqlCurrentStateHydration": true,
+    "rerankWithExplicitFallback": true,
+    "citationContract": true,
+    "finalPermissionAndVersionCheck": true,
+    "resultLifecycle": true,
+    "metadataOnlyAiLogging": true,
+    "frontendSafeRendering": true,
+    "applicationPathIntegration": true,
+    "promptfooCases": 50,
+    "regressionCases": 30,
+    "holdoutCases": 20,
+    "citedHitAt5Minimum": 0.8,
+    "crossTenantLeaksMaximum": 0
+  },
+  "remoteEvidenceRequired": [
+    "backend-ci",
+    "stage5-rag",
+    "frontend-ci",
+    "cross-repository-contract",
+    "protected-real-provider-evaluation"
+  ]
+}

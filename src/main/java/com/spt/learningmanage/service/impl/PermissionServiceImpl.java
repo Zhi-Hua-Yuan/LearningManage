@@ -264,6 +264,29 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    public Set<Long> filterReadableWeeklyReviewIds(Long actorUserId, Collection<Long> reviewIds) {
+        List<Long> normalizedIds = normalizeBatchIds(actorUserId, reviewIds);
+        requireActiveActor(actorUserId);
+        if (normalizedIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Map<Long, WeeklyReviewPermissionRow> rows = new LinkedHashMap<>();
+        for (WeeklyReviewPermissionRow row : permissionQueryMapper.selectWeeklyReviewPermissionRows(
+                actorUserId, normalizedIds)) {
+            if (row != null && row.getReviewId() != null && normalizedIds.contains(row.getReviewId())) {
+                rows.putIfAbsent(row.getReviewId(), row);
+            }
+        }
+        LinkedHashSet<Long> result = new LinkedHashSet<>();
+        for (Long reviewId : normalizedIds) {
+            if (canReadWeeklyReview(actorUserId, rows.get(reviewId))) {
+                result.add(reviewId);
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    @Override
     public Set<Long> requireAllTasksReadable(Long actorUserId, Collection<Long> taskIds) {
         List<Long> normalizedIds = normalizeBatchIds(actorUserId, taskIds);
         Map<Long, TaskPermissionDecision> decisions = resolveTaskDecisions(actorUserId, normalizedIds);
@@ -491,6 +514,24 @@ public class PermissionServiceImpl implements PermissionService {
         validateActorAndResource(actorUserId, reviewId);
         requireActiveActor(actorUserId);
         return single(permissionQueryMapper.selectWeeklyReviewPermissionRows(actorUserId, List.of(reviewId)));
+    }
+
+    private boolean canReadWeeklyReview(Long actorUserId, WeeklyReviewPermissionRow row) {
+        if (!isStructurallyValidReview(row)) {
+            return false;
+        }
+        if (Objects.equals(actorUserId, row.getAuthorUserId())) {
+            return true;
+        }
+        return TEAM_SCOPE.equals(row.getVisibilityScope())
+                && row.getTeamId() != null
+                && isActiveTeam(row.getTeamIsDelete(), row.getTeamDeletedAt())
+                && isActiveMembership(row.getActorTeamMemberId(), row.getActorMembershipIsDelete(),
+                row.getActorMembershipDeletedAt())
+                && activeTeamRole(row.getActorTeamMemberId(), row.getActorTeamRole(),
+                row.getActorMembershipIsDelete(), row.getActorMembershipDeletedAt(),
+                row.getTeamIsDelete(), row.getTeamDeletedAt(), actorUserId,
+                row.getTeamOwnerUserId()) != null;
     }
 
     private TeamMemberPermissionRow loadSingleTeamMember(

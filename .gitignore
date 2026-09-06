@@ -2,6 +2,9 @@
 # 1. 编译产物与构建工具 (Maven)
 # =========================================================================
 target/
+evals/stage5/.promptfoo/
+evals/stage5/.runtime-fixture.json
+evals/stage5/output.json
 *.jar
 *.war
 *.ear

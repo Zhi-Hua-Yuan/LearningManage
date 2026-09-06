@@ -10,6 +10,7 @@ LearningManage 是一个学习管理系统后端项目，基于 Spring Boot 3 + 
 - MySQL 8.x
 - Knife4j / OpenAPI 3
 - Hutool
+- Redis、Qdrant
 - Maven Wrapper (`mvnw`)
 
 ## 核心功能
@@ -24,6 +25,7 @@ LearningManage 是一个学习管理系统后端项目，基于 Spring Boot 3 + 
   - 任务拆解草稿（正式流程：`/api/ai/breakdown/preview` → 查询草稿 → 确认或取消；`/api/ai/breakdown` 仅兼容旧版）
   - 今日任务排序推荐（`/api/ai/today-order/recommend`）
   - 周总结润色（`/api/ai/polish`）
+  - 权限感知项目问答（`POST /api/ai/rag/ask`，引用结果通过 `GET /api/ai/rag/result/{requestId}` 复核）
 
 ## 默认配置
 
@@ -57,8 +59,8 @@ src/main/java/com/spt/learningmanage
 
 ### 2. 初始化数据库
 
-1. 创建数据库：`learning_manage`
-2. 按业务依赖顺序执行 `sql/` 目录下脚本。完整顺序、AI 相关表、已有数据库升级注意事项见 [后端运行与 AI 依赖使用说明](docs/backend-usage-guide.md)。
+1. 创建数据库：`learning_manage`。
+2. 使用独立迁移账号执行 Flyway；已发布的 V1-V5 迁移不可修改。空库安装、存量库 baseline 和升级步骤见 [阶段 0 Flyway 说明](docs/stage0/flyway/README.md)。
 
 ### 3. 配置环境
 
@@ -75,11 +77,14 @@ src/main/java/com/spt/learningmanage
 - `ai.model` / `ai.breakdown-model` / `ai.polish-model` / `ai.fallback-model`
 - `spring.data.redis.*`
 - `rate-limit.ai.*`
+- `ai.embedding.*`、`ai.rerank.*`、`ai.rag.*`
+- `qdrant.*`
 
 建议通过环境变量覆盖敏感信息：
 
 - `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USERNAME`、`DB_PASSWORD`
 - `ALIYUN_API_KEY`
+- `AI_RAG_QUESTION_HMAC_SECRET`（独立的至少 32 字符随机密钥）
 
 ### 4. 启动项目
 
@@ -101,7 +106,7 @@ Linux / macOS：
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-## Docker 部署（含前后端 + MySQL）
+## Docker 部署（含前后端 + MySQL + Qdrant）
 
 仓库内提供了 `deploy/docker-compose.yml`，可一键部署：
 
@@ -115,6 +120,7 @@ docker compose up -d --build
 - 前端（Nginx）：`8080`
 - 后端：`8124 -> 8123`
 - MySQL：`3307 -> 3306`
+- Qdrant：默认仅绑定本机 `6333`
 
 启动前请先在 `deploy/docker-compose.yml` 中替换占位符：
 
@@ -152,6 +158,11 @@ docker compose up -d --build
 - `30002`：AI 服务响应超时
 - `30003`：AI 返回结果格式异常
 - `30004`：AI 服务配置异常
+- `32001`：RAG 未启用
+- `32002`：知识索引未就绪
+- `32003`：RAG 依赖不可用
+- `32005`：RAG 结果已失效
+- `32006`：RAG 结果已过期
 
 ## 快速验证
 
@@ -175,6 +186,7 @@ curl http://localhost:8123/api/health
 - [AI 调用记录接口文档](docs/api/ai-call-log-api.md)
 - [Redis AI 限流模块文档](docs/redis-rate-limit-module.md)
 - [AI 调用记录模块文档](docs/ai-call-log-module.md)
+- [Stage 5 权限感知 RAG](docs/stage5/README.md)
 - [Sprint 3 AI 草稿联调验收记录](docs/sprint/Sprint3_AI草稿联调验收记录.md)
 
 如需完整接口定义，优先以 Knife4j 文档页面和上述 API 文档为准：`/api/doc.html`。

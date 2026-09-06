@@ -56,3 +56,6 @@ rate-limit:
       list-replan:
         window-seconds: ${AI_RATE_LIMIT_LIST_REPLAN_WINDOW_SECONDS:60}
         max-requests: ${AI_RATE_LIMIT_LIST_REPLAN_MAX_REQUESTS:3}
+      rag-project-ask:
+        window-seconds: ${AI_RATE_LIMIT_RAG_WINDOW_SECONDS:60}
+        max-requests: ${AI_RATE_LIMIT_RAG_MAX_REQUESTS:10}

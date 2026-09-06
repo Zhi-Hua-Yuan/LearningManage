@@ -16,7 +16,8 @@ public enum AiPromptCodeEnum {
     WEEKLY_POLISH_DEFAULT("weekly-polish.default", AiSceneEnum.WEEKLY_POLISH, "周总结润色"),
     TODAY_ORDER_DEFAULT("today-order.default", AiSceneEnum.TODAY_ORDER, "今日任务排序"),
     DAILY_REVIEW_RENAME_DEFAULT("daily-review-rename.default", AiSceneEnum.DAILY_REVIEW_RENAME, "日报任务改名"),
-    LIST_REPLAN_PREVIEW("list-replan.preview", AiSceneEnum.LIST_REPLAN, "清单智能重排预览");
+    LIST_REPLAN_PREVIEW("list-replan.preview", AiSceneEnum.LIST_REPLAN, "清单智能重排预览"),
+    RAG_PROJECT_ANSWER("rag-project-answer", AiSceneEnum.RAG_PROJECT_ASK, "项目知识问答");
 
     private final String code;
 

@@ -27,7 +27,9 @@ public record AiExecutionResult<T>(
         AiFailureTypeEnum modelFallbackReason,
         boolean degraded,
         String degradationReason,
-        String traceId
+        String traceId,
+        String promptCode,
+        Integer promptVersion
 ) {
 
     public AiExecutionResult(T data,
@@ -36,7 +38,26 @@ public record AiExecutionResult<T>(
                              Integer retryCount,
                              long costTimeMs) {
         this(data, callLogId, actualModel, actualModel, retryCount, costTimeMs,
-                null, null, null, false, null, false, null, null);
+                null, null, null, false, null, false, null, null, null, null);
+    }
+
+    public AiExecutionResult(T data,
+                             Long callLogId,
+                             String requestedModel,
+                             String actualModel,
+                             Integer retryCount,
+                             long costTimeMs,
+                             String finishReason,
+                             AiUsage usage,
+                             String providerRequestId,
+                             boolean modelFallbackUsed,
+                             AiFailureTypeEnum modelFallbackReason,
+                             boolean degraded,
+                             String degradationReason,
+                             String traceId) {
+        this(data, callLogId, requestedModel, actualModel, retryCount, costTimeMs,
+                finishReason, usage, providerRequestId, modelFallbackUsed,
+                modelFallbackReason, degraded, degradationReason, traceId, null, null);
     }
 
     public AiExecutionResult {
@@ -56,5 +77,8 @@ public record AiExecutionResult<T>(
             throw new IllegalArgumentException("请求模型名称不能为空");
         }
         AiRawExecutionCommand.validateTraceId(traceId);
+        if (promptVersion != null && promptVersion <= 0) {
+            throw new IllegalArgumentException("Prompt 版本必须为正整数");
+        }
     }
 }
