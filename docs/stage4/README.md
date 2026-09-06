@@ -1,6 +1,6 @@
 # Stage 4: Transactional Outbox and knowledge indexing
 
-Status: `IMPLEMENTATION_COMPLETE / PROTECTED_REAL_EMBEDDING_PENDING`
+Status: `PASS / RELEASE_ELIGIBLE`
 
 Stage 4 builds a permission-aware, rebuildable knowledge-index foundation for tasks and weekly reviews. It does not expose RAG question answering or Agent capabilities.
 
@@ -39,7 +39,7 @@ business mutation
 
 Stage 4 is complete only when incremental capture, initial backfill, deletion/access reconciliation, concurrent idempotency, dependency-failure isolation, Qdrant rebuild, protected provider smoke, and evidence sealing all pass the machine acceptance contract.
 
-Implementation, PR integration, MySQL migration gates, Qdrant integration, Docker runtime, and post-merge regression are complete. Protected workflow run `34006943574` was dispatched for the final evidence SHA but stopped because the `real-ai-validation` Environment has no `ALIYUN_API_KEY`. The protected real Embedding smoke and final release evidence therefore remain pending. No real-model quality or provider-smoke PASS is claimed.
+Implementation, PR integration, MySQL migration gates, Qdrant integration, Docker runtime, and post-merge regression are complete. Protected workflow run `34007915622` passed for exact SHA `84d51654b291d02b199c086829e584da58b26856`, validating real `text-embedding-v4`, ten synthetic inputs, 1024-dimensional vectors, and provider usage. Every Stage 4 acceptance gate now passes; the candidate is eligible for the annotated tag and GitHub Release.
 
 The final completion audit additionally enforces the original Qdrant payload names,
 database-clock freshness, idempotent INITIAL/REBUILD reconciliation, visibility and

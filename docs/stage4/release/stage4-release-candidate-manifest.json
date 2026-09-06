@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "stage": "stage4",
+  "status": "PASS",
+  "releaseEligibility": "ELIGIBLE",
+  "validatedSourceSha": "84d51654b291d02b199c086829e584da58b26856",
+  "plannedTag": "stage4-v1.0.0",
+  "deterministicEvidence": {
+    "manifest": "docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json",
+    "sha256": "04eefa250be3ca3e64b8255248bf9a60bbbfe6b06af99306c1f7aefd72964a1d"
+  },
+  "protectedProviderEvidence": {
+    "workflow": "Stage 4 real embedding validation",
+    "runId": 34007915622,
+    "result": "PASS",
+    "model": "text-embedding-v4",
+    "syntheticInputCount": 10,
+    "embeddingDimension": 1024,
+    "usagePresent": true,
+    "credentialMasked": true
+  },
+  "acceptance": {
+    "backendTestCount": 766,
+    "stage4EndToEndTestCount": 5,
+    "duplicatePointCount": 0,
+    "backfillDifferenceCount": 0,
+    "unauthorizedPointCountAfterAccessContraction": 0,
+    "externalFailureBusinessRollbackCount": 0,
+    "freshnessP95ThresholdSeconds": 60
+  },
+  "release": {
+    "annotatedTagRequired": true,
+    "githubReleaseRequired": true,
+    "status": "PENDING_PUBLICATION"
+  }
+}

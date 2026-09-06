@@ -37,13 +37,14 @@ it does not rely on Spring Boot executor configuration to suppress `@EnableSched
 - Post-merge Backend CI `33983320260` and Stage 3 evaluation `33983320203` passed.
 - The Linux runner verified 764/764 tests, V4 empty install, V1-to-V4 upgrade, tested-JAR Docker runtime, and the MySQL-Outbox-EmbeddingStub-Qdrant lifecycle.
 
-## Protected acceptance pending
+## Protected acceptance
 
-- Protected workflow run `34006943574` was dispatched for
-  `f5a590d9c3e8699e72abc0914c35251822208f3b`; immutable checkout passed, but the test
-  failed fast because the `real-ai-validation` Environment's `ALIYUN_API_KEY` is empty.
+- Protected workflow run `34007915622` passed for exact SHA
+  `84d51654b291d02b199c086829e584da58b26856`.
+- Real `text-embedding-v4`, ten synthetic inputs, 1024 dimensions, model identity, and
+  non-null provider usage were verified with zero test failures/errors/skips.
 - `stage4-real-embedding.yml` and `RealEmbeddingValidationIT` are ready and use ten synthetic texts only.
-- Release/tag and final PASS sealing remain pending that protected run.
+- The API key was masked and only a sanitized Surefire report was retained.
 
 ## Expected remote gates
 

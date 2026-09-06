@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stage": "stage4",
-  "status": "IMPLEMENTATION_COMPLETE",
+  "status": "PASS",
   "requiredGates": [
     "published_migrations_immutable",
     "v4_empty_database_install",
@@ -41,9 +41,9 @@
     "mysqlQdrantIntegration": "PASS",
     "postMergeCi": "PASS",
     "scaleAndFreshnessGate": "ENFORCED_BY_STAGE4_WORKFLOW",
-    "realEmbeddingSmoke": "BLOCKED_MISSING_ENVIRONMENT_SECRET",
-    "realEmbeddingRunId": 34006943574,
-    "realEmbeddingFailure": "ALIYUN_API_KEY was empty in real-ai-validation",
-    "releaseSeal": "BLOCKED_BY_REAL_EMBEDDING_SMOKE"
+    "realEmbeddingSmoke": "PASS",
+    "realEmbeddingRunId": 34007915622,
+    "realEmbeddingValidatedSha": "84d51654b291d02b199c086829e584da58b26856",
+    "releaseSeal": "ELIGIBLE"
   }
 }

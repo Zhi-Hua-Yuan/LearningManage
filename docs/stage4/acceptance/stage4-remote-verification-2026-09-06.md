@@ -1,6 +1,6 @@
 # Stage 4 remote verification
 
-Status: `DETERMINISTIC_PASS / PROTECTED_REAL_EMBEDDING_PENDING`
+Status: `PASS / RELEASE_ELIGIBLE`
 
 ## Merge identity
 
@@ -77,19 +77,15 @@ The final hardening also verifies the frozen Qdrant payload names (`userId`, `te
 values, payload indexes, and the absence of Spring's scheduled-annotation processor in the
 manual-worker integration context. Both review findings were resolved before merge.
 
-## Pending protected evidence
+## Protected provider evidence
 
-`Stage 4 real embedding validation` was dispatched for final evidence merge
-`f5a590d9c3e8699e72abc0914c35251822208f3b` as workflow run
-`34006943574`. Immutable-SHA checkout and Java setup passed, but the protocol test stopped
-before any provider request because `ALIYUN_API_KEY` was empty in the protected
-`real-ai-validation` environment. The sanitized report was uploaded successfully.
+`Stage 4 real embedding validation` run `34007915622` passed against exact SHA
+`84d51654b291d02b199c086829e584da58b26856` in the protected
+`real-ai-validation` environment. The workflow fixed the requested model to
+`text-embedding-v4`; `RealEmbeddingValidationIT` passed one test with zero failures,
+errors, or skips in 4.044 seconds. It validated exact executed-model identity, non-null
+usage, ten synthetic inputs, and 1024 dimensions. The API key remained masked and the
+sanitized test report uploaded successfully.
 
-The same missing-secret result occurred in earlier run `34003094202`, so this is an
-external environment configuration blocker rather than a transient test failure. Add a
-valid repository Environment secret named `ALIYUN_API_KEY`, then rerun the workflow for
-the latest `develop` SHA. The workflow fixes the requested model to
-`text-embedding-v4`; the client rejects responses that omit the executed model, and the
-IT requires exact model equality, non-null usage, ten synthetic inputs, and 1024
-dimensions. Until it passes, the stage is implementation-complete but not
-final-release sealed.
+Earlier missing-secret runs `34003094202` and `34006943574` remain in the audit trail
+and are superseded by this successful protected run.
