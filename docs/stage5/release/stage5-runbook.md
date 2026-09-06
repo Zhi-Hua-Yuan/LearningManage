@@ -1,5 +1,10 @@
 # Stage 5 release runbook
 
+Current decision: `RELEASE_NOT_PLANNED`. Stage 5 implementation is complete and
+development proceeds to Stage 6 without an annotated tag or GitHub Release.
+The procedure below is retained only in case a future release decision reopens
+formal sealing.
+
 ## 1. Freeze candidates
 
 1. Record exact backend and frontend SHAs from the protected Stage 5 branches.
@@ -34,11 +39,14 @@ Protected real RAG: real document/query Embedding, qwen3-rerank and cited Chat p
 ## 4. Rollback
 
 - Disable `AI_RAG_ENABLED` first. Project/task/review operations remain available.
-- Roll back application images without dropping V5 tables.
-- Do not use Flyway clean or reverse V5 DDL in an incident.
+- Roll back application images without dropping V5/V6 tables.
+- Do not use Flyway clean or reverse V5/V6 changes in an incident.
 - Qdrant remains disposable; rebuild from MySQL/Outbox if retrieval state is suspect.
 - Preserve query/result metadata for audit, while expired answer bodies follow retention cleanup.
 
-## 5. Seal
+## 5. Seal (not planned)
 
-After every required gate passes for the exact SHA pair, create the Stage 5 candidate manifest, calculate its SHA-256, create an annotated `stage5-complete-*` tag, and publish a GitHub Release containing the manifest, test summaries, evaluation report, known limitations, and rollback instructions.
+Do not create a Stage 5 candidate manifest, annotated `stage5-complete-*` tag,
+or GitHub Release under the current decision. If formal sealing is requested in
+the future, first rerun every required gate for the then-current exact SHA pair;
+historical successful runs must not be reused as proof for changed source.

@@ -1,6 +1,11 @@
 # Stage 5: Permission-aware RAG
 
-Status: `IMPLEMENTATION_COMPLETE / REMOTE_ACCEPTANCE_PENDING`
+Status: `IMPLEMENTATION_COMPLETE / RELEASE_NOT_PLANNED`
+
+The project owner decided on 2026-09-06 to proceed directly to Stage 6 without
+creating a Stage 5 tag or GitHub Release. This is an explicit release decision,
+not an unfinished RAG implementation. See
+[`release/release-decision-2026-09-06.md`](release/release-decision-2026-09-06.md).
 
 Stage 5 adds single-project, single-turn question answering over the Stage 4 TASK and WEEKLY_REVIEW index. The implementation never trusts vector payloads as business facts: candidates are filtered in Qdrant, batch-authorized through `PermissionService`, rebuilt from current MySQL rows, version-checked, reranked, and cited before an answer can be persisted.
 
@@ -33,7 +38,11 @@ GET  /api/ai/rag/result/{requestId}
 - Local deterministic Stage 5 tests cover migration, Query Embedding, Qdrant filters, rerank, source reconstruction, batch permission checks, citation validation, lifecycle, controller contract, and log-body suppression.
 - Frontend tests, type-check, lint, AI rendering safety, API-contract export, and production build pass in the companion repository.
 - `stage5-rag.yml` runs MySQL, Qdrant, deterministic Chat/Embedding/Rerank services, the application-path integration test, and a 50-case Promptfoo Hit@5/citation evaluation.
-- Remote workflow output, real-provider evidence, exact SHAs, tag, and Release remain required before this status may become `PASS / RELEASED`.
+- Remote MySQL/Qdrant integration, 50/50 application-path evaluation, frontend
+  CI, and the protected real-provider RAG path passed. Exact evidence is listed
+  in the release decision record.
+- No `stage5-complete-*` tag or GitHub Release is planned. The status must not be
+  presented as `RELEASED`.
 
 ## Boundaries
 

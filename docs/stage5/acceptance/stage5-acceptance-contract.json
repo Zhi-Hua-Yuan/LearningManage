@@ -1,7 +1,7 @@
 {
   "stage": 5,
   "name": "permission-aware-rag",
-  "status": "REMOTE_ACCEPTANCE_PENDING",
+  "status": "IMPLEMENTATION_COMPLETE_RELEASE_NOT_PLANNED",
   "required": {
     "v5MigrationImmutable": true,
     "queryEmbedding": true,
@@ -21,11 +21,23 @@
     "citedHitAt5Minimum": 0.8,
     "crossTenantLeaksMaximum": 0
   },
-  "remoteEvidenceRequired": [
-    "backend-ci",
-    "stage5-rag",
-    "frontend-ci",
-    "cross-repository-contract",
-    "protected-real-provider-evaluation"
-  ]
+  "implementationEvidence": {
+    "backendSha": "b1b20a818ce629aa02f7ff339153e83eb48681b4",
+    "frontendSha": "9c60170ea36cf2b4e64278fede544cabe608defb",
+    "backendCi": "PASS",
+    "backendCiRunId": 34028032327,
+    "stage5Rag": "PASS_50_OF_50",
+    "stage5RagRunId": 34027708375,
+    "frontendCi": "PASS",
+    "frontendCiRunId": 34022440726,
+    "protectedRealProviderEvaluation": "PASS",
+    "protectedRealProviderRunId": 34028167239
+  },
+  "release": {
+    "decision": "NOT_PLANNED",
+    "crossRepositoryCandidate": "DEFERRED",
+    "candidateManifest": "NOT_CREATED",
+    "annotatedTag": "NOT_CREATED",
+    "githubRelease": "NOT_CREATED"
+  }
 }
