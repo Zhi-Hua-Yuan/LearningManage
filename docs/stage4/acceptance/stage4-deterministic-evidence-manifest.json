@@ -26,10 +26,10 @@
   },
   "sourceFiles": {
     "src/main/resources/db/migration/V4__stage4_knowledge_index_and_outbox.sql": "fc54b59d07b3271fb9c899fd78ed6129d4e50708fc09d954304d4be9b6b784a3",
-    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeDocumentFactoryImpl.java": "73895e6e76d0950849109a665b44cd023537f06b323dfd8126aa32ca00ea6276",
-    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java": "2e23bde6a8271d1a152a365e9b0dc0f4fced6311fa491a10ff4942eb3b23b713",
-    "src/main/java/com/spt/learningmanage/service/impl/QdrantVectorStoreClient.java": "0dfa8c3a323cc9a28f4e6a61fca3f35d688c40bfcccc7ab75540db91fc997cf2",
-    "src/test/java/com/spt/learningmanage/integration/KnowledgeIndexEndToEndIT.java": "300be4373072d936b469beb2b821c052b61c026f869c488fb79e8a1b623b0ffc",
+    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeDocumentFactoryImpl.java": "3ccca39af241423077dd211e64f8e93748b210f427cb1a25875cd2586ddfa4de",
+    "src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java": "70ab8fb2c81d2f6f505d06446c4458e79c667c5430adf607f86d590322ed63dc",
+    "src/main/java/com/spt/learningmanage/service/impl/QdrantVectorStoreClient.java": "f8c1a3e5d95b08c6ce142c281d122780f6da4da652593fe1d20ef280fb5b7741",
+    "src/test/java/com/spt/learningmanage/integration/KnowledgeIndexEndToEndIT.java": "218606f2d7583934ec9fc9795753fa47d75303cfe90a377d2646037e24d28582",
     ".github/workflows/stage4-knowledge-index.yml": "d88bcb55632202a0290ec680037f8d8d1fdd4dff5c1f4b39efcdb7f1528cea9e",
     ".github/workflows/stage4-real-embedding.yml": "1a97258293b3aa797825c738c114b727926d6c9af83d4cacc955828bf5bb4313",
     "docs/stage4/requirements/stage4-requirements-contract.md": "371c307ac4e5358fe94ca9884faf0be612875bc28dbb2f52af118f42ef18348e"
