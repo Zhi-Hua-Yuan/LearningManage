@@ -1,6 +1,10 @@
 package com.spt.learningmanage.integration;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.spt.learningmanage.client.knowledge.KnowledgeRestTransport;
+import com.spt.learningmanage.config.QdrantProperties;
 import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.exception.BusinessException;
@@ -36,6 +40,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpMethod;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -76,6 +81,8 @@ class RagEndToEndIT {
     @Autowired PermissionService permissionService;
     @Autowired RagCandidateHydrator candidateHydrator;
     @Autowired KnowledgeHashing hashing;
+    @Autowired QdrantProperties qdrantProperties;
+    @Autowired ObjectMapper objectMapper;
     @Autowired RagService ragService;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PlatformTransactionManager transactionManager;
@@ -219,10 +226,61 @@ class RagEndToEndIT {
                 100, -1));
         var snapshot = vectorStoreClient.inspectByDocumentKey(documentKey);
         assertFalse(hits.isEmpty(), () -> "permission-filtered Qdrant query returned no hits; snapshot="
-                + snapshot.points());
+                + snapshot.points() + "; probes=" + searchProbes(embedding.vectors().get(0)));
         var candidates = candidateHydrator.hydrate(USER_ID, scope, hits);
         assertFalse(candidates.isEmpty(), () -> "MySQL hydration/authorization removed all hits; hits="
                 + hits + "; snapshot=" + snapshot.points());
+    }
+
+    private String searchProbes(List<Float> vector) {
+        return "unfiltered=" + rawSearch(vector, null)
+                + "; project=" + rawSearch(vector, match("projectId", PROJECT_ID))
+                + "; visibility=" + rawSearch(vector, match("visibilityType", "PRIVATE"))
+                + "; owner=" + rawSearch(vector, match("ownerUserId", USER_ID))
+                + "; combined=" + rawSearch(vector, combinedAccessFilter());
+    }
+
+    private String rawSearch(List<Float> vector, ObjectNode filter) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.set("vector", objectMapper.valueToTree(vector));
+        body.put("limit", 10);
+        body.put("with_payload", true);
+        body.put("with_vector", false);
+        if (filter != null) {
+            ObjectNode effectiveFilter = filter;
+            if (!filter.has("must")) {
+                effectiveFilter = objectMapper.createObjectNode();
+                effectiveFilter.putArray("must").add(filter);
+            }
+            body.set("filter", effectiveFilter);
+        }
+        var response = new KnowledgeRestTransport(qdrantProperties.getBaseUrl(),
+                qdrantProperties.getApiKey(), 3000, 10000).exchange(
+                HttpMethod.POST,
+                "/collections/" + qdrantProperties.getAlias() + "/points/search",
+                body.toString(), false);
+        return response.statusCode() + ":" + response.body();
+    }
+
+    private ObjectNode combinedAccessFilter() {
+        ObjectNode filter = objectMapper.createObjectNode();
+        filter.putArray("must")
+                .add(match("projectId", PROJECT_ID))
+                .add(match("visibilityType", "PRIVATE"))
+                .add(match("ownerUserId", USER_ID));
+        return filter;
+    }
+
+    private ObjectNode match(String key, Object value) {
+        ObjectNode condition = objectMapper.createObjectNode();
+        condition.put("key", key);
+        ObjectNode match = condition.putObject("match");
+        if (value instanceof Number number) {
+            match.put("value", number.longValue());
+        } else {
+            match.put("value", String.valueOf(value));
+        }
+        return condition;
     }
 
     private long count(String table) {
