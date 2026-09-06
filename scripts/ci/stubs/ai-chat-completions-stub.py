@@ -317,7 +317,10 @@ class Handler(BaseHTTPRequestHandler):
         fault_match = re.search(r"\[\[STAGE6_AGENT:([a-z0-9-]+)\]\]", text)
         fault = fault_match.group(1) if fault_match else None
         if fault == "timeout":
-            time.sleep(6)
+            # The marker becomes visible only after a task-bearing Tool result is
+            # returned. Exceed the 15-second Stage 6 CI run budget in that single
+            # round so timeout evaluation is deterministic on fast and slow runners.
+            time.sleep(20)
         if fault == "unregistered-tool":
             call = self._tool_call(0, "agent-bad-tool", "deleteProject", "{}")
             self._send_json(200, self._completion(None, "tool_calls", [call], usage=USAGE))
