@@ -29,3 +29,19 @@ backfill(status, lease_until)
 ```
 
 No foreign key points from Outbox/document rows to business rows. Sources may be deleted before asynchronous reconciliation; lifecycle correctness is implemented through source re-read and tombstones.
+
+## Qdrant payload contract
+
+Every point is server-derived and contains:
+
+```text
+userId, projectId, sourceType, sourceId, sourceVersion, updatedAt
+teamId (TEAM-scoped sources only)
+```
+
+`ownerUserId` remains as a compatibility alias. `documentKey`, `visibilityType`,
+`chunkIndex`, `contentHash`, `payloadHash`, and `indexedAt` support reconciliation and
+operations. `sourceVersion` is the deterministic `contentHash:payloadHash` pair. Qdrant
+payload indexes cover the permission/filter fields plus `sourceVersion` and `updatedAt`.
+No point contains account names, email addresses, credentials, source text, or vectors in
+its payload.

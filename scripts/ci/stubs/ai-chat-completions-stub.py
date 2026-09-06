@@ -367,6 +367,14 @@ class Handler(BaseHTTPRequestHandler):
         if isinstance(inputs, str):
             inputs = [inputs]
         dimension = request.get("dimensions", 1024) if isinstance(request, dict) else 1024
+        model = request.get("model", "text-embedding-v4") if isinstance(request, dict) else "text-embedding-v4"
+        if isinstance(model, str) and model.startswith("stub-status-"):
+            try:
+                status = int(model.removeprefix("stub-status-"))
+            except ValueError:
+                status = 500
+            self._send_json(status, {"error": {"type": "stub_embedding_error", "status": status}})
+            return
         if not isinstance(inputs, list) or not inputs or len(inputs) > 10:
             self._send_json(400, {"error": "invalid_embedding_input"})
             return
@@ -382,13 +390,16 @@ class Handler(BaseHTTPRequestHandler):
             vector = [((digest[offset % len(digest)] / 255.0) * 2.0) - 1.0 for offset in range(dimension)]
             data.append({"object": "embedding", "index": index, "embedding": vector})
         prompt_tokens = sum(max(1, len(value) // 4) for value in inputs)
-        self._send_json(200, {
+        response = {
             "id": "ci-embedding-stub-response",
             "object": "list",
-            "model": request.get("model", "text-embedding-v4"),
+            "model": model,
             "data": data,
             "usage": {"prompt_tokens": prompt_tokens, "total_tokens": prompt_tokens},
-        }, request_id="ci-embedding-stub-request")
+        }
+        if model == "stub-missing-model":
+            response.pop("model")
+        self._send_json(200, response, request_id="ci-embedding-stub-request")
 
     def log_message(self, fmt, *args):
         logging.info("request=%s status=%s", self.path, args[1] if len(args) > 1 else "unknown")

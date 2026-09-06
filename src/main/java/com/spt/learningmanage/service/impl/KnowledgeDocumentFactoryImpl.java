@@ -111,7 +111,8 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
             return List.of();
         }
         List<KnowledgeDocumentProjection> documents = new ArrayList<>(2);
-        if (authorCanViewProject(review.getUserId(), project.getId())) {
+        boolean authorCanViewProject = authorCanViewProject(review.getUserId(), project.getId());
+        if (authorCanViewProject) {
             Map<String, Object> payload = basePayload("WEEKLY_REVIEW", review.getId(), project,
                     review.getUserId(), KnowledgeVisibilityTypeEnum.PRIVATE);
             reviewPayload(payload, review);
@@ -123,7 +124,8 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
             ));
         }
 
-        if (WeeklyReviewVisibilityScopeEnum.TEAM.getValue().equals(review.getVisibilityScope())
+        if (authorCanViewProject
+                && WeeklyReviewVisibilityScopeEnum.TEAM.getValue().equals(review.getVisibilityScope())
                 && project.getTeamId() != null
                 && project.getTeamId().equals(review.getTeamId())
                 && StringUtils.hasText(review.getSharedSummary())
@@ -176,6 +178,9 @@ public class KnowledgeDocumentFactoryImpl implements KnowledgeDocumentFactory {
         payload.put("sourceId", sourceId);
         payload.put("projectId", project.getId());
         put(payload, "teamId", project.getTeamId());
+        // Keep the original Stage 4 public payload contract. ownerUserId remains
+        // as an explicit compatibility alias for existing Stage 5 consumers.
+        payload.put("userId", ownerUserId);
         payload.put("ownerUserId", ownerUserId);
         payload.put("visibilityType", visibility.name());
         return payload;

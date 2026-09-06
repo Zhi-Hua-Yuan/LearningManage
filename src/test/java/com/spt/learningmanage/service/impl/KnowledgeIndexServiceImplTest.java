@@ -9,6 +9,7 @@ import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeVisibilityTypeEnum;
 import com.spt.learningmanage.mapper.AiKnowledgeDocumentMapper;
 import com.spt.learningmanage.model.dto.knowledge.EmbeddingBatchResult;
+import com.spt.learningmanage.model.dto.knowledge.VectorPoint;
 import com.spt.learningmanage.model.entity.AiKnowledgeDocument;
 import com.spt.learningmanage.model.knowledge.IndexExecutionContext;
 import com.spt.learningmanage.model.knowledge.KnowledgeDocumentProjection;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
@@ -52,9 +54,13 @@ class KnowledgeIndexServiceImplTest {
 
         fixture.service().reconcileSource(fixture.source, fixture.context);
 
-        ArgumentCaptor<List> points = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<VectorPoint>> points = ArgumentCaptor.forClass(List.class);
         verify(fixture.vectorStoreClient).upsertPoints(points.capture());
         assertEquals(1, points.getValue().size());
+        Map<String, Object> payload = points.getValue().get(0).payload();
+        assertEquals(4L, payload.get("userId"));
+        assertTrue(payload.containsKey("sourceVersion"));
+        assertTrue(payload.containsKey("updatedAt"));
         verify(fixture.vectorStoreClient, never()).overwritePayload(anyList());
     }
 
@@ -159,10 +165,12 @@ class KnowledgeIndexServiceImplTest {
         }
 
         private KnowledgeDocumentProjection projection(Map<String, Object> payload) {
+            Map<String, Object> contractPayload = new java.util.LinkedHashMap<>(payload);
+            contractPayload.put("userId", 4L);
             return new KnowledgeDocumentProjection(
                     "TASK:1:PRIVATE:10", KnowledgeSourceTypeEnum.TASK, 1L, 10L,
                     null, 4L, KnowledgeVisibilityTypeEnum.PRIVATE,
-                    "任务标题: 测试", "任务描述: 内容", payload
+                    "任务标题: 测试", "任务描述: 内容", contractPayload
             );
         }
 
