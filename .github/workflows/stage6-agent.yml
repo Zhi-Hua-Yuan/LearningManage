@@ -121,6 +121,12 @@ jobs:
             sleep 1
           done
           exit 1
+      - name: Install pinned Promptfoo runtime
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --prefix evals/stage3
+          npm rebuild better-sqlite3 --prefix evals/stage3
       - name: Run 100-case Stage 6 application-path evaluation
         working-directory: evals/stage6
         env:
@@ -137,8 +143,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          npm ci --ignore-scripts --prefix evals/stage3
-          npm rebuild better-sqlite3 --prefix evals/stage3
           npm test --prefix evals/stage6
           npm run validate --prefix evals/stage6
           git diff --exit-code -- evals/stage6/tests/generated.json
