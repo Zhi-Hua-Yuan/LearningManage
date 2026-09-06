@@ -1,0 +1,852 @@
+[
+  {
+    "description": "RAG-001 regression",
+    "vars": {
+      "caseId": "RAG-001",
+      "sourceAlias": "TASK_001",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-001，它负责什么？",
+      "expectedTitle": "评测任务001：权限过滤",
+      "expectedMarker": "EVIDENCE-001",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-001",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-002 regression",
+    "vars": {
+      "caseId": "RAG-002",
+      "sourceAlias": "TASK_002",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-002，它负责什么？",
+      "expectedTitle": "评测任务002：向量召回",
+      "expectedMarker": "EVIDENCE-002",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-002",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-003 regression",
+    "vars": {
+      "caseId": "RAG-003",
+      "sourceAlias": "TASK_003",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-003，它负责什么？",
+      "expectedTitle": "评测任务003：重排服务",
+      "expectedMarker": "EVIDENCE-003",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-003",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-004 regression",
+    "vars": {
+      "caseId": "RAG-004",
+      "sourceAlias": "TASK_004",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-004，它负责什么？",
+      "expectedTitle": "评测任务004：引用校验",
+      "expectedMarker": "EVIDENCE-004",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-004",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-005 regression",
+    "vars": {
+      "caseId": "RAG-005",
+      "sourceAlias": "TASK_005",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-005，它负责什么？",
+      "expectedTitle": "评测任务005：索引一致性",
+      "expectedMarker": "EVIDENCE-005",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-005",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-006 regression",
+    "vars": {
+      "caseId": "RAG-006",
+      "sourceAlias": "TASK_006",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-006，它负责什么？",
+      "expectedTitle": "评测任务006：任务推进",
+      "expectedMarker": "EVIDENCE-006",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-006",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-007 regression",
+    "vars": {
+      "caseId": "RAG-007",
+      "sourceAlias": "TASK_007",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-007，它负责什么？",
+      "expectedTitle": "评测任务007：周复盘",
+      "expectedMarker": "EVIDENCE-007",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-007",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-008 regression",
+    "vars": {
+      "caseId": "RAG-008",
+      "sourceAlias": "TASK_008",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-008，它负责什么？",
+      "expectedTitle": "评测任务008：故障降级",
+      "expectedMarker": "EVIDENCE-008",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-008",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-009 regression",
+    "vars": {
+      "caseId": "RAG-009",
+      "sourceAlias": "TASK_009",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-009，它负责什么？",
+      "expectedTitle": "评测任务009：日志隐私",
+      "expectedMarker": "EVIDENCE-009",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-009",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-010 regression",
+    "vars": {
+      "caseId": "RAG-010",
+      "sourceAlias": "TASK_010",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-010，它负责什么？",
+      "expectedTitle": "评测任务010：结果生命周期",
+      "expectedMarker": "EVIDENCE-010",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-010",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-011 regression",
+    "vars": {
+      "caseId": "RAG-011",
+      "sourceAlias": "TASK_011",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-011，它负责什么？",
+      "expectedTitle": "评测任务011：权限过滤",
+      "expectedMarker": "EVIDENCE-011",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-011",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-012 regression",
+    "vars": {
+      "caseId": "RAG-012",
+      "sourceAlias": "TASK_012",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-012，它负责什么？",
+      "expectedTitle": "评测任务012：向量召回",
+      "expectedMarker": "EVIDENCE-012",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-012",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-013 regression",
+    "vars": {
+      "caseId": "RAG-013",
+      "sourceAlias": "TASK_013",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-013，它负责什么？",
+      "expectedTitle": "评测任务013：重排服务",
+      "expectedMarker": "EVIDENCE-013",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-013",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-014 regression",
+    "vars": {
+      "caseId": "RAG-014",
+      "sourceAlias": "TASK_014",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-014，它负责什么？",
+      "expectedTitle": "评测任务014：引用校验",
+      "expectedMarker": "EVIDENCE-014",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-014",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-015 regression",
+    "vars": {
+      "caseId": "RAG-015",
+      "sourceAlias": "TASK_015",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-015，它负责什么？",
+      "expectedTitle": "评测任务015：索引一致性",
+      "expectedMarker": "EVIDENCE-015",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-015",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-016 regression",
+    "vars": {
+      "caseId": "RAG-016",
+      "sourceAlias": "TASK_016",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-016，它负责什么？",
+      "expectedTitle": "评测任务016：任务推进",
+      "expectedMarker": "EVIDENCE-016",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-016",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-017 regression",
+    "vars": {
+      "caseId": "RAG-017",
+      "sourceAlias": "TASK_017",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-017，它负责什么？",
+      "expectedTitle": "评测任务017：周复盘",
+      "expectedMarker": "EVIDENCE-017",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-017",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-018 regression",
+    "vars": {
+      "caseId": "RAG-018",
+      "sourceAlias": "TASK_018",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-018，它负责什么？",
+      "expectedTitle": "评测任务018：故障降级",
+      "expectedMarker": "EVIDENCE-018",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-018",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-019 regression",
+    "vars": {
+      "caseId": "RAG-019",
+      "sourceAlias": "TASK_019",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-019，它负责什么？",
+      "expectedTitle": "评测任务019：日志隐私",
+      "expectedMarker": "EVIDENCE-019",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-019",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-020 regression",
+    "vars": {
+      "caseId": "RAG-020",
+      "sourceAlias": "TASK_020",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-020，它负责什么？",
+      "expectedTitle": "评测任务020：结果生命周期",
+      "expectedMarker": "EVIDENCE-020",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-020",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-021 regression",
+    "vars": {
+      "caseId": "RAG-021",
+      "sourceAlias": "TASK_021",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-021，它负责什么？",
+      "expectedTitle": "评测任务021：权限过滤",
+      "expectedMarker": "EVIDENCE-021",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-021",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-022 regression",
+    "vars": {
+      "caseId": "RAG-022",
+      "sourceAlias": "TASK_022",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-022，它负责什么？",
+      "expectedTitle": "评测任务022：向量召回",
+      "expectedMarker": "EVIDENCE-022",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-022",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-023 regression",
+    "vars": {
+      "caseId": "RAG-023",
+      "sourceAlias": "TASK_023",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-023，它负责什么？",
+      "expectedTitle": "评测任务023：重排服务",
+      "expectedMarker": "EVIDENCE-023",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-023",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-024 regression",
+    "vars": {
+      "caseId": "RAG-024",
+      "sourceAlias": "TASK_024",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-024，它负责什么？",
+      "expectedTitle": "评测任务024：引用校验",
+      "expectedMarker": "EVIDENCE-024",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-024",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-025 regression",
+    "vars": {
+      "caseId": "RAG-025",
+      "sourceAlias": "TASK_025",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-025，它负责什么？",
+      "expectedTitle": "评测任务025：索引一致性",
+      "expectedMarker": "EVIDENCE-025",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-025",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-026 regression",
+    "vars": {
+      "caseId": "RAG-026",
+      "sourceAlias": "TASK_026",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-026，它负责什么？",
+      "expectedTitle": "评测任务026：任务推进",
+      "expectedMarker": "EVIDENCE-026",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-026",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-027 regression",
+    "vars": {
+      "caseId": "RAG-027",
+      "sourceAlias": "TASK_027",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-027，它负责什么？",
+      "expectedTitle": "评测任务027：周复盘",
+      "expectedMarker": "EVIDENCE-027",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-027",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-028 regression",
+    "vars": {
+      "caseId": "RAG-028",
+      "sourceAlias": "TASK_028",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-028，它负责什么？",
+      "expectedTitle": "评测任务028：故障降级",
+      "expectedMarker": "EVIDENCE-028",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-028",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-029 regression",
+    "vars": {
+      "caseId": "RAG-029",
+      "sourceAlias": "TASK_029",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-029，它负责什么？",
+      "expectedTitle": "评测任务029：日志隐私",
+      "expectedMarker": "EVIDENCE-029",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-029",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-030 regression",
+    "vars": {
+      "caseId": "RAG-030",
+      "sourceAlias": "TASK_030",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-030，它负责什么？",
+      "expectedTitle": "评测任务030：结果生命周期",
+      "expectedMarker": "EVIDENCE-030",
+      "split": "regression",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-030",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "RAG-031 holdout",
+    "vars": {
+      "caseId": "RAG-031",
+      "sourceAlias": "TASK_031",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-031，它负责什么？",
+      "expectedTitle": "评测任务031：权限过滤",
+      "expectedMarker": "EVIDENCE-031",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-031",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-032 holdout",
+    "vars": {
+      "caseId": "RAG-032",
+      "sourceAlias": "TASK_032",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-032，它负责什么？",
+      "expectedTitle": "评测任务032：向量召回",
+      "expectedMarker": "EVIDENCE-032",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-032",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-033 holdout",
+    "vars": {
+      "caseId": "RAG-033",
+      "sourceAlias": "TASK_033",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-033，它负责什么？",
+      "expectedTitle": "评测任务033：重排服务",
+      "expectedMarker": "EVIDENCE-033",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-033",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-034 holdout",
+    "vars": {
+      "caseId": "RAG-034",
+      "sourceAlias": "TASK_034",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-034，它负责什么？",
+      "expectedTitle": "评测任务034：引用校验",
+      "expectedMarker": "EVIDENCE-034",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-034",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-035 holdout",
+    "vars": {
+      "caseId": "RAG-035",
+      "sourceAlias": "TASK_035",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-035，它负责什么？",
+      "expectedTitle": "评测任务035：索引一致性",
+      "expectedMarker": "EVIDENCE-035",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-035",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-036 holdout",
+    "vars": {
+      "caseId": "RAG-036",
+      "sourceAlias": "TASK_036",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-036，它负责什么？",
+      "expectedTitle": "评测任务036：任务推进",
+      "expectedMarker": "EVIDENCE-036",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-036",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-037 holdout",
+    "vars": {
+      "caseId": "RAG-037",
+      "sourceAlias": "TASK_037",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-037，它负责什么？",
+      "expectedTitle": "评测任务037：周复盘",
+      "expectedMarker": "EVIDENCE-037",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-037",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-038 holdout",
+    "vars": {
+      "caseId": "RAG-038",
+      "sourceAlias": "TASK_038",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-038，它负责什么？",
+      "expectedTitle": "评测任务038：故障降级",
+      "expectedMarker": "EVIDENCE-038",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-038",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-039 holdout",
+    "vars": {
+      "caseId": "RAG-039",
+      "sourceAlias": "TASK_039",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-039，它负责什么？",
+      "expectedTitle": "评测任务039：日志隐私",
+      "expectedMarker": "EVIDENCE-039",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-039",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-040 holdout",
+    "vars": {
+      "caseId": "RAG-040",
+      "sourceAlias": "TASK_040",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-040，它负责什么？",
+      "expectedTitle": "评测任务040：结果生命周期",
+      "expectedMarker": "EVIDENCE-040",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-040",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-041 holdout",
+    "vars": {
+      "caseId": "RAG-041",
+      "sourceAlias": "TASK_041",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-041，它负责什么？",
+      "expectedTitle": "评测任务041：权限过滤",
+      "expectedMarker": "EVIDENCE-041",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-041",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-042 holdout",
+    "vars": {
+      "caseId": "RAG-042",
+      "sourceAlias": "TASK_042",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-042，它负责什么？",
+      "expectedTitle": "评测任务042：向量召回",
+      "expectedMarker": "EVIDENCE-042",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-042",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-043 holdout",
+    "vars": {
+      "caseId": "RAG-043",
+      "sourceAlias": "TASK_043",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-043，它负责什么？",
+      "expectedTitle": "评测任务043：重排服务",
+      "expectedMarker": "EVIDENCE-043",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-043",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-044 holdout",
+    "vars": {
+      "caseId": "RAG-044",
+      "sourceAlias": "TASK_044",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-044，它负责什么？",
+      "expectedTitle": "评测任务044：引用校验",
+      "expectedMarker": "EVIDENCE-044",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-044",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-045 holdout",
+    "vars": {
+      "caseId": "RAG-045",
+      "sourceAlias": "TASK_045",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-045，它负责什么？",
+      "expectedTitle": "评测任务045：索引一致性",
+      "expectedMarker": "EVIDENCE-045",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-045",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-046 holdout",
+    "vars": {
+      "caseId": "RAG-046",
+      "sourceAlias": "TASK_046",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-046，它负责什么？",
+      "expectedTitle": "评测任务046：任务推进",
+      "expectedMarker": "EVIDENCE-046",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-046",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-047 holdout",
+    "vars": {
+      "caseId": "RAG-047",
+      "sourceAlias": "TASK_047",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-047，它负责什么？",
+      "expectedTitle": "评测任务047：周复盘",
+      "expectedMarker": "EVIDENCE-047",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-047",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-048 holdout",
+    "vars": {
+      "caseId": "RAG-048",
+      "sourceAlias": "TASK_048",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-048，它负责什么？",
+      "expectedTitle": "评测任务048：故障降级",
+      "expectedMarker": "EVIDENCE-048",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-048",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-049 holdout",
+    "vars": {
+      "caseId": "RAG-049",
+      "sourceAlias": "TASK_049",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-049，它负责什么？",
+      "expectedTitle": "评测任务049：日志隐私",
+      "expectedMarker": "EVIDENCE-049",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-049",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "RAG-050 holdout",
+    "vars": {
+      "caseId": "RAG-050",
+      "sourceAlias": "TASK_050",
+      "question": "哪一项任务包含唯一证据标识 EVIDENCE-050，它负责什么？",
+      "expectedTitle": "评测任务050：结果生命周期",
+      "expectedMarker": "EVIDENCE-050",
+      "split": "holdout",
+      "datasetVersion": "1.0.0",
+      "labelVersion": "1"
+    },
+    "metadata": {
+      "caseId": "RAG-050",
+      "split": "holdout"
+    }
+  }
+]

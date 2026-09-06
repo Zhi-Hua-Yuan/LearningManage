@@ -1,0 +1,130 @@
+name: Stage 5 real RAG dependency validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_sha:
+        description: Exact backend commit SHA to validate
+        required: true
+        type: string
+      embedding_base_url:
+        description: Alibaba compatible-mode Embedding base URL
+        required: true
+        type: string
+      query_embedding_base_url:
+        description: Alibaba native Query Embedding base URL
+        required: true
+        type: string
+      rerank_base_url:
+        description: Alibaba qwen3-rerank compatible API base URL
+        required: true
+        type: string
+      chat_base_url:
+        description: Alibaba OpenAI-compatible Chat base URL
+        required: true
+        type: string
+      chat_model:
+        description: Chat model used for the cited-answer smoke
+        required: true
+        default: qwen-plus
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage5-real-rag-${{ inputs.backend_sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: real-ai-validation
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: real_stage5_${{ github.run_id }}_${{ github.run_attempt }}
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -preal_stage5_${{ github.run_id }}_${{ github.run_attempt }} --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+      qdrant:
+        image: qdrant/qdrant:v1.18.2
+        ports: [16333:6333]
+    env:
+      STAGE5_REAL_RAG_DEPENDENCIES_ENABLED: 'true'
+      STAGE5_RAG_IT_ENABLED: 'true'
+      DB_HOST: 127.0.0.1
+      DB_PORT: '13306'
+      CI_DB_GATE_AUTHORIZED: 'true'
+      CI_EMPTY_DB_NAME: learning_manage_ci_empty
+      CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+      DB_NAME: learning_manage_ci_empty
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_USERNAME: root
+      CI_MYSQL_ADMIN_PASSWORD: real_stage5_${{ github.run_id }}_${{ github.run_attempt }}
+      FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+      FLYWAY_DB_PASSWORD: real_stage5_migrator_${{ github.run_id }}_${{ github.run_attempt }}
+      TEST_DB_USERNAME: learning_manage_ci_app
+      TEST_DB_PASSWORD: real_stage5_app_${{ github.run_id }}_${{ github.run_attempt }}
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: '13306'
+      TEST_DB_NAME: learning_manage_ci_empty
+      QDRANT_BASE_URL: http://127.0.0.1:16333
+      AI_BASE_URL: ${{ inputs.chat_base_url }}
+      AI_MODEL: ${{ inputs.chat_model }}
+      AI_CHAT_ENABLED: 'true'
+      AI_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url }}
+      AI_EMBEDDING_QUERY_BASE_URL: ${{ inputs.query_embedding_base_url }}
+      AI_RERANK_BASE_URL: ${{ inputs.rerank_base_url }}
+      AI_EMBEDDING_MODEL: text-embedding-v4
+      AI_RERANK_MODEL: qwen3-rerank
+      AI_RAG_ENABLED: 'true'
+      AI_RAG_REQUIRE_BACKFILL: 'false'
+      AI_RAG_VECTOR_SCORE_THRESHOLD: '-1'
+      AI_RAG_QUESTION_HMAC_SECRET: protected-stage5-rag-hmac-secret-with-at-least-32-bytes
+      AI_KNOWLEDGE_WORKER_ENABLED: 'false'
+      JWT_SECRET: protected-stage5-jwt-secret-with-at-least-32-bytes
+      ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.backend_sha }}
+          persist-credentials: false
+      - name: Verify immutable SHA
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "${{ inputs.backend_sha }}" ]]
+          [[ "${{ inputs.backend_sha }}" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Install MySQL client and migrate isolated V6 database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:16333/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Validate real dependencies and cited application path
+        run: ./mvnw -B -ntp -Dtest=RealRagDependencyValidationIT,RagEndToEndIT test
+      - name: Upload sanitized test report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage5-real-rag-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/surefire-reports
+          if-no-files-found: error
+          retention-days: 7

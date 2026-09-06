@@ -16,7 +16,7 @@ public interface AiKnowledgeBackfillRunMapper extends BaseMapper<AiKnowledgeBack
             FROM ai_knowledge_backfill_run
             WHERE status = 'PENDING'
                OR (status = 'RUNNING' AND lease_until < #{now})
-            ORDER BY id
+            ORDER BY CASE WHEN run_key = 'stage5-qdrant-numeric-payload-v1' THEN 1 ELSE 0 END, id
             LIMIT 1
             FOR UPDATE SKIP LOCKED
             """)

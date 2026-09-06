@@ -1,0 +1,202 @@
+name: Stage 5 permission-aware RAG gate
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage5-rag-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  DB_NAME: learning_manage_ci_empty
+  FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+  TEST_DB_HOST: 127.0.0.1
+  TEST_DB_PORT: '13306'
+  TEST_DB_NAME: learning_manage_ci_empty
+  QDRANT_BASE_URL: http://127.0.0.1:16333
+  AI_BASE_URL: http://127.0.0.1:18080/compatible-mode/v1
+  AI_MODEL: ci-ai-stub
+  AI_CHAT_ENABLED: 'true'
+  AI_EMBEDDING_BASE_URL: http://127.0.0.1:18080/compatible-mode/v1
+  AI_EMBEDDING_QUERY_BASE_URL: http://127.0.0.1:18080/api/v1
+  AI_EMBEDDING_API_KEY: ci-only-not-a-real-key
+  AI_EMBEDDING_MODEL: text-embedding-v4
+  AI_EMBEDDING_DIMENSION: '1024'
+  AI_RERANK_BASE_URL: http://127.0.0.1:18080/compatible-api/v1
+  AI_RERANK_API_KEY: ci-only-not-a-real-key
+  AI_RERANK_MODEL: qwen3-rerank
+  AI_RAG_QUESTION_HMAC_SECRET: ci-only-stage5-hmac-secret-with-at-least-32-bytes
+  AI_RAG_ENABLED: 'true'
+  AI_RAG_REQUIRE_BACKFILL: 'false'
+  AI_RAG_INITIAL_TOP_K: '100'
+  AI_RAG_VECTOR_SCORE_THRESHOLD: '-1'
+  AI_KNOWLEDGE_WORKER_ENABLED: 'false'
+  STAGE5_RAG_IT_ENABLED: 'true'
+  ALIYUN_API_KEY: ci-only-not-a-real-key
+  JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage5
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage5 --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+      qdrant:
+        image: qdrant/qdrant:v1.18.2
+        ports: [16333:6333]
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage5
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage5
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_stage5
+      FLYWAY_BASELINE_ON_MIGRATE: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: evals/stage3/package-lock.json
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Start deterministic AI, embedding, and rerank stub
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          AI_STUB_PORT=18080 python3 scripts/ci/stubs/ai-chat-completions-stub.py \
+            >"$RUNNER_TEMP/stage5-ai-stub.log" 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:18080/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Provision V6 database
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Wait for Qdrant
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:16333/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run permission-aware RAG integration
+        run: ./mvnw -B -ntp -Dtest=RagEndToEndIT test
+      - name: Validate Stage 5 evaluation contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --prefix evals/stage3
+          npm rebuild better-sqlite3 --prefix evals/stage3
+          npm test --prefix evals/stage5
+          npm run validate --prefix evals/stage5
+          git diff --exit-code -- evals/stage5/tests/generated.json
+          bash scripts/ci/verify-stage5-acceptance.sh
+      - name: Start Stage 5 application candidate
+        shell: bash
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SERVER_PORT: '18133'
+          APP_SCHEDULING_ENABLED: 'true'
+          AI_KNOWLEDGE_WORKER_ENABLED: 'true'
+          RATE_LIMIT_AI_ENABLED: 'false'
+        run: |
+          set -Eeuo pipefail
+          ./mvnw -B -ntp -DskipTests package
+          java -jar target/LearningManage-0.0.1-SNAPSHOT.jar \
+            >"$RUNNER_TEMP/stage5-application.log" 2>&1 &
+          echo "$!" >"$RUNNER_TEMP/stage5-application.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:18133/api/health >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run 50-case application-path RAG evaluation
+        working-directory: evals/stage5
+        env:
+          STAGE5_API_BASE_URL: http://127.0.0.1:18133/api
+          STAGE5_EVAL_ACCOUNT: stage5eval
+          STAGE5_EVAL_PASSWORD: ci-only-stage5-eval-password
+          STAGE5_EVAL_ALLOW_REGISTER: 'true'
+        run: |
+          set -Eeuo pipefail
+          npm run prepare:fixture
+          npm run eval
+      - name: Capture failed knowledge-index state
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          MYSQL_PWD: ${{ env.TEST_DB_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          mysql --host="$TEST_DB_HOST" --port="$TEST_DB_PORT" \
+            --user="$TEST_DB_USERNAME" --batch --raw "$TEST_DB_NAME" \
+            --execute="SELECT status, COALESCE(failure_type,'-') AS failure_type, COALESCE(last_error,'-') AS last_error, COUNT(*) AS event_count FROM ai_knowledge_index_event GROUP BY status, failure_type, last_error ORDER BY status, failure_type;" \
+            >"$RUNNER_TEMP/stage5-index-state.log"
+          curl --fail --silent "$QDRANT_BASE_URL/collections/learning_knowledge_current" \
+            >"$RUNNER_TEMP/stage5-qdrant-state.json" || true
+      - name: Remove Stage 5 evaluation fixture
+        if: ${{ always() }}
+        working-directory: evals/stage5
+        env:
+          STAGE5_API_BASE_URL: http://127.0.0.1:18133/api
+          STAGE5_EVAL_ACCOUNT: stage5eval
+          STAGE5_EVAL_PASSWORD: ci-only-stage5-eval-password
+        run: npm run cleanup:fixture || true
+      - name: Stop Stage 5 application candidate
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/stage5-application.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/stage5-application.pid")" || true
+          fi
+      - name: Upload sanitized diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stage5-rag-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/stage5-ai-stub.log
+            ${{ runner.temp }}/stage5-application.log
+            ${{ runner.temp }}/stage5-index-state.log
+            ${{ runner.temp }}/stage5-qdrant-state.json
+            target/surefire-reports
+            evals/stage5/output.json
+          if-no-files-found: ignore
+          retention-days: 7

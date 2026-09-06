@@ -57,6 +57,7 @@ services:
       ALIYUN_API_KEY: ${ALIYUN_API_KEY:?ALIYUN_API_KEY is required}
       AI_KNOWLEDGE_WORKER_ENABLED: ${AI_KNOWLEDGE_WORKER_ENABLED:-false}
       AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      AI_EMBEDDING_QUERY_BASE_URL: ${AI_EMBEDDING_QUERY_BASE_URL:-https://dashscope.aliyuncs.com/api/v1}
       AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:-${ALIYUN_API_KEY}}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-v4}
       AI_EMBEDDING_DIMENSION: ${AI_EMBEDDING_DIMENSION:-1024}
@@ -65,6 +66,12 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-learning_knowledge_v1_1024}
       QDRANT_ALIAS: ${QDRANT_ALIAS:-learning_knowledge_current}
       QDRANT_REQUIRE_SECURE_TRANSPORT: 'false'
+      AI_RAG_ENABLED: ${AI_RAG_ENABLED:-false}
+      AI_RAG_REQUIRE_BACKFILL: ${AI_RAG_REQUIRE_BACKFILL:-true}
+      AI_RAG_QUESTION_HMAC_SECRET: ${AI_RAG_QUESTION_HMAC_SECRET:-}
+      AI_RERANK_BASE_URL: ${AI_RERANK_BASE_URL:-https://dashscope.aliyuncs.com/compatible-api/v1}
+      AI_RERANK_API_KEY: ${AI_RERANK_API_KEY:-${ALIYUN_API_KEY}}
+      AI_RERANK_MODEL: ${AI_RERANK_MODEL:-qwen3-rerank}
 
   # ---------------- 3. 前端集装箱 ----------------
   frontend:

@@ -94,9 +94,36 @@ class AliyunEmbeddingClientHttpTest {
         assertEquals(KnowledgeFailureTypeEnum.EMBEDDING_PROTOCOL, exception.getFailureType());
     }
 
+    @Test
+    void queryUsesNativeQueryTypeAndParsesDenseVector() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/services/embeddings/text-embedding/text-embedding", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.getResponseHeaders().add("x-request-id", "query-embedding-1");
+            respond(exchange, 200, """
+                    {"output":{"embeddings":[{"embedding":[0.1,0.2,0.3]}]},
+                     "usage":{"total_tokens":5},"request_id":"query-embedding-1"}
+                    """);
+        });
+        server.start();
+
+        var result = client(3).embedQuery("为什么延期",
+                new EmbeddingCallContext(1L, "trace", List.of("hash")));
+
+        assertEquals(List.of(0.1f, 0.2f, 0.3f), result.vectors().get(0));
+        assertEquals(5L, result.totalTokens());
+        assertEquals("query-embedding-1", result.providerRequestId());
+        assertEquals("text-embedding-v4", result.actualModel());
+        assertTrue(requestBody.get().contains("\"text_type\":\"query\""));
+        assertTrue(requestBody.get().contains("\"output_type\":\"dense\""));
+        assertTrue(requestBody.get().contains("\"dimension\":3"));
+    }
+
     private AliyunEmbeddingClient client(int dimension) {
         EmbeddingProperties properties = new EmbeddingProperties();
         properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        properties.setQueryBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
         properties.setApiKey("test-key");
         properties.setDimension(dimension);
         AiProperties aiProperties = new AiProperties();

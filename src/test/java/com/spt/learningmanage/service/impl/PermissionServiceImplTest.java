@@ -228,6 +228,20 @@ class PermissionServiceImplTest {
     }
 
     @Test
+    void batchReviewFilterReturnsOnlyAuthorPrivateOrReadableTeamRows() {
+        WeeklyReviewPermissionRow ownPrivate = review(901L, 20L, "PRIVATE", null, null);
+        WeeklyReviewPermissionRow teamShared = review(902L, 10L, "TEAM", 200L, TeamRoleEnum.MEMBER);
+        WeeklyReviewPermissionRow otherPrivate = review(903L, 10L, "PRIVATE", null, null);
+        when(permissionQueryMapper.selectWeeklyReviewPermissionRows(
+                20L, List.of(901L, 902L, 903L)))
+                .thenReturn(List.of(ownPrivate, teamShared, otherPrivate));
+
+        assertEquals(java.util.Set.of(901L, 902L),
+                permissionService.filterReadableWeeklyReviewIds(
+                        20L, List.of(901L, 902L, 903L)));
+    }
+
+    @Test
     void systemAdminDoesNotBypassResourceMembership() {
         when(permissionQueryMapper.selectActorPermissionRow(99L))
                 .thenReturn(activeActor(99L, SystemRoleEnum.SYSTEM_ADMIN));

@@ -14,7 +14,8 @@ public enum AiSceneEnum {
     WEEKLY_POLISH("weekly-polish", "周总结润色"),
     TODAY_ORDER("today-order", "今日任务排序"),
     DAILY_REVIEW_RENAME("daily-review-rename", "日报任务改名"),
-    LIST_REPLAN("list-replan", "清单智能重排");
+    LIST_REPLAN("list-replan", "清单智能重排"),
+    RAG_PROJECT_ASK("rag-project-ask", "项目知识问答");
 
     private final String code;
 

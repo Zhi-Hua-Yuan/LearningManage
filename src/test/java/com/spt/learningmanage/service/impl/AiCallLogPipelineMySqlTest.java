@@ -50,7 +50,7 @@ class AiCallLogPipelineMySqlTest {
         assertNotNull(database);
         assertTrue(database.matches("(?i).*(?:_test|_ci_).*"),
                 "WP3 pipeline tests must use an isolated test database");
-        assertEquals(4, jdbcTemplate.queryForObject(
+        assertEquals(6, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) "
                         + "FROM flyway_schema_history WHERE success = 1", Integer.class));
     }

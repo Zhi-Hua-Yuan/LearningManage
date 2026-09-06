@@ -39,6 +39,8 @@ def stage3_fault(text):
 
 
 def stage3_scene(text):
+    if "基于项目证据回答问题" in text:
+        return "rag-project"
     if "任务智能重排助手" in text:
         return "list-replan"
     if "任务命名优化助手" in text:
@@ -93,6 +95,23 @@ def breakdown_content(text, detailed=False):
 
 
 def valid_stage3_content(scene, text):
+    if scene == "rag-project":
+        evidence_ids = []
+        for value in re.findall(r'"id"\s*:\s*"(S\d+)"', text):
+            if value not in evidence_ids:
+                evidence_ids.append(value)
+        if not evidence_ids:
+            return compact_json({
+                "answer": "依据不足，当前项目中没有找到足够相关且可访问的记录。",
+                "insufficientEvidence": True,
+                "citations": [],
+            })
+        citation = evidence_ids[0]
+        return compact_json({
+            "answer": f"项目记录显示存在与问题直接相关的任务进展 [{citation}]。",
+            "insufficientEvidence": False,
+            "citations": [citation],
+        })
     if scene == "weekly-polish":
         review = (
             "本周围绕既定目标完成了主要任务，并根据任务记录形成了可核对的阶段成果。"
@@ -262,6 +281,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/compatible-mode/v1/embeddings":
             self._handle_embeddings()
             return
+        if self.path == "/api/v1/services/embeddings/text-embedding/text-embedding":
+            self._handle_query_embedding()
+            return
+        if self.path == "/compatible-api/v1/reranks":
+            self._handle_rerank()
+            return
         if self.path != "/compatible-mode/v1/chat/completions":
             self._send_json(404, {"error": "not_found"})
             return
@@ -400,6 +425,73 @@ class Handler(BaseHTTPRequestHandler):
         if model == "stub-missing-model":
             response.pop("model")
         self._send_json(200, response, request_id="ci-embedding-stub-request")
+
+    def _handle_query_embedding(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            inputs = request.get("input", {}).get("texts")
+            parameters = request.get("parameters", {})
+            dimension = parameters.get("dimension", 1024)
+            model = request.get("model", "text-embedding-v4")
+        except (AttributeError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "invalid_query_embedding_request"})
+            return
+        if not isinstance(inputs, list) or len(inputs) != 1 or not isinstance(inputs[0], str):
+            self._send_json(400, {"error": "invalid_query_embedding_input"})
+            return
+        if parameters.get("text_type") != "query" or parameters.get("output_type") != "dense":
+            self._send_json(400, {"error": "missing_query_embedding_mode"})
+            return
+        digest = hashlib.sha256(inputs[0].encode("utf-8")).digest()
+        vector = [((digest[offset % len(digest)] / 255.0) * 2.0) - 1.0 for offset in range(dimension)]
+        tokens = max(1, len(inputs[0]) // 4)
+        self._send_json(200, {
+            "request_id": "ci-query-embedding-stub-request",
+            "model": model,
+            "output": {"embeddings": [{"embedding": vector, "text_index": 0}]},
+            "usage": {"total_tokens": tokens},
+        }, request_id="ci-query-embedding-stub-request")
+
+    def _handle_rerank(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            query = request.get("query")
+            documents = request.get("documents")
+            top_n = request.get("top_n", len(documents or []))
+            model = request.get("model", "qwen3-rerank")
+        except (AttributeError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "invalid_rerank_request"})
+            return
+        if not isinstance(query, str) or not isinstance(documents, list) or not documents:
+            self._send_json(400, {"error": "invalid_rerank_input"})
+            return
+        if "[[RERANK_DOWN]]" in query:
+            self._send_json(503, {"error": "rerank_unavailable"})
+            return
+        ranked = []
+        query_chars = set(query)
+        marker_match = re.search(r"EVIDENCE-\d{3}", query)
+        expected_marker = marker_match.group(0) if marker_match else None
+        for index, document in enumerate(documents):
+            if not isinstance(document, str):
+                self._send_json(400, {"error": "invalid_rerank_document"})
+                return
+            overlap = len(query_chars.intersection(set(document)))
+            if expected_marker and expected_marker in document:
+                score = 0.99
+            else:
+                score = min(0.89, 0.50 + overlap * 0.01 - index * 0.001)
+            ranked.append({"index": index, "relevance_score": score})
+        ranked.sort(key=lambda item: item["relevance_score"], reverse=True)
+        input_tokens = max(1, (len(query) + sum(len(value) for value in documents)) // 4)
+        self._send_json(200, {
+            "id": "ci-rerank-stub-response",
+            "model": model,
+            "results": ranked[:max(1, min(top_n, len(ranked)))],
+            "usage": {"total_tokens": input_tokens},
+        }, request_id="ci-rerank-stub-request")
 
     def log_message(self, fmt, *args):
         logging.info("request=%s status=%s", self.path, args[1] if len(args) > 1 else "unknown")

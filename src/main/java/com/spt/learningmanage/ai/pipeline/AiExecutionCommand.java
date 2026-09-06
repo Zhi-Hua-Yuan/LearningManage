@@ -18,14 +18,27 @@ public record AiExecutionCommand(
         AiPromptCodeEnum promptCode,
         String userPrompt,
         String parseFailureMessage,
-        String traceId
+        String traceId,
+        AiContentLoggingPolicy contentLoggingPolicy,
+        String requestLogSummary
 ) {
     public AiExecutionCommand(Long userId,
                               String modelName,
                               AiPromptCodeEnum promptCode,
                               String userPrompt,
                               String parseFailureMessage) {
-        this(userId, modelName, promptCode, userPrompt, parseFailureMessage, null);
+        this(userId, modelName, promptCode, userPrompt, parseFailureMessage, null,
+                AiContentLoggingPolicy.DEFAULT, null);
+    }
+
+    public AiExecutionCommand(Long userId,
+                              String modelName,
+                              AiPromptCodeEnum promptCode,
+                              String userPrompt,
+                              String parseFailureMessage,
+                              String traceId) {
+        this(userId, modelName, promptCode, userPrompt, parseFailureMessage, traceId,
+                AiContentLoggingPolicy.DEFAULT, null);
     }
 
     public AiExecutionCommand {
@@ -45,5 +58,11 @@ public record AiExecutionCommand(
             throw new IllegalArgumentException("响应解析失败提示不能为空");
         }
         AiRawExecutionCommand.validateTraceId(traceId);
+        contentLoggingPolicy = contentLoggingPolicy == null
+                ? AiContentLoggingPolicy.DEFAULT : contentLoggingPolicy;
+        if (contentLoggingPolicy == AiContentLoggingPolicy.METADATA_ONLY
+                && (requestLogSummary == null || requestLogSummary.isBlank())) {
+            throw new IllegalArgumentException("元数据日志模式必须提供安全请求摘要");
+        }
     }
 }

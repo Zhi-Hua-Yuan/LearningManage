@@ -21,10 +21,17 @@ spring:
 ai:
   api-key: ${ALIYUN_API_KEY:test-only-not-a-real-key}
   knowledge-index:
-    worker-enabled: false
+    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:false}
   embedding:
     base-url: ${AI_EMBEDDING_BASE_URL:http://127.0.0.1:18080/compatible-mode/v1}
+    query-base-url: ${AI_EMBEDDING_QUERY_BASE_URL:http://127.0.0.1:18080/api/v1}
     api-key: ${AI_EMBEDDING_API_KEY:test-only-not-a-real-key}
+  rag:
+    enabled: false
+    question-hmac-secret: test-only-rag-hmac-secret-with-at-least-32-bytes
+  rerank:
+    base-url: ${AI_RERANK_BASE_URL:http://127.0.0.1:18081/compatible-api/v1}
+    api-key: ${AI_RERANK_API_KEY:test-only-not-a-real-key}
 
 qdrant:
   base-url: ${QDRANT_BASE_URL:http://127.0.0.1:16333}
@@ -61,3 +68,6 @@ rate-limit:
       list-replan:
         window-seconds: 60
         max-requests: 3
+      rag-project-ask:
+        window-seconds: 60
+        max-requests: 10

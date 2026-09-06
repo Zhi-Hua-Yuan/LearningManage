@@ -1,0 +1,18 @@
+{
+  "name": "learningmanage-stage5-rag-evals",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": "22.13.1",
+    "npm": "10.9.2"
+  },
+  "scripts": {
+    "build:tests": "node scripts/build-tests.mjs",
+    "prepare:fixture": "node scripts/prepare-fixture.mjs",
+    "cleanup:fixture": "node scripts/cleanup-fixture.mjs",
+    "validate": "npm run build:tests && node scripts/run-promptfoo.mjs validate config -c promptfooconfig.yaml",
+    "eval": "npm run build:tests && node scripts/run-promptfoo.mjs eval -c promptfooconfig.yaml -o output.json --no-cache --no-share --max-concurrency 1",
+    "test": "npm run build:tests && node --test tests/contracts.test.cjs"
+  }
+}

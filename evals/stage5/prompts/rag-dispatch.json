@@ -1,0 +1,6 @@
+[
+  {
+    "role": "user",
+    "content": "Evaluate Stage 5 RAG case {{caseId}} through the production application API. The provider must use context variables; this dispatch message is not the production RAG prompt."
+  }
+]

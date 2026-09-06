@@ -55,7 +55,18 @@ public enum ErrorCode {
     EMBEDDING_UNAVAILABLE(31006, "Embedding 服务暂时不可用"),
     EMBEDDING_DIMENSION_MISMATCH(31007, "Embedding 向量维度不匹配"),
     VECTOR_STORE_UNAVAILABLE(31008, "向量库暂时不可用"),
-    VECTOR_COLLECTION_INVALID(31009, "向量集合配置不合法");
+    VECTOR_COLLECTION_INVALID(31009, "向量集合配置不合法"),
+
+    /** Permission-aware RAG (32xxx). */
+    RAG_DISABLED(32001, "RAG 问答功能未启用"),
+    KNOWLEDGE_INDEX_NOT_READY(32002, "知识索引尚未就绪"),
+    RAG_DEPENDENCY_UNAVAILABLE(32003, "RAG 依赖服务暂时不可用"),
+    RAG_RESULT_NOT_FOUND(32004, "RAG 结果不存在"),
+    RAG_RESULT_INVALIDATED(32005, "RAG 结果已失效"),
+    RAG_RESULT_EXPIRED(32006, "RAG 结果已过期"),
+    RAG_CITATION_INVALID(32007, "RAG 引用校验失败"),
+    RAG_SOURCE_CHANGED(32008, "回答生成期间知识来源发生变化"),
+    RERANK_UNAVAILABLE(32009, "重排服务暂时不可用");
 
     private final int code;
     private final String message;

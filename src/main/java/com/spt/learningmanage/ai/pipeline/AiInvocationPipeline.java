@@ -61,7 +61,8 @@ public class AiInvocationPipeline {
         return executeResolved(new ResolvedExecution(
                 command.userId(), command.modelName(), template.scene(), template.code(),
                 template.templateId(), template.version(), template.source().getCode(),
-                template.systemPrompt(), command.userPrompt(), command.parseFailureMessage(), command.traceId()
+                template.systemPrompt(), command.userPrompt(), command.parseFailureMessage(), command.traceId(),
+                command.contentLoggingPolicy(), command.requestLogSummary()
         ), responseProcessor, fallback);
     }
 
@@ -76,7 +77,7 @@ public class AiInvocationPipeline {
         return executeResolved(new ResolvedExecution(
                 command.userId(), command.modelName(), RAW_PROMPT_CODE, RAW_PROMPT_CODE,
                 null, null, RAW_PROMPT_SOURCE, command.systemPrompt(), command.userPrompt(),
-                command.parseFailureMessage(), command.traceId()
+                command.parseFailureMessage(), command.traceId(), AiContentLoggingPolicy.DEFAULT, null
         ), responseProcessor, null);
     }
 
@@ -255,7 +256,7 @@ public class AiInvocationPipeline {
             return aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
                     execution.userId(), execution.scene(), execution.modelName(), execution.promptCode(),
                     execution.promptTemplateId(), execution.promptVersion(), execution.promptSource(),
-                    buildRequestText(execution.systemPrompt(), execution.userPrompt()), 0, traceId
+                    requestLogText(execution), 0, traceId
             ));
         } catch (Exception exception) {
             log.warn("AI 调用日志创建失败：scene={}, model={}",
@@ -278,8 +279,10 @@ public class AiInvocationPipeline {
         if (callLogId == null) {
             return null;
         }
+        String loggedResponse = execution.contentLoggingPolicy() == AiContentLoggingPolicy.METADATA_ONLY
+                ? null : responseText;
         return new AiCallLogCompletionCommand(
-                callLogId, status, responseText, errorMessage, duration,
+                callLogId, status, loggedResponse, errorMessage, duration,
                 result == null ? execution.modelName() : normalizedModel(result.requestedModel(), execution.modelName()),
                 result == null ? execution.modelName() : normalizedModel(result.actualModel(), execution.modelName()),
                 result == null || result.retryCount() == null ? 0 : Math.max(result.retryCount(), 0),
@@ -316,7 +319,8 @@ public class AiInvocationPipeline {
                 normalizedModel(result.actualModel(), execution.modelName()),
                 result.retryCount() == null ? 0 : Math.max(result.retryCount(), 0), duration,
                 result.finishReason(), result.usage(), result.providerRequestId(),
-                result.fallbackUsed(), result.fallbackReason(), degraded, degradationReason, traceId
+                result.fallbackUsed(), result.fallbackReason(), degraded, degradationReason, traceId,
+                execution.promptCode(), execution.promptVersion()
         );
     }
 
@@ -376,6 +380,13 @@ public class AiInvocationPipeline {
         return JSONUtil.createObj().set("systemPrompt", systemPrompt).set("userPrompt", userPrompt).toString();
     }
 
+    private String requestLogText(ResolvedExecution execution) {
+        if (execution.contentLoggingPolicy() == AiContentLoggingPolicy.METADATA_ONLY) {
+            return execution.requestLogSummary();
+        }
+        return buildRequestText(execution.systemPrompt(), execution.userPrompt());
+    }
+
     private long elapsedSince(long startTime) {
         return Math.max(System.currentTimeMillis() - startTime, 0L);
     }
@@ -383,7 +394,8 @@ public class AiInvocationPipeline {
     private record ResolvedExecution(
             Long userId, String modelName, String scene, String promptCode,
             Long promptTemplateId, Integer promptVersion, String promptSource,
-            String systemPrompt, String userPrompt, String parseFailureMessage, String traceId
+            String systemPrompt, String userPrompt, String parseFailureMessage, String traceId,
+            AiContentLoggingPolicy contentLoggingPolicy, String requestLogSummary
     ) {
     }
 }

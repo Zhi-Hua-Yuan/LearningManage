@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: LearningManage Stage 5 permission-aware RAG regression
+
+prompts:
+  - file://prompts/rag-dispatch.json
+
+providers:
+  - id: file://providers/learning-manage-rag-http.js
+    label: learning-manage-rag-api
+
+defaultTest:
+  assert:
+    - type: is-json
+      metric: provider_contract
+    - type: javascript
+      value: file://assertions/rag-contract.js
+      metric: rag_permission_citation_contract
+
+tests: file://tests/generated.json
+
+sharing: false

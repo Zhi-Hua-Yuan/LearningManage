@@ -68,6 +68,81 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
         return parse(response, texts.size());
     }
 
+    @Override
+    public EmbeddingBatchResult embedQuery(String text, EmbeddingCallContext context) {
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("Embedding query must not be blank");
+        }
+        String sanitizedText = sanitize(text);
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("model", properties.getModel());
+        request.putObject("input").putArray("texts").add(sanitizedText);
+        ObjectNode parameters = request.putObject("parameters");
+        parameters.put("dimension", properties.getDimension());
+        parameters.put("text_type", "query");
+        parameters.put("output_type", "dense");
+        if (properties.getQueryInstruction() != null && !properties.getQueryInstruction().isBlank()) {
+            parameters.put("instruct", properties.getQueryInstruction().trim());
+        }
+
+        RestTransportResponse response;
+        try {
+            response = resilientCallExecutor.execute(KnowledgeDependencyType.EMBEDDING,
+                    () -> {
+                        RestTransportResponse value = queryTransport().exchange(
+                                HttpMethod.POST,
+                                "/services/embeddings/text-embedding/text-embedding",
+                                request.toString(), true);
+                        requireSuccessful(value);
+                        return value;
+                    });
+        } catch (KnowledgeRestTransport.TransportFailureException exception) {
+            throw failure(KnowledgeFailureTypeEnum.NETWORK, true,
+                    "Embedding 服务暂时不可用", "Query embedding HTTP transport failed", exception);
+        }
+        return parseQuery(response);
+    }
+
+    private EmbeddingBatchResult parseQuery(RestTransportResponse response) {
+        try {
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode embeddings = root.path("output").path("embeddings");
+            if (!embeddings.isArray()) {
+                embeddings = root.path("data");
+            }
+            if (!embeddings.isArray() || embeddings.size() != 1) {
+                throw new IllegalArgumentException("Query embedding response item count mismatch");
+            }
+            JsonNode vectorNode = embeddings.get(0).path("embedding");
+            if (!vectorNode.isArray() || vectorNode.size() != properties.getDimension()) {
+                throw failure(KnowledgeFailureTypeEnum.DIMENSION_MISMATCH, false,
+                        "Embedding 向量维度不符合配置",
+                        "Expected query dimension " + properties.getDimension()
+                                + " but received " + vectorNode.size(), null);
+            }
+            List<Float> vector = new ArrayList<>(vectorNode.size());
+            vectorNode.forEach(value -> vector.add((float) value.asDouble()));
+            JsonNode usage = root.path("usage");
+            Long promptTokens = firstNullableLong(usage, "input_tokens", "prompt_tokens", "total_tokens");
+            Long totalTokens = firstNullableLong(usage, "total_tokens", "input_tokens", "prompt_tokens");
+            String model = root.path("model").asText("").trim();
+            if (model.isBlank()) {
+                model = properties.getModel();
+            }
+            String requestId = response.requestId();
+            if ((requestId == null || requestId.isBlank()) && root.hasNonNull("request_id")) {
+                requestId = root.path("request_id").asText();
+            }
+            return new EmbeddingBatchResult(List.of(vector), model,
+                    promptTokens, totalTokens, requestId);
+        } catch (KnowledgeIndexException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw failure(KnowledgeFailureTypeEnum.EMBEDDING_PROTOCOL, false,
+                    "Embedding 返回格式异常", "Unable to parse query embedding response", exception);
+        }
+    }
+
     private EmbeddingBatchResult parse(RestTransportResponse response, int expectedCount) {
         try {
             JsonNode root = objectMapper.readTree(response.body());
@@ -167,6 +242,11 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
                 properties.getConnectTimeoutMs(), properties.getReadTimeoutMs());
     }
 
+    private KnowledgeRestTransport queryTransport() {
+        return new KnowledgeRestTransport(properties.getQueryBaseUrl(), properties.getApiKey(),
+                properties.getConnectTimeoutMs(), properties.getReadTimeoutMs());
+    }
+
     private KnowledgeIndexException failure(KnowledgeFailureTypeEnum type,
                                             boolean retryable,
                                             String safe,
@@ -177,6 +257,16 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
 
     private Long nullableLong(JsonNode node, String field) {
         return node.hasNonNull(field) ? node.path(field).asLong() : null;
+    }
+
+    private Long firstNullableLong(JsonNode node, String... fields) {
+        for (String field : fields) {
+            Long value = nullableLong(node, field);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private record IndexedVector(int index, List<Float> vector) {
