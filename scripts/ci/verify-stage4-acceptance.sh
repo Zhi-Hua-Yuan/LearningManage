@@ -62,6 +62,7 @@ jq -e '
   .releaseEligibility == "ELIGIBLE" and
   (.validatedSourceSha | test("^[0-9a-f]{40}$")) and
   .plannedTag == "stage4-v1.0.0" and
+  .plannedTagTargetSha == .validatedSourceSha and
   .deterministicEvidence.sha256 == "04eefa250be3ca3e64b8255248bf9a60bbbfe6b06af99306c1f7aefd72964a1d" and
   .protectedProviderEvidence.runId == 34007915622 and
   .protectedProviderEvidence.result == "PASS" and

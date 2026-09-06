@@ -5,6 +5,7 @@
   "releaseEligibility": "ELIGIBLE",
   "validatedSourceSha": "84d51654b291d02b199c086829e584da58b26856",
   "plannedTag": "stage4-v1.0.0",
+  "plannedTagTargetSha": "84d51654b291d02b199c086829e584da58b26856",
   "deterministicEvidence": {
     "manifest": "docs/stage4/acceptance/stage4-deterministic-evidence-manifest.json",
     "sha256": "04eefa250be3ca3e64b8255248bf9a60bbbfe6b06af99306c1f7aefd72964a1d"
@@ -31,6 +32,6 @@
   "release": {
     "annotatedTagRequired": true,
     "githubReleaseRequired": true,
-    "status": "PENDING_PUBLICATION"
+    "status": "PENDING_PUBLICATION_ON_VALIDATED_SOURCE_SHA"
   }
 }

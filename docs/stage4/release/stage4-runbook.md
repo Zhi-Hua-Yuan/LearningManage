@@ -18,6 +18,10 @@
 11. Require event backlog zero, DEAD zero, MySQL/document/Qdrant reconciliation difference zero, and freshness P95 <= 60 seconds.
 12. Freeze evidence before enabling Stage 5 work.
 
+The annotated release tag points to the exact source SHA validated in step 9. Subsequent
+documentation-only closure commits record the Release URL and seal but are not substituted
+as the validated application binary.
+
 ## Failure rollback
 
 - Disable `AI_KNOWLEDGE_WORKER_ENABLED` first. Core business APIs remain available and continue capturing Outbox events.

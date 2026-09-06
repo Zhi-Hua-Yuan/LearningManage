@@ -59,4 +59,4 @@ private fields in TEAM vectors: 0
 duplicate/stale points after replay/rebuild: 0
 ```
 
-This document proves implementation and deterministic remote verification. It intentionally does not claim protected real-provider acceptance.
+This document proves implementation, deterministic remote verification, and the protected real-provider protocol acceptance bound to the validated source SHA.
