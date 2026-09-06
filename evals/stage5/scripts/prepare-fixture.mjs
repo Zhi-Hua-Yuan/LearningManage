@@ -79,11 +79,13 @@ fs.writeFileSync(runtimeFile, `${JSON.stringify({
 const probe = buildCases()[0]
 const expectedSourceId = sources[probe.alias]
 let ready = false
+let lastProbeBody = null
 for (let attempt = 0; attempt < 60; attempt += 1) {
   const response = await jsonRequest('/ai/rag/ask', {
     method: 'POST', headers,
     body: JSON.stringify({ projectId, question: probe.question }),
   })
+  lastProbeBody = response.body
   if (response.body?.code === 0 && response.body?.data?.sources?.some(
     (source) => String(source.sourceId) === expectedSourceId,
   )) {
@@ -92,5 +94,29 @@ for (let attempt = 0; attempt < 60; attempt += 1) {
   }
   await new Promise((resolve) => setTimeout(resolve, 1000))
 }
-if (!ready) throw new Error('Stage 5 knowledge index did not become queryable within 60 seconds')
+if (!ready) {
+  const qdrantBaseUrl = (process.env.QDRANT_BASE_URL || '').replace(/\/$/, '')
+  const qdrantAlias = process.env.QDRANT_ALIAS || 'learning_knowledge_current'
+  let qdrantDocument = 'unavailable'
+  if (qdrantBaseUrl) {
+    try {
+      const diagnostic = await fetch(`${qdrantBaseUrl}/collections/${qdrantAlias}/points/scroll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filter: { must: [{ key: 'documentKey', match: {
+            value: `TASK:${expectedSourceId}:PRIVATE:${projectId}`,
+          } }] },
+          limit: 2,
+          with_payload: true,
+          with_vector: false,
+        }),
+      })
+      qdrantDocument = await diagnostic.text()
+    } catch (error) {
+      qdrantDocument = `diagnostic-error:${error?.name || 'Error'}`
+    }
+  }
+  throw new Error(`Stage 5 knowledge index did not become queryable within 60 seconds; lastProbe=${JSON.stringify(lastProbeBody)}; qdrantDocument=${qdrantDocument}`)
+}
 console.log(`Stage 5 fixture ready: project=${projectId}, sources=${Object.keys(sources).length}`)
