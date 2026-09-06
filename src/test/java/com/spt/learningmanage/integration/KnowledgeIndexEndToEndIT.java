@@ -524,7 +524,6 @@ class KnowledgeIndexEndToEndIT {
         jdbcTemplate.update("DELETE FROM ai_knowledge_source_lock WHERE source_id >= 9940000");
         jdbcTemplate.update("DELETE FROM ai_knowledge_document WHERE source_id >= 9940000");
         jdbcTemplate.update("DELETE FROM ai_knowledge_backfill_run WHERE run_key LIKE 'stage4-it-%'");
-        jdbcTemplate.update("DELETE FROM ai_knowledge_backfill_run WHERE run_key='stage5-qdrant-numeric-payload-v1'");
         jdbcTemplate.update("DELETE FROM ai_call_log WHERE user_id=? AND scene='knowledge-index'", USER_ID);
         jdbcTemplate.update("DELETE FROM task_assignment_log WHERE task_id >= 9940000");
         jdbcTemplate.update("DELETE FROM weekly_review_task WHERE weekly_review_id=?", REVIEW_ID);
