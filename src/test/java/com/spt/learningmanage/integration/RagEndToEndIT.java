@@ -9,17 +9,25 @@ import com.spt.learningmanage.job.KnowledgeIndexWorker;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.UserMapper;
+import com.spt.learningmanage.model.dto.knowledge.EmbeddingCallContext;
+import com.spt.learningmanage.model.dto.knowledge.VectorAccessFilter;
+import com.spt.learningmanage.model.dto.knowledge.VectorSearchRequest;
 import com.spt.learningmanage.model.dto.rag.RagAskRequest;
 import com.spt.learningmanage.model.entity.AiKnowledgeIndexEvent;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
+import com.spt.learningmanage.service.EmbeddingClient;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.RagService;
 import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.VectorSearchClient;
 import com.spt.learningmanage.service.VectorStoreClient;
 import com.spt.learningmanage.service.knowledge.KnowledgeEventQueueService;
+import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
+import com.spt.learningmanage.service.rag.RagCandidateHydrator;
 import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +70,12 @@ class RagEndToEndIT {
     @Autowired KnowledgeEventQueueService eventQueueService;
     @Autowired KnowledgeIndexWorker indexWorker;
     @Autowired KnowledgeIndexEventPublisher eventPublisher;
+    @Autowired EmbeddingClient embeddingClient;
+    @Autowired VectorSearchClient vectorSearchClient;
     @Autowired VectorStoreClient vectorStoreClient;
+    @Autowired PermissionService permissionService;
+    @Autowired RagCandidateHydrator candidateHydrator;
+    @Autowired KnowledgeHashing hashing;
     @Autowired RagService ragService;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PlatformTransactionManager transactionManager;
@@ -97,6 +110,8 @@ class RagEndToEndIT {
                 new ProjectAccessScope(USER_ID, PROJECT_ID, USER_ID, null, null), USER_ID);
         documentKey = "TASK:" + taskId + ":PRIVATE:" + PROJECT_ID;
         processOnlyReadyEvent();
+        assertFalse(vectorStoreClient.inspectByDocumentKey(documentKey).points().isEmpty(),
+                "index worker must publish at least one Qdrant point");
     }
 
     @AfterEach
@@ -111,6 +126,7 @@ class RagEndToEndIT {
     @Test
     void indexedTaskProducesCitedAnswerWithoutPersistingQuestionOrEvidenceInAiLog() {
         UserHolder.set(USER_ID);
+        assertRetrievable("这个项目的检索工作进展怎么样？");
         var answer = ragService.ask(request("这个项目的检索工作进展怎么样？"));
 
         assertEquals("ACTIVE", answer.getStatus());
@@ -140,6 +156,7 @@ class RagEndToEndIT {
     @Test
     void currentMysqlChangeMakesPersistedAnswerStaleBeforeVectorReconciliation() {
         UserHolder.set(USER_ID);
+        assertRetrievable("检索任务进展怎么样？");
         var answer = ragService.ask(request("检索任务进展怎么样？"));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
@@ -189,6 +206,23 @@ class RagEndToEndIT {
         List<AiKnowledgeIndexEvent> events = eventQueueService.claimReady("stage5-rag-it", 10);
         assertEquals(1, events.size());
         indexWorker.process(events.get(0));
+    }
+
+    private void assertRetrievable(String question) {
+        ProjectAccessScope scope = permissionService.requireProjectView(USER_ID, PROJECT_ID);
+        var embedding = embeddingClient.embedQuery(question,
+                new EmbeddingCallContext(USER_ID, "stage5-rag-it-diagnostic",
+                        List.of(hashing.sha256(question))));
+        var hits = vectorSearchClient.query(new VectorSearchRequest(
+                embedding.vectors().get(0),
+                new VectorAccessFilter(PROJECT_ID, USER_ID, scope.teamId()),
+                100, -1));
+        var snapshot = vectorStoreClient.inspectByDocumentKey(documentKey);
+        assertFalse(hits.isEmpty(), () -> "permission-filtered Qdrant query returned no hits; snapshot="
+                + snapshot.points());
+        var candidates = candidateHydrator.hydrate(USER_ID, scope, hits);
+        assertFalse(candidates.isEmpty(), () -> "MySQL hydration/authorization removed all hits; hits="
+                + hits + "; snapshot=" + snapshot.points());
     }
 
     private long count(String table) {

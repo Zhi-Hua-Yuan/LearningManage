@@ -37,7 +37,7 @@ class TaskAssignmentServiceMySqlTest {
         UserHolder.set(12001L);
         String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertTrue(database != null && database.matches("(?i).*(?:_test|_ci_).*"));
-        assertEquals(4, jdbcTemplate.queryForObject(
+        assertEquals(5, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success = 1", Integer.class));
     }
 

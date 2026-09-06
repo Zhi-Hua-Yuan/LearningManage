@@ -52,8 +52,8 @@ class TaskAssignmentLogMapperMySqlTest {
                         + "FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertEquals(4, currentVersion,
-                "assignment history Mapper tests require the V3 schema");
+        assertEquals(5, currentVersion,
+                "assignment history Mapper tests require the current V5 schema");
     }
 
     @Test
