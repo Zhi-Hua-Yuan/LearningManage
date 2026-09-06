@@ -39,7 +39,9 @@ it does not rely on Spring Boot executor configuration to suppress `@EnableSched
 
 ## Protected acceptance pending
 
-- The protected real `text-embedding-v4` smoke requires manual workflow dispatch and the `real-ai-validation` environment's `ALIYUN_API_KEY`; no real credential is available to this session.
+- Protected workflow run `34006943574` was dispatched for
+  `f5a590d9c3e8699e72abc0914c35251822208f3b`; immutable checkout passed, but the test
+  failed fast because the `real-ai-validation` Environment's `ALIYUN_API_KEY` is empty.
 - `stage4-real-embedding.yml` and `RealEmbeddingValidationIT` are ready and use ten synthetic texts only.
 - Release/tag and final PASS sealing remain pending that protected run.
 

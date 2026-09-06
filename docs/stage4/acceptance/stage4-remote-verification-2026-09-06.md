@@ -79,4 +79,17 @@ manual-worker integration context. Both review findings were resolved before mer
 
 ## Pending protected evidence
 
-`Stage 4 real embedding validation` must be manually dispatched for the merge SHA with the protected `real-ai-validation` environment. The workflow fixes the requested model to `text-embedding-v4`; the client rejects responses that omit the executed model, and the IT requires exact model equality, non-null usage, ten synthetic inputs, and 1024 dimensions. Until it passes, the stage is implementation-complete but not final-release sealed.
+`Stage 4 real embedding validation` was dispatched for final evidence merge
+`f5a590d9c3e8699e72abc0914c35251822208f3b` as workflow run
+`34006943574`. Immutable-SHA checkout and Java setup passed, but the protocol test stopped
+before any provider request because `ALIYUN_API_KEY` was empty in the protected
+`real-ai-validation` environment. The sanitized report was uploaded successfully.
+
+The same missing-secret result occurred in earlier run `34003094202`, so this is an
+external environment configuration blocker rather than a transient test failure. Add a
+valid repository Environment secret named `ALIYUN_API_KEY`, then rerun the workflow for
+the latest `develop` SHA. The workflow fixes the requested model to
+`text-embedding-v4`; the client rejects responses that omit the executed model, and the
+IT requires exact model equality, non-null usage, ten synthetic inputs, and 1024
+dimensions. Until it passes, the stage is implementation-complete but not
+final-release sealed.

@@ -41,7 +41,9 @@
     "mysqlQdrantIntegration": "PASS",
     "postMergeCi": "PASS",
     "scaleAndFreshnessGate": "ENFORCED_BY_STAGE4_WORKFLOW",
-    "realEmbeddingSmoke": "PENDING_PROTECTED_WORKFLOW",
-    "releaseSeal": "PENDING_REAL_EMBEDDING_SMOKE"
+    "realEmbeddingSmoke": "BLOCKED_MISSING_ENVIRONMENT_SECRET",
+    "realEmbeddingRunId": 34006943574,
+    "realEmbeddingFailure": "ALIYUN_API_KEY was empty in real-ai-validation",
+    "releaseSeal": "BLOCKED_BY_REAL_EMBEDDING_SMOKE"
   }
 }
