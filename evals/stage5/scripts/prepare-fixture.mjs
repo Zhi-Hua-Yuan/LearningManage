@@ -6,6 +6,8 @@ import { buildCases } from './case-factory.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const runtimeFile = path.join(root, '.runtime-fixture.json')
 const baseUrl = (process.env.STAGE5_API_BASE_URL || 'http://127.0.0.1:18133/api').replace(/\/$/, '')
+const qdrantBaseUrl = (process.env.QDRANT_BASE_URL || '').replace(/\/$/, '')
+const qdrantAlias = process.env.QDRANT_ALIAS || 'learning_knowledge_current'
 const account = process.env.STAGE5_EVAL_ACCOUNT
 const password = process.env.STAGE5_EVAL_PASSWORD
 if (!account || !password) throw new Error('STAGE5_EVAL_ACCOUNT and STAGE5_EVAL_PASSWORD are required')
@@ -76,6 +78,29 @@ fs.writeFileSync(runtimeFile, `${JSON.stringify({
   createdAt: new Date().toISOString(),
 }, null, 2)}\n`)
 
+if (qdrantBaseUrl) {
+  let indexedCount = 0
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const countResponse = await fetch(
+      `${qdrantBaseUrl}/collections/${qdrantAlias}/points/count`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Keep the Snowflake ID as an exact JSON integer; converting it to a
+        // JavaScript Number would lose precision before Qdrant sees it.
+        body: `{"filter":{"must":[{"key":"projectId","match":{"value":${projectId}}}]},"exact":true}`,
+      },
+    )
+    const countBody = await countResponse.json()
+    indexedCount = countBody?.result?.count || 0
+    if (indexedCount >= Object.keys(sources).length) break
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  if (indexedCount < Object.keys(sources).length) {
+    throw new Error(`Stage 5 fixture indexing incomplete: expected=${Object.keys(sources).length}, actual=${indexedCount}`)
+  }
+}
+
 const probe = buildCases()[0]
 const expectedSourceId = sources[probe.alias]
 let ready = false
@@ -95,8 +120,6 @@ for (let attempt = 0; attempt < 60; attempt += 1) {
   await new Promise((resolve) => setTimeout(resolve, 1000))
 }
 if (!ready) {
-  const qdrantBaseUrl = (process.env.QDRANT_BASE_URL || '').replace(/\/$/, '')
-  const qdrantAlias = process.env.QDRANT_ALIAS || 'learning_knowledge_current'
   let qdrantDocument = 'unavailable'
   let qdrantSample = 'unavailable'
   if (qdrantBaseUrl) {
