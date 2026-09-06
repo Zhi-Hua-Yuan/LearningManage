@@ -157,6 +157,19 @@ jobs:
           set -Eeuo pipefail
           npm run prepare:fixture
           npm run eval
+      - name: Capture failed knowledge-index state
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          MYSQL_PWD: ${{ env.TEST_DB_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          mysql --host="$TEST_DB_HOST" --port="$TEST_DB_PORT" \
+            --user="$TEST_DB_USERNAME" --batch --raw "$TEST_DB_NAME" \
+            --execute="SELECT status, COALESCE(failure_type,'-') AS failure_type, COALESCE(last_error,'-') AS last_error, COUNT(*) AS event_count FROM ai_knowledge_index_event GROUP BY status, failure_type, last_error ORDER BY status, failure_type;" \
+            >"$RUNNER_TEMP/stage5-index-state.log"
+          curl --fail --silent "$QDRANT_BASE_URL/collections/learning_knowledge_current" \
+            >"$RUNNER_TEMP/stage5-qdrant-state.json" || true
       - name: Remove Stage 5 evaluation fixture
         if: ${{ always() }}
         working-directory: evals/stage5
@@ -180,6 +193,8 @@ jobs:
           path: |
             ${{ runner.temp }}/stage5-ai-stub.log
             ${{ runner.temp }}/stage5-application.log
+            ${{ runner.temp }}/stage5-index-state.log
+            ${{ runner.temp }}/stage5-qdrant-state.json
             target/surefire-reports
             evals/stage5/output.json
           if-no-files-found: ignore
