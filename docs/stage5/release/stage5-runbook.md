@@ -10,7 +10,7 @@
 ## 2. Required gates
 
 ```text
-Backend CI: 800/800 tests, V6 empty install, V4->V5->V6 upgrade, Docker runtime
+Backend CI: 801/801 tests, V6 empty install, V4->V5->V6 upgrade, Docker runtime
 Stage 5 RAG: MySQL + Qdrant + deterministic Query Embedding/Rerank/Chat E2E
 Stage 5 Promptfoo: 30 regression + 20 holdout cited Hit@5 cases
 Frontend CI: tests, coverage, type-check, lint, AI render safety, build
