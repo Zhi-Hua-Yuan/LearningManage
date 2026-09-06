@@ -27,6 +27,7 @@ Status: `FROZEN_FOR_IMPLEMENTATION`
   alias `ownerUserId`, operational `indexedAt`, and hashes may also be present.
 - Queue freshness uses MySQL-generated `create_time` and `indexed_at` values so the metric
   is independent of application-host and database-host time zones.
+- Qdrant datetime payload values are RFC 3339 strings with an explicit offset.
 
 ## Compatibility requirements
 

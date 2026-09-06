@@ -40,6 +40,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.scheduling.config.TaskManagementConfigUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -56,12 +58,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {
         "ai.knowledge-index.worker-enabled=false",
-        "spring.task.scheduling.enabled=false"
+        "app.scheduling.enabled=false"
 })
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "STAGE4_KNOWLEDGE_IT_ENABLED", matches = "true")
@@ -94,12 +97,16 @@ class KnowledgeIndexEndToEndIT {
     @Autowired private VectorStoreClient vectorStoreClient;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private ApplicationContext applicationContext;
 
     private final List<Long> createdTaskIds = new ArrayList<>();
     private final List<String> createdDocumentKeys = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
+        assertFalse(applicationContext.containsBean(
+                TaskManagementConfigUtils.SCHEDULED_ANNOTATION_PROCESSOR_BEAN_NAME),
+                "manual-worker integration context must not register scheduled polling");
         cleanupDatabase();
         vectorStoreClient.ensureCollection();
         User user = new User();

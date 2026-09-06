@@ -29,6 +29,8 @@ import com.spt.learningmanage.service.knowledge.KnowledgeVectorStoreManager;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,6 +42,8 @@ import java.util.Set;
 
 @Service
 public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
+
+    private static final ZoneId BUSINESS_TIME_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final KnowledgeDocumentFactory documentFactory;
     private final AiKnowledgeDocumentMapper documentMapper;
@@ -354,8 +358,10 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
         payload.put("contentHash", contentHash);
         payload.put("payloadHash", payloadHash);
         payload.put("sourceVersion", contentHash + ':' + payloadHash);
-        payload.put("updatedAt", payload.getOrDefault("sourceUpdatedAt", indexedAt.toString()));
-        payload.put("indexedAt", indexedAt.toString());
+        String indexedAtRfc3339 = indexedAt.atZone(BUSINESS_TIME_ZONE)
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        payload.putIfAbsent("updatedAt", indexedAtRfc3339);
+        payload.put("indexedAt", indexedAtRfc3339);
         return payload;
     }
 

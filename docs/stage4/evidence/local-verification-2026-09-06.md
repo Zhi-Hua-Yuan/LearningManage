@@ -27,6 +27,8 @@ Embedding Stub + Qdrant end-to-end tests:
 The audit also fixed two issues found only under the stronger scenarios: TEAM review points
 are now removed when the author loses project access, and `indexed_at` uses the MySQL clock
 so freshness is correct when application and database hosts use different time zones.
+The manual-worker integration profile disables the actual scheduled-annotation processor;
+it does not rely on Spring Boot executor configuration to suppress `@EnableScheduling`.
 
 ## Remote deterministic acceptance
 

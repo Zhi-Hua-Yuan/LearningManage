@@ -41,7 +41,8 @@ teamId (TEAM-scoped sources only)
 
 `ownerUserId` remains as a compatibility alias. `documentKey`, `visibilityType`,
 `chunkIndex`, `contentHash`, `payloadHash`, and `indexedAt` support reconciliation and
-operations. `sourceVersion` is the deterministic `contentHash:payloadHash` pair. Qdrant
+operations. `sourceVersion` is the deterministic `contentHash:payloadHash` pair. Timestamp
+payload values use RFC 3339 with an explicit `+08:00` offset. Qdrant
 payload indexes cover the permission/filter fields plus `sourceVersion` and `updatedAt`.
 No point contains account names, email addresses, credentials, source text, or vectors in
 its payload.

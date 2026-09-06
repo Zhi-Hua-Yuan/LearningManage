@@ -48,7 +48,7 @@ grep -Fq 'text-embedding-v4' src/main/resources/application.yml
 grep -Fq 'qdrant/qdrant:v1.18.2' deploy/docker-compose.yml
 grep -Fq 'payload.put("userId"' src/main/java/com/spt/learningmanage/service/impl/KnowledgeDocumentFactoryImpl.java
 grep -Fq 'payload.put("sourceVersion"' src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java
-grep -Fq 'payload.put("updatedAt"' src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java
+grep -Fq 'payload.putIfAbsent("updatedAt"' src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java
 grep -Fq 'indexed_at = CURRENT_TIMESTAMP(3)' src/main/java/com/spt/learningmanage/service/impl/KnowledgeIndexServiceImpl.java
 grep -Fq 'initialBackfillAndForcedRebuildAreIdempotentAndReconcileExactly' src/test/java/com/spt/learningmanage/integration/KnowledgeIndexEndToEndIT.java
 grep -Fq 'visibilityAndMembershipContractionRemoveUnauthorizedReviewPoints' src/test/java/com/spt/learningmanage/integration/KnowledgeIndexEndToEndIT.java

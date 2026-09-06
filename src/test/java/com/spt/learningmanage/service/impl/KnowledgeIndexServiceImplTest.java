@@ -28,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,6 +62,8 @@ class KnowledgeIndexServiceImplTest {
         assertEquals(4L, payload.get("userId"));
         assertTrue(payload.containsKey("sourceVersion"));
         assertTrue(payload.containsKey("updatedAt"));
+        OffsetDateTime.parse(payload.get("updatedAt").toString());
+        OffsetDateTime.parse(payload.get("indexedAt").toString());
         verify(fixture.vectorStoreClient, never()).overwritePayload(anyList());
     }
 
