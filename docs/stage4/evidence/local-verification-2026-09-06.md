@@ -29,7 +29,7 @@ Date: 2026-09-06
 ## Expected remote gates
 
 ```text
-backend Maven suite: 764 tests (authoritative count from the first real MySQL runner; includes parameterized database cases)
+backend Maven suite: 765 tests after the provider-model response contract test
 Stage 4 dedicated IT: KnowledgeIndexEndToEndIT
 Flyway head: V4
 business tables: 27

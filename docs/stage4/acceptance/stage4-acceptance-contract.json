@@ -40,6 +40,7 @@
     "deterministicCi": "PASS",
     "mysqlQdrantIntegration": "PASS",
     "postMergeCi": "PASS",
+    "scaleAndFreshnessGate": "ENFORCED_BY_STAGE4_WORKFLOW",
     "realEmbeddingSmoke": "PENDING_PROTECTED_WORKFLOW",
     "releaseSeal": "PENDING_REAL_EMBEDDING_SMOKE"
   }

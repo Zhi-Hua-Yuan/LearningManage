@@ -26,7 +26,7 @@ class RealEmbeddingValidationIT {
         EmbeddingProperties properties = new EmbeddingProperties();
         properties.setBaseUrl(required("AI_EMBEDDING_BASE_URL"));
         properties.setApiKey(required("ALIYUN_API_KEY"));
-        properties.setModel(environment("AI_EMBEDDING_MODEL", "text-embedding-v4"));
+        properties.setModel("text-embedding-v4");
         properties.setDimension(1024);
         properties.setMaxBatchSize(10);
         ObjectMapper mapper = new ObjectMapper();
@@ -46,7 +46,7 @@ class RealEmbeddingValidationIT {
 
         assertEquals(10, result.vectors().size());
         assertTrue(result.vectors().stream().allMatch(vector -> vector.size() == 1024));
-        assertNotNull(result.actualModel());
+        assertEquals("text-embedding-v4", result.actualModel());
         assertNotNull(result.promptTokens());
         assertTrue(result.promptTokens() > 0);
     }
@@ -59,8 +59,4 @@ class RealEmbeddingValidationIT {
         return value.trim();
     }
 
-    private String environment(String name, String fallback) {
-        String value = System.getenv(name);
-        return value == null || value.isBlank() ? fallback : value.trim();
-    }
 }

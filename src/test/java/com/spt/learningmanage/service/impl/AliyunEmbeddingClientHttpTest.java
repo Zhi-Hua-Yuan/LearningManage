@@ -83,6 +83,17 @@ class AliyunEmbeddingClientHttpTest {
         assertTrue(exception.isRetryable());
     }
 
+    @Test
+    void rejectsResponseThatDoesNotIdentifyExecutedModel() throws Exception {
+        server = server(exchange -> respond(exchange, 200,
+                "{\"data\":[{\"index\":0,\"embedding\":[0.1,0.2,0.3]}]}"));
+
+        KnowledgeIndexException exception = assertThrows(KnowledgeIndexException.class,
+                () -> client(3).embedDocuments(List.of("text"),
+                        new EmbeddingCallContext(1L, "trace", List.of("hash"))));
+        assertEquals(KnowledgeFailureTypeEnum.EMBEDDING_PROTOCOL, exception.getFailureType());
+    }
+
     private AliyunEmbeddingClient client(int dimension) {
         EmbeddingProperties properties = new EmbeddingProperties();
         properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());

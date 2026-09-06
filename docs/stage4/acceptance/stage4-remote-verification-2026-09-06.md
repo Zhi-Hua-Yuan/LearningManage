@@ -45,6 +45,8 @@ task create
 -> document tombstone and Qdrant removal
 ```
 
+PR #137 adds the representative freshness gate required before final acceptance: 100 committed task/Outbox events are drained through the real queue and four concurrent workers against MySQL, the deterministic Embedding HTTP service, and Qdrant. The test calculates P95 from `event.create_time` to `document.indexed_at` and fails above 60 seconds. A hash/UUID uniqueness test is not treated as freshness evidence.
+
 ## Pending protected evidence
 
-`Stage 4 real embedding validation` must be manually dispatched for the merge SHA with the protected `real-ai-validation` environment. It must confirm ten synthetic inputs, model `text-embedding-v4`, non-null usage, and 1024 dimensions. Until it passes, the stage is implementation-complete but not final-release sealed.
+`Stage 4 real embedding validation` must be manually dispatched for the merge SHA with the protected `real-ai-validation` environment. The workflow fixes the requested model to `text-embedding-v4`; the client rejects responses that omit the executed model, and the IT requires exact model equality, non-null usage, ten synthetic inputs, and 1024 dimensions. Until it passes, the stage is implementation-complete but not final-release sealed.
