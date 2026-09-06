@@ -81,18 +81,11 @@ fs.writeFileSync(runtimeFile, `${JSON.stringify({
 if (qdrantBaseUrl) {
   let indexedCount = 0
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    const countResponse = await fetch(
-      `${qdrantBaseUrl}/collections/${qdrantAlias}/points/count`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // Keep the Snowflake ID as an exact JSON integer; converting it to a
-        // JavaScript Number would lose precision before Qdrant sees it.
-        body: `{"filter":{"must":[{"key":"projectId","match":{"value":${projectId}}}]},"exact":true}`,
-      },
-    )
+    // This gate owns an isolated Qdrant collection. Collection metadata avoids
+    // converting Snowflake project IDs through JavaScript's unsafe Number type.
+    const countResponse = await fetch(`${qdrantBaseUrl}/collections/${qdrantAlias}`)
     const countBody = await countResponse.json()
-    indexedCount = countBody?.result?.count || 0
+    indexedCount = countBody?.result?.points_count || 0
     if (indexedCount >= Object.keys(sources).length) break
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
