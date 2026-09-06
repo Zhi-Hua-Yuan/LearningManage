@@ -12,4 +12,5 @@
 | Qdrant is exposed without auth | loopback local binding; TLS/API key validation outside local profile | Low |
 | Admin operations expose private text | metadata-only DTOs and SYSTEM_ADMIN gate | Low |
 | Stage 3 deferred acceptance is forgotten | retain Stage 3 backlog and include it unchanged in Stage 4 release manifest | Medium |
-| GitHub release cannot be created locally | complete local commits/evidence; remote PR/release requires restored GitHub credentials | Open external dependency |
+| GitHub PR/CI cannot be executed | branch push and GitHub connector completed PR #136 and remote deterministic gates | Closed |
+| Protected real Embedding smoke cannot be dispatched by this session | manual workflow is implemented; synthetic-only input; release seal waits for protected run | Open external dependency |

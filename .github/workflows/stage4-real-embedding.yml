@@ -11,11 +11,6 @@ on:
         description: Protected Alibaba Model Studio compatible-mode base URL
         required: true
         type: string
-      embedding_model:
-        description: Embedding model ID
-        required: true
-        default: text-embedding-v4
-        type: string
 
 permissions:
   contents: read
@@ -32,7 +27,7 @@ jobs:
     env:
       STAGE4_REAL_EMBEDDING_ENABLED: 'true'
       AI_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url }}
-      AI_EMBEDDING_MODEL: ${{ inputs.embedding_model }}
+      AI_EMBEDDING_MODEL: text-embedding-v4
       ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

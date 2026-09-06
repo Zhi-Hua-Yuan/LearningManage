@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stage": "stage4",
-  "status": "IN_PROGRESS",
+  "status": "IMPLEMENTATION_COMPLETE",
   "requiredGates": [
     "published_migrations_immutable",
     "v4_empty_database_install",
@@ -35,5 +35,13 @@
     "reranking",
     "agent",
     "stage3_final_real_model_acceptance"
-  ]
+  ],
+  "externalAcceptance": {
+    "deterministicCi": "PASS",
+    "mysqlQdrantIntegration": "PASS",
+    "postMergeCi": "PASS",
+    "scaleAndFreshnessGate": "ENFORCED_BY_STAGE4_WORKFLOW",
+    "realEmbeddingSmoke": "PENDING_PROTECTED_WORKFLOW",
+    "releaseSeal": "PENDING_REAL_EMBEDDING_SMOKE"
+  }
 }

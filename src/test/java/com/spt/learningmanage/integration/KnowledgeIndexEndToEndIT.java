@@ -32,10 +32,18 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "ai.knowledge-index.worker-enabled=false")
 @ActiveProfiles("test")
@@ -58,7 +66,7 @@ class KnowledgeIndexEndToEndIT {
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private PlatformTransactionManager transactionManager;
 
-    private Long taskId;
+    private final List<Long> createdTaskIds = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -85,9 +93,10 @@ class KnowledgeIndexEndToEndIT {
 
     @AfterEach
     void tearDown() {
-        if (taskId != null) {
-            vectorStoreClient.deleteByDocumentKey("TASK:" + taskId + ":PRIVATE:" + PROJECT_ID);
+        for (Long createdTaskId : createdTaskIds) {
+            vectorStoreClient.deleteByDocumentKey("TASK:" + createdTaskId + ":PRIVATE:" + PROJECT_ID);
         }
+        createdTaskIds.clear();
         cleanupDatabase();
     }
 
@@ -101,8 +110,9 @@ class KnowledgeIndexEndToEndIT {
         task.setPriority(2);
         task.setIsDelete(0);
         task.setDeleteSource(0);
-        taskId = taskCreationService.createTask(task,
+        Long taskId = taskCreationService.createTask(task,
                 new ProjectAccessScope(USER_ID, PROJECT_ID, USER_ID, null, null), USER_ID);
+        createdTaskIds.add(taskId);
 
         processOnlyReadyEvent();
         String key = "TASK:" + taskId + ":PRIVATE:" + PROJECT_ID;
@@ -135,6 +145,66 @@ class KnowledgeIndexEndToEndIT {
         assertEquals(KnowledgeDocumentStatusEnum.DELETED.name(),
                 documentMapper.selectByDocumentKey(key).getStatus());
         assertEquals(0, vectorStoreClient.inspectByDocumentKey(key).points().size());
+    }
+
+    @Test
+    void hundredEventBacklogMeetsTheSixtySecondFreshnessP95() throws Exception {
+        int sourceCount = 100;
+        for (int index = 0; index < sourceCount; index++) {
+            Task task = new Task();
+            task.setProjectId(PROJECT_ID);
+            task.setTitle("Freshness task " + index);
+            task.setDescription("Representative stage4 backlog item " + index);
+            task.setStatus(0);
+            task.setPriority(index % 4);
+            task.setIsDelete(0);
+            task.setDeleteSource(0);
+            Long created = taskCreationService.createTask(task,
+                    new ProjectAccessScope(USER_ID, PROJECT_ID, USER_ID, null, null), USER_ID);
+            createdTaskIds.add(created);
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        int processed = 0;
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        try {
+            while (processed < sourceCount && System.nanoTime() < deadline) {
+                List<AiKnowledgeIndexEvent> claimed = queueService.claimReady("stage4-freshness-it", 20);
+                if (claimed.isEmpty()) {
+                    Thread.sleep(20);
+                    continue;
+                }
+                List<Future<?>> futures = new ArrayList<>(claimed.size());
+                for (AiKnowledgeIndexEvent event : claimed) {
+                    futures.add(executor.submit(() -> worker.process(event)));
+                }
+                for (Future<?> future : futures) {
+                    future.get(60, TimeUnit.SECONDS);
+                }
+                processed += claimed.size();
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(sourceCount, processed, "all representative backlog events must finish");
+
+        List<Long> freshnessMillis = jdbcTemplate.queryForList("""
+                SELECT TIMESTAMPDIFF(MICROSECOND, event.create_time, document.indexed_at) DIV 1000
+                FROM ai_knowledge_index_event event
+                JOIN ai_knowledge_document document
+                  ON document.source_type = event.source_type
+                 AND document.source_id = event.source_id
+                WHERE event.source_type = 'TASK'
+                  AND event.source_id >= 9940000
+                  AND event.event_type = 'SOURCE_CHANGED'
+                  AND event.status = 'SUCCESS'
+                  AND document.status = 'INDEXED'
+                """, Long.class);
+        assertEquals(sourceCount, freshnessMillis.size());
+        Collections.sort(freshnessMillis);
+        long p95Millis = freshnessMillis.get((int) Math.ceil(sourceCount * 0.95) - 1);
+        assertTrue(p95Millis <= 60_000,
+                "event-to-index freshness P95 exceeded 60 seconds: " + p95Millis + "ms");
     }
 
     private void processOnlyReadyEvent() {

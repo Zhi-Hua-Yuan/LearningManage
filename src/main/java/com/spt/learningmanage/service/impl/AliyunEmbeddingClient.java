@@ -99,7 +99,10 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             JsonNode usage = root.path("usage");
             Long promptTokens = nullableLong(usage, "prompt_tokens");
             Long totalTokens = nullableLong(usage, "total_tokens");
-            String model = textOrDefault(root, "model", properties.getModel());
+            String model = root.path("model").asText("").trim();
+            if (model.isBlank()) {
+                throw new IllegalArgumentException("Embedding provider did not identify the executed model");
+            }
             String requestId = response.requestId();
             if ((requestId == null || requestId.isBlank()) && root.hasNonNull("id")) {
                 requestId = root.path("id").asText();
@@ -174,11 +177,6 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
 
     private Long nullableLong(JsonNode node, String field) {
         return node.hasNonNull(field) ? node.path(field).asLong() : null;
-    }
-
-    private String textOrDefault(JsonNode node, String field, String fallback) {
-        String value = node.path(field).asText("");
-        return value.isBlank() ? fallback : value;
     }
 
     private record IndexedVector(int index, List<Float> vector) {
