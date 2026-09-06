@@ -52,7 +52,12 @@ public class AiDraftLifecycleServiceImpl implements AiDraftLifecycleService {
         draft.setInputHash(command.inputHash());
         draft.setTraceId(StrUtil.blankToDefault(command.traceId(), null));
         draft.setStatus(AiDraftStatusEnum.PREVIEW.getValue());
-        draft.setExpireAt(stateMachine.now().plusMinutes(AI_DRAFT_EXPIRE_MINUTES));
+        int expireMinutes = command.expireMinutes() == null
+                ? AI_DRAFT_EXPIRE_MINUTES : command.expireMinutes();
+        if (expireMinutes < 1 || expireMinutes > 1440) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "草稿有效期不合法");
+        }
+        draft.setExpireAt(stateMachine.now().plusMinutes(expireMinutes));
         if (aiDraftMapper.insert(draft) != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "草稿创建失败");
         }

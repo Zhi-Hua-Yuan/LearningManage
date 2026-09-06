@@ -95,6 +95,8 @@ grep -Fq 'info.migration=5|stage5 permission aware rag|PENDING' <<<"$info_before
     || ci_fail "legacy_v5_not_pending"
 grep -Fq 'info.migration=6|stage5 qdrant numeric permission payload rebuild|PENDING' <<<"$info_before" \
     || ci_fail "legacy_v6_not_pending"
+grep -Fq 'info.migration=7|stage6 agent and analysis report|PENDING' <<<"$info_before" \
+    || ci_fail "legacy_v7_not_pending"
 
 baseline_sql="CREATE TABLE \`flyway_schema_history\` (\`installed_rank\` INT NOT NULL,\`version\` VARCHAR(50),\`description\` VARCHAR(200) NOT NULL,\`type\` VARCHAR(20) NOT NULL,\`script\` VARCHAR(1000) NOT NULL,\`checksum\` INT,\`installed_by\` VARCHAR(100) NOT NULL,\`installed_on\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\`execution_time\` INT NOT NULL,\`success\` TINYINT NOT NULL,CONSTRAINT \`flyway_schema_history_pk\` PRIMARY KEY (\`installed_rank\`)) ENGINE=InnoDB; CREATE INDEX \`flyway_schema_history_s_idx\` ON \`flyway_schema_history\` (\`success\`); INSERT INTO \`flyway_schema_history\` (\`installed_rank\`,\`version\`,\`description\`,\`type\`,\`script\`,\`checksum\`,\`installed_by\`,\`execution_time\`,\`success\`) VALUES (1,'1','<< Flyway Baseline >>','BASELINE','<< Flyway Baseline >>',NULL,CURRENT_USER(),0,1);"
 if ! ci_mysql_migrator --database="${DB_NAME}" --execute="${baseline_sql}" >/dev/null 2>&1; then
@@ -122,6 +124,8 @@ grep -Fq 'info.migration=5|stage5 permission aware rag|PENDING' <<<"$info_after"
     || ci_fail "legacy_v5_not_pending_after_baseline"
 grep -Fq 'info.migration=6|stage5 qdrant numeric permission payload rebuild|PENDING' <<<"$info_after" \
     || ci_fail "legacy_v6_not_pending_after_baseline"
+grep -Fq 'info.migration=7|stage6 agent and analysis report|PENDING' <<<"$info_after" \
+    || ci_fail "legacy_v7_not_pending_after_baseline"
 
 v2_migrate_output="$(FLYWAY_TARGET_VERSION=2 run_flyway migrate)"
 grep -Fq 'migrate.success=true' <<<"$v2_migrate_output" || ci_fail "legacy_v2_migrate_failed"
@@ -205,6 +209,17 @@ v6_post_verify_output="$(ci_mysql_migrator --database="${DB_NAME}" <"$v6_post_ve
     || ci_fail "legacy_v6_post_verify_failed"
 ci_assert_stage1_check_output "$v6_post_verify_output" '^V6-V-' "1" "legacy_v6_post_verify"
 
+v7_migrate_output="$(FLYWAY_TARGET_VERSION=7 run_flyway migrate)"
+grep -Fq 'migrate.success=true' <<<"$v7_migrate_output" || ci_fail "legacy_v7_migrate_failed"
+grep -Fq 'migrate.migrationsExecuted=1' <<<"$v7_migrate_output" \
+    || ci_fail "legacy_v7_migrate_count_unexpected"
+
+v7_post_verify_sql="${project_root}/sql/flyway/stage6/post_verify_v7.sql"
+[[ -f "$v7_post_verify_sql" ]] || ci_fail "legacy_v7_post_verify_missing"
+v7_post_verify_output="$(ci_mysql_migrator --database="${DB_NAME}" <"$v7_post_verify_sql")" \
+    || ci_fail "legacy_v7_post_verify_failed"
+ci_assert_stage1_check_output "$v7_post_verify_output" '^V7-V-' "8" "legacy_v7_post_verify"
+
 business_tables_after="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name <> 'flyway_schema_history';")"
 all_tables_after="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';")"
 history_total="$(ci_mysql_migrator --database="${DB_NAME}" --execute='SELECT COUNT(*) FROM flyway_schema_history;')"
@@ -215,14 +230,15 @@ sql_v3_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT
 sql_v4_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='4' AND type='SQL' AND success=1;")"
 sql_v5_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='5' AND type='SQL' AND success=1;")"
 sql_v6_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='6' AND type='SQL' AND success=1;")"
+sql_v7_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='7' AND type='SQL' AND success=1;")"
 business_rows_after="$(ci_business_row_total "${DB_NAME}")"
 task_assignment_log_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM task_assignment_log;")"
 weekly_review_task_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM weekly_review_task;")"
 canonical_user_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM \`user\` WHERE user_role IN ('USER', 'SYSTEM_ADMIN');")"
 
-ci_assert_equals "30" "$business_tables_after" "legacy_business_table_count_unexpected"
-ci_assert_equals "31" "$all_tables_after" "legacy_total_table_count_unexpected"
-ci_assert_equals "6" "$history_total" "legacy_history_row_count_unexpected"
+ci_assert_equals "34" "$business_tables_after" "legacy_business_table_count_unexpected"
+ci_assert_equals "35" "$all_tables_after" "legacy_total_table_count_unexpected"
+ci_assert_equals "7" "$history_total" "legacy_history_row_count_unexpected"
 ci_assert_equals "1" "$baseline_rows" "legacy_baseline_history_missing"
 ci_assert_equals "0" "$sql_v1_rows" "legacy_v1_sql_unexpectedly_executed"
 ci_assert_equals "1" "$sql_v2_rows" "legacy_v2_sql_history_missing"
@@ -230,6 +246,7 @@ ci_assert_equals "1" "$sql_v3_rows" "legacy_v3_sql_history_missing"
 ci_assert_equals "1" "$sql_v4_rows" "legacy_v4_sql_history_missing"
 ci_assert_equals "1" "$sql_v5_rows" "legacy_v5_sql_history_missing"
 ci_assert_equals "1" "$sql_v6_rows" "legacy_v6_sql_history_missing"
+ci_assert_equals "1" "$sql_v7_rows" "legacy_v7_sql_history_missing"
 ci_assert_equals "5" "$task_assignment_log_rows" "legacy_assignment_log_count_unexpected"
 ci_assert_equals "0" "$weekly_review_task_rows" "legacy_review_task_count_unexpected"
 ci_assert_equals "5" "$canonical_user_rows" "legacy_canonical_user_role_count_unexpected"
@@ -247,4 +264,5 @@ ci_emit "legacy.v3_legacy_backfill_checks" "5"
 ci_emit "legacy.v4_post_verify_checks" "4"
 ci_emit "legacy.v5_post_verify_checks" "6"
 ci_emit "legacy.v6_post_verify_checks" "1"
-ci_emit "legacy.migrations_executed" "5"
+ci_emit "legacy.v7_post_verify_checks" "8"
+ci_emit "legacy.migrations_executed" "6"

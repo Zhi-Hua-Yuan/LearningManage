@@ -31,6 +31,7 @@ import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.WeeklyReviewAssociationValidator;
 import com.spt.learningmanage.service.WeeklyReviewReadAssociationResolver;
 import com.spt.learningmanage.service.WeeklyReviewService;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -69,6 +70,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Resource
     private WeeklyReviewAssociationValidator associationValidator;
@@ -137,6 +141,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             updateReviewRow(existing);
             replaceTaskAssociations(existing.getId(), associations.taskIds());
             publishReview(existing.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+            bumpReviewVersion(existing);
             return;
         }
 
@@ -166,6 +171,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         }
         replaceTaskAssociations(toSave.getId(), associations.taskIds());
         publishReview(toSave.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        bumpReviewVersion(toSave);
     }
 
     @Override
@@ -218,6 +224,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         updateReviewRow(existing);
         replaceTaskAssociations(existing.getId(), associations.taskIds());
         publishReview(existing.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        bumpReviewVersion(existing);
     }
 
     @Override
@@ -239,6 +246,7 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除周总结失败");
         }
         publishReview(id, KnowledgeEventTypeEnum.SOURCE_DELETED);
+        bumpReviewVersion(review);
     }
 
     @Override
@@ -283,6 +291,17 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
         if (knowledgeIndexEventPublisher != null) {
             knowledgeIndexEventPublisher.publish(
                     KnowledgeSourceTypeEnum.WEEKLY_REVIEW, reviewId, eventType);
+        }
+    }
+
+    private void bumpReviewVersion(WeeklyReview review) {
+        if (businessDataVersionService == null || review == null) {
+            return;
+        }
+        if (review.getFocusProjectId() != null) {
+            businessDataVersionService.incrementProjectAndOwningTeam(review.getFocusProjectId());
+        } else if (review.getTeamId() != null) {
+            businessDataVersionService.incrementTeam(review.getTeamId());
         }
     }
 

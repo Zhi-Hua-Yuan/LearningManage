@@ -29,6 +29,10 @@ ai:
   rag:
     enabled: false
     question-hmac-secret: test-only-rag-hmac-secret-with-at-least-32-bytes
+  agent:
+    enabled: false
+    worker-enabled: false
+    tool-calling-enabled: false
   rerank:
     base-url: ${AI_RERANK_BASE_URL:http://127.0.0.1:18081/compatible-api/v1}
     api-key: ${AI_RERANK_API_KEY:test-only-not-a-real-key}
@@ -71,3 +75,9 @@ rate-limit:
       rag-project-ask:
         window-seconds: 60
         max-requests: 10
+      project-risk-report:
+        window-seconds: 600
+        max-requests: 5
+      team-workload-report:
+        window-seconds: 600
+        max-requests: 5

@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: LearningManage Stage 6 controlled Agent regression
+
+prompts:
+  - file://prompts/agent-dispatch.json
+
+providers:
+  - id: file://providers/learning-manage-agent-http.js
+    label: learning-manage-agent-api
+
+defaultTest:
+  assert:
+    - type: is-json
+      metric: provider_contract
+    - type: javascript
+      value: file://assertions/agent-contract.js
+      metric: async_agent_safety_contract
+
+tests: file://tests/generated.json
+
+sharing: false

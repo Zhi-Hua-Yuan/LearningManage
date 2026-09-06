@@ -17,7 +17,10 @@ public enum AiPromptCodeEnum {
     TODAY_ORDER_DEFAULT("today-order.default", AiSceneEnum.TODAY_ORDER, "今日任务排序"),
     DAILY_REVIEW_RENAME_DEFAULT("daily-review-rename.default", AiSceneEnum.DAILY_REVIEW_RENAME, "日报任务改名"),
     LIST_REPLAN_PREVIEW("list-replan.preview", AiSceneEnum.LIST_REPLAN, "清单智能重排预览"),
-    RAG_PROJECT_ANSWER("rag-project-answer", AiSceneEnum.RAG_PROJECT_ASK, "项目知识问答");
+    RAG_PROJECT_ANSWER("rag-project-answer", AiSceneEnum.RAG_PROJECT_ASK, "项目知识问答"),
+    AGENT_PROJECT_RISK("agent.project-risk.v1", AiSceneEnum.AGENT_PROJECT_RISK, "项目风险分析"),
+    AGENT_TEAM_WORKLOAD_MANAGER("agent.team-workload.manager.v1", AiSceneEnum.AGENT_TEAM_WORKLOAD, "团队负载管理摘要"),
+    AGENT_TEAM_WORKLOAD_PUBLIC("agent.team-workload.public.v1", AiSceneEnum.AGENT_TEAM_WORKLOAD, "团队负载公开摘要");
 
     private final String code;
 

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "stage": 6,
+  "status": "LOCAL_CANDIDATE_EXTERNAL_ACCEPTANCE_PENDING",
+  "backend": {
+    "repository": "Zhi-Hua-Yuan/LearningManage",
+    "branch": "codex/stage6-agent",
+    "sha": "8daa82ebe03632da264ea5c954186c7ab219ded2"
+  },
+  "frontend": {
+    "repository": "Zhi-Hua-Yuan/learning-manage-frontend",
+    "branch": "codex/stage6-agent-ui",
+    "sha": "92d8d75a0fb6089d39e5f42a6701a170aae7234b"
+  },
+  "checksums": {
+    "v7MigrationSha256": "8FDB4F3DEF4241298557660D6779445C1BC49AA7848AFAE2E84E40ECFCB7DF92",
+    "acceptanceContractSha256": "487A2E3914486DC5DD5A0A22F4E84847CFFBA8BBF37FBA26DB17DF2F09DE609C",
+    "promptfooConfigSha256": "6F4FBF844419EEA627EB6034455A39561B2965FE79DFE9FBB92144F249C6DD7B",
+    "frontendApiContractSha256": "5BF326C781651ECD90C4C6576E9AAB84E2B192FE2B60C1FA49DFB49999D15FD3"
+  },
+  "localEvidence": {
+    "emptyDatabaseV1ToV7": "PASS",
+    "existingDatabaseV6ToV7": "PASS",
+    "v7PostVerify": "PASS_8_OF_8",
+    "agentEndToEnd": "PASS_4_OF_4",
+    "promptfooApplicationPath": "PASS_100_OF_100",
+    "deterministicBackend": "PASS_778_ERRORS_0",
+    "frontendTests": "PASS_491_OF_491",
+    "frontendBuild": "PASS",
+    "runtimeApiContract": "PASS_54_OF_54"
+  },
+  "externalEvidence": {
+    "realQwenToolCalling": "READY_FOR_PROTECTED_WORKFLOW",
+    "githubActions": "READY_AUTHENTICATED",
+    "crossRepositoryRemoteCandidate": "PENDING",
+    "release": "NOT_CREATED"
+  },
+  "claims": {
+    "stage6Released": false,
+    "realModelQualityAccepted": false,
+    "localDeterministicAcceptancePassed": true
+  }
+}

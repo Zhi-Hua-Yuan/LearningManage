@@ -25,7 +25,10 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
             "/ai/polish/preview", "weekly-polish",
             "/ai/today-order/recommend", "today-order",
             "/ai/daily-review/suggest-rename", "daily-review-rename",
-            "/ai/list/replan/preview", "list-replan"
+            "/ai/list/replan/preview", "list-replan",
+            "/ai/rag/ask", "rag-project-ask",
+            "/ai/agent/project-risk", "project-risk-report",
+            "/ai/agent/team-workload", "team-workload-report"
     );
 
     @Resource

@@ -84,6 +84,12 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         if (rows != 1 || callLog.getId() == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 调用记录创建失败");
         }
+        if (StrUtil.isNotBlank(command.agentRunId()) && command.agentRoundNo() != null) {
+            if (aiCallLogMapper.linkAgentRound(callLog.getId(), command.agentRunId().trim(),
+                    command.agentRoundNo()) != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "Agent 调用记录关联失败");
+            }
+        }
         return callLog.getId();
     }
 

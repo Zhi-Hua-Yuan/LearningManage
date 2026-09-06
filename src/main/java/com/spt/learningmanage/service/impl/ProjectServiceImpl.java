@@ -30,6 +30,7 @@ import com.spt.learningmanage.model.vo.project.ProjectVo;
 import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -68,6 +69,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Override
     public Long create(ProjectCreateRequest projectCreateRequest) {
@@ -145,6 +149,9 @@ public class ProjectServiceImpl implements ProjectService {
         int rows = projectMapper.insert(project);
         if (rows != 1 || project.getId() == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
+        }
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementTeam(team.getId());
         }
         return project.getId();
     }
@@ -242,6 +249,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(ProjectUpdateRequest projectUpdateRequest) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -297,6 +305,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
+        bumpProject(existing.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -353,6 +362,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void archive(List<Long> ids) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -398,6 +408,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (rows < ids.size()) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "操作失败");
         }
+        existingProjects.forEach(project -> bumpProject(project.getId()));
     }
 
     @Override
@@ -458,6 +469,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
         publishTasks(affectedTaskIds, KnowledgeEventTypeEnum.SOURCE_DELETED);
         publishReviews(affectedReviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
+        bumpProject(id);
     }
 
     @Override
@@ -502,6 +514,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .stream().map(Task::getId).toList();
         publishTasks(recoveredTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
         publishReviews(reviewIdsForProject(id), KnowledgeEventTypeEnum.ACCESS_CHANGED);
+        bumpProject(id);
     }
 
     private List<Long> reviewIdsForProject(Long projectId) {
@@ -522,6 +535,12 @@ public class ProjectServiceImpl implements ProjectService {
     private void publishReviews(List<Long> ids, KnowledgeEventTypeEnum eventType) {
         if (knowledgeIndexEventPublisher != null && ids != null && !ids.isEmpty()) {
             knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.WEEKLY_REVIEW, ids, eventType);
+        }
+    }
+
+    private void bumpProject(Long projectId) {
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementProjectAndOwningTeam(projectId);
         }
     }
 

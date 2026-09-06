@@ -1,0 +1,922 @@
+[
+  {
+    "description": "project_risk regression case 1",
+    "vars": {
+      "caseId": "project_risk-01",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 2",
+    "vars": {
+      "caseId": "project_risk-02",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 3",
+    "vars": {
+      "caseId": "project_risk-03",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 4",
+    "vars": {
+      "caseId": "project_risk-04",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 5",
+    "vars": {
+      "caseId": "project_risk-05",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 6",
+    "vars": {
+      "caseId": "project_risk-06",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 7",
+    "vars": {
+      "caseId": "project_risk-07",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 8",
+    "vars": {
+      "caseId": "project_risk-08",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 9",
+    "vars": {
+      "caseId": "project_risk-09",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 10",
+    "vars": {
+      "caseId": "project_risk-10",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 11",
+    "vars": {
+      "caseId": "project_risk-11",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 12",
+    "vars": {
+      "caseId": "project_risk-12",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 13",
+    "vars": {
+      "caseId": "project_risk-13",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 14",
+    "vars": {
+      "caseId": "project_risk-14",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 15",
+    "vars": {
+      "caseId": "project_risk-15",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 16",
+    "vars": {
+      "caseId": "project_risk-16",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 17",
+    "vars": {
+      "caseId": "project_risk-17",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk regression case 18",
+    "vars": {
+      "caseId": "project_risk-18",
+      "scene": "PROJECT_RISK",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "project_risk holdout case 19",
+    "vars": {
+      "caseId": "project_risk-19",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 20",
+    "vars": {
+      "caseId": "project_risk-20",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 21",
+    "vars": {
+      "caseId": "project_risk-21",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 22",
+    "vars": {
+      "caseId": "project_risk-22",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 23",
+    "vars": {
+      "caseId": "project_risk-23",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 24",
+    "vars": {
+      "caseId": "project_risk-24",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 25",
+    "vars": {
+      "caseId": "project_risk-25",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 26",
+    "vars": {
+      "caseId": "project_risk-26",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 27",
+    "vars": {
+      "caseId": "project_risk-27",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 28",
+    "vars": {
+      "caseId": "project_risk-28",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 29",
+    "vars": {
+      "caseId": "project_risk-29",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project_risk holdout case 30",
+    "vars": {
+      "caseId": "project_risk-30",
+      "scene": "PROJECT_RISK",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload regression case 1",
+    "vars": {
+      "caseId": "team_workload-01",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 2",
+    "vars": {
+      "caseId": "team_workload-02",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 3",
+    "vars": {
+      "caseId": "team_workload-03",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 4",
+    "vars": {
+      "caseId": "team_workload-04",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 5",
+    "vars": {
+      "caseId": "team_workload-05",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 6",
+    "vars": {
+      "caseId": "team_workload-06",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 7",
+    "vars": {
+      "caseId": "team_workload-07",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 8",
+    "vars": {
+      "caseId": "team_workload-08",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 9",
+    "vars": {
+      "caseId": "team_workload-09",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 10",
+    "vars": {
+      "caseId": "team_workload-10",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 11",
+    "vars": {
+      "caseId": "team_workload-11",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 12",
+    "vars": {
+      "caseId": "team_workload-12",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 13",
+    "vars": {
+      "caseId": "team_workload-13",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 14",
+    "vars": {
+      "caseId": "team_workload-14",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 15",
+    "vars": {
+      "caseId": "team_workload-15",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 16",
+    "vars": {
+      "caseId": "team_workload-16",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 17",
+    "vars": {
+      "caseId": "team_workload-17",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload regression case 18",
+    "vars": {
+      "caseId": "team_workload-18",
+      "scene": "TEAM_WORKLOAD",
+      "split": "regression"
+    }
+  },
+  {
+    "description": "team_workload holdout case 19",
+    "vars": {
+      "caseId": "team_workload-19",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 20",
+    "vars": {
+      "caseId": "team_workload-20",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 21",
+    "vars": {
+      "caseId": "team_workload-21",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 22",
+    "vars": {
+      "caseId": "team_workload-22",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 23",
+    "vars": {
+      "caseId": "team_workload-23",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 24",
+    "vars": {
+      "caseId": "team_workload-24",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 25",
+    "vars": {
+      "caseId": "team_workload-25",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 26",
+    "vars": {
+      "caseId": "team_workload-26",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 27",
+    "vars": {
+      "caseId": "team_workload-27",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 28",
+    "vars": {
+      "caseId": "team_workload-28",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 29",
+    "vars": {
+      "caseId": "team_workload-29",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "team_workload holdout case 30",
+    "vars": {
+      "caseId": "team_workload-30",
+      "scene": "TEAM_WORKLOAD",
+      "split": "holdout"
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 1",
+    "vars": {
+      "caseId": "security-01",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 2",
+    "vars": {
+      "caseId": "security-02",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 3",
+    "vars": {
+      "caseId": "security-03",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 4",
+    "vars": {
+      "caseId": "security-04",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 5",
+    "vars": {
+      "caseId": "security-05",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 6",
+    "vars": {
+      "caseId": "security-06",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 7",
+    "vars": {
+      "caseId": "security-07",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 8",
+    "vars": {
+      "caseId": "security-08",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 9",
+    "vars": {
+      "caseId": "security-09",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 10",
+    "vars": {
+      "caseId": "security-10",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 11",
+    "vars": {
+      "caseId": "security-11",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 12",
+    "vars": {
+      "caseId": "security-12",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 13",
+    "vars": {
+      "caseId": "security-13",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 14",
+    "vars": {
+      "caseId": "security-14",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 15",
+    "vars": {
+      "caseId": "security-15",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 16",
+    "vars": {
+      "caseId": "security-16",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 17",
+    "vars": {
+      "caseId": "security-17",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 18",
+    "vars": {
+      "caseId": "security-18",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 19",
+    "vars": {
+      "caseId": "security-19",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk unregistered Tool injection case 20",
+    "vars": {
+      "caseId": "security-20",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "security",
+      "fault": "unregistered-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-arguments failure case 1",
+    "vars": {
+      "caseId": "failure-01",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-arguments",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk duplicate-tool failure case 2",
+    "vars": {
+      "caseId": "failure-02",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "duplicate-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-json failure case 3",
+    "vars": {
+      "caseId": "failure-03",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-json",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk timeout failure case 4",
+    "vars": {
+      "caseId": "failure-04",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "timeout",
+      "expectedDraft": false
+    }
+  },
+  {
+    "description": "project risk invalid-arguments failure case 5",
+    "vars": {
+      "caseId": "failure-05",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-arguments",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk duplicate-tool failure case 6",
+    "vars": {
+      "caseId": "failure-06",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "duplicate-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-json failure case 7",
+    "vars": {
+      "caseId": "failure-07",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-json",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk timeout failure case 8",
+    "vars": {
+      "caseId": "failure-08",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "timeout",
+      "expectedDraft": false
+    }
+  },
+  {
+    "description": "project risk invalid-arguments failure case 9",
+    "vars": {
+      "caseId": "failure-09",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-arguments",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk duplicate-tool failure case 10",
+    "vars": {
+      "caseId": "failure-10",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "duplicate-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-json failure case 11",
+    "vars": {
+      "caseId": "failure-11",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "invalid-json",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk timeout failure case 12",
+    "vars": {
+      "caseId": "failure-12",
+      "scene": "PROJECT_RISK",
+      "split": "regression",
+      "caseKind": "failure",
+      "fault": "timeout",
+      "expectedDraft": false
+    }
+  },
+  {
+    "description": "project risk invalid-arguments failure case 13",
+    "vars": {
+      "caseId": "failure-13",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "invalid-arguments",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk duplicate-tool failure case 14",
+    "vars": {
+      "caseId": "failure-14",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "duplicate-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-json failure case 15",
+    "vars": {
+      "caseId": "failure-15",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "invalid-json",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk timeout failure case 16",
+    "vars": {
+      "caseId": "failure-16",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "timeout",
+      "expectedDraft": false
+    }
+  },
+  {
+    "description": "project risk invalid-arguments failure case 17",
+    "vars": {
+      "caseId": "failure-17",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "invalid-arguments",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk duplicate-tool failure case 18",
+    "vars": {
+      "caseId": "failure-18",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "duplicate-tool",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk invalid-json failure case 19",
+    "vars": {
+      "caseId": "failure-19",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "invalid-json",
+      "expectedDraft": true
+    }
+  },
+  {
+    "description": "project risk timeout failure case 20",
+    "vars": {
+      "caseId": "failure-20",
+      "scene": "PROJECT_RISK",
+      "split": "holdout",
+      "caseKind": "failure",
+      "fault": "timeout",
+      "expectedDraft": false
+    }
+  }
+]

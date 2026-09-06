@@ -15,7 +15,9 @@ public enum AiSceneEnum {
     TODAY_ORDER("today-order", "今日任务排序"),
     DAILY_REVIEW_RENAME("daily-review-rename", "日报任务改名"),
     LIST_REPLAN("list-replan", "清单智能重排"),
-    RAG_PROJECT_ASK("rag-project-ask", "项目知识问答");
+    RAG_PROJECT_ASK("rag-project-ask", "项目知识问答"),
+    AGENT_PROJECT_RISK("project-risk-report", "项目风险分析"),
+    AGENT_TEAM_WORKLOAD("team-workload-report", "团队负载分析");
 
     private final String code;
 

@@ -6,6 +6,15 @@ public record AiDraftCreateCommand(
         String payloadJson,
         String inputHash,
         Integer schemaVersion,
-        String traceId
+        String traceId,
+        Integer expireMinutes
 ) {
+    public AiDraftCreateCommand(Long userId,
+                                String scene,
+                                String payloadJson,
+                                String inputHash,
+                                Integer schemaVersion,
+                                String traceId) {
+        this(userId, scene, payloadJson, inputHash, schemaVersion, traceId, null);
+    }
 }

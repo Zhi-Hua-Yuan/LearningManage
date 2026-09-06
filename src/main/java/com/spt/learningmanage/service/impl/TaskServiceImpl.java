@@ -41,6 +41,7 @@ import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.TaskService;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -88,6 +89,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     /** 创建任务，返回任务 ID；项目范围由 PermissionService 判定。 */
     @Override
@@ -280,6 +284,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         publishTask(request.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        bumpProject(existing.getProjectId());
 
     }
 
@@ -364,6 +369,7 @@ public class TaskServiceImpl implements TaskService {
                 finalCompletedAt = newCompletedAt;
                 calculateAndUpdateProgress(task.getProjectId(), task.getMilestoneId());
                 publishTask(request.getTaskId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+                bumpProject(task.getProjectId());
             } else {
                 Task latest = taskMapper.selectOne(new LambdaQueryWrapper<Task>()
                         .eq(Task::getId, request.getTaskId())
@@ -436,6 +442,7 @@ public class TaskServiceImpl implements TaskService {
 
         calculateAndUpdateProgress(existing.getProjectId(), existing.getMilestoneId());
         publishTask(id, KnowledgeEventTypeEnum.SOURCE_DELETED);
+        bumpProject(existing.getProjectId());
     }
 
     /**
@@ -532,6 +539,7 @@ public class TaskServiceImpl implements TaskService {
         result.setSkipCount(skipCount);
         result.setUpdatedTaskIds(updatedTaskIds);
         publishTasks(updatedTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        bumpProjectsForTasks(updatedTaskIds);
         return result;
     }
 
@@ -582,6 +590,7 @@ public class TaskServiceImpl implements TaskService {
         result.setOperationId(operationId);
         result.setRollbackCount(rollbackCount);
         publishTasks(rolledBackTaskIds, KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        bumpProjectsForTasks(rolledBackTaskIds);
         return result;
     }
 
@@ -595,6 +604,20 @@ public class TaskServiceImpl implements TaskService {
         if (knowledgeIndexEventPublisher != null && taskIds != null && !taskIds.isEmpty()) {
             knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.TASK, taskIds, eventType);
         }
+    }
+
+    private void bumpProject(Long projectId) {
+        if (businessDataVersionService != null && projectId != null) {
+            businessDataVersionService.incrementProjectAndOwningTeam(projectId);
+        }
+    }
+
+    private void bumpProjectsForTasks(List<Long> taskIds) {
+        if (businessDataVersionService == null || taskIds == null || taskIds.isEmpty()) {
+            return;
+        }
+        taskMapper.selectBatchIds(taskIds).stream().map(Task::getProjectId).filter(Objects::nonNull)
+                .distinct().forEach(businessDataVersionService::incrementProjectAndOwningTeam);
     }
 
     private void calculateAndUpdateProgress(Long projectId, Long milestoneId) {

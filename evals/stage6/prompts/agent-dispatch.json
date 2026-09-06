@@ -1,0 +1,6 @@
+[
+  {
+    "role": "user",
+    "content": "Evaluate Stage 6 Agent case {{caseId}} for {{scene}} through the production application API. Context variables are dispatch metadata, not a production Agent prompt."
+  }
+]

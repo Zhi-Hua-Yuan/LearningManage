@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -62,7 +63,7 @@ public class AiInvocationPipeline {
                 command.userId(), command.modelName(), template.scene(), template.code(),
                 template.templateId(), template.version(), template.source().getCode(),
                 template.systemPrompt(), command.userPrompt(), command.parseFailureMessage(), command.traceId(),
-                command.contentLoggingPolicy(), command.requestLogSummary()
+                command.contentLoggingPolicy(), command.requestLogSummary(), null, null
         ), responseProcessor, fallback);
     }
 
@@ -77,8 +78,57 @@ public class AiInvocationPipeline {
         return executeResolved(new ResolvedExecution(
                 command.userId(), command.modelName(), RAW_PROMPT_CODE, RAW_PROMPT_CODE,
                 null, null, RAW_PROMPT_SOURCE, command.systemPrompt(), command.userPrompt(),
-                command.parseFailureMessage(), command.traceId(), AiContentLoggingPolicy.DEFAULT, null
+                command.parseFailureMessage(), command.traceId(), AiContentLoggingPolicy.DEFAULT, null,
+                null, null
         ), responseProcessor, null);
+    }
+
+    /**
+     * Execute one Tool-capable Agent model round. Request and response bodies
+     * are never persisted; each round is correlated to its durable Agent Run.
+     */
+    public AiExecutionResult<AiChatResult> executeChatRound(AiChatRoundExecutionCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("Agent 模型轮次不能为空");
+        }
+        AiPromptTemplate template = promptTemplateResolver.resolve(command.promptCode());
+        ResolvedExecution execution = new ResolvedExecution(
+                command.userId(), command.modelName(), template.scene(), template.code(),
+                template.templateId(), template.version(), template.source().getCode(),
+                template.systemPrompt(), "agent-round", "Agent 模型轮次响应异常", command.traceId(),
+                AiContentLoggingPolicy.METADATA_ONLY, command.requestLogSummary(),
+                command.agentRunId(), command.agentRoundNo());
+        String traceId = resolveTraceId(command.traceId());
+        long startTime = System.currentTimeMillis();
+        Long callLogId = createCallLogSafely(execution, traceId);
+        List<AiChatMessage> messages = new ArrayList<>();
+        messages.add(AiChatMessage.system(template.systemPrompt()));
+        messages.addAll(command.messages());
+        try {
+            AiChatResult chatResult = aiModelClient.chat(new AiChatCommand(
+                    command.modelName(), messages, command.tools(), command.toolChoice(),
+                    command.temperature(), command.maxOutputTokens()));
+            if ((chatResult.content() == null || chatResult.content().isBlank())
+                    && chatResult.toolCalls().isEmpty()) {
+                throw new AiInvocationException(
+                        AiFailureTypeEnum.INVALID_RESPONSE, command.modelName(), 0,
+                        "AI 返回结果格式异常，请重试", "Agent 模型轮次没有文本或 Tool Call", null);
+            }
+            long duration = elapsedSince(startTime);
+            completeSafely(completion(callLogId, AiCallLogStatusEnum.SUCCESS, null, null,
+                    duration, execution, chatResult, traceId, null, false, null));
+            return result(chatResult, callLogId, execution, chatResult, duration,
+                    false, null, traceId);
+        } catch (AiInvocationException exception) {
+            return handleInvocationFailure(execution, null, traceId, callLogId,
+                    startTime, null, exception);
+        } catch (Exception exception) {
+            AiInvocationException wrapped = new AiInvocationException(
+                    AiFailureTypeEnum.INTERNAL_ERROR, command.modelName(), 0,
+                    "AI 服务暂时不可用，请稍后重试", "Agent 模型轮次异常", exception);
+            return handleInvocationFailure(execution, null, traceId, callLogId,
+                    startTime, null, wrapped);
+        }
     }
 
     private <T> AiExecutionResult<T> executeResolved(ResolvedExecution execution,
@@ -256,7 +306,8 @@ public class AiInvocationPipeline {
             return aiCallLogService.createRunningLog(new AiCallLogCreateCommand(
                     execution.userId(), execution.scene(), execution.modelName(), execution.promptCode(),
                     execution.promptTemplateId(), execution.promptVersion(), execution.promptSource(),
-                    requestLogText(execution), 0, traceId
+                    requestLogText(execution), 0, traceId,
+                    execution.agentRunId(), execution.agentRoundNo()
             ));
         } catch (Exception exception) {
             log.warn("AI 调用日志创建失败：scene={}, model={}",
@@ -395,7 +446,8 @@ public class AiInvocationPipeline {
             Long userId, String modelName, String scene, String promptCode,
             Long promptTemplateId, Integer promptVersion, String promptSource,
             String systemPrompt, String userPrompt, String parseFailureMessage, String traceId,
-            AiContentLoggingPolicy contentLoggingPolicy, String requestLogSummary
+            AiContentLoggingPolicy contentLoggingPolicy, String requestLogSummary,
+            String agentRunId, Integer agentRoundNo
     ) {
     }
 }

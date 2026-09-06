@@ -22,6 +22,7 @@ import com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow;
 import com.spt.learningmanage.model.vo.team.TeamMembershipTerminationVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.TeamMembershipTerminationPolicy;
 import com.spt.learningmanage.service.TeamMembershipTerminationService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -63,6 +64,9 @@ public class TeamMembershipTerminationServiceImpl
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -191,6 +195,9 @@ public class TeamMembershipTerminationServiceImpl
                     taskIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
             knowledgeIndexEventPublisher.publishAll(KnowledgeSourceTypeEnum.WEEKLY_REVIEW,
                     affectedReviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
+        }
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementTeam(targetMember.getTeamId());
         }
 
         TeamMembershipTerminationVO result =

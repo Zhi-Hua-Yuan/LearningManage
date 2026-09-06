@@ -13,7 +13,9 @@ public record AiCallLogCreateCommand(
         String promptSource,
         String requestText,
         Integer retryCount,
-        String traceId
+        String traceId,
+        String agentRunId,
+        Integer agentRoundNo
 ) {
 
     public AiCallLogCreateCommand(Long userId,
@@ -26,6 +28,20 @@ public record AiCallLogCreateCommand(
                                   String requestText,
                                   Integer retryCount) {
         this(userId, scene, modelName, promptCode, promptTemplateId, promptVersion,
-                promptSource, requestText, retryCount, null);
+                promptSource, requestText, retryCount, null, null, null);
+    }
+
+    public AiCallLogCreateCommand(Long userId,
+                                  String scene,
+                                  String modelName,
+                                  String promptCode,
+                                  Long promptTemplateId,
+                                  Integer promptVersion,
+                                  String promptSource,
+                                  String requestText,
+                                  Integer retryCount,
+                                  String traceId) {
+        this(userId, scene, modelName, promptCode, promptTemplateId, promptVersion,
+                promptSource, requestText, retryCount, traceId, null, null);
     }
 }

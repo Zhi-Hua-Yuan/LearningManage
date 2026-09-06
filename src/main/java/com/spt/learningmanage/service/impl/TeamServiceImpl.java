@@ -27,6 +27,7 @@ import com.spt.learningmanage.model.vo.team.TeamVO;
 import com.spt.learningmanage.service.TeamService;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -77,6 +78,9 @@ public class TeamServiceImpl implements TeamService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -184,6 +188,9 @@ public class TeamServiceImpl implements TeamService {
     }
 
     private void publishReviewAccessRestored(Long teamId, Long userId) {
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementTeam(teamId);
+        }
         if (knowledgeIndexEventPublisher == null || projectMapper == null || weeklyReviewMapper == null) {
             return;
         }
@@ -344,6 +351,9 @@ public class TeamServiceImpl implements TeamService {
         int rows = teamMemberMapper.updateById(targetMember);
         if (rows != 1) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "修改成员角色失败");
+        }
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementTeam(teamId);
         }
     }
 

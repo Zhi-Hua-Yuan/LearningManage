@@ -21,6 +21,7 @@ import com.spt.learningmanage.model.vo.task.TaskAssignmentHistoryVO;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskAssignmentService;
 import com.spt.learningmanage.utils.UserHolder;
@@ -49,6 +50,9 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
+
+    @Resource
+    private BusinessDataVersionService businessDataVersionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -104,6 +108,9 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         if (knowledgeIndexEventPublisher != null) {
             knowledgeIndexEventPublisher.publish(
                     KnowledgeSourceTypeEnum.TASK, task.getId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        }
+        if (businessDataVersionService != null) {
+            businessDataVersionService.incrementProjectAndOwningTeam(task.getProjectId());
         }
 
         return toVo(task, true, targetAssigneeUserId, actorUserId, assignedAt);
