@@ -25,6 +25,7 @@ public class AiAnalysisReport {
     private String publicSummary;
     private String memberMetricsJson;
     private String recommendationsJson;
+    private LocalDateTime contentPurgedAt;
     private String contentHash;
     private String model;
     private String promptCode;

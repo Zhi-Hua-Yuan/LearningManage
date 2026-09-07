@@ -12,7 +12,7 @@ COPY --chown=app:app target/LearningManage-0.0.1-SNAPSHOT.jar /app/app.jar
 USER app
 
 # 4. 声明端口：告诉 Docker，这个集装箱内部会使用 8123 端口
-EXPOSE 8123
+EXPOSE 8123 9123
 
 # 5. 启动命令：当集装箱启动时，执行 java -jar app.jar，并强制激活 prod 生产环境配置
 ENV SPRING_PROFILES_ACTIVE=prod

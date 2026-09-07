@@ -1,0 +1,103 @@
+name: Stage 7 real Qwen observability validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_sha:
+        description: Exact backend commit SHA to validate
+        required: true
+        type: string
+      chat_base_url:
+        description: Alibaba OpenAI-compatible Chat base URL
+        required: true
+        default: https://dashscope.aliyuncs.com/compatible-mode/v1
+        type: string
+      chat_model:
+        description: Qwen model used for controlled validation
+        required: true
+        default: qwen-plus
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage7-real-observability-${{ inputs.backend_sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: real-ai-validation
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: real_stage7_${{ github.run_id }}_${{ github.run_attempt }}
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -preal_stage7_${{ github.run_id }}_${{ github.run_attempt }} --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      STAGE6_REAL_AGENT_IT_ENABLED: 'true'
+      DB_HOST: 127.0.0.1
+      DB_PORT: '13306'
+      DB_NAME: learning_manage_ci_empty
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: '13306'
+      TEST_DB_NAME: learning_manage_ci_empty
+      CI_DB_GATE_AUTHORIZED: 'true'
+      CI_EMPTY_DB_NAME: learning_manage_ci_empty
+      CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+      FLYWAY_EXPECTED_DB_NAME: learning_manage_ci_empty
+      CI_MYSQL_ADMIN_USERNAME: root
+      CI_MYSQL_ADMIN_PASSWORD: real_stage7_${{ github.run_id }}_${{ github.run_attempt }}
+      FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+      FLYWAY_DB_PASSWORD: real_stage7_migrator_${{ github.run_id }}_${{ github.run_attempt }}
+      TEST_DB_USERNAME: learning_manage_ci_app
+      TEST_DB_PASSWORD: real_stage7_app_${{ github.run_id }}_${{ github.run_attempt }}
+      AI_BASE_URL: ${{ inputs.chat_base_url }}
+      AI_MODEL: ${{ inputs.chat_model }}
+      AI_FALLBACK_MODEL: ''
+      AI_CHAT_ENABLED: 'true'
+      AI_AGENT_ENABLED: 'true'
+      AI_AGENT_WORKER_ENABLED: 'false'
+      AI_AGENT_TOOL_CALLING_ENABLED: 'true'
+      AI_RAG_ENABLED: 'false'
+      AI_KNOWLEDGE_WORKER_ENABLED: 'false'
+      AI_CLEANUP_ENABLED: 'false'
+      MANAGEMENT_TRACING_ENABLED: 'false'
+      JWT_SECRET: protected-stage7-jwt-secret-with-at-least-32-bytes
+      ALIYUN_API_KEY: ${{ secrets.ALIYUN_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.backend_sha }}
+          persist-credentials: false
+      - name: Verify immutable SHA
+        run: |
+          [[ "$(git rev-parse HEAD)" == "${{ inputs.backend_sha }}" ]]
+          [[ "${{ inputs.backend_sha }}" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Provision isolated V8 database
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Validate real Qwen and Stage 7 metric emission
+        run: ./mvnw -B -ntp -Dtest=RealAgentProviderValidationIT test
+      - name: Upload sanitized evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: stage7-real-observability-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/surefire-reports
+          if-no-files-found: error
+          retention-days: 7

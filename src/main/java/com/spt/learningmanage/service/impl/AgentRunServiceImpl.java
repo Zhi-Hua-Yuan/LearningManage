@@ -22,6 +22,8 @@ import com.spt.learningmanage.agent.AgentRunStateMachine;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -32,6 +34,7 @@ public class AgentRunServiceImpl implements AgentRunService {
     private final PermissionService permissionService;
     private final AgentProperties properties;
     private final AgentRunStateMachine stateMachine;
+    private AiMetricsRecorder metricsRecorder;
 
     public AgentRunServiceImpl(AiAgentRunMapper runMapper,
                                PermissionService permissionService,
@@ -41,6 +44,11 @@ public class AgentRunServiceImpl implements AgentRunService {
         this.permissionService = permissionService;
         this.properties = properties;
         this.stateMachine = stateMachine;
+    }
+
+    @Autowired(required = false)
+    void setMetricsRecorder(AiMetricsRecorder metricsRecorder) {
+        this.metricsRecorder = metricsRecorder;
     }
 
     @Override
@@ -82,6 +90,10 @@ public class AgentRunServiceImpl implements AgentRunService {
                 ? AgentRunStatusEnum.CANCELED : AgentRunStatusEnum.CANCELED);
         LocalDateTime now = LocalDateTime.now();
         if (status == AgentRunStatusEnum.PENDING && runMapper.cancelPending(run.getId(), now) == 1) {
+            if (metricsRecorder != null) {
+                metricsRecorder.recordAgentRun(run.getScene(), AgentRunStatusEnum.CANCELED.name(),
+                        run.getOrchestrationMode(), 0L);
+            }
             return new AgentCancelVO(run.getRunId(), AgentRunStatusEnum.CANCELED.name(), true);
         }
         runMapper.requestRunningCancellation(run.getId(), now);

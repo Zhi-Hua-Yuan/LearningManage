@@ -1,0 +1,63 @@
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: core readiness alert fires and recovers
+    interval: 1m
+    input_series:
+      - series: 'up{job="learning-manage"}'
+        values: '0 0 0 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LearningManageCoreReadinessDown
+        exp_alerts:
+          - exp_labels: { job: "learning-manage", severity: critical }
+            exp_annotations: { summary: "LearningManage core readiness is down" }
+      - eval_time: 4m
+        alertname: LearningManageCoreReadinessDown
+        exp_alerts: []
+
+  - name: knowledge dead event alert fires
+    interval: 1m
+    input_series:
+      - series: 'learning_knowledge_dead'
+        values: '0 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LearningManageKnowledgeDeadEvent
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations: { summary: "Knowledge index has DEAD events" }
+
+  - name: cleanup failure alert fires
+    interval: 1m
+    input_series:
+      - series: 'learning_cleanup_runs_total{status="failed"}'
+        values: '0 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LearningManageCleanupFailure
+        exp_alerts:
+          - exp_labels: { status: "failed", severity: warning }
+            exp_annotations: { summary: "A cleanup run failed or completed partially" }
+
+  - name: cost alerts respect configured thresholds
+    interval: 1m
+    input_series:
+      - series: 'learning_ai_daily_estimated_cost'
+        values: '90 110 110 110 110 110 110'
+      - series: 'learning_ai_daily_cost_soft_budget'
+        values: '100 100 100 100 100 100 100'
+      - series: 'learning_ai_daily_cost_hard_budget'
+        values: '200 200 200 200 200 200 200'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: LearningManageDailyCostSoftLimit
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations: { summary: "AI daily estimated cost reached the soft limit" }
+      - eval_time: 6m
+        alertname: LearningManageDailyCostHardLimit
+        exp_alerts: []

@@ -67,6 +67,8 @@ public class AiCallLog {
 
     private String errorHash;
 
+    private LocalDateTime bodyPurgedAt;
+
     private String promptType;
 
     private Long promptTemplateId;

@@ -1,0 +1,157 @@
+name: Stage 7 production operations gate
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage7-production-ops-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  DB_HOST: 127.0.0.1
+  DB_PORT: '13306'
+  DB_NAME: learning_manage_ci_empty
+  TEST_DB_HOST: 127.0.0.1
+  TEST_DB_PORT: '13306'
+  TEST_DB_NAME: learning_manage_ci_empty
+  CI_DB_GATE_AUTHORIZED: 'true'
+  CI_EMPTY_DB_NAME: learning_manage_ci_empty
+  CI_LEGACY_DB_NAME: learning_manage_ci_legacy
+  CI_MYSQL_ADMIN_USERNAME: root
+  FLYWAY_DB_USERNAME: learning_manage_ci_migrator
+  TEST_DB_USERNAME: learning_manage_ci_app
+  JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
+  ALIYUN_API_KEY: ci-only-not-a-real-key
+  AI_CLEANUP_ENABLED: 'false'
+  AI_CLEANUP_SCHEDULE_ENABLED: 'false'
+  MANAGEMENT_TRACING_ENABLED: 'false'
+
+jobs:
+  contract-and-migration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+        env:
+          MYSQL_ROOT_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage7
+        ports: [13306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage7 --silent"
+          --health-interval=3s --health-timeout=3s --health-retries=30 --health-start-period=10s
+    env:
+      CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage7
+      FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage7
+      TEST_DB_PASSWORD: ci_app_${{ github.run_id }}_${{ github.run_attempt }}_stage7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false }
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
+      - name: Provision empty database through V8
+        run: |
+          bash scripts/ci/wait-for-mysql.sh
+          bash scripts/ci/provision-ci-databases.sh
+          bash scripts/ci/verify-empty-database.sh
+      - name: Run non-MySQL Stage 0-7 regression
+        run: ./mvnw -B -ntp '-Dtest=**/*Test,!**/*MySqlTest' test
+      - name: Prepare V7 historical integration-test schema
+        env:
+          DB_NAME: ${{ env.CI_LEGACY_DB_NAME }}
+          FLYWAY_TARGET_VERSION: '7'
+        run: bash scripts/flyway-admin.sh migrate
+      - name: Run historical MySQL integration and concurrency tests on V7
+        env:
+          DB_NAME: ${{ env.CI_LEGACY_DB_NAME }}
+          TEST_DB_NAME: ${{ env.CI_LEGACY_DB_NAME }}
+        run: ./mvnw -B -ntp '-Dtest=**/*MySqlTest' test
+      - name: Run Stage 7 V8 cleanup lifecycle integration
+        env:
+          STAGE7_CLEANUP_IT_ENABLED: 'true'
+          DB_NAME: ${{ env.CI_EMPTY_DB_NAME }}
+          TEST_DB_NAME: ${{ env.CI_EMPTY_DB_NAME }}
+        run: ./mvnw -B -ntp -Dtest=DataCleanupLifecycleV8IT test
+      - name: Validate Stage 7 static acceptance
+        run: bash scripts/ci/verify-stage7-acceptance.sh
+      - name: Validate Compose, Prometheus and Tempo files
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          DB_USERNAME: ci-app
+          DB_PASSWORD: ci-db
+          REDIS_PASSWORD: ci-redis-password
+          GRAFANA_ADMIN_PASSWORD: ci-grafana-password
+        run: |
+          docker compose -f deploy/docker-compose.yml config --quiet
+          docker run --rm \
+            -v "$PWD/deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+            --entrypoint /bin/promtool prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+            prom/prometheus:v2.54.1 check rules /etc/prometheus/alerts.yml
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/deploy/observability:/etc/stage7:ro" -w /etc/stage7 \
+            prom/prometheus:v2.54.1 test rules alerts.test.yml
+      - name: Build and run Stage 7 private observability stack
+        env:
+          CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+          CI_REDIS_IMAGE: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+          CI_QDRANT_IMAGE: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
+          CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+          CI_PROMETHEUS_IMAGE: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
+          CI_TEMPO_IMAGE: grafana/tempo:2.6.1@sha256:ef4384fce6e8ad22b95b243d8fc165628cda655376fd50e7850536ad89d71d50
+          CI_GRAFANA_IMAGE: grafana/grafana:11.2.2@sha256:d5133220d770aba5cb655147b619fa8770b90f41d8489a821d33b1cd34d16f89
+          CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
+          CI_BACKEND_IMAGE: learning-manage-stage7:${{ github.sha }}
+          CI_MYSQL_ADMIN_PASSWORD: ci-stage7-root-${{ github.run_id }}
+          CI_APP_PASSWORD: ci-stage7-app-${{ github.run_id }}
+          CI_REDIS_PASSWORD: ci-stage7-redis-${{ github.run_id }}
+          CI_KNOWLEDGE_WORKER_ENABLED: 'true'
+          CI_RAG_ENABLED: 'true'
+          CI_AGENT_ENABLED: 'true'
+          CI_AGENT_WORKER_ENABLED: 'true'
+        run: |
+          ./mvnw -B -ntp -DskipTests package
+          docker build -t "$CI_BACKEND_IMAGE" .
+          docker compose -f deploy/docker-compose.stage7-gate.yml up -d --wait
+          bash scripts/ci/verify-stage7-runtime.sh
+      - name: Stop Stage 7 stack
+        if: ${{ always() }}
+        env:
+          CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
+          CI_REDIS_IMAGE: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+          CI_QDRANT_IMAGE: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
+          CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+          CI_PROMETHEUS_IMAGE: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
+          CI_TEMPO_IMAGE: grafana/tempo:2.6.1@sha256:ef4384fce6e8ad22b95b243d8fc165628cda655376fd50e7850536ad89d71d50
+          CI_GRAFANA_IMAGE: grafana/grafana:11.2.2@sha256:d5133220d770aba5cb655147b619fa8770b90f41d8489a821d33b1cd34d16f89
+          CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
+          CI_BACKEND_IMAGE: learning-manage-stage7:${{ github.sha }}
+          CI_MYSQL_ADMIN_PASSWORD: ci-stage7-root-${{ github.run_id }}
+          CI_APP_PASSWORD: ci-stage7-app-${{ github.run_id }}
+          CI_REDIS_PASSWORD: ci-stage7-redis-${{ github.run_id }}
+        run: docker compose -f deploy/docker-compose.stage7-gate.yml down -v --remove-orphans
+      - name: Upload diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: stage7-production-ops-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/surefire-reports
+            docs/stage7/acceptance/stage7-acceptance-contract.json
+            deploy/observability
+          if-no-files-found: error
+          retention-days: 7

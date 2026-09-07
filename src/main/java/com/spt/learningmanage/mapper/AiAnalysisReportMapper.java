@@ -5,6 +5,7 @@ import com.spt.learningmanage.model.entity.AiAnalysisReport;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -59,4 +60,30 @@ public interface AiAnalysisReportMapper extends BaseMapper<AiAnalysisReport> {
                          @Param("reportType") String reportType,
                          @Param("projectId") Long projectId,
                          @Param("teamId") Long teamId);
+
+    @Select("""
+            SELECT id, report_id FROM ai_analysis_report
+            WHERE is_delete=1 AND content_purged_at IS NULL AND deleted_at < #{cutoff}
+              AND id > #{cursor} ORDER BY id LIMIT #{limit}
+            """)
+    List<AiAnalysisReport> selectDeletedForCleanup(@Param("cutoff") java.time.LocalDateTime cutoff,
+                                                   @Param("cursor") long cursor,
+                                                   @Param("limit") int limit);
+
+    @Select("""
+            SELECT COUNT(*) FROM ai_analysis_report
+            WHERE is_delete=1 AND content_purged_at IS NULL AND deleted_at < #{cutoff}
+            """)
+    long countDeletedForCleanup(@Param("cutoff") java.time.LocalDateTime cutoff);
+
+    @Update("""
+            <script>
+            UPDATE ai_analysis_report
+            SET manager_summary=NULL, public_summary=NULL, member_metrics_json=NULL,
+                recommendations_json=NULL, content_purged_at=CURRENT_TIMESTAMP(3)
+            WHERE is_delete=1 AND content_purged_at IS NULL AND id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    int purgeDeletedContent(@Param("ids") List<Long> ids);
 }

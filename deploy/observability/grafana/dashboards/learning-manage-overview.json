@@ -1,0 +1,18 @@
+{
+  "title": "LearningManage Stage 7 Overview",
+  "uid": "learning-stage7-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-24h", "to": "now"},
+  "panels": [
+    {"id":1,"type":"stat","title":"Backend Up","gridPos":{"h":6,"w":4,"x":0,"y":0},"targets":[{"expr":"up{job=\"learning-manage\"}","refId":"A"}]},
+    {"id":2,"type":"timeseries","title":"AI Calls","gridPos":{"h":8,"w":10,"x":4,"y":0},"targets":[{"expr":"sum(rate(learning_ai_invocations_total[5m])) by (status)","legendFormat":"{{status}}","refId":"A"}]},
+    {"id":3,"type":"timeseries","title":"AI P95 Latency","gridPos":{"h":8,"w":10,"x":14,"y":0},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(learning_ai_invocation_duration_seconds_bucket[5m])) by (le,scene))","legendFormat":"{{scene}}","refId":"A"}]},
+    {"id":4,"type":"timeseries","title":"RAG P95 and Insufficient","gridPos":{"h":8,"w":8,"x":0,"y":8},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(learning_rag_query_duration_seconds_bucket[5m])) by (le))","refId":"A"},{"expr":"sum(rate(learning_rag_insufficient_total[5m]))","refId":"B"}]},
+    {"id":5,"type":"timeseries","title":"Agent Runs and Queue","gridPos":{"h":8,"w":8,"x":8,"y":8},"targets":[{"expr":"sum(rate(learning_agent_runs_total[5m])) by (status)","legendFormat":"{{status}}","refId":"A"},{"expr":"learning_agent_queue_depth","legendFormat":"queue","refId":"B"}]},
+    {"id":6,"type":"timeseries","title":"Knowledge Queue","gridPos":{"h":8,"w":8,"x":16,"y":8},"targets":[{"expr":"learning_knowledge_queue_depth","legendFormat":"ready","refId":"A"},{"expr":"learning_knowledge_dead","legendFormat":"dead","refId":"B"}]},
+    {"id":7,"type":"timeseries","title":"Token Usage","gridPos":{"h":8,"w":12,"x":0,"y":16},"targets":[{"expr":"sum(rate(learning_ai_tokens_total[5m])) by (scene)","legendFormat":"{{scene}}","refId":"A"}]},
+    {"id":8,"type":"timeseries","title":"Cleanup Runs and Rows","gridPos":{"h":8,"w":12,"x":12,"y":16},"targets":[{"expr":"sum(increase(learning_cleanup_runs_total[1h])) by (status)","legendFormat":"runs {{status}}","refId":"A"},{"expr":"sum(increase(learning_cleanup_rows_total[1h]))","legendFormat":"rows","refId":"B"}]}
+  ]
+}

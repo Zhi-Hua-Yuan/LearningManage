@@ -1,5 +1,3 @@
-﻿version: '3.8'
-
 services:
   # ---------------- 1. 数据库集装箱 ----------------
   mysql:
@@ -17,6 +15,28 @@ services:
     volumes:
       - ./mysql-data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    container_name: learning_redis
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "/opt/learning/redis-entrypoint-stage7.sh"]
+    volumes:
+      - redis-data:/data
+      - ./redis/redis-entrypoint-stage7.sh:/opt/learning/redis-entrypoint-stage7.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user learning_app --pass \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.18.2}
@@ -41,8 +61,12 @@ services:
     ports:
       - "${BACKEND_PORT:-8124}:8123"
     depends_on:
-      - mysql
-      - qdrant
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_HOST: mysql
@@ -50,6 +74,11 @@ services:
       DB_NAME: ${DB_NAME:-learning_manage}
       DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${DB_NAME:-learning_manage}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_USERNAME: learning_app
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       FLYWAY_ENABLED: ${FLYWAY_ENABLED:-false}
       FLYWAY_DB_USERNAME: ${FLYWAY_DB_USERNAME:-__flyway_migrator_not_configured__}
       FLYWAY_DB_PASSWORD: ${FLYWAY_DB_PASSWORD:-__flyway_migrator_not_configured__}
@@ -80,6 +109,26 @@ services:
       AI_AGENT_LEASE_SECONDS: ${AI_AGENT_LEASE_SECONDS:-90}
       AI_AGENT_OVERALL_TIMEOUT_SECONDS: ${AI_AGENT_OVERALL_TIMEOUT_SECONDS:-60}
       AI_AGENT_TOOL_TIMEOUT_SECONDS: ${AI_AGENT_TOOL_TIMEOUT_SECONDS:-10}
+      MANAGEMENT_PORT: 9123
+      MANAGEMENT_ADDRESS: 0.0.0.0
+      MANAGEMENT_TRACING_ENABLED: ${MANAGEMENT_TRACING_ENABLED:-true}
+      MANAGEMENT_TRACING_SAMPLING: ${MANAGEMENT_TRACING_SAMPLING:-1.0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+      AI_CLEANUP_ENABLED: ${AI_CLEANUP_ENABLED:-false}
+      AI_CLEANUP_SCHEDULE_ENABLED: ${AI_CLEANUP_SCHEDULE_ENABLED:-false}
+      AI_CLEANUP_POLICY_VERSION: ${AI_CLEANUP_POLICY_VERSION:-stage7-v1}
+      AI_CLEANUP_BATCH_SIZE: ${AI_CLEANUP_BATCH_SIZE:-500}
+      AI_CLEANUP_MAX_RUNTIME_SECONDS: ${AI_CLEANUP_MAX_RUNTIME_SECONDS:-600}
+      AI_DAILY_COST_SOFT_LIMIT: ${AI_DAILY_COST_SOFT_LIMIT:-}
+      AI_DAILY_COST_HARD_LIMIT: ${AI_DAILY_COST_HARD_LIMIT:-}
+    expose:
+      - "9123"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9123/actuator/health/readiness | grep UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   # ---------------- 3. 前端集装箱 ----------------
   frontend:
@@ -94,5 +143,48 @@ services:
       - ./dist:/usr/share/nginx/html
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
 
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1}
+    container_name: learning_prometheus
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+
+  tempo:
+    image: ${TEMPO_IMAGE:-grafana/tempo:2.6.1}
+    container_name: learning_tempo
+    restart: always
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yml:ro
+      - tempo-data:/var/tempo
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.2.2}
+    container_name: learning_grafana
+    restart: always
+    depends_on:
+      - prometheus
+      - tempo
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
 volumes:
   qdrant-data:
+  redis-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:
