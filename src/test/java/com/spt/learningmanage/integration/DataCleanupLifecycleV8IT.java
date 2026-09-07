@@ -199,7 +199,7 @@ class DataCleanupLifecycleV8IT {
 
     @Test
     void operationsAggregationAndFailurePaginationStayDatabaseBounded() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = jdbcTemplate.queryForObject("SELECT NOW(3)", LocalDateTime.class);
         String sql = "INSERT INTO ai_call_log "
                 + "(id,user_id,scene,model_name,status,failure_type,cost_time_ms,retry_count,trace_id,create_time,update_time) "
                 + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
