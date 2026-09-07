@@ -18,6 +18,7 @@ near-real-time operational source. Prometheus loss never changes business facts.
 | Metric | Definition | Dimensions |
 |---|---|---|
 | AI invocations | one terminal AI call-log transition | scene, model, status, failure type, degraded |
+| Core readiness | latest MySQL readiness probe, 1 for UP and 0 for DOWN | none |
 | AI duration | wall-clock duration recorded by the invocation pipeline | scene, model, status |
 | Tokens | provider-reported total usage | scene, model |
 | Estimated cost | configured price version applied to provider-reported usage | scene, model, currency, price version |

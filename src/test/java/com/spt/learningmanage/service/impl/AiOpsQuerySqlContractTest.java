@@ -21,6 +21,8 @@ class AiOpsQuerySqlContractTest {
         assertTrue(source.contains("UNION ALL"));
         assertTrue(source.contains("LIMIT ? OFFSET ?"));
         assertTrue(source.contains("status IN (2, 3, 4)"));
+        assertTrue(source.contains("WHERE update_time >= ? AND update_time <= ?"));
+        assertTrue(source.contains("COUNT(DISTINCT currency)=1"));
         assertFalse(source.contains("limit 500"));
         assertFalse(source.contains("selectList("));
     }

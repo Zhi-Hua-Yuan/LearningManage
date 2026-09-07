@@ -42,6 +42,7 @@ class Stage7ObservabilityContractTest {
         assertEquals(6, files.size());
         String alerts = read("deploy/observability/alerts.yml");
         assertTrue(alerts.contains("LearningManageCoreReadinessDown"));
+        assertTrue(alerts.contains("learning_core_readiness == 0"));
         assertTrue(alerts.contains("LearningManageKnowledgeDeadEvent"));
         assertTrue(alerts.contains("LearningManageCleanupFailure"));
         assertTrue(alerts.contains("LearningManageDailyCostHardLimit"));
@@ -73,6 +74,15 @@ class Stage7ObservabilityContractTest {
         assertTrue(workflow.contains("CI_AGENT_WORKER_ENABLED: 'true'"));
         String runtimeGate = read("scripts/ci/verify-stage7-runtime.sh");
         assertTrue(runtimeGate.contains("verify-stage7-enabled-ai.py"));
+    }
+
+    @Test
+    void rerankHealthUsesPersistedExecutionEvidence() throws Exception {
+        String health = read("src/main/java/com/spt/learningmanage/service/impl/AiDependencyHealthServiceImpl.java");
+        assertTrue(health.contains("AiRagQueryLog::getDegraded"));
+        assertTrue(health.contains("AiRagQueryLog::getFinalCount"));
+        assertTrue(health.contains("recent query degraded"));
+        assertTrue(health.contains("rerank not exercised"));
     }
 
     private String read(String path) throws Exception {

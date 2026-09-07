@@ -208,6 +208,12 @@ class DataCleanupLifecycleV8IT {
                         "PROVIDER", 10L + index, 0, "stage7-failure-" + index
                 }).toList();
         jdbcTemplate.batchUpdate(sql, failures);
+        jdbcTemplate.update("UPDATE ai_call_log SET create_time=DATE_SUB(NOW(3), INTERVAL 2 DAY) WHERE id=?",
+                2_097_700_000_100_000L);
+        jdbcTemplate.update("UPDATE ai_call_log SET estimated_cost=10, currency='USD' WHERE id=?",
+                2_097_700_000_100_001L);
+        jdbcTemplate.update("UPDATE ai_call_log SET estimated_cost=10, currency='CNY' WHERE id=?",
+                2_097_700_000_100_002L);
         jdbcTemplate.update(sql, 2_097_700_000_199_999L, ADMIN_ID, "stage7-ops", "ci-model", 0,
                 null, null, 0, "stage7-running");
 
@@ -217,10 +223,12 @@ class DataCleanupLifecycleV8IT {
         assertTrue(page.getRecords().stream().allMatch(failure -> "FAILED".equals(failure.getStatus())));
 
         var overview = opsQueryService.overview(now.minusHours(1), now.plusHours(1));
-        assertEquals(506L, overview.getAi().getTotalCount());
-        assertEquals(505L, overview.getAi().getStatusCounts().get("FAILED"));
+        assertEquals(505L, overview.getAi().getTotalCount());
+        assertEquals(504L, overview.getAi().getStatusCounts().get("FAILED"));
         assertEquals(1L, overview.getAi().getStatusCounts().get("RUNNING"));
         assertNotNull(overview.getAi().getP95DurationMs());
+        assertNull(overview.getAi().getEstimatedCost());
+        assertNull(overview.getAi().getCurrency());
     }
 
     private void executeOne() {

@@ -2,7 +2,7 @@ groups:
   - name: learning-manage-stage7
     rules:
       - alert: LearningManageCoreReadinessDown
-        expr: up{job="learning-manage"} == 0
+        expr: learning_core_readiness == 0
         for: 2m
         labels: { severity: critical }
         annotations: { summary: "LearningManage core readiness is down" }

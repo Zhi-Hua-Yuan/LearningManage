@@ -178,12 +178,19 @@ public class AiDependencyHealthServiceImpl implements AiDependencyHealthService 
         }
         try {
             AiRagQueryLog latest = ragLogMapper.selectOne(new LambdaQueryWrapper<AiRagQueryLog>()
+                    .select(AiRagQueryLog::getStatus, AiRagQueryLog::getDegraded,
+                            AiRagQueryLog::getFinalCount, AiRagQueryLog::getCreateTime)
                     .orderByDesc(AiRagQueryLog::getCreateTime).last("limit 1"));
             if (latest == null || latest.getCreateTime().isBefore(LocalDateTime.now().minusMinutes(15))) {
                 return value("rerank", AiDependencyStatusEnum.UNKNOWN, "no recent query");
             }
-            return value("rerank", "FAILED".equals(latest.getStatus())
-                    ? AiDependencyStatusEnum.DEGRADED : AiDependencyStatusEnum.UP, "recent query metadata");
+            if ("FAILED".equals(latest.getStatus()) || Objects.equals(latest.getDegraded(), 1)) {
+                return value("rerank", AiDependencyStatusEnum.DEGRADED, "recent query degraded");
+            }
+            if (latest.getFinalCount() == null || latest.getFinalCount() == 0) {
+                return value("rerank", AiDependencyStatusEnum.UNKNOWN, "rerank not exercised");
+            }
+            return value("rerank", AiDependencyStatusEnum.UP, "recent reranked query");
         } catch (RuntimeException exception) {
             return value("rerank", AiDependencyStatusEnum.UNKNOWN, "metadata unavailable");
         }

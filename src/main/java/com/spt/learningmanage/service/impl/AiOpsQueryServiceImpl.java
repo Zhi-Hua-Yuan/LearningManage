@@ -35,24 +35,24 @@ public class AiOpsQueryServiceImpl implements AiOpsQueryService {
                    COALESCE(failure_type, 'UNKNOWN') failure_type,
                    trace_id, update_time occurred_at
             FROM ai_call_log
-            WHERE create_time >= ? AND create_time <= ? AND status IN (2, 3, 4)
+            WHERE update_time >= ? AND update_time <= ? AND status IN (2, 3, 4)
             UNION ALL
             SELECT 'RAG', status, COALESCE(failure_type, 'UNKNOWN'), trace_id, update_time
             FROM ai_rag_query_log
-            WHERE create_time >= ? AND create_time <= ? AND status = 'FAILED'
+            WHERE update_time >= ? AND update_time <= ? AND status = 'FAILED'
             UNION ALL
             SELECT 'AGENT', status, COALESCE(failure_type, 'UNKNOWN'), trace_id, update_time
             FROM ai_agent_run
-            WHERE create_time >= ? AND create_time <= ?
+            WHERE update_time >= ? AND update_time <= ?
               AND status IN ('FAILED', 'TIMED_OUT', 'PARTIAL')
             UNION ALL
             SELECT 'KNOWLEDGE', status, COALESCE(failure_type, 'UNKNOWN'), trace_id, update_time
             FROM ai_knowledge_index_event
-            WHERE create_time >= ? AND create_time <= ? AND status = 'DEAD'
+            WHERE update_time >= ? AND update_time <= ? AND status = 'DEAD'
             UNION ALL
             SELECT 'CLEANUP', status, status, trace_id, update_time
             FROM ai_data_cleanup_run
-            WHERE create_time >= ? AND create_time <= ? AND status IN ('FAILED', 'PARTIAL')
+            WHERE update_time >= ? AND update_time <= ? AND status IN ('FAILED', 'PARTIAL')
             """;
 
     private final JdbcTemplate jdbc;
@@ -141,7 +141,7 @@ public class AiOpsQueryServiceImpl implements AiOpsQueryService {
                 this::normalize);
         Map<String, Object> usage = jdbc.queryForMap("""
                 SELECT COALESCE(SUM(total_tokens), 0) total_tokens,
-                       SUM(estimated_cost) estimated_cost,
+                       CASE WHEN COUNT(DISTINCT currency)=1 THEN SUM(estimated_cost) ELSE NULL END estimated_cost,
                        CASE WHEN COUNT(DISTINCT currency)=1 THEN MAX(currency) ELSE NULL END currency
                 FROM ai_call_log WHERE create_time >= ? AND create_time <= ?
                 """, range.from(), range.to());
