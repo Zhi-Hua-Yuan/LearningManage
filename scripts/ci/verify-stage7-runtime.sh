@@ -3,13 +3,28 @@ set -Eeuo pipefail
 
 compose=(docker compose -f deploy/docker-compose.stage7-gate.yml)
 
-"${compose[@]}" exec -T probe wget -q -O - http://backend:8123/api/health | grep -q '"code":0'
-"${compose[@]}" exec -T probe wget -q -O - http://backend:9123/actuator/health/liveness | grep -q '"status":"UP"'
-"${compose[@]}" exec -T probe wget -q -O - http://backend:9123/actuator/health/readiness | grep -q '"status":"UP"'
-"${compose[@]}" exec -T probe wget -q -O - http://backend:9123/actuator/prometheus | grep -q 'learning_agent_queue_depth'
-"${compose[@]}" exec -T probe wget -q -O - http://prometheus:9090/-/ready | grep -q 'Prometheus Server is Ready'
-"${compose[@]}" exec -T probe wget -q -O - http://grafana:3000/api/health | grep -q '"database": "ok"'
-"${compose[@]}" exec -T probe wget -q -O - http://tempo:3200/ready | grep -qi 'ready'
+wait_for_url() {
+  local url="$1"
+  local marker="$2"
+  local body
+  for _ in {1..30}; do
+    if body="$("${compose[@]}" exec -T probe wget -q -O - "$url" 2>/dev/null)" \
+        && grep -Fqi -- "$marker" <<<"$body"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Stage 7 runtime endpoint did not become ready: $url" >&2
+  return 1
+}
+
+wait_for_url http://backend:8123/api/health '"code":0'
+wait_for_url http://backend:9123/actuator/health/liveness '"status":"UP"'
+wait_for_url http://backend:9123/actuator/health/readiness '"status":"UP"'
+wait_for_url http://backend:9123/actuator/prometheus 'learning_agent_queue_depth'
+wait_for_url http://prometheus:9090/-/ready 'Prometheus Server is Ready'
+wait_for_url http://grafana:3000/api/health '"database": "ok"'
+wait_for_url http://tempo:3200/ready 'ready'
 
 "${compose[@]}" exec -T ai-stub python - <<'PY'
 import json
