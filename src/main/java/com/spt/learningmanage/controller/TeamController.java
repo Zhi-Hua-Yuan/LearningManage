@@ -6,9 +6,15 @@ import com.spt.learningmanage.model.dto.team.TeamCreateRequest;
 import com.spt.learningmanage.model.dto.team.TeamJoinRequest;
 import com.spt.learningmanage.model.dto.team.TeamMemberRemoveRequest;
 import com.spt.learningmanage.model.dto.team.TeamMemberRoleUpdateRequest;
+import com.spt.learningmanage.model.dto.team.TeamOwnerTransferRequest;
+import com.spt.learningmanage.model.dto.team.TeamUpdateRequest;
 import com.spt.learningmanage.model.vo.team.TeamCreateVO;
+import com.spt.learningmanage.model.vo.team.TeamDissolutionCheckVO;
+import com.spt.learningmanage.model.vo.team.TeamDissolutionVO;
+import com.spt.learningmanage.model.vo.team.TeamInviteVO;
 import com.spt.learningmanage.model.vo.team.TeamMemberVO;
 import com.spt.learningmanage.model.vo.team.TeamMembershipTerminationVO;
+import com.spt.learningmanage.model.vo.team.TeamOwnershipTransferVO;
 import com.spt.learningmanage.model.vo.team.TeamVO;
 import com.spt.learningmanage.service.TeamService;
 import com.spt.learningmanage.service.TeamMembershipTerminationService;
@@ -71,6 +77,38 @@ public class TeamController {
     public BaseResponse<Boolean> updateMemberRole(@RequestBody @Valid TeamMemberRoleUpdateRequest request) {
         teamService.updateMemberRole(request);
         return ResultUtils.success(true);
+    }
+
+    @PostMapping("/update")
+    public BaseResponse<TeamVO> updateTeam(@RequestBody @Valid TeamUpdateRequest request) {
+        return ResultUtils.success(teamService.updateTeam(request));
+    }
+
+    @GetMapping("/{teamId}/invite")
+    public BaseResponse<TeamInviteVO> getInvite(@PathVariable Long teamId) {
+        return ResultUtils.success(teamService.getInvite(teamId));
+    }
+
+    @PostMapping("/{teamId}/invite/regenerate")
+    public BaseResponse<TeamInviteVO> regenerateInvite(@PathVariable Long teamId) {
+        return ResultUtils.success(teamService.regenerateInvite(teamId));
+    }
+
+    @PostMapping("/owner/transfer")
+    public BaseResponse<TeamOwnershipTransferVO> transferOwnership(
+            @RequestBody @Valid TeamOwnerTransferRequest request
+    ) {
+        return ResultUtils.success(teamService.transferOwnership(request));
+    }
+
+    @GetMapping("/{teamId}/dissolution-check")
+    public BaseResponse<TeamDissolutionCheckVO> checkDissolution(@PathVariable Long teamId) {
+        return ResultUtils.success(teamService.checkDissolution(teamId));
+    }
+
+    @PostMapping("/{teamId}/dissolve")
+    public BaseResponse<TeamDissolutionVO> dissolveTeam(@PathVariable Long teamId) {
+        return ResultUtils.success(teamService.dissolveTeam(teamId));
     }
 
     /** 当前登录用户主动退出团队。 */

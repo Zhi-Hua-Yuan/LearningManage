@@ -11,6 +11,7 @@ import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
+import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.team.TeamMemberRemoveRequest;
@@ -45,6 +46,9 @@ public class TeamMembershipTerminationServiceImpl
     private TeamMemberMapper teamMemberMapper;
 
     @Resource
+    private TeamMapper teamMapper;
+
+    @Resource
     private TaskMapper taskMapper;
 
     @Resource
@@ -77,6 +81,8 @@ public class TeamMembershipTerminationServiceImpl
         // 非锁定预检查只负责快速拒绝；锁内策略才是本事务的权威二次判断。
         permissionService.requireTeamLeave(actorUserId, teamId);
 
+        lockActiveTeam(teamId);
+
         List<TeamMember> lockedMembers = teamMemberMapper
                 .selectActiveMembersForUpdate(teamId, List.of(actorUserId));
         TeamMember targetMember = terminationPolicy.requireLeaveAllowed(
@@ -105,6 +111,8 @@ public class TeamMembershipTerminationServiceImpl
         permissionService.requireTeamMemberRemove(
                 actorUserId, teamId, targetUserId);
 
+        lockActiveTeam(teamId);
+
         List<TeamMember> lockedMembers = teamMemberMapper
                 .selectActiveMembersForUpdate(
                         teamId,
@@ -121,6 +129,12 @@ public class TeamMembershipTerminationServiceImpl
                 targetMember,
                 TaskAssignmentActionEnum.MEMBER_REMOVED
         );
+    }
+
+    private void lockActiveTeam(Long teamId) {
+        if (teamMapper != null && teamMapper.selectActiveByIdForUpdate(teamId) == null) {
+            throw new PermissionDeniedException();
+        }
     }
 
     private TeamMembershipTerminationVO terminateLocked(

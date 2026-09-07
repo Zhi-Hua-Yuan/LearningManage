@@ -125,7 +125,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         permissionService.requireTeamManageProject(userId, teamProjectCreateRequest.getTeamId());
-        Team team = getValidTeamById(teamProjectCreateRequest.getTeamId());
+        Team team = teamMapper.selectActiveByIdForUpdate(teamProjectCreateRequest.getTeamId());
+        if (team == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "团队不存在");
+        }
 
         validateName(teamProjectCreateRequest.getName());
         validateIcon(teamProjectCreateRequest.getIcon());
@@ -486,6 +489,10 @@ public class ProjectServiceImpl implements ProjectService {
         Project existing = projectMapper.selectDeletedById(id);
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+        if (existing.getTeamId() != null
+                && teamMapper.selectActiveByIdForUpdate(existing.getTeamId()) == null) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
         }
         if (existing.getDeletedAt() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");

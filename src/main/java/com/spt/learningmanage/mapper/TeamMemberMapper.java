@@ -25,6 +25,13 @@ public interface TeamMemberMapper extends BaseMapper<TeamMember> {
             @Param("userIds") Collection<Long> userIds
     );
 
+    List<TeamMember> selectAllActiveMembersForUpdate(@Param("teamId") Long teamId);
+
+    int deactivateAllActiveMemberships(
+            @Param("teamId") Long teamId,
+            @Param("deletedAt") LocalDateTime deletedAt
+    );
+
     /**
      * Atomically invalidate one membership row when its role and active state
      * still match the locked snapshot.

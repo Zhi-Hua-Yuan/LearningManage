@@ -7,8 +7,10 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
+import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
@@ -33,6 +35,9 @@ public class TaskCreationServiceImpl implements TaskCreationService {
     private TaskAssigneePolicy taskAssigneePolicy;
 
     @Resource
+    private TeamMapper teamMapper;
+
+    @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Resource
@@ -43,6 +48,12 @@ public class TaskCreationServiceImpl implements TaskCreationService {
     public Long createTask(Task task, ProjectAccessScope scope, Long requestedAssigneeUserId) {
         if (task == null || scope == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务和项目权限范围不能为空");
+        }
+        if (scope.isTeamProject()) {
+            Team team = teamMapper.selectActiveByIdForUpdate(scope.teamId());
+            if (team == null) {
+                throw new com.spt.learningmanage.exception.PermissionDeniedException();
+            }
         }
         Long assigneeUserId = taskAssigneePolicy.resolveInitialAssignee(scope, requestedAssigneeUserId);
         LocalDateTime now = LocalDateTime.now();

@@ -39,6 +39,34 @@
         FOR UPDATE
     </select>
 
+    <select id="selectAllActiveMembersForUpdate"
+            resultType="com.spt.learningmanage.model.entity.TeamMember">
+        SELECT
+            id,
+            team_id,
+            user_id,
+            role,
+            create_time,
+            update_time,
+            deleted_at,
+            is_delete
+        FROM team_member
+        WHERE team_id = #{teamId}
+          AND is_delete = 0
+          AND deleted_at IS NULL
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
+    <update id="deactivateAllActiveMemberships">
+        UPDATE team_member
+        SET is_delete = 1,
+            deleted_at = #{deletedAt}
+        WHERE team_id = #{teamId}
+          AND is_delete = 0
+          AND deleted_at IS NULL
+    </update>
+
     <update id="deactivateMembershipCas">
         UPDATE team_member
         SET is_delete = 1,
