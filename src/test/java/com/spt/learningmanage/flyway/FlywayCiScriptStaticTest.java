@@ -196,7 +196,7 @@ class FlywayCiScriptStaticTest {
     }
 
     @Test
-    void earlierGatesRemainWiredAfterV7BecomesCurrentHead() throws IOException {
+    void earlierGatesRemainWiredAfterV8BecomesCurrentHead() throws IOException {
         String backendWorkflow = read(".github/workflows/backend-ci.yml");
         String releaseWorkflow = read(".github/workflows/release-gate.yml");
         String provision = read("scripts/ci/provision-ci-databases.sh");
@@ -211,8 +211,8 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-stage2-acceptance.sh"));
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
-            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '7'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '828'"));
+            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '8'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '848'"));
         }
         assertTrue(provision.contains("CREATE TEMPORARY TABLES"));
         assertTrue(stage2Acceptance.contains("stage2_wp2_pass_without_full_ci"));
