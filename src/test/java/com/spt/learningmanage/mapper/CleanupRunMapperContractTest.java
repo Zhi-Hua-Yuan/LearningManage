@@ -17,7 +17,8 @@ class CleanupRunMapperContractTest {
         assertTrue(source.contains("ai_data_cleanup_lock WHERE id=1 FOR UPDATE"));
         assertTrue(source.contains("selectActiveForUpdate"));
         assertTrue(source.contains("selectByRequestForUpdate"));
-        assertTrue(source.contains("selectLatestDryRunForUpdate"));
+        assertTrue(source.contains("selectDryRunForUpdate"));
+        assertTrue(source.contains("countFormalByApprovedDryRunId"));
         assertTrue(source.contains("FOR UPDATE SKIP LOCKED"));
         assertTrue(source.contains("status='RUNNING' AND execution_token=#{token}"));
         assertTrue(source.contains("status='PENDING', worker_id=NULL, execution_token=NULL"));

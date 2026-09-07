@@ -86,7 +86,7 @@ public class CleanupRunServiceImpl implements CleanupRunService {
         }
         return create(actor, CleanupTriggerTypeEnum.MANUAL,
                 request.getClientRequestId().trim(), !Boolean.FALSE.equals(request.getDryRun()),
-                normalizeResources(request.getResourceTypes()));
+                normalizeResources(request.getResourceTypes()), request.getApprovedDryRunId());
     }
 
     @Override
@@ -187,12 +187,13 @@ public class CleanupRunServiceImpl implements CleanupRunService {
                                 CleanupTriggerTypeEnum trigger,
                                 String clientRequestId,
                                 boolean dryRun,
-                                List<CleanupResourceTypeEnum> resources) {
+                                List<CleanupResourceTypeEnum> resources,
+                                String approvedDryRunRunId) {
         if (runMapper.selectActiveForUpdate() != null) {
             throw new BusinessException(ErrorCode.CLEANUP_ALREADY_RUNNING);
         }
         String hash = resourceHash(resources);
-        AiDataCleanupRun approved = dryRun ? null : latestDryRun(hash);
+        AiDataCleanupRun approved = dryRun ? null : approvedDryRun(approvedDryRunRunId, hash);
         if (!dryRun && approved == null) {
             throw new BusinessException(ErrorCode.CLEANUP_DRY_RUN_REQUIRED);
         }
@@ -254,9 +255,22 @@ public class CleanupRunServiceImpl implements CleanupRunService {
         return toVO(run, false, true);
     }
 
-    private AiDataCleanupRun latestDryRun(String resourceHash) {
-        return runMapper.selectLatestDryRunForUpdate(retentionPolicy.version(), resourceHash,
-                LocalDateTime.now().minusHours(properties.getDryRunValidHours()));
+    private AiDataCleanupRun approvedDryRun(String runId, String resourceHash) {
+        if (runId == null || runId.isBlank()) {
+            return null;
+        }
+        AiDataCleanupRun approved = runMapper.selectDryRunForUpdate(runId.trim());
+        if (approved == null
+                || !CleanupRunStatusEnum.SUCCEEDED.name().equals(approved.getStatus())
+                || !retentionPolicy.version().equals(approved.getPolicyVersion())
+                || !resourceHash.equals(approved.getResourceHash())
+                || approved.getFinishedAt() == null
+                || approved.getFinishedAt().isBefore(
+                        LocalDateTime.now().minusHours(properties.getDryRunValidHours()))
+                || runMapper.countFormalByApprovedDryRunId(approved.getId()) > 0) {
+            return null;
+        }
+        return approved;
     }
 
     private AiDataCleanupRun requireRun(String runId) {

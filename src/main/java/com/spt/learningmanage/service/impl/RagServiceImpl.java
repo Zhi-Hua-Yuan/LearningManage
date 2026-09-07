@@ -135,7 +135,7 @@ public class RagServiceImpl implements RagService {
             throw new BusinessException(ErrorCode.RAG_SOURCE_CHANGED);
         } catch (RuntimeException exception) {
             if (metricsRecorder != null) {
-                metricsRecorder.recordRag(failureType(exception), false, false,
+                metricsRecorder.recordRag("FAILED", false, false,
                         elapsed(startedAt), 0);
             }
             try {

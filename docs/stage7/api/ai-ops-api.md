@@ -31,6 +31,16 @@ Cleanup request:
 ```
 
 Omitting `resourceTypes` selects all nine frozen resources. A formal run must
-use a new client request ID and exactly match a successful, unexpired Dry Run.
-The database persists that approval by ID and resource hash. Duplicate requests
-from the same administrator return the original Run.
+use a new client request ID, provide that reviewed Run's `approvedDryRunId`, and
+exactly match a successful, unexpired, unused Dry Run. The database persists
+that approval by ID and resource hash. Duplicate requests from the same
+administrator return the original Run.
+
+```json
+{
+  "dryRun": false,
+  "resourceTypes": ["AI_CALL_BODY", "RAG_RESULT_BODY", "DRAFT_PAYLOAD"],
+  "approvedDryRunId": "cleanup_1234567890abcdef",
+  "clientRequestId": "cleanup-formal-20260907"
+}
+```

@@ -646,24 +646,6 @@ public class AiCallLogServiceImpl implements AiCallLogService, AiCallLogOperatio
     }
 
     @Override
-    public List<AiCallLog> listMetadata(LocalDateTime from, LocalDateTime to) {
-        return aiCallLogMapper.selectList(new LambdaQueryWrapper<AiCallLog>()
-                .ge(AiCallLog::getCreateTime, from).le(AiCallLog::getCreateTime, to)
-                .select(AiCallLog::getStatus, AiCallLog::getScene, AiCallLog::getCostTimeMs,
-                        AiCallLog::getTotalTokens, AiCallLog::getEstimatedCost, AiCallLog::getCurrency));
-    }
-
-    @Override
-    public List<AiCallLog> listFailureMetadata(LocalDateTime from, LocalDateTime to, int limit) {
-        return aiCallLogMapper.selectList(new LambdaQueryWrapper<AiCallLog>()
-                .ge(AiCallLog::getCreateTime, from).le(AiCallLog::getCreateTime, to)
-                .ne(AiCallLog::getStatus, AiCallLogStatusEnum.SUCCESS.getValue())
-                .select(AiCallLog::getStatus, AiCallLog::getFailureType,
-                        AiCallLog::getTraceId, AiCallLog::getUpdateTime)
-                .orderByDesc(AiCallLog::getUpdateTime).last("limit " + Math.max(1, Math.min(limit, 500))));
-    }
-
-    @Override
     public BigDecimal sumEstimatedCost(LocalDateTime from, LocalDateTime to) {
         return aiCallLogMapper.sumEstimatedCost(from, to);
     }

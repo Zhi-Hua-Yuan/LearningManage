@@ -7,7 +7,8 @@
 3. Enable the worker only: `AI_CLEANUP_ENABLED=true`, schedule still false.
 4. Submit a full-resource Dry Run and wait for `SUCCEEDED`.
 5. Review every Item cutoff and estimate; compare with direct read-only counts.
-6. Submit a formal run with a new `clientRequestId` within 24 hours.
+6. Submit a formal run with a new `clientRequestId` and the explicitly reviewed
+   `approvedDryRunId` within 24 hours. A Dry Run can authorize only one formal run.
 7. Verify redacted/deleted counts and Stage 0-6 smoke tests.
 8. Enable `AI_CLEANUP_SCHEDULE_ENABLED=true` only after this rehearsal.
 

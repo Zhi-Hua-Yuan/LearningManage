@@ -8,14 +8,15 @@ No production data or production credential was used.
 ## Build and automated tests
 
 - JDK 17 offline Maven package completed.
-- Clean non-MySQL `*Test` regression: 787 tests, 0 failures, 0 errors.
+- Clean non-MySQL `*Test` regression: 791 tests, 0 failures, 0 errors.
 - Historical V7 MySQL integration partition: 61 tests, 0 failures, 0 errors.
-- V8 cleanup lifecycle integration: 4 tests, 0 failures, 0 errors.
+- V8 cleanup lifecycle integration: 5 tests, 0 failures, 0 errors.
 - The V8 integration covers dry-run to formal cleanup, concurrent single-active
-  submission, stale execution-token rejection and pending-run cancellation.
+  submission, stale execution-token rejection, pending-run cancellation,
+  database-side operations aggregation and complete failure pagination.
 - Stage 7 static acceptance passed; all six Grafana dashboards parsed and met
   the title, UID and panel contract.
-- Frontend: 69 test files and 496 tests passed.
+- Frontend: 69 test files and 499 tests passed.
 - Frontend lint, storage, task-cache and AI rendering safety gates passed.
 - Frontend type-check and production build passed.
 - Frontend API contract tests passed with 60 operations.

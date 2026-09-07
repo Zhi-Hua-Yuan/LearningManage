@@ -12,6 +12,7 @@ import com.spt.learningmanage.model.entity.AiDataCleanupRun;
 import com.spt.learningmanage.model.entity.User;
 import com.spt.learningmanage.service.CleanupRunQueueService;
 import com.spt.learningmanage.service.CleanupRunService;
+import com.spt.learningmanage.service.AiOpsQueryService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +24,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -52,6 +55,7 @@ class DataCleanupLifecycleV8IT {
     @Autowired CleanupRunService runService;
     @Autowired CleanupRunQueueService queueService;
     @Autowired DataCleanupWorker worker;
+    @Autowired AiOpsQueryService opsQueryService;
     @Autowired JdbcTemplate jdbcTemplate;
 
     @BeforeEach
@@ -110,7 +114,9 @@ class DataCleanupLifecycleV8IT {
         assertEquals(0L, dryRun.getAffectedCount());
         assertEquals("sensitive request body", callLogMapper.selectById(CALL_ID).getRequestText());
 
-        var formal = runService.submit(request(false, "stage7-cleanup-formal-request"));
+        var formalRequest = request(false, "stage7-cleanup-formal-request");
+        formalRequest.setApprovedDryRunId(dryRun.getRunId());
+        var formal = runService.submit(formalRequest);
         executeOne();
         formal = runService.get(formal.getRunId());
         assertEquals("SUCCEEDED", formal.getStatus());
@@ -191,6 +197,34 @@ class DataCleanupLifecycleV8IT {
         assertEquals(0L, remaining);
     }
 
+    @Test
+    void operationsAggregationAndFailurePaginationStayDatabaseBounded() {
+        LocalDateTime now = LocalDateTime.now();
+        String sql = "INSERT INTO ai_call_log "
+                + "(id,user_id,scene,model_name,status,failure_type,cost_time_ms,retry_count,trace_id,create_time,update_time) "
+                + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+        List<Object[]> failures = IntStream.range(0, 505)
+                .mapToObj(index -> new Object[]{
+                        2_097_700_000_100_000L + index, ADMIN_ID, "stage7-ops", "ci-model", 2,
+                        "PROVIDER", 10L + index, 0, "stage7-failure-" + index,
+                        Timestamp.valueOf(now.minusMinutes(1)), Timestamp.valueOf(now.minusMinutes(1))
+                }).toList();
+        jdbcTemplate.batchUpdate(sql, failures);
+        jdbcTemplate.update(sql, 2_097_700_000_199_999L, ADMIN_ID, "stage7-ops", "ci-model", 0,
+                null, null, 0, "stage7-running", Timestamp.valueOf(now), Timestamp.valueOf(now));
+
+        var page = opsQueryService.failures(now.minusHours(1), now.plusHours(1), 6, 100);
+        assertEquals(505L, page.getTotal());
+        assertEquals(5, page.getRecords().size());
+        assertTrue(page.getRecords().stream().allMatch(failure -> "FAILED".equals(failure.getStatus())));
+
+        var overview = opsQueryService.overview(now.minusHours(1), now.plusHours(1));
+        assertEquals(506L, overview.getAi().getTotalCount());
+        assertEquals(505L, overview.getAi().getStatusCounts().get("FAILED"));
+        assertEquals(1L, overview.getAi().getStatusCounts().get("RUNNING"));
+        assertNotNull(overview.getAi().getP95DurationMs());
+    }
+
     private void executeOne() {
         AiDataCleanupRun claimed = queueService.claimOne("stage7-cleanup-it-worker");
         assertNotNull(claimed);
@@ -210,7 +244,7 @@ class DataCleanupLifecycleV8IT {
                 + "(SELECT run_id FROM ai_data_cleanup_run WHERE initiator_user_id=?)", ADMIN_ID);
         jdbcTemplate.update("DELETE FROM ai_data_cleanup_run WHERE initiator_user_id=?", ADMIN_ID);
         jdbcTemplate.update("DELETE FROM ai_admin_operation_log WHERE operator_user_id=?", ADMIN_ID);
-        jdbcTemplate.update("DELETE FROM ai_call_log WHERE id=?", CALL_ID);
+        jdbcTemplate.update("DELETE FROM ai_call_log WHERE user_id=?", ADMIN_ID);
         jdbcTemplate.update("DELETE FROM `user` WHERE id=?", ADMIN_ID);
     }
 }

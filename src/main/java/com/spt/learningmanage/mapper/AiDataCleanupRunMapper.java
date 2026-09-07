@@ -31,13 +31,16 @@ public interface AiDataCleanupRunMapper extends BaseMapper<AiDataCleanupRun> {
 
     @Select("""
             SELECT * FROM ai_data_cleanup_run
-            WHERE policy_version=#{policyVersion} AND resource_hash=#{resourceHash}
-              AND dry_run=1 AND status='SUCCEEDED' AND finished_at >= #{notBefore}
-            ORDER BY finished_at DESC,id DESC LIMIT 1 FOR UPDATE
+            WHERE run_id=#{runId} AND dry_run=1
+            LIMIT 1 FOR UPDATE
             """)
-    AiDataCleanupRun selectLatestDryRunForUpdate(@Param("policyVersion") String policyVersion,
-                                                 @Param("resourceHash") String resourceHash,
-                                                 @Param("notBefore") LocalDateTime notBefore);
+    AiDataCleanupRun selectDryRunForUpdate(@Param("runId") String runId);
+
+    @Select("""
+            SELECT COUNT(*) FROM ai_data_cleanup_run
+            WHERE approved_dry_run_id=#{approvedDryRunId} AND dry_run=0
+            """)
+    long countFormalByApprovedDryRunId(@Param("approvedDryRunId") Long approvedDryRunId);
 
     @Select("""
             SELECT * FROM ai_data_cleanup_run

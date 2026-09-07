@@ -4,16 +4,11 @@ import com.spt.learningmanage.model.entity.AiCallLog;
 import com.spt.learningmanage.model.ops.CleanupBatchResult;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.math.BigDecimal;
 
 /** Internal metadata/retention boundary; never returns request or response bodies. */
 public interface AiCallLogOperationsService {
     AiCallLog latestMetadata();
-
-    List<AiCallLog> listMetadata(LocalDateTime from, LocalDateTime to);
-
-    List<AiCallLog> listFailureMetadata(LocalDateTime from, LocalDateTime to, int limit);
 
     BigDecimal sumEstimatedCost(LocalDateTime from, LocalDateTime to);
 
