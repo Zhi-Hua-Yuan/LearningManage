@@ -490,6 +490,10 @@ public class ProjectServiceImpl implements ProjectService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
+        if (existing.getTeamId() != null
+                && teamMapper.selectActiveByIdForUpdate(existing.getTeamId()) == null) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
+        }
         if (existing.getDeletedAt() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }

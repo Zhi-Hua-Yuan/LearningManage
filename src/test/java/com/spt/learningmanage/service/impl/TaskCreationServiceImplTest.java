@@ -5,11 +5,14 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
+import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,9 +33,18 @@ class TaskCreationServiceImplTest {
     private TaskAssignmentLogMapper logMapper;
     @Mock
     private TaskAssigneePolicy policy;
+    @Mock
+    private TeamMapper teamMapper;
 
     @InjectMocks
     private TaskCreationServiceImpl service;
+
+    @BeforeEach
+    void setUpTeamLock() {
+        Team team = new Team();
+        team.setId(20L);
+        lenient().when(teamMapper.selectActiveByIdForUpdate(20L)).thenReturn(team);
+    }
 
     @Test
     void createTask_teamAssignee_resolvesBeforeTaskInsertAndInitialLog() {
@@ -52,7 +64,8 @@ class TaskCreationServiceImplTest {
         Assertions.assertEquals(1L, task.getAssignedByUserId());
         Assertions.assertNotNull(task.getAssignedAt());
         ArgumentCaptor<TaskAssignmentLog> captor = ArgumentCaptor.forClass(TaskAssignmentLog.class);
-        InOrder inOrder = inOrder(policy, taskMapper, logMapper);
+        InOrder inOrder = inOrder(teamMapper, policy, taskMapper, logMapper);
+        inOrder.verify(teamMapper).selectActiveByIdForUpdate(20L);
         inOrder.verify(policy).resolveInitialAssignee(scope, 2L);
         inOrder.verify(taskMapper).insert(task);
         inOrder.verify(logMapper).insert(captor.capture());
@@ -77,7 +90,8 @@ class TaskCreationServiceImplTest {
         service.createTask(task, scope, null);
         Assertions.assertNull(task.getAssigneeUserId());
         Assertions.assertNull(task.getAssignedAt());
-        InOrder inOrder = inOrder(policy, taskMapper);
+        InOrder inOrder = inOrder(teamMapper, policy, taskMapper);
+        inOrder.verify(teamMapper).selectActiveByIdForUpdate(20L);
         inOrder.verify(policy).resolveInitialAssignee(scope, null);
         inOrder.verify(taskMapper).insert(task);
         verify(logMapper, never()).insert(any(TaskAssignmentLog.class));
@@ -95,6 +109,7 @@ class TaskCreationServiceImplTest {
                 () -> service.createTask(task, scope, 2L));
 
         Assertions.assertEquals(ErrorCode.PARAMS_ERROR, ex.getErrorCode());
+        verify(teamMapper).selectActiveByIdForUpdate(20L);
         verify(policy).resolveInitialAssignee(scope, 2L);
         verifyNoInteractions(taskMapper, logMapper);
     }
@@ -130,7 +145,8 @@ class TaskCreationServiceImplTest {
                 () -> service.createTask(task, scope, 2L));
 
         Assertions.assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
-        InOrder inOrder = inOrder(policy, taskMapper, logMapper);
+        InOrder inOrder = inOrder(teamMapper, policy, taskMapper, logMapper);
+        inOrder.verify(teamMapper).selectActiveByIdForUpdate(20L);
         inOrder.verify(policy).resolveInitialAssignee(scope, 2L);
         inOrder.verify(taskMapper).insert(task);
         inOrder.verify(logMapper).insert(argThat((TaskAssignmentLog log) ->
