@@ -15,6 +15,7 @@ import com.spt.learningmanage.observability.AiMetricsRecorder;
 import com.spt.learningmanage.service.CleanupRunQueueService;
 import com.spt.learningmanage.service.DataCleanupService;
 import com.spt.learningmanage.service.CleanupRunService;
+import com.spt.learningmanage.service.impl.CleanupBatchTransactionService;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -30,6 +31,7 @@ public class DataCleanupWorker {
     private final DataCleanupProperties properties;
     private final AiMetricsRecorder metrics;
     private final CleanupRunService runService;
+    private final CleanupBatchTransactionService batchTransactionService;
 
     public DataCleanupWorker(AiDataCleanupRunMapper runMapper,
                              AiDataCleanupItemMapper itemMapper,
@@ -37,7 +39,8 @@ public class DataCleanupWorker {
                              CleanupRunQueueService queueService,
                              DataCleanupProperties properties,
                              AiMetricsRecorder metrics,
-                             CleanupRunService runService) {
+                             CleanupRunService runService,
+                             CleanupBatchTransactionService batchTransactionService) {
         this.runMapper = runMapper;
         this.itemMapper = itemMapper;
         this.cleanupService = cleanupService;
@@ -45,6 +48,7 @@ public class DataCleanupWorker {
         this.properties = properties;
         this.metrics = metrics;
         this.runService = runService;
+        this.batchTransactionService = batchTransactionService;
     }
 
     public void process(AiDataCleanupRun run) {
@@ -101,7 +105,6 @@ public class DataCleanupWorker {
                 }
                 while (true) {
                     if (timedOut(startedAt)) {
-                        persistItem(item);
                         queueService.releaseForResume(run);
                         return;
                     }
@@ -115,24 +118,11 @@ public class DataCleanupWorker {
                     if (!queueService.heartbeat(run)) {
                         return;
                     }
-                    CleanupBatchResult batch = cleanupService.processBatch(type, item.getCutoffTime(),
-                            value(item.getCursorId()), properties.getBatchSize());
-                    item.setScannedCount(value(item.getScannedCount()) + batch.scanned());
-                    item.setRedactedCount(value(item.getRedactedCount()) + batch.redacted());
-                    item.setDeletedCount(value(item.getDeletedCount()) + batch.deleted());
-                    if (batch.nextCursor() > 0) {
-                        item.setCursorId(batch.nextCursor());
-                    }
+                    CleanupBatchResult batch = batchTransactionService.process(
+                            run, item, type, properties.getBatchSize());
                     scanned += batch.scanned();
                     affected += batch.affected();
-                    if (!queueService.heartbeat(run)) {
-                        return;
-                    }
-                    persistItem(item);
                     if (batch.finished()) {
-                        item.setStatus(CleanupRunStatusEnum.SUCCEEDED.name());
-                        item.setFinishedAt(LocalDateTime.now());
-                        itemMapper.updateById(item);
                         break;
                     }
                 }
@@ -150,15 +140,14 @@ public class DataCleanupWorker {
             failures++;
             String safeError = safe(exception);
             if (currentItem != null && CleanupRunStatusEnum.RUNNING.name().equals(currentItem.getStatus())) {
-                currentItem.setStatus(CleanupRunStatusEnum.FAILED.name());
-                currentItem.setErrorSummary(safeError);
-                currentItem.setFinishedAt(LocalDateTime.now());
-                itemMapper.updateById(currentItem);
+                itemMapper.failFenced(currentItem.getId(), run.getId(), run.getExecutionToken(),
+                        safeError, LocalDateTime.now());
             }
             String status = affected > 0 ? CleanupRunStatusEnum.PARTIAL.name()
                     : CleanupRunStatusEnum.FAILED.name();
-            queueService.complete(run, status, scanned, estimated, affected, failures, safeError);
-            metrics.recordCleanup(status, elapsed(startedAt), affected);
+            if (queueService.complete(run, status, scanned, estimated, affected, failures, safeError)) {
+                metrics.recordCleanup(status, elapsed(startedAt), affected);
+            }
         }
     }
 
@@ -212,10 +201,6 @@ public class DataCleanupWorker {
             item.setStartedAt(LocalDateTime.now());
         }
         item.setErrorSummary(null);
-        itemMapper.updateById(item);
-    }
-
-    private void persistItem(AiDataCleanupItem item) {
         itemMapper.updateById(item);
     }
 

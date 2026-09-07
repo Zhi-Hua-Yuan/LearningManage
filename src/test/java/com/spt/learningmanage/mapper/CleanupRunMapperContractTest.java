@@ -19,6 +19,11 @@ class CleanupRunMapperContractTest {
         assertTrue(source.contains("selectByRequestForUpdate"));
         assertTrue(source.contains("selectDryRunForUpdate"));
         assertTrue(source.contains("countFormalByApprovedDryRunId"));
+        String itemSource = Files.readString(Path.of(
+                "src/main/java/com/spt/learningmanage/mapper/AiDataCleanupItemMapper.java"));
+        assertTrue(itemSource.contains("updateProgressFenced"));
+        assertTrue(itemSource.contains("failFenced"));
+        assertTrue(itemSource.contains("run.execution_token=#{token}"));
         assertTrue(source.contains("FOR UPDATE SKIP LOCKED"));
         assertTrue(source.contains("status='RUNNING' AND execution_token=#{token}"));
         assertTrue(source.contains("status='PENDING', worker_id=NULL, execution_token=NULL"));

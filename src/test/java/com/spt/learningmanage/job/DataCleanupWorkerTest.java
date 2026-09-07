@@ -10,6 +10,7 @@ import com.spt.learningmanage.observability.AiMetricsRecorder;
 import com.spt.learningmanage.service.CleanupRunQueueService;
 import com.spt.learningmanage.service.DataCleanupService;
 import com.spt.learningmanage.service.CleanupRunService;
+import com.spt.learningmanage.service.impl.CleanupBatchTransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class DataCleanupWorkerTest {
     @Mock CleanupRunQueueService queueService;
     @Mock AiMetricsRecorder metrics;
     @Mock CleanupRunService runService;
+    @Mock CleanupBatchTransactionService batchTransactionService;
 
     private DataCleanupWorker worker;
 
@@ -46,7 +48,7 @@ class DataCleanupWorkerTest {
     @BeforeEach
     void setUp() {
         worker = new DataCleanupWorker(runMapper, itemMapper, cleanupService, queueService,
-                new DataCleanupProperties(), metrics, runService);
+                new DataCleanupProperties(), metrics, runService, batchTransactionService);
     }
 
     @Test
@@ -92,7 +94,7 @@ class DataCleanupWorkerTest {
         when(itemMapper.selectList(any())).thenReturn(List.of(item));
         when(runMapper.selectById(1L)).thenReturn(run);
         when(itemMapper.updateById(any(AiDataCleanupItem.class))).thenReturn(1);
-        when(cleanupService.processBatch(any(), any(), eq(10L), anyInt()))
+        when(batchTransactionService.process(eq(run), eq(item), any(), anyInt()))
                 .thenReturn(new CleanupBatchResult(1, 1, 1, 0, 11, true));
         when(queueService.heartbeat(run)).thenReturn(true);
         doReturn(true).when(queueService).complete(any(AiDataCleanupRun.class), anyString(),
@@ -114,7 +116,7 @@ class DataCleanupWorkerTest {
 
         worker.process(run);
 
-        verify(cleanupService, never()).processBatch(any(), any(), anyLong(), anyInt());
+        verify(batchTransactionService, never()).process(any(), any(), any(), anyInt());
         verify(queueService, never()).complete(any(), anyString(), anyLong(), anyLong(),
                 anyLong(), anyLong(), nullable(String.class));
     }

@@ -83,6 +83,11 @@ class Stage7ObservabilityContractTest {
         assertTrue(health.contains("AiRagQueryLog::getFinalCount"));
         assertTrue(health.contains("recent query degraded"));
         assertTrue(health.contains("rerank not exercised"));
+        String rag = read("src/main/java/com/spt/learningmanage/service/impl/RagServiceImpl.java");
+        assertTrue(rag.contains("persisted.result().getInsufficientEvidence()"));
+        assertTrue(rag.contains("persisted.result().getDegraded()"));
+        String calls = read("src/main/java/com/spt/learningmanage/mapper/AiCallLogMapper.java");
+        assertTrue(calls.contains("COUNT(DISTINCT currency)=1"));
     }
 
     private String read(String path) throws Exception {

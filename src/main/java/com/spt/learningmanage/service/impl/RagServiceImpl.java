@@ -122,8 +122,11 @@ public class RagServiceImpl implements RagService {
                             queryLog, retrieval, context, generated, elapsed(startedAt));
                     RagAnswerVO response = viewService.toVO(persisted);
                     if (metricsRecorder != null) {
-                        metricsRecorder.recordRag("SUCCEEDED", retrieval.degraded(),
-                                generated.content().insufficientEvidence(), elapsed(startedAt),
+                        boolean insufficient = Integer.valueOf(1).equals(
+                                persisted.result().getInsufficientEvidence());
+                        boolean degraded = Integer.valueOf(1).equals(persisted.result().getDegraded());
+                        metricsRecorder.recordRag(insufficient ? "INSUFFICIENT" : "SUCCEEDED", degraded,
+                                insufficient, elapsed(startedAt),
                                 retrieval.candidates().size());
                     }
                     return response;
