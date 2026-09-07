@@ -212,7 +212,7 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
             assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '8'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '853'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '852'"));
             assertTrue(workflow.contains("-Dtest=**/*Test,!**/*MySqlTest"));
             assertTrue(workflow.contains("-Dtest=**/*MySqlTest"));
         }

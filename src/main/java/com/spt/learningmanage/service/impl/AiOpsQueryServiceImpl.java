@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.function.Function;
 
 @Service
 public class AiOpsQueryServiceImpl implements AiOpsQueryService {
+    private static final ZoneId BUSINESS_TIME_ZONE = ZoneId.of("Asia/Shanghai");
     private static final String FAILURE_UNION = """
             SELECT 'AI' source,
                    CASE status WHEN 2 THEN 'FAILED' WHEN 3 THEN 'PARSE_FAILED'
@@ -255,7 +257,7 @@ public class AiOpsQueryServiceImpl implements AiOpsQueryService {
     }
 
     private Range range(LocalDateTime from, LocalDateTime to) {
-        LocalDateTime end = to == null ? LocalDateTime.now() : to;
+        LocalDateTime end = to == null ? LocalDateTime.now(BUSINESS_TIME_ZONE) : to;
         LocalDateTime start = from == null ? end.minusHours(24) : from;
         if (start.isAfter(end) || start.isBefore(end.minusDays(90))) {
             throw new BusinessException(ErrorCode.OPS_TIME_RANGE_INVALID);

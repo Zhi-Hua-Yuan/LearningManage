@@ -24,7 +24,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -202,16 +201,15 @@ class DataCleanupLifecycleV8IT {
         LocalDateTime now = jdbcTemplate.queryForObject("SELECT NOW(3)", LocalDateTime.class);
         String sql = "INSERT INTO ai_call_log "
                 + "(id,user_id,scene,model_name,status,failure_type,cost_time_ms,retry_count,trace_id,create_time,update_time) "
-                + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+                + "VALUES (?,?,?,?,?,?,?,?,?,NOW(3),NOW(3))";
         List<Object[]> failures = IntStream.range(0, 505)
                 .mapToObj(index -> new Object[]{
                         2_097_700_000_100_000L + index, ADMIN_ID, "stage7-ops", "ci-model", 2,
-                        "PROVIDER", 10L + index, 0, "stage7-failure-" + index,
-                        Timestamp.valueOf(now.minusMinutes(1)), Timestamp.valueOf(now.minusMinutes(1))
+                        "PROVIDER", 10L + index, 0, "stage7-failure-" + index
                 }).toList();
         jdbcTemplate.batchUpdate(sql, failures);
         jdbcTemplate.update(sql, 2_097_700_000_199_999L, ADMIN_ID, "stage7-ops", "ci-model", 0,
-                null, null, 0, "stage7-running", Timestamp.valueOf(now), Timestamp.valueOf(now));
+                null, null, 0, "stage7-running");
 
         var page = opsQueryService.failures(now.minusHours(1), now.plusHours(1), 6, 100);
         assertEquals(505L, page.getTotal());
