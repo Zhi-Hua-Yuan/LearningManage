@@ -141,8 +141,16 @@ public class AiOpsQueryServiceImpl implements AiOpsQueryService {
                 this::normalize);
         Map<String, Object> usage = jdbc.queryForMap("""
                 SELECT COALESCE(SUM(total_tokens), 0) total_tokens,
-                       CASE WHEN COUNT(DISTINCT currency)=1 THEN SUM(estimated_cost) ELSE NULL END estimated_cost,
-                       CASE WHEN COUNT(DISTINCT currency)=1 THEN MAX(currency) ELSE NULL END currency
+                       CASE WHEN COUNT(*) > 0
+                                  AND COUNT(estimated_cost)=COUNT(*)
+                                  AND COUNT(currency)=COUNT(*)
+                                  AND COUNT(DISTINCT currency)=1
+                            THEN SUM(estimated_cost) ELSE NULL END estimated_cost,
+                       CASE WHEN COUNT(*) > 0
+                                  AND COUNT(estimated_cost)=COUNT(*)
+                                  AND COUNT(currency)=COUNT(*)
+                                  AND COUNT(DISTINCT currency)=1
+                            THEN MAX(currency) ELSE NULL END currency
                 FROM ai_call_log WHERE create_time >= ? AND create_time <= ?
                 """, range.from(), range.to());
         result.setTotalTokens(number(usage.get("total_tokens")).longValue());

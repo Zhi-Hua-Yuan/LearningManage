@@ -64,6 +64,7 @@ public class KnowledgeIndexWorker {
                     new IndexExecutionContext(event.getId(), token, event.getTraceId(), eventType));
             if (!queueService.markSuccess(event.getId(), token)) {
                 log.warn("knowledge event success lost fencing race: eventId={}", event.getId());
+                return;
             }
             record(event, "SUCCEEDED", "none", startedAt);
         } catch (KnowledgeIndexException exception) {

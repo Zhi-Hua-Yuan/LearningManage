@@ -18,7 +18,10 @@ public interface AiCallLogMapper extends BaseMapper<AiCallLog> {
                        @Param("agentRoundNo") Integer agentRoundNo);
 
     @Select("""
-            SELECT CASE WHEN COUNT(DISTINCT currency)=1
+            SELECT CASE WHEN COUNT(*) > 0
+                             AND COUNT(estimated_cost)=COUNT(*)
+                             AND COUNT(currency)=COUNT(*)
+                             AND COUNT(DISTINCT currency)=1
                         THEN SUM(estimated_cost) ELSE NULL END
             FROM ai_call_log
             WHERE create_time >= #{from} AND create_time <= #{to}

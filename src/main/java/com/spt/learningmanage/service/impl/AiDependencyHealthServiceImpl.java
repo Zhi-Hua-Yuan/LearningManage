@@ -180,6 +180,7 @@ public class AiDependencyHealthServiceImpl implements AiDependencyHealthService 
             AiRagQueryLog latest = ragLogMapper.selectOne(new LambdaQueryWrapper<AiRagQueryLog>()
                     .select(AiRagQueryLog::getStatus, AiRagQueryLog::getDegraded,
                             AiRagQueryLog::getFinalCount, AiRagQueryLog::getCreateTime)
+                    .in(AiRagQueryLog::getStatus, "SUCCEEDED", "INSUFFICIENT", "FAILED")
                     .orderByDesc(AiRagQueryLog::getCreateTime).last("limit 1"));
             if (latest == null || latest.getCreateTime().isBefore(LocalDateTime.now().minusMinutes(15))) {
                 return value("rerank", AiDependencyStatusEnum.UNKNOWN, "no recent query");
