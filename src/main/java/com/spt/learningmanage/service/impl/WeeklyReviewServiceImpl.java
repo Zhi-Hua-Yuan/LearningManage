@@ -12,6 +12,7 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewTaskMapper;
@@ -61,6 +62,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
 
     @Resource
     private TeamMemberMapper teamMemberMapper;
+
+    @Resource
+    private TeamMapper teamMapper;
 
     @Resource
     private TaskMapper taskMapper;
@@ -389,6 +393,9 @@ public class WeeklyReviewServiceImpl implements WeeklyReviewService {
                                         WeeklyReviewVisibilityScopeEnum scope) {
         if (scope != WeeklyReviewVisibilityScopeEnum.TEAM) {
             return;
+        }
+        if (teamMapper != null && teamMapper.selectActiveByIdForUpdate(teamId) == null) {
+            throw new PermissionDeniedException();
         }
         if (teamMemberMapper != null) {
             List<TeamMember> members = teamMemberMapper.selectActiveMembersForUpdate(

@@ -31,6 +31,10 @@ public enum ErrorCode {
     ACCOUNT_ALREADY_EXISTS(20002, "账号已存在"),
     PASSWORD_ERROR(20003, "密码错误"),
 
+    /** 团队生命周期相关 (41xxx). */
+    TEAM_HAS_BUSINESS_DATA(41001, "团队仍有关联业务数据"),
+    TEAM_STATE_CONFLICT(41002, "团队状态已发生变化"),
+
     /**
      * AI 调用相关 (3xxxx)
      */

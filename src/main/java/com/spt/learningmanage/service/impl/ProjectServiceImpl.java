@@ -125,7 +125,10 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         permissionService.requireTeamManageProject(userId, teamProjectCreateRequest.getTeamId());
-        Team team = getValidTeamById(teamProjectCreateRequest.getTeamId());
+        Team team = teamMapper.selectActiveByIdForUpdate(teamProjectCreateRequest.getTeamId());
+        if (team == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "团队不存在");
+        }
 
         validateName(teamProjectCreateRequest.getName());
         validateIcon(teamProjectCreateRequest.getIcon());
