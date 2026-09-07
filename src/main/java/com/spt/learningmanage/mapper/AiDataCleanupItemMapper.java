@@ -13,6 +13,20 @@ public interface AiDataCleanupItemMapper extends BaseMapper<AiDataCleanupItem> {
     @Update("""
             UPDATE ai_data_cleanup_item item
             JOIN ai_data_cleanup_run run ON run.run_id=item.run_id
+            SET item.status='RUNNING', item.started_at=COALESCE(item.started_at, #{now}),
+                item.error_summary=NULL
+            WHERE item.id=#{itemId} AND run.id=#{runId}
+              AND run.status='RUNNING' AND run.execution_token=#{token}
+              AND run.lease_until >= NOW(3)
+            """)
+    int markRunningFenced(@Param("itemId") Long itemId,
+                          @Param("runId") Long runId,
+                          @Param("token") String token,
+                          @Param("now") LocalDateTime now);
+
+    @Update("""
+            UPDATE ai_data_cleanup_item item
+            JOIN ai_data_cleanup_run run ON run.run_id=item.run_id
             SET item.cursor_id=#{cursor}, item.scanned_count=#{scanned},
                 item.estimated_count=#{estimated},
                 item.redacted_count=#{redacted}, item.deleted_count=#{deleted},
@@ -45,4 +59,18 @@ public interface AiDataCleanupItemMapper extends BaseMapper<AiDataCleanupItem> {
                    @Param("token") String token,
                    @Param("error") String error,
                    @Param("now") LocalDateTime now);
+
+    @Update("""
+            UPDATE ai_data_cleanup_item item
+            JOIN ai_data_cleanup_run run ON run.run_id=item.run_id
+            SET item.status='CANCELED', item.finished_at=#{now}
+            WHERE item.run_id=#{publicRunId}
+              AND item.status IN ('PENDING','RUNNING','FAILED')
+              AND run.id=#{runId} AND run.status='RUNNING'
+              AND run.execution_token=#{token} AND run.lease_until >= NOW(3)
+            """)
+    int cancelRemainingFenced(@Param("publicRunId") String publicRunId,
+                              @Param("runId") Long runId,
+                              @Param("token") String token,
+                              @Param("now") LocalDateTime now);
 }

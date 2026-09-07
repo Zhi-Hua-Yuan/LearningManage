@@ -24,6 +24,16 @@ public interface AiAgentRunMapper extends BaseMapper<AiAgentRun> {
                                                @Param("maxAttempts") int maxAttempts,
                                                @Param("limit") int limit);
 
+    @Select("""
+            SELECT id, scene, orchestration_mode, started_at
+            FROM ai_agent_run
+            WHERE status = 'RUNNING' AND lease_until < #{now}
+              AND attempt_count >= #{maxAttempts}
+            FOR UPDATE
+            """)
+    List<AiAgentRun> selectExhaustedLeasesForUpdate(@Param("now") LocalDateTime now,
+                                                     @Param("maxAttempts") int maxAttempts);
+
     @Update("""
             UPDATE ai_agent_run
             SET status = 'RUNNING', worker_id = #{workerId}, execution_token = #{executionToken},
@@ -46,10 +56,12 @@ public interface AiAgentRunMapper extends BaseMapper<AiAgentRun> {
             SET status = 'FAILED', failure_type = 'AGENT_WORKER_LOST',
                 error_summary = 'Agent Worker lease expired', finished_at = #{now},
                 worker_id = NULL, execution_token = NULL, lease_until = NULL
-            WHERE status = 'RUNNING' AND lease_until < #{now} AND attempt_count >= #{maxAttempts}
+            WHERE id = #{id} AND status = 'RUNNING'
+              AND lease_until < #{now} AND attempt_count >= #{maxAttempts}
             """)
-    int failExhaustedLeases(@Param("now") LocalDateTime now,
-                            @Param("maxAttempts") int maxAttempts);
+    int failExhaustedLease(@Param("id") Long id,
+                           @Param("now") LocalDateTime now,
+                           @Param("maxAttempts") int maxAttempts);
 
     @Update("""
             UPDATE ai_agent_run

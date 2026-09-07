@@ -6,10 +6,12 @@ import com.spt.learningmanage.mapper.AiAgentRunMapper;
 import com.spt.learningmanage.model.entity.AiAgentRun;
 import com.spt.learningmanage.service.agent.AgentRunCompletion;
 import com.spt.learningmanage.service.agent.AgentRunQueueService;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,17 +20,30 @@ import java.util.UUID;
 public class AgentRunQueueServiceImpl implements AgentRunQueueService {
     private final AiAgentRunMapper runMapper;
     private final AgentProperties properties;
+    private final AiMetricsRecorder metrics;
 
-    public AgentRunQueueServiceImpl(AiAgentRunMapper runMapper, AgentProperties properties) {
+    public AgentRunQueueServiceImpl(AiAgentRunMapper runMapper,
+                                    AgentProperties properties,
+                                    AiMetricsRecorder metrics) {
         this.runMapper = runMapper;
         this.properties = properties;
+        this.metrics = metrics;
     }
 
     @Override
     @Transactional
     public List<AiAgentRun> claimReady(String workerId, int limit) {
         LocalDateTime now = LocalDateTime.now();
-        runMapper.failExhaustedLeases(now, properties.getMaxAttempts());
+        for (AiAgentRun exhausted : runMapper.selectExhaustedLeasesForUpdate(
+                now, properties.getMaxAttempts())) {
+            if (runMapper.failExhaustedLease(exhausted.getId(), now,
+                    properties.getMaxAttempts()) == 1) {
+                long duration = exhausted.getStartedAt() == null ? 0
+                        : Math.max(Duration.between(exhausted.getStartedAt(), now).toMillis(), 0);
+                metrics.recordAgentRun(exhausted.getScene(), "FAILED",
+                        exhausted.getOrchestrationMode(), duration);
+            }
+        }
         List<AiAgentRun> claimed = new ArrayList<>();
         for (AiAgentRun candidate : runMapper.selectClaimableForUpdate(
                 now, properties.getMaxAttempts(), Math.max(1, limit))) {

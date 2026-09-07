@@ -54,6 +54,23 @@ public class CleanupBatchTransactionService {
         return batch;
     }
 
+    public boolean completeDryRun(AiDataCleanupRun run,
+                                  AiDataCleanupItem item,
+                                  long estimate) {
+        LocalDateTime now = LocalDateTime.now();
+        if (itemMapper.updateProgressFenced(item.getId(), run.getId(), run.getExecutionToken(),
+                value(item.getCursorId()), estimate, estimate,
+                value(item.getRedactedCount()), value(item.getDeletedCount()),
+                CleanupRunStatusEnum.SUCCEEDED.name(), now) != 1) {
+            return false;
+        }
+        item.setScannedCount(estimate);
+        item.setEstimatedCount(estimate);
+        item.setStatus(CleanupRunStatusEnum.SUCCEEDED.name());
+        item.setFinishedAt(now);
+        return true;
+    }
+
     private long value(Long value) {
         return value == null ? 0 : value;
     }

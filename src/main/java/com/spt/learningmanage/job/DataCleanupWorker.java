@@ -75,13 +75,16 @@ public class DataCleanupWorker {
                     continue;
                 }
                 if (cancelRequested(run)) {
-                    cancelRemaining(run.getRunId());
-                    queueService.complete(run, CleanupRunStatusEnum.CANCELED.name(),
-                            scanned, estimated, affected, failures, null);
-                    metrics.recordCleanup("CANCELED", elapsed(startedAt), affected);
+                    cancelRemaining(run);
+                    if (queueService.complete(run, CleanupRunStatusEnum.CANCELED.name(),
+                            scanned, estimated, affected, failures, null)) {
+                        metrics.recordCleanup("CANCELED", elapsed(startedAt), affected);
+                    }
                     return;
                 }
-                markItemRunning(item);
+                if (!markItemRunning(run, item)) {
+                    return;
+                }
                 CleanupResourceTypeEnum type = CleanupResourceTypeEnum.valueOf(item.getResourceType());
                 if (run.getDryRun() == 0) {
                     scanned += value(item.getScannedCount());
@@ -96,10 +99,9 @@ public class DataCleanupWorker {
                     if (!queueService.heartbeat(run)) {
                         return;
                     }
-                    item.setScannedCount(itemEstimate);
-                    item.setStatus(CleanupRunStatusEnum.SUCCEEDED.name());
-                    item.setFinishedAt(LocalDateTime.now());
-                    itemMapper.updateById(item);
+                    if (!batchTransactionService.completeDryRun(run, item, itemEstimate)) {
+                        return;
+                    }
                     scanned += itemEstimate;
                     continue;
                 }
@@ -109,10 +111,11 @@ public class DataCleanupWorker {
                         return;
                     }
                     if (cancelRequested(run)) {
-                        cancelRemaining(run.getRunId());
-                        queueService.complete(run, CleanupRunStatusEnum.CANCELED.name(),
-                                scanned, estimated, affected, failures, null);
-                        metrics.recordCleanup("CANCELED", elapsed(startedAt), affected);
+                        cancelRemaining(run);
+                        if (queueService.complete(run, CleanupRunStatusEnum.CANCELED.name(),
+                                scanned, estimated, affected, failures, null)) {
+                            metrics.recordCleanup("CANCELED", elapsed(startedAt), affected);
+                        }
                         return;
                     }
                     if (!queueService.heartbeat(run)) {
@@ -198,24 +201,22 @@ public class DataCleanupWorker {
         return current == null || current.getCancelRequestedAt() != null;
     }
 
-    private void markItemRunning(AiDataCleanupItem item) {
+    private boolean markItemRunning(AiDataCleanupRun run, AiDataCleanupItem item) {
+        LocalDateTime now = LocalDateTime.now();
+        if (itemMapper.markRunningFenced(item.getId(), run.getId(), run.getExecutionToken(), now) != 1) {
+            return false;
+        }
         item.setStatus("RUNNING");
         if (item.getStartedAt() == null) {
-            item.setStartedAt(LocalDateTime.now());
+            item.setStartedAt(now);
         }
         item.setErrorSummary(null);
-        itemMapper.updateById(item);
+        return true;
     }
 
-    private void cancelRemaining(String runId) {
-        List<AiDataCleanupItem> remaining = itemMapper.selectList(new LambdaQueryWrapper<AiDataCleanupItem>()
-                .eq(AiDataCleanupItem::getRunId, runId)
-                .in(AiDataCleanupItem::getStatus, "PENDING", "RUNNING", "FAILED"));
-        for (AiDataCleanupItem item : remaining) {
-            item.setStatus(CleanupRunStatusEnum.CANCELED.name());
-            item.setFinishedAt(LocalDateTime.now());
-            itemMapper.updateById(item);
-        }
+    private void cancelRemaining(AiDataCleanupRun run) {
+        itemMapper.cancelRemainingFenced(run.getRunId(), run.getId(),
+                run.getExecutionToken(), LocalDateTime.now());
     }
 
     private boolean timedOut(long startedAt) {

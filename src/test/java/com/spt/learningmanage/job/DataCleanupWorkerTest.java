@@ -49,6 +49,10 @@ class DataCleanupWorkerTest {
     void setUp() {
         worker = new DataCleanupWorker(runMapper, itemMapper, cleanupService, queueService,
                 new DataCleanupProperties(), metrics, runService, batchTransactionService);
+        lenient().when(itemMapper.markRunningFenced(anyLong(), anyLong(), anyString(), any()))
+                .thenReturn(1);
+        lenient().when(batchTransactionService.completeDryRun(any(), any(), anyLong()))
+                .thenReturn(true);
     }
 
     @Test
@@ -58,7 +62,6 @@ class DataCleanupWorkerTest {
         when(runMapper.selectById(1L)).thenReturn(run);
         when(itemMapper.selectList(any())).thenReturn(List.of(item));
         when(cleanupService.estimate(any(), any())).thenReturn(7L);
-        when(itemMapper.updateById(any(AiDataCleanupItem.class))).thenReturn(1);
         when(queueService.heartbeat(run)).thenReturn(true);
         doReturn(true).when(queueService).complete(any(AiDataCleanupRun.class), anyString(),
                 anyLong(), anyLong(), anyLong(), anyLong(), nullable(String.class));
@@ -93,7 +96,6 @@ class DataCleanupWorkerTest {
         item.setRedactedCount(2L);
         when(itemMapper.selectList(any())).thenReturn(List.of(item));
         when(runMapper.selectById(1L)).thenReturn(run);
-        when(itemMapper.updateById(any(AiDataCleanupItem.class))).thenReturn(1);
         when(batchTransactionService.process(eq(run), eq(item), any(), anyInt()))
                 .thenReturn(new CleanupBatchResult(1, 1, 1, 0, 11, true));
         when(queueService.heartbeat(run)).thenReturn(true);
@@ -138,6 +140,39 @@ class DataCleanupWorkerTest {
 
         verify(batchTransactionService, never()).process(any(), any(), any(), anyInt());
         verify(metrics).recordCleanup(eq("FAILED"), anyLong(), eq(0L));
+    }
+
+    @Test
+    void lostDryRunFenceStopsWithoutCommittingOrEmittingMetrics() {
+        AiDataCleanupRun run = run(true);
+        AiDataCleanupItem item = item();
+        when(itemMapper.selectList(any())).thenReturn(List.of(item));
+        when(runMapper.selectById(run.getId())).thenReturn(run);
+        when(cleanupService.estimate(any(), any())).thenReturn(7L);
+        when(queueService.heartbeat(run)).thenReturn(true);
+        when(batchTransactionService.completeDryRun(run, item, 7L)).thenReturn(false);
+
+        worker.process(run);
+
+        verify(queueService, never()).complete(any(), anyString(), anyLong(), anyLong(),
+                anyLong(), anyLong(), nullable(String.class));
+        verify(metrics, never()).recordCleanup(anyString(), anyLong(), anyLong());
+    }
+
+    @Test
+    void lostCancellationFenceDoesNotEmitACanceledMetric() {
+        AiDataCleanupRun run = run(true);
+        AiDataCleanupRun current = run(true);
+        current.setCancelRequestedAt(LocalDateTime.now());
+        when(itemMapper.selectList(any())).thenReturn(List.of(item()));
+        when(queueService.heartbeat(run)).thenReturn(true);
+        when(runMapper.selectById(run.getId())).thenReturn(current);
+        when(queueService.complete(any(), eq("CANCELED"), anyLong(), anyLong(),
+                anyLong(), anyLong(), nullable(String.class))).thenReturn(false);
+
+        worker.process(run);
+
+        verify(metrics, never()).recordCleanup(eq("CANCELED"), anyLong(), anyLong());
     }
 
     private AiDataCleanupRun run(boolean dryRun) {

@@ -48,15 +48,17 @@ public class KnowledgeIndexWorker {
                     KnowledgeSourceTypeEnum.valueOf(event.getSourceType()), event.getSourceId());
             eventType = KnowledgeEventTypeEnum.valueOf(event.getEventType());
         } catch (RuntimeException exception) {
-            queueService.markFailure(event, KnowledgeFailureTypeEnum.CONFIG, false,
-                    "索引事件来源类型不合法");
-            record(event, "FAILED", KnowledgeFailureTypeEnum.CONFIG.name(), startedAt);
+            if (queueService.markFailure(event, KnowledgeFailureTypeEnum.CONFIG, false,
+                    "索引事件来源类型不合法")) {
+                record(event, "FAILED", KnowledgeFailureTypeEnum.CONFIG.name(), startedAt);
+            }
             return;
         }
         String token = event.getClaimToken();
         if (!leaseService.acquire(source, token)) {
-            queueService.markDeferred(event.getId(), token);
-            record(event, "DEFERRED", "none", startedAt);
+            if (queueService.markDeferred(event.getId(), token)) {
+                record(event, "DEFERRED", "none", startedAt);
+            }
             return;
         }
         try {
@@ -69,17 +71,19 @@ public class KnowledgeIndexWorker {
             record(event, "SUCCEEDED", "none", startedAt);
         } catch (KnowledgeIndexException exception) {
             markDocumentFailureSafely(source, event, exception.getFailureType(), exception.getSafeMessage());
-            queueService.markFailure(event, exception.getFailureType(), exception.isRetryable(),
-                    exception.getSafeMessage());
-            record(event, "FAILED", exception.getFailureType().name(), startedAt);
+            if (queueService.markFailure(event, exception.getFailureType(), exception.isRetryable(),
+                    exception.getSafeMessage())) {
+                record(event, "FAILED", exception.getFailureType().name(), startedAt);
+            }
         } catch (RuntimeException exception) {
             log.warn("knowledge event failed: eventId={}, type={}",
                     event.getId(), exception.getClass().getSimpleName());
             markDocumentFailureSafely(source, event, KnowledgeFailureTypeEnum.INTERNAL,
                     "知识索引内部处理失败");
-            queueService.markFailure(event, KnowledgeFailureTypeEnum.INTERNAL, true,
-                    "知识索引内部处理失败");
-            record(event, "FAILED", KnowledgeFailureTypeEnum.INTERNAL.name(), startedAt);
+            if (queueService.markFailure(event, KnowledgeFailureTypeEnum.INTERNAL, true,
+                    "知识索引内部处理失败")) {
+                record(event, "FAILED", KnowledgeFailureTypeEnum.INTERNAL.name(), startedAt);
+            }
         } finally {
             leaseService.release(source, token);
         }
