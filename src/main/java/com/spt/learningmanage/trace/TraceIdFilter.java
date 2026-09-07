@@ -23,7 +23,9 @@ public class TraceIdFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String traceId = TraceContext.resolve(request.getHeader(TraceContext.HEADER_NAME));
+        Object resolved = request.getAttribute(TraceContext.REQUEST_ATTRIBUTE);
+        String traceId = resolved instanceof String value
+                ? value : TraceContext.resolve(request.getHeader(TraceContext.HEADER_NAME));
         MDC.put(TraceContext.MDC_KEY, traceId);
         response.setHeader(TraceContext.HEADER_NAME, traceId);
         try {

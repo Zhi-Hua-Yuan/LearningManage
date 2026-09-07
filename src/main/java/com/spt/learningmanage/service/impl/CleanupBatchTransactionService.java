@@ -34,17 +34,19 @@ public class CleanupBatchTransactionService {
                 type, item.getCutoffTime(), value(item.getCursorId()), batchSize);
         long cursor = batch.nextCursor() > 0 ? batch.nextCursor() : value(item.getCursorId());
         long scanned = value(item.getScannedCount()) + batch.scanned();
+        long estimated = value(item.getEstimatedCount());
         long redacted = value(item.getRedactedCount()) + batch.redacted();
         long deleted = value(item.getDeletedCount()) + batch.deleted();
         String status = batch.finished()
                 ? CleanupRunStatusEnum.SUCCEEDED.name() : CleanupRunStatusEnum.RUNNING.name();
         LocalDateTime finishedAt = batch.finished() ? LocalDateTime.now() : null;
         if (itemMapper.updateProgressFenced(item.getId(), run.getId(), run.getExecutionToken(),
-                cursor, scanned, redacted, deleted, status, finishedAt) != 1) {
+                cursor, scanned, estimated, redacted, deleted, status, finishedAt) != 1) {
             throw new BusinessException(ErrorCode.CLEANUP_ALREADY_RUNNING, "清理任务租约已失效");
         }
         item.setCursorId(cursor);
         item.setScannedCount(scanned);
+        item.setEstimatedCount(estimated);
         item.setRedactedCount(redacted);
         item.setDeletedCount(deleted);
         item.setStatus(status);

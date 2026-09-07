@@ -159,7 +159,10 @@ public class DataCleanupWorker {
         if (approved == null || approved.getDryRun() != 1
                 || !CleanupRunStatusEnum.SUCCEEDED.name().equals(approved.getStatus())
                 || !run.getPolicyVersion().equals(approved.getPolicyVersion())
-                || !run.getResourceHash().equals(approved.getResourceHash())) {
+                || !run.getResourceHash().equals(approved.getResourceHash())
+                || approved.getFinishedAt() == null
+                || approved.getFinishedAt().isBefore(
+                        LocalDateTime.now().minusHours(properties.getDryRunValidHours()))) {
             throw new BusinessException(ErrorCode.CLEANUP_DRY_RUN_REQUIRED);
         }
         List<AiDataCleanupItem> approvedItems = items(approved.getRunId());

@@ -642,6 +642,11 @@ public class AiCallLogServiceImpl implements AiCallLogService, AiCallLogOperatio
     public AiCallLog latestMetadata() {
         return aiCallLogMapper.selectOne(new LambdaQueryWrapper<AiCallLog>()
                 .select(AiCallLog::getStatus, AiCallLog::getCreateTime)
+                .in(AiCallLog::getStatus,
+                        AiCallLogStatusEnum.SUCCESS.getValue(),
+                        AiCallLogStatusEnum.FAILED.getValue(),
+                        AiCallLogStatusEnum.PARSE_FAILED.getValue(),
+                        AiCallLogStatusEnum.TIMEOUT.getValue())
                 .orderByDesc(AiCallLog::getCreateTime).last("limit 1"));
     }
 

@@ -29,7 +29,11 @@ public class TelemetryMdcFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         Span span = tracer.currentSpan();
+        String applicationTraceId = TraceContext.resolve(
+                request.getHeader(TraceContext.HEADER_NAME));
+        request.setAttribute(TraceContext.REQUEST_ATTRIBUTE, applicationTraceId);
         if (span != null) {
+            span.tag("app.trace_id", applicationTraceId);
             MDC.put("otelTraceId", span.context().traceId());
             MDC.put("spanId", span.context().spanId());
         }

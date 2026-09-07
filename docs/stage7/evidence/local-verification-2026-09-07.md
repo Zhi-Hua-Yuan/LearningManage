@@ -8,7 +8,7 @@ No production data or production credential was used.
 ## Build and automated tests
 
 - JDK 17 offline Maven package completed.
-- Clean non-MySQL `*Test` regression: 796 tests, 0 failures, 0 errors.
+- Clean non-MySQL `*Test` regression: 798 tests, 0 failures, 0 errors.
 - Historical V7 MySQL integration partition: 61 tests, 0 failures, 0 errors.
 - V8 cleanup lifecycle integration: 5 tests, 0 failures, 0 errors.
 - The V8 integration covers dry-run to formal cleanup, concurrent single-active

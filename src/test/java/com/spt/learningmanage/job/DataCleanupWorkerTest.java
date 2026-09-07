@@ -121,6 +121,25 @@ class DataCleanupWorkerTest {
                 anyLong(), anyLong(), nullable(String.class));
     }
 
+    @Test
+    void expiredDryRunApprovalIsRejectedAgainAtExecutionTime() {
+        AiDataCleanupRun run = run(false);
+        run.setApprovedDryRunId(3L);
+        AiDataCleanupRun approved = run(true);
+        approved.setId(3L);
+        approved.setStatus("SUCCEEDED");
+        approved.setFinishedAt(LocalDateTime.now().minusHours(25));
+        when(itemMapper.selectList(any())).thenReturn(List.of(item()));
+        when(runMapper.selectById(3L)).thenReturn(approved);
+        doReturn(true).when(queueService).complete(any(), eq("FAILED"),
+                anyLong(), anyLong(), anyLong(), anyLong(), anyString());
+
+        worker.process(run);
+
+        verify(batchTransactionService, never()).process(any(), any(), any(), anyInt());
+        verify(metrics).recordCleanup(eq("FAILED"), anyLong(), eq(0L));
+    }
+
     private AiDataCleanupRun run(boolean dryRun) {
         AiDataCleanupRun run = new AiDataCleanupRun();
         run.setId(1L);

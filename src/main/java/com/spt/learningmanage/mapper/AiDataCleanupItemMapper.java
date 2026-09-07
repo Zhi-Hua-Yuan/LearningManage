@@ -14,6 +14,7 @@ public interface AiDataCleanupItemMapper extends BaseMapper<AiDataCleanupItem> {
             UPDATE ai_data_cleanup_item item
             JOIN ai_data_cleanup_run run ON run.run_id=item.run_id
             SET item.cursor_id=#{cursor}, item.scanned_count=#{scanned},
+                item.estimated_count=#{estimated},
                 item.redacted_count=#{redacted}, item.deleted_count=#{deleted},
                 item.status=#{status}, item.finished_at=#{finishedAt}
             WHERE item.id=#{itemId} AND run.id=#{runId}
@@ -25,6 +26,7 @@ public interface AiDataCleanupItemMapper extends BaseMapper<AiDataCleanupItem> {
                              @Param("token") String token,
                              @Param("cursor") long cursor,
                              @Param("scanned") long scanned,
+                             @Param("estimated") long estimated,
                              @Param("redacted") long redacted,
                              @Param("deleted") long deleted,
                              @Param("status") String status,

@@ -25,12 +25,13 @@ class CleanupBatchTransactionServiceTest {
         when(cleanup.processBatch(any(), any(), eq(4L), eq(500)))
                 .thenReturn(new CleanupBatchResult(3, 2, 2, 0, 7, true));
         when(items.updateProgressFenced(eq(2L), eq(1L), eq("token"), eq(7L),
-                eq(8L), eq(3L), eq(0L), eq("SUCCEEDED"), any())).thenReturn(1);
+                eq(8L), eq(9L), eq(3L), eq(0L), eq("SUCCEEDED"), any())).thenReturn(1);
 
         service.process(run, item, CleanupResourceTypeEnum.AI_CALL_BODY, 500);
 
         assertEquals(7L, item.getCursorId());
         assertEquals(8L, item.getScannedCount());
+        assertEquals(9L, item.getEstimatedCount());
         assertEquals(3L, item.getRedactedCount());
         assertEquals("SUCCEEDED", item.getStatus());
     }
@@ -43,7 +44,7 @@ class CleanupBatchTransactionServiceTest {
         when(cleanup.processBatch(any(), any(), anyLong(), anyInt()))
                 .thenReturn(new CleanupBatchResult(1, 1, 1, 0, 5, false));
         when(items.updateProgressFenced(anyLong(), anyLong(), anyString(), anyLong(),
-                anyLong(), anyLong(), anyLong(), anyString(), isNull())).thenReturn(0);
+                anyLong(), anyLong(), anyLong(), anyLong(), anyString(), isNull())).thenReturn(0);
 
         assertThrows(BusinessException.class,
                 () -> service.process(run(), item(), CleanupResourceTypeEnum.AI_CALL_BODY, 500));
@@ -62,6 +63,7 @@ class CleanupBatchTransactionServiceTest {
         item.setCutoffTime(LocalDateTime.now().minusDays(30));
         item.setCursorId(4L);
         item.setScannedCount(5L);
+        item.setEstimatedCount(9L);
         item.setRedactedCount(1L);
         item.setDeletedCount(0L);
         item.setStatus("RUNNING");
