@@ -3,6 +3,41 @@ server:
   servlet:
     context-path: /api
 
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9123}
+    address: ${MANAGEMENT_ADDRESS:127.0.0.1}
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      status:
+        order: down,out-of-service,degraded,unknown,up
+        http-mapping:
+          down: 503
+          out-of-service: 503
+          degraded: 200
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,coreDatabase
+        ai:
+          include: aiDependencies
+  tracing:
+    enabled: ${MANAGEMENT_TRACING_ENABLED:false}
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
 spring:
   application:
     name: LearningManage
@@ -18,6 +53,10 @@ spring:
     validate-on-migrate: true
     clean-disabled: true
     out-of-order: false
+  datasource:
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:5000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:2000}
 
 mybatis-plus:
   configuration:
@@ -122,6 +161,25 @@ ai:
     project-task-limit: ${AI_AGENT_PROJECT_TASK_LIMIT:50}
     history-limit: ${AI_AGENT_HISTORY_LIMIT:5}
     draft-ttl-minutes: ${AI_AGENT_DRAFT_TTL_MINUTES:30}
+  cleanup:
+    enabled: ${AI_CLEANUP_ENABLED:false}
+    schedule-enabled: ${AI_CLEANUP_SCHEDULE_ENABLED:false}
+    cron: ${AI_CLEANUP_CRON:0 30 2 * * *}
+    policy-version: ${AI_CLEANUP_POLICY_VERSION:stage7-v1}
+    batch-size: ${AI_CLEANUP_BATCH_SIZE:500}
+    max-runtime-seconds: ${AI_CLEANUP_MAX_RUNTIME_SECONDS:600}
+    lease-seconds: ${AI_CLEANUP_LEASE_SECONDS:90}
+    poll-delay-ms: ${AI_CLEANUP_POLL_DELAY_MS:5000}
+    dry-run-valid-hours: ${AI_CLEANUP_DRY_RUN_VALID_HOURS:24}
+    estimate-drift-ratio: ${AI_CLEANUP_ESTIMATE_DRIFT_RATIO:0.10}
+    estimate-drift-min-rows: ${AI_CLEANUP_ESTIMATE_DRIFT_MIN_ROWS:100}
+    body-retention-days: ${AI_CLEANUP_BODY_RETENTION_DAYS:30}
+    metadata-retention-days: ${AI_CLEANUP_METADATA_RETENTION_DAYS:90}
+    successful-event-retention-days: ${AI_CLEANUP_SUCCESS_EVENT_RETENTION_DAYS:14}
+    admin-audit-retention-days: ${AI_CLEANUP_ADMIN_AUDIT_RETENTION_DAYS:180}
+  ops:
+    daily-cost-soft-limit: ${AI_DAILY_COST_SOFT_LIMIT:}
+    daily-cost-hard-limit: ${AI_DAILY_COST_HARD_LIMIT:}
   rerank:
     base-url: ${AI_RERANK_BASE_URL:https://dashscope.aliyuncs.com/compatible-api/v1}
     api-key: ${AI_RERANK_API_KEY:${ALIYUN_API_KEY:}}
@@ -145,7 +203,7 @@ security:
 
 logging:
   pattern:
-    level: "%5p [traceId:%X{traceId:-}]"
+    level: "%5p [traceId:%X{traceId:-}] [otelTraceId:%X{otelTraceId:-}] [spanId:%X{spanId:-}]"
 
 #logging:
 #  level:

@@ -9,6 +9,7 @@ public final class TraceContext {
 
     public static final String HEADER_NAME = "X-Trace-Id";
     public static final String MDC_KEY = "traceId";
+    public static final String REQUEST_ATTRIBUTE = TraceContext.class.getName() + ".applicationTraceId";
     private static final Pattern VALID_TRACE_ID = Pattern.compile("[A-Za-z0-9_-]{8,64}");
 
     private TraceContext() {

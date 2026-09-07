@@ -31,6 +31,8 @@ import com.spt.learningmanage.utils.UserHolder;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.spt.learningmanage.service.AdminOperationAuditService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
@@ -50,6 +52,7 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
     private final KnowledgeIndexProperties indexProperties;
     private final EmbeddingProperties embeddingProperties;
     private final QdrantProperties qdrantProperties;
+    private AdminOperationAuditService adminAuditService;
 
     public KnowledgeAdminServiceImpl(AiKnowledgeIndexEventMapper eventMapper,
                                      AiKnowledgeDocumentMapper documentMapper,
@@ -65,6 +68,11 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
         this.indexProperties = indexProperties;
         this.embeddingProperties = embeddingProperties;
         this.qdrantProperties = qdrantProperties;
+    }
+
+    @Autowired(required = false)
+    void setAdminAuditService(AdminOperationAuditService adminAuditService) {
+        this.adminAuditService = adminAuditService;
     }
 
     @Override
@@ -109,6 +117,7 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
     @Transactional(rollbackFor = Exception.class)
     public boolean replayEvent(Long eventId) {
         requireAdmin();
+        Long actor = UserHolder.get();
         if (eventId == null || eventId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "eventId 不合法");
         }
@@ -135,6 +144,10 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
         if (rows != 1) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_EVENT_NOT_REPLAYABLE);
         }
+        if (adminAuditService != null) {
+            adminAuditService.success(actor, "KNOWLEDGE_EVENT_REPLAY", "KNOWLEDGE_EVENT",
+                    String.valueOf(eventId), "dead-event", "PENDING");
+        }
         return true;
     }
 
@@ -142,6 +155,7 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
     @Transactional(rollbackFor = Exception.class)
     public KnowledgeBackfillVO createBackfill(KnowledgeBackfillCreateRequest request) {
         requireAdmin();
+        Long actor = UserHolder.get();
         if (!indexProperties.isWorkerEnabled()) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_INDEX_DISABLED);
         }
@@ -179,6 +193,10 @@ public class KnowledgeAdminServiceImpl implements KnowledgeAdminService {
                 throw new BusinessException(ErrorCode.KNOWLEDGE_BACKFILL_CONFLICT);
             }
             return toBackfillVO(winner, true);
+        }
+        if (adminAuditService != null) {
+            adminAuditService.success(actor, "KNOWLEDGE_BACKFILL_CREATE", "KNOWLEDGE_BACKFILL",
+                    String.valueOf(run.getId()), "scope=" + valid.sourceScope(), "PENDING");
         }
         return toBackfillVO(run, false);
     }

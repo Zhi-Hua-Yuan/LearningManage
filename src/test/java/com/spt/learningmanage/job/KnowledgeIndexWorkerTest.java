@@ -8,9 +8,12 @@ import com.spt.learningmanage.model.knowledge.KnowledgeSourceRef;
 import com.spt.learningmanage.service.KnowledgeIndexService;
 import com.spt.learningmanage.service.knowledge.KnowledgeEventQueueService;
 import com.spt.learningmanage.service.knowledge.KnowledgeSourceLeaseService;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -64,6 +67,44 @@ class KnowledgeIndexWorkerTest {
         verify(indexService).markFailure(any(), any(),
                 org.mockito.ArgumentMatchers.eq(KnowledgeFailureTypeEnum.RATE_LIMIT),
                 org.mockito.ArgumentMatchers.eq("请求过多"));
+        verify(lease).release(any(), any());
+    }
+
+    @Test
+    void lostSuccessFenceDoesNotEmitASuccessMetric() {
+        KnowledgeIndexService indexService = mock(KnowledgeIndexService.class);
+        KnowledgeEventQueueService queue = mock(KnowledgeEventQueueService.class);
+        KnowledgeSourceLeaseService lease = mock(KnowledgeSourceLeaseService.class);
+        AiMetricsRecorder metrics = mock(AiMetricsRecorder.class);
+        when(lease.acquire(any(), any())).thenReturn(true);
+        when(queue.markSuccess(1L, "token")).thenReturn(false);
+        KnowledgeIndexWorker worker = new KnowledgeIndexWorker(indexService, queue, lease);
+        worker.setMetricsRecorder(metrics);
+
+        worker.process(event());
+
+        verify(metrics, never()).recordKnowledgeEvent(any(),
+                org.mockito.ArgumentMatchers.eq("SUCCEEDED"), any(), anyLong());
+        verify(lease).release(any(), any());
+    }
+
+    @Test
+    void lostFailureFenceDoesNotEmitAFailureMetric() {
+        KnowledgeIndexService indexService = mock(KnowledgeIndexService.class);
+        KnowledgeEventQueueService queue = mock(KnowledgeEventQueueService.class);
+        KnowledgeSourceLeaseService lease = mock(KnowledgeSourceLeaseService.class);
+        AiMetricsRecorder metrics = mock(AiMetricsRecorder.class);
+        when(lease.acquire(any(), any())).thenReturn(true);
+        doThrow(new KnowledgeIndexException(KnowledgeFailureTypeEnum.RATE_LIMIT, true,
+                "请求过多", "rate limited", null)).when(indexService).reconcileSource(any(), any());
+        when(queue.markFailure(any(), any(), anyBoolean(), any())).thenReturn(false);
+        KnowledgeIndexWorker worker = new KnowledgeIndexWorker(indexService, queue, lease);
+        worker.setMetricsRecorder(metrics);
+
+        worker.process(event());
+
+        verify(metrics, never()).recordKnowledgeEvent(any(),
+                org.mockito.ArgumentMatchers.eq("FAILED"), any(), anyLong());
         verify(lease).release(any(), any());
     }
 

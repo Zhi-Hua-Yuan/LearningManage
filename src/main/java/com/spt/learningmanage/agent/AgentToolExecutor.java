@@ -10,6 +10,8 @@ import com.spt.learningmanage.model.entity.AiAgentToolLog;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +26,7 @@ public class AgentToolExecutor {
     private final KnowledgeHashing hashing;
     private final AgentProperties properties;
     private final ExecutorService executor;
+    private AiMetricsRecorder metricsRecorder;
 
     public AgentToolExecutor(AgentToolRegistry registry,
                              AiAgentToolLogMapper logMapper,
@@ -35,6 +38,11 @@ public class AgentToolExecutor {
         this.hashing = hashing;
         this.properties = properties;
         this.executor = executor;
+    }
+
+    @Autowired(required = false)
+    void setMetricsRecorder(AiMetricsRecorder metricsRecorder) {
+        this.metricsRecorder = metricsRecorder;
     }
 
     public AgentToolExecution execute(AiAgentRun run,
@@ -112,5 +120,8 @@ public class AgentToolExecutor {
         log.setDurationMs(Math.max(System.currentTimeMillis() - start, 0));
         log.setFinishedAt(LocalDateTime.now());
         logMapper.updateById(log);
+        if (metricsRecorder != null) {
+            metricsRecorder.recordTool(log.getToolName(), status.name(), log.getDurationMs());
+        }
     }
 }

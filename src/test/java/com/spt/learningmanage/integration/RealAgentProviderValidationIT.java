@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -52,6 +53,7 @@ class RealAgentProviderValidationIT {
     @Autowired AgentRunQueueService queueService;
     @Autowired AgentRunWorker worker;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired MeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
@@ -116,6 +118,9 @@ class RealAgentProviderValidationIT {
                 Integer.class, submitted.runId(), AiCallLogStatusEnum.SUCCESS.getValue());
         assertNotNull(callCount);
         assertTrue(callCount >= 2, "真实 Tool Calling 至少需要工具请求轮次和最终分析轮次");
+        assertTrue(meterRegistry.get("learning.ai.invocations").counter().count() >= 2);
+        assertTrue(meterRegistry.get("learning.agent.runs")
+                .tag("status", "succeeded").counter().count() >= 1);
     }
 
     private ProjectAccessScope scope() {

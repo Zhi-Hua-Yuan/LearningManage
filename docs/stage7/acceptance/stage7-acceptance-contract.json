@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "stage": 7,
+  "status": "IMPLEMENTATION_COMPLETE_EXTERNAL_ACCEPTANCE_PENDING",
+  "baseline": {
+    "backendSha": "70421b6d5fe90b9cba3228d4f639f46b959332ab",
+    "frontendSha": "e43c3701d23cfe4edc947f9e4cdd528a5125688d",
+    "tag": "stage6-v1.0.0",
+    "databaseVersion": 7,
+    "backendTests": 828,
+    "frontendTests": 493,
+    "agentEval": "100/100",
+    "frontendApiOperations": 54
+  },
+  "required": {
+    "databaseVersion": 8,
+    "frontendApiOperations": 60,
+    "runtimeApiMinimumOperations": 69,
+    "publishedMigrationImmutable": true,
+    "managementPortPrivate": true,
+    "actuatorExposure": ["health", "prometheus"],
+    "redisAclRequired": true,
+    "cleanupDefaultEnabled": false,
+    "cleanupDryRunRequired": true,
+    "deadEventsAutoDeleted": false,
+    "stage0To6Regression": true,
+    "sensitiveTelemetryFindings": 0,
+    "highCardinalityMetricLabels": 0
+  }
+}

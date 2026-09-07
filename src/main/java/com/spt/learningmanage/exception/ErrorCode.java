@@ -86,7 +86,18 @@ public enum ErrorCode {
     TOOL_EXECUTION_FAILED(33015, "Agent Tool 执行失败"),
     REPORT_NOT_FOUND(33016, "分析报告不存在"),
     REPORT_NO_ACCESS(33017, "无权访问分析报告"),
-    REPORT_ALREADY_DELETED(33018, "分析报告已删除");
+    REPORT_ALREADY_DELETED(33018, "分析报告已删除"),
+
+    /** Stage 7 production operations and data lifecycle (34xxx). */
+    OPS_TIME_RANGE_INVALID(34001, "运维查询时间范围不合法"),
+    OPS_DATA_UNAVAILABLE(34002, "运维数据暂不可用"),
+    CLEANUP_DISABLED(34003, "数据清理功能未启用"),
+    CLEANUP_ALREADY_RUNNING(34004, "已有数据清理任务正在运行"),
+    CLEANUP_RUN_NOT_FOUND(34005, "数据清理任务不存在"),
+    CLEANUP_DRY_RUN_REQUIRED(34006, "正式清理前必须完成匹配的预演"),
+    CLEANUP_ESTIMATE_CHANGED(34007, "清理预计数量发生显著变化"),
+    CLEANUP_RUN_NOT_CANCELABLE(34008, "数据清理任务当前不可取消"),
+    DEPENDENCY_STATUS_UNAVAILABLE(34009, "依赖状态暂不可获取");
 
     private final int code;
     private final String message;

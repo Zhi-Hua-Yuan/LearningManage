@@ -23,3 +23,14 @@
 /sql/flyway/stage1/*.sql text eol=lf
 /src/test/resources/flyway/*.sha256 text eol=lf
 /docs/stage0/flyway/*.sha256 text eol=lf
+*.java text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.sha256 text eol=lf
+.env.example text eol=lf

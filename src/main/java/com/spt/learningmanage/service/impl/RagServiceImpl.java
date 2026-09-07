@@ -31,6 +31,8 @@ import com.spt.learningmanage.service.rag.RagSourceVerifier;
 import com.spt.learningmanage.trace.TraceContext;
 import com.spt.learningmanage.utils.UserHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +54,7 @@ public class RagServiceImpl implements RagService {
     private final RagSourceVerifier sourceVerifier;
     private final RagResultPersistenceService persistenceService;
     private final RagResultViewService viewService;
+    private AiMetricsRecorder metricsRecorder;
 
     public RagServiceImpl(RagProperties properties,
                           RagReadinessService readinessService,
@@ -77,6 +80,11 @@ public class RagServiceImpl implements RagService {
         this.sourceVerifier = sourceVerifier;
         this.persistenceService = persistenceService;
         this.viewService = viewService;
+    }
+
+    @Autowired(required = false)
+    void setMetricsRecorder(AiMetricsRecorder metricsRecorder) {
+        this.metricsRecorder = metricsRecorder;
     }
 
     @Override
@@ -112,7 +120,16 @@ public class RagServiceImpl implements RagService {
                     PersistedRagResult persisted = persistenceService.save(
                             requestId, actorUserId, request.getProjectId(), traceId,
                             queryLog, retrieval, context, generated, elapsed(startedAt));
-                    return viewService.toVO(persisted);
+                    RagAnswerVO response = viewService.toVO(persisted);
+                    if (metricsRecorder != null) {
+                        boolean insufficient = Integer.valueOf(1).equals(
+                                persisted.result().getInsufficientEvidence());
+                        boolean degraded = Integer.valueOf(1).equals(persisted.result().getDegraded());
+                        metricsRecorder.recordRag(insufficient ? "INSUFFICIENT" : "SUCCEEDED", degraded,
+                                insufficient, elapsed(startedAt),
+                                retrieval.candidates().size());
+                    }
+                    return response;
                 }
                 if (attempt == 1) {
                     throw new BusinessException(ErrorCode.RAG_SOURCE_CHANGED);
@@ -120,6 +137,10 @@ public class RagServiceImpl implements RagService {
             }
             throw new BusinessException(ErrorCode.RAG_SOURCE_CHANGED);
         } catch (RuntimeException exception) {
+            if (metricsRecorder != null) {
+                metricsRecorder.recordRag("FAILED", false, false,
+                        elapsed(startedAt), 0);
+            }
             try {
                 auditService.fail(queryLog.getId(), failureType(exception), elapsed(startedAt));
             } catch (RuntimeException auditFailure) {

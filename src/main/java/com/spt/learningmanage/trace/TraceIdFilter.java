@@ -13,14 +13,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+// Run after Micrometer's observation filter. TelemetryMdcFilter copies the
+// standard span IDs first, then this filter restores the application trace ID
+// so OTel MDC correlation cannot replace the existing X-Trace-Id contract.
+@Order(Ordered.LOWEST_PRECEDENCE - 5)
 public class TraceIdFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String traceId = TraceContext.resolve(request.getHeader(TraceContext.HEADER_NAME));
+        Object resolved = request.getAttribute(TraceContext.REQUEST_ATTRIBUTE);
+        String traceId = resolved instanceof String value
+                ? value : TraceContext.resolve(request.getHeader(TraceContext.HEADER_NAME));
         MDC.put(TraceContext.MDC_KEY, traceId);
         response.setHeader(TraceContext.HEADER_NAME, traceId);
         try {
