@@ -1,0 +1,144 @@
+services:
+  mysql:
+    image: ${CI_MYSQL_IMAGE:?CI_MYSQL_IMAGE is required}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CI_MYSQL_ADMIN_PASSWORD:?CI_MYSQL_ADMIN_PASSWORD is required}
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: learning_manage_stage7
+      MYSQL_USER: stage7_app
+      MYSQL_PASSWORD: ${CI_APP_PASSWORD:?CI_APP_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [stage7-internal]
+
+  redis:
+    image: ${CI_REDIS_IMAGE:?CI_REDIS_IMAGE is required}
+    environment:
+      REDIS_PASSWORD: ${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}
+    command: ["sh", "/opt/learning/redis-entrypoint-stage7.sh"]
+    volumes:
+      - ./redis/redis-entrypoint-stage7.sh:/opt/learning/redis-entrypoint-stage7.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user learning_app --pass \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [stage7-internal]
+
+  qdrant:
+    image: ${CI_QDRANT_IMAGE:?CI_QDRANT_IMAGE is required}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [stage7-internal]
+
+  ai-stub:
+    image: ${CI_AI_STUB_IMAGE:?CI_AI_STUB_IMAGE is required}
+    command: ["python", "/opt/ai-stub/ai-chat-completions-stub.py"]
+    volumes:
+      - ../scripts/ci/stubs/ai-chat-completions-stub.py:/opt/ai-stub/ai-chat-completions-stub.py:ro
+      - ../scripts/ci/verify-stage7-enabled-ai.py:/opt/learning-ci/verify-stage7-enabled-ai.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [stage7-internal]
+
+  tempo:
+    image: ${CI_TEMPO_IMAGE:?CI_TEMPO_IMAGE is required}
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yml:ro
+    networks: [stage7-internal]
+
+  backend:
+    image: ${CI_BACKEND_IMAGE:?CI_BACKEND_IMAGE is required}
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+      ai-stub: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_NAME: learning_manage_stage7
+      DB_USERNAME: stage7_app
+      DB_PASSWORD: ${CI_APP_PASSWORD:?CI_APP_PASSWORD is required}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/learning_manage_stage7?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      FLYWAY_ENABLED: 'true'
+      FLYWAY_DB_USERNAME: root
+      FLYWAY_DB_PASSWORD: ${CI_MYSQL_ADMIN_PASSWORD:?CI_MYSQL_ADMIN_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      REDIS_USERNAME: learning_app
+      REDIS_PASSWORD: ${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}
+      JWT_SECRET: ci-only-stage7-jwt-secret-with-at-least-32-bytes
+      ALIYUN_API_KEY: ci-only-not-real
+      AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1
+      AI_MODEL: ci-ai-stub
+      AI_EMBEDDING_BASE_URL: http://ai-stub:8080/compatible-mode/v1
+      AI_EMBEDDING_QUERY_BASE_URL: http://ai-stub:8080/api/v1
+      AI_EMBEDDING_API_KEY: ci-only-not-real
+      AI_RERANK_BASE_URL: http://ai-stub:8080/compatible-api/v1
+      AI_RERANK_API_KEY: ci-only-not-real
+      AI_RAG_QUESTION_HMAC_SECRET: ci-only-stage7-rag-hmac-secret-with-at-least-32-bytes
+      AI_RAG_REQUIRE_BACKFILL: 'false'
+      AI_RAG_VECTOR_SCORE_THRESHOLD: '-1.0'
+      AI_RAG_RERANK_SCORE_THRESHOLD: '0.0'
+      RATE_LIMIT_AI_ENABLED: 'false'
+      QDRANT_BASE_URL: http://qdrant:6333
+      QDRANT_REQUIRE_SECURE_TRANSPORT: 'false'
+      AI_KNOWLEDGE_WORKER_ENABLED: ${CI_KNOWLEDGE_WORKER_ENABLED:-false}
+      AI_RAG_ENABLED: ${CI_RAG_ENABLED:-false}
+      AI_AGENT_ENABLED: ${CI_AGENT_ENABLED:-false}
+      AI_AGENT_WORKER_ENABLED: ${CI_AGENT_WORKER_ENABLED:-false}
+      AI_CLEANUP_ENABLED: ${CI_CLEANUP_ENABLED:-false}
+      MANAGEMENT_PORT: '9123'
+      MANAGEMENT_ADDRESS: 0.0.0.0
+      MANAGEMENT_TRACING_ENABLED: 'true'
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9123/actuator/health/readiness | grep UP"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [stage7-internal]
+
+  prometheus:
+    image: ${CI_PROMETHEUS_IMAGE:?CI_PROMETHEUS_IMAGE is required}
+    depends_on:
+      backend: { condition: service_healthy }
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    networks: [stage7-internal]
+
+  grafana:
+    image: ${CI_GRAFANA_IMAGE:?CI_GRAFANA_IMAGE is required}
+    depends_on: [prometheus, tempo]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ci-only-stage7-grafana
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks: [stage7-internal]
+
+  probe:
+    image: ${CI_NGINX_IMAGE:?CI_NGINX_IMAGE is required}
+    depends_on: [backend, prometheus, grafana, tempo]
+    command: ["sh", "-c", "sleep infinity"]
+    networks: [stage7-internal]
+
+networks:
+  stage7-internal:
+    internal: true

@@ -14,6 +14,10 @@ import com.spt.learningmanage.service.agent.AgentRunQueueService;
 import com.spt.learningmanage.service.ai.support.AiDraftLifecycleService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import com.spt.learningmanage.agent.AgentRunStateMachine;
 
 @Service
@@ -22,6 +26,7 @@ public class AgentRunFinalizationServiceImpl implements AgentRunFinalizationServ
     private final AgentRunQueueService queueService;
     private final AgentRunStateMachine stateMachine;
     private final com.spt.learningmanage.config.AgentProperties properties;
+    private AiMetricsRecorder metricsRecorder;
 
     public AgentRunFinalizationServiceImpl(AiDraftLifecycleService draftLifecycleService,
                                            AgentRunQueueService queueService,
@@ -31,6 +36,11 @@ public class AgentRunFinalizationServiceImpl implements AgentRunFinalizationServ
         this.queueService = queueService;
         this.stateMachine = stateMachine;
         this.properties = properties;
+    }
+
+    @Autowired(required = false)
+    void setMetricsRecorder(AiMetricsRecorder metricsRecorder) {
+        this.metricsRecorder = metricsRecorder;
     }
 
     @Override
@@ -50,6 +60,7 @@ public class AgentRunFinalizationServiceImpl implements AgentRunFinalizationServ
         if (!completed) {
             throw new BusinessException(ErrorCode.AGENT_WORKER_LOST, "Agent Run 终态写入冲突");
         }
+        record(run, terminal, run.getOrchestrationMode());
     }
 
     @Override
@@ -59,8 +70,21 @@ public class AgentRunFinalizationServiceImpl implements AgentRunFinalizationServ
                                      String failureType,
                                      String safeMessage) {
         stateMachine.requireTransition(AgentRunStatusEnum.RUNNING, AgentRunStatusEnum.valueOf(terminalStatus));
-        queueService.complete(run, new AgentRunCompletion(
+        boolean completed = queueService.complete(run, new AgentRunCompletion(
                 terminalStatus, terminalStatus, null, null, null, null,
                 failureType, safeMessage, null, null, null));
+        if (completed) {
+            record(run, terminalStatus, run.getOrchestrationMode());
+        }
+    }
+
+    private void record(AiAgentRun run, String status, String mode) {
+        if (metricsRecorder == null) {
+            return;
+        }
+        LocalDateTime started = run.getStartedAt() == null ? run.getCreateTime() : run.getStartedAt();
+        long duration = started == null ? 0L
+                : Math.max(Duration.between(started, LocalDateTime.now()).toMillis(), 0L);
+        metricsRecorder.recordAgentRun(run.getScene(), status, mode, duration);
     }
 }

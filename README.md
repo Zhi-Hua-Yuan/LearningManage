@@ -121,12 +121,21 @@ docker compose up -d --build
 - 后端：`8124 -> 8123`
 - MySQL：`3307 -> 3306`
 - Qdrant：默认仅绑定本机 `6333`
+- Grafana：默认仅绑定本机 `3000`
+- Actuator：容器内部 `9123`，不映射宿主机
+- Redis、Prometheus、Tempo：仅容器内部网络
 
-启动前请先在 `deploy/docker-compose.yml` 中替换占位符：
+启动前复制并填写 `.env.example`，至少提供：
 
 - `MYSQL_ROOT_PASSWORD`
-- `SPRING_DATASOURCE_PASSWORD`
+- `DB_USERNAME`、`DB_PASSWORD`
+- `REDIS_PASSWORD`
+- `GRAFANA_ADMIN_PASSWORD`
+- `JWT_SECRET`
 - `ALIYUN_API_KEY`
+
+RAG、Agent 和数据清理默认关闭。数据库先迁移到 V8，再按
+Knowledge Worker、RAG、Agent Worker、Agent、Cleanup Dry Run 的顺序启用。
 
 ## 鉴权与调用约定
 
@@ -163,6 +172,9 @@ docker compose up -d --build
 - `32003`：RAG 依赖不可用
 - `32005`：RAG 结果已失效
 - `32006`：RAG 结果已过期
+- `34003`：数据清理未启用
+- `34004`：已有清理任务运行
+- `34006`：正式清理缺少匹配的 Dry Run
 
 ## 快速验证
 
@@ -187,6 +199,8 @@ curl http://localhost:8123/api/health
 - [Redis AI 限流模块文档](docs/redis-rate-limit-module.md)
 - [AI 调用记录模块文档](docs/ai-call-log-module.md)
 - [Stage 5 权限感知 RAG](docs/stage5/README.md)
+- [Stage 6 受控异步 Agent](docs/stage6/README.md)
+- [Stage 7 生产治理与数据生命周期](docs/stage7/README.md)
 - [Sprint 3 AI 草稿联调验收记录](docs/sprint/Sprint3_AI草稿联调验收记录.md)
 
 如需完整接口定义，优先以 Knife4j 文档页面和上述 API 文档为准：`/api/doc.html`。

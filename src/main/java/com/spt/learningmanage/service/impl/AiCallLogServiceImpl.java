@@ -24,6 +24,10 @@ import com.spt.learningmanage.model.vo.ai.AiCallLogStatsVO;
 import com.spt.learningmanage.model.vo.ai.AiCallLogStatusStatsVO;
 import com.spt.learningmanage.model.vo.ai.AiCallLogVO;
 import com.spt.learningmanage.service.AiCallLogService;
+import com.spt.learningmanage.service.AiCallLogOperationsService;
+import com.spt.learningmanage.model.ops.CleanupBatchResult;
+import java.time.LocalDateTime;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -37,7 +41,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 @Service
-public class AiCallLogServiceImpl implements AiCallLogService {
+public class AiCallLogServiceImpl implements AiCallLogService, AiCallLogOperationsService {
 
     private static final int LIST_TEXT_PREVIEW_MAX_LENGTH = 300;
     private static final int DETAIL_TEXT_MAX_LENGTH = 10000;
@@ -51,6 +55,9 @@ public class AiCallLogServiceImpl implements AiCallLogService {
 
     @Resource
     private AiCostCalculator aiCostCalculator;
+
+    @Resource
+    private AiMetricsRecorder aiMetricsRecorder;
 
     @Override
     public Long createRunningLog(AiCallLogCreateCommand command) {
@@ -144,7 +151,16 @@ public class AiCallLogServiceImpl implements AiCallLogService {
         if (command.failureType() != null) {
             wrapper.set(AiCallLog::getFailureType, command.failureType().name());
         }
-        return aiCallLogMapper.update(null, wrapper) == 1;
+        boolean updated = aiCallLogMapper.update(null, wrapper) == 1;
+        if (updated && aiMetricsRecorder != null) {
+            try {
+                AiCallLog existing = aiCallLogMapper.selectById(command.logId());
+                aiMetricsRecorder.recordInvocation(existing == null ? "unknown" : existing.getScene(), command, cost);
+            } catch (RuntimeException metricsFailure) {
+                // Observability is best-effort and must never change a persisted AI terminal state.
+            }
+        }
+        return updated;
     }
 
     private String resolveErrorMessage(AiCallLogCompletionCommand command) {
@@ -620,5 +636,64 @@ public class AiCallLogServiceImpl implements AiCallLogService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    @Override
+    public AiCallLog latestMetadata() {
+        return aiCallLogMapper.selectOne(new LambdaQueryWrapper<AiCallLog>()
+                .select(AiCallLog::getStatus, AiCallLog::getCreateTime)
+                .orderByDesc(AiCallLog::getCreateTime).last("limit 1"));
+    }
+
+    @Override
+    public BigDecimal sumEstimatedCost(LocalDateTime from, LocalDateTime to) {
+        return aiCallLogMapper.sumEstimatedCost(from, to);
+    }
+
+    @Override
+    public long countBodyCleanupCandidates(LocalDateTime cutoff) {
+        return aiCallLogMapper.selectCount(new LambdaQueryWrapper<AiCallLog>()
+                .ne(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
+                .isNull(AiCallLog::getBodyPurgedAt).lt(AiCallLog::getCreateTime, cutoff));
+    }
+
+    @Override
+    public long countMetadataCleanupCandidates(LocalDateTime cutoff) {
+        return aiCallLogMapper.selectCount(new LambdaQueryWrapper<AiCallLog>()
+                .ne(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
+                .lt(AiCallLog::getCreateTime, cutoff));
+    }
+
+    @Override
+    public CleanupBatchResult purgeBodyBatch(LocalDateTime cutoff, long cursor, int batchSize) {
+        List<Long> ids = aiCallLogMapper.selectList(new LambdaQueryWrapper<AiCallLog>()
+                .select(AiCallLog::getId).gt(AiCallLog::getId, cursor)
+                .ne(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
+                .isNull(AiCallLog::getBodyPurgedAt).lt(AiCallLog::getCreateTime, cutoff)
+                .orderByAsc(AiCallLog::getId).last("limit " + batchSize))
+                .stream().map(AiCallLog::getId).toList();
+        int affected = ids.isEmpty() ? 0 : aiCallLogMapper.update(null, new LambdaUpdateWrapper<AiCallLog>()
+                .in(AiCallLog::getId, ids).isNull(AiCallLog::getBodyPurgedAt)
+                .set(AiCallLog::getRequestText, null).set(AiCallLog::getResponseText, null)
+                .set(AiCallLog::getErrorMessage, null).set(AiCallLog::getBodyPurgedAt, LocalDateTime.now()));
+        return cleanupResult(ids, affected, affected, 0, batchSize);
+    }
+
+    @Override
+    public CleanupBatchResult deleteMetadataBatch(LocalDateTime cutoff, long cursor, int batchSize) {
+        List<Long> ids = aiCallLogMapper.selectList(new LambdaQueryWrapper<AiCallLog>()
+                .select(AiCallLog::getId).gt(AiCallLog::getId, cursor)
+                .ne(AiCallLog::getStatus, AiCallLogStatusEnum.RUNNING.getValue())
+                .lt(AiCallLog::getCreateTime, cutoff).orderByAsc(AiCallLog::getId)
+                .last("limit " + batchSize)).stream().map(AiCallLog::getId).toList();
+        int affected = ids.isEmpty() ? 0 : aiCallLogMapper.deleteByIds(ids);
+        return cleanupResult(ids, affected, 0, affected, batchSize);
+    }
+
+    private CleanupBatchResult cleanupResult(List<Long> ids, long affected,
+                                             long redacted, long deleted, int batchSize) {
+        long next = ids.isEmpty() ? 0L : ids.get(ids.size() - 1);
+        return new CleanupBatchResult(ids.size(), affected, redacted, deleted,
+                next, ids.size() < batchSize);
     }
 }

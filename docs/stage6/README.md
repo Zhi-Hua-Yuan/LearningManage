@@ -1,6 +1,10 @@
 # Stage 6: Controlled asynchronous Agent and analysis reports
 
-Status: `IMPLEMENTATION_COMPLETE / EXTERNAL_ACCEPTANCE_PENDING`
+Status: `RELEASED / stage6-v1.0.0`
+
+Released backend SHA: `70421b6d5fe90b9cba3228d4f639f46b959332ab`
+
+Released frontend SHA: `e43c3701d23cfe4edc947f9e4cdd528a5125688d`
 
 Stage 6 adds durable asynchronous project-risk and team-workload analysis on top
 of the Stage 1 permission boundary, Stage 2 model protocol/draft lifecycle and

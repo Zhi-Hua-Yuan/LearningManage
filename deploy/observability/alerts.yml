@@ -1,0 +1,55 @@
+groups:
+  - name: learning-manage-stage7
+    rules:
+      - alert: LearningManageCoreReadinessDown
+        expr: up{job="learning-manage"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "LearningManage core readiness is down" }
+      - alert: LearningManageAiFailureRateHigh
+        expr: |
+          sum(rate(learning_ai_invocations_total{status!="success"}[5m]))
+          / clamp_min(sum(rate(learning_ai_invocations_total[5m])), 0.001) > 0.10
+          and sum(increase(learning_ai_invocations_total[5m])) >= 20
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "AI failure rate is above 10%" }
+      - alert: LearningManageRagP95Slow
+        expr: histogram_quantile(0.95, sum(rate(learning_rag_query_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "RAG P95 latency exceeds 10 seconds" }
+      - alert: LearningManageAgentP95Slow
+        expr: histogram_quantile(0.95, sum(rate(learning_agent_run_duration_seconds_bucket[5m])) by (le)) > 60
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Agent P95 completion exceeds 60 seconds" }
+      - alert: LearningManageAgentQueueOld
+        expr: learning_agent_oldest_pending_seconds > 120
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "Agent queue contains runs older than 120 seconds" }
+      - alert: LearningManageKnowledgeQueueOld
+        expr: learning_knowledge_oldest_pending_seconds > 300
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "Knowledge queue contains events older than 300 seconds" }
+      - alert: LearningManageKnowledgeDeadEvent
+        expr: learning_knowledge_dead > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "Knowledge index has DEAD events" }
+      - alert: LearningManageCleanupFailure
+        expr: increase(learning_cleanup_runs_total{status=~"failed|partial"}[15m]) > 0
+        labels: { severity: warning }
+        annotations: { summary: "A cleanup run failed or completed partially" }
+      - alert: LearningManageDailyCostSoftLimit
+        expr: learning_ai_daily_estimated_cost >= learning_ai_daily_cost_soft_budget
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "AI daily estimated cost reached the soft limit" }
+      - alert: LearningManageDailyCostHardLimit
+        expr: learning_ai_daily_estimated_cost >= learning_ai_daily_cost_hard_budget
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "AI daily estimated cost reached the hard limit" }

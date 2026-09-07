@@ -17,6 +17,7 @@ public class AiRagResult {
     private Long userId;
     private Long projectId;
     private String answerText;
+    private LocalDateTime bodyPurgedAt;
     private String answerHash;
     private String status;
     private Integer insufficientEvidence;

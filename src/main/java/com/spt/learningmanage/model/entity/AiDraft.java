@@ -17,6 +17,7 @@ public class AiDraft {
     private String scene;
     private Integer schemaVersion;
     private String payloadJson;
+    private LocalDateTime payloadPurgedAt;
     private String inputHash;
     private String traceId;
     private Integer status;
