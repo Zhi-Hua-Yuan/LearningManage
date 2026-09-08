@@ -16,7 +16,7 @@ public enum ErrorCode {
     FORBIDDEN_ERROR(40300, "禁止访问", HttpStatus.FORBIDDEN),
     RATE_LIMIT_ERROR(42900, "请求过于频繁", HttpStatus.TOO_MANY_REQUESTS),
     SYSTEM_ERROR(50000, "系统内部异常", HttpStatus.INTERNAL_SERVER_ERROR),
-    OPERATION_ERROR(50001, "操作失败", HttpStatus.CONFLICT),
+    OPERATION_ERROR(50001, "操作失败", HttpStatus.INTERNAL_SERVER_ERROR),
 
     /**
      * 项目相关 (1xxxx)

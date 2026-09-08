@@ -1,10 +1,14 @@
 package com.spt.learningmanage.service.impl;
 
+import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.ProjectMapper;
+import com.spt.learningmanage.mapper.TeamMemberMapper;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.model.entity.Project;
+import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TeamWriteLockService;
 import org.springframework.stereotype.Service;
@@ -18,10 +22,14 @@ public class TeamWriteLockServiceImpl implements TeamWriteLockService {
 
     private final TeamMapper teamMapper;
     private final ProjectMapper projectMapper;
+    private final TeamMemberMapper teamMemberMapper;
 
-    public TeamWriteLockServiceImpl(TeamMapper teamMapper, ProjectMapper projectMapper) {
+    public TeamWriteLockServiceImpl(TeamMapper teamMapper,
+                                    ProjectMapper projectMapper,
+                                    TeamMemberMapper teamMemberMapper) {
         this.teamMapper = teamMapper;
         this.projectMapper = projectMapper;
+        this.teamMemberMapper = teamMemberMapper;
     }
 
     @Override
@@ -46,6 +54,20 @@ public class TeamWriteLockServiceImpl implements TeamWriteLockService {
                 || !Objects.equals(locked.getUserId(), scope.projectOwnerUserId())
                 || !Objects.equals(locked.getTeamId(), scope.teamId())) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+        if (scope.isTeamProject()) {
+            TeamMember membership = teamMemberMapper
+                    .selectActiveMembersForUpdate(scope.teamId(), List.of(scope.actorUserId()))
+                    .stream()
+                    .filter(row -> Objects.equals(row.getUserId(), scope.actorUserId()))
+                    .findFirst()
+                    .orElse(null);
+            TeamRoleEnum currentRole = membership == null
+                    ? null
+                    : TeamRoleEnum.fromValue(membership.getRole());
+            if (currentRole != scope.teamRole()) {
+                throw new PermissionDeniedException();
+            }
         }
     }
 

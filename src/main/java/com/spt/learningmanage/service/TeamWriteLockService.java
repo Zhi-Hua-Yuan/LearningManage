@@ -9,6 +9,7 @@ public interface TeamWriteLockService {
 
     void lockTeam(Long teamId);
 
+    /** Locks the project scope and validates team membership with a current locking read. */
     void lockProjectScope(ProjectAccessScope scope);
 
     void lockOwningTeam(Long projectId);

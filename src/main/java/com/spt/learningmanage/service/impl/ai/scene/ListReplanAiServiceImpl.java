@@ -165,8 +165,8 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         ).data();
 
         ProjectAccessScope lockedScope = permissionService.requireProjectManage(currentUserId, listId);
+        // The lock service revalidates team membership with a locking current read.
         teamWriteLockService.lockProjectScope(lockedScope);
-        permissionService.requireProjectManage(currentUserId, listId);
         int updatedCount = applyListReplanItems(replanItems, currentUserId);
         syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
         return updatedCount > 0;
@@ -265,8 +265,8 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
 
     private boolean applyConfirmedReplan(Long currentUserId, Long listId, AiReplanOperation operation) {
         ProjectAccessScope scope = permissionService.requireProjectManage(currentUserId, listId);
+        // Do not repeat the snapshot-based permission query after waiting for the lock.
         teamWriteLockService.lockProjectScope(scope);
-        permissionService.requireProjectManage(currentUserId, listId);
         List<AiReplanItem> items = aiReplanItemMapper.selectList(new LambdaQueryWrapper<AiReplanItem>()
                 .eq(AiReplanItem::getOperationId, operation.getOperationId()));
         List<AiReplanItem> changedItems = items.stream()

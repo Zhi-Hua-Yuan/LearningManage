@@ -30,6 +30,7 @@ public class GlobalExceptionHandler {
             @ApiResponse(responseCode = "404", description = "资源不存在"),
             @ApiResponse(responseCode = "409", description = "状态冲突"),
             @ApiResponse(responseCode = "429", description = "限流、额度或并发超限"),
+            @ApiResponse(responseCode = "500", description = "服务端操作失败"),
             @ApiResponse(responseCode = "503", description = "依赖或功能暂不可用")
     })
     public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException ex) {
