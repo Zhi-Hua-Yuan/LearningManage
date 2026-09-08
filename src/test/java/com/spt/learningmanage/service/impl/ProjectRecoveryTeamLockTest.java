@@ -7,10 +7,9 @@ import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
-import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.model.entity.Project;
-import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,8 +40,8 @@ class ProjectRecoveryTeamLockTest {
     @Mock private ProjectMapper projectMapper;
     @Mock private TaskMapper taskMapper;
     @Mock private MilestoneMapper milestoneMapper;
-    @Mock private TeamMapper teamMapper;
     @Mock private PermissionService permissionService;
+    @Mock private TeamWriteLockService teamWriteLockService;
     @InjectMocks private ProjectServiceImpl service;
 
     @BeforeAll
@@ -65,25 +65,22 @@ class ProjectRecoveryTeamLockTest {
     @Test
     void teamProjectRecoveryLocksActiveTeamBeforeRestoringProject() {
         Project deleted = deletedTeamProject();
-        Team team = new Team();
-        team.setId(7L);
         when(projectMapper.selectDeletedById(9L)).thenReturn(deleted);
-        when(teamMapper.selectActiveByIdForUpdate(7L)).thenReturn(team);
         when(projectMapper.update(isNull(), any(Wrapper.class))).thenReturn(1);
         when(taskMapper.selectList(any(Wrapper.class))).thenReturn(List.of());
 
         service.recover(9L);
 
-        InOrder order = inOrder(projectMapper, teamMapper);
+        InOrder order = inOrder(projectMapper, teamWriteLockService);
         order.verify(projectMapper).selectDeletedById(9L);
-        order.verify(teamMapper).selectActiveByIdForUpdate(7L);
+        order.verify(teamWriteLockService).lockTeam(7L);
         order.verify(projectMapper).update(isNull(), any(Wrapper.class));
     }
 
     @Test
     void teamProjectRecoveryStopsWhenTeamWasDissolved() {
         when(projectMapper.selectDeletedById(9L)).thenReturn(deletedTeamProject());
-        when(teamMapper.selectActiveByIdForUpdate(7L)).thenReturn(null);
+        doThrow(new PermissionDeniedException()).when(teamWriteLockService).lockTeam(7L);
 
         assertThrows(PermissionDeniedException.class, () -> service.recover(9L));
 

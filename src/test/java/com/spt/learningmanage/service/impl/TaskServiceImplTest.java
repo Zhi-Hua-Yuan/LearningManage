@@ -15,6 +15,7 @@ import com.spt.learningmanage.model.vo.task.TaskStatusChangeVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.model.dto.task.TaskCreateRequest;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.utils.UserHolder;
@@ -64,6 +65,8 @@ class TaskServiceImplTest {
     private PermissionService permissionService;
     @Mock
     private TaskCreationService taskCreationService;
+    @Mock
+    private TeamWriteLockService teamWriteLockService;
 
     @Mock
     private TaskAssigneePolicy taskAssigneePolicy;

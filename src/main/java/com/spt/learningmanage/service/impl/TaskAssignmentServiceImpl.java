@@ -24,6 +24,7 @@ import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskAssignmentService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,9 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
     @Resource
     private BusinessDataVersionService businessDataVersionService;
 
+    @Resource
+    private TeamWriteLockService teamWriteLockService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TaskAssignVO assign(TaskAssignRequest request) {
@@ -73,6 +77,9 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         }
 
         ProjectAccessScope scope = permissionService.requireProjectManage(actorUserId, task.getProjectId());
+        teamWriteLockService.lockProjectScope(scope);
+        permissionService.requireTaskAssign(actorUserId, request.getTaskId());
+        scope = permissionService.requireProjectManage(actorUserId, task.getProjectId());
         Long currentAssigneeUserId = task.getAssigneeUserId();
         Long targetAssigneeUserId = request.getAssigneeUserId();
         if (!Objects.equals(currentAssigneeUserId, request.getExpectedAssigneeUserId())) {

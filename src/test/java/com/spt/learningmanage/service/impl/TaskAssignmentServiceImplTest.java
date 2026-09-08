@@ -12,6 +12,7 @@ import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.task.TaskAssignVO;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ class TaskAssignmentServiceImplTest {
     @Mock private TaskAssignmentLogMapper taskAssignmentLogMapper;
     @Mock private PermissionService permissionService;
     @Mock private TaskAssigneePolicy taskAssigneePolicy;
+    @Mock private TeamWriteLockService teamWriteLockService;
     @InjectMocks private TaskAssignmentServiceImpl service;
 
     @BeforeEach

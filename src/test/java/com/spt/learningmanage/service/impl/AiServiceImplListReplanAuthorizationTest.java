@@ -16,6 +16,7 @@ import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.service.AiCallLogService;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.service.ai.support.AiModelSelector;
 import com.spt.learningmanage.service.impl.ai.scene.ListReplanAiServiceImpl;
 import com.spt.learningmanage.service.impl.ai.draft.AiReplanWriteGuard;
@@ -69,6 +70,7 @@ class AiServiceImplListReplanAuthorizationTest {
     @Mock private PermissionService permissionService;
     @Mock private AiModelSelector modelSelector;
     @Mock private AiReplanWriteGuard replanWriteGuard;
+    @Mock private TeamWriteLockService teamWriteLockService;
 
     private ListReplanAiServiceImpl aiService;
 
@@ -79,7 +81,7 @@ class AiServiceImplListReplanAuthorizationTest {
         aiService = new ListReplanAiServiceImpl(
                 taskMapper, projectMapper, aiReplanOperationMapper, aiReplanItemMapper,
                 pipeline, permissionService, replanWriteGuard,
-                modelSelector, new AiJsonResponseSanitizerImpl());
+                modelSelector, new AiJsonResponseSanitizerImpl(), teamWriteLockService);
     }
 
     @AfterEach

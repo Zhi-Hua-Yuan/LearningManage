@@ -2,10 +2,13 @@ package com.spt.learningmanage.exception;
 
 import com.spt.learningmanage.common.BaseResponse;
 import com.spt.learningmanage.common.ResultUtils;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -20,10 +23,20 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    @ResponseStatus(HttpStatus.OK)
-    public BaseResponse<Void> handleBusinessException(BusinessException ex) {
+    @ApiResponses({
+            @ApiResponse(responseCode = "400", description = "请求参数或 Schema 错误"),
+            @ApiResponse(responseCode = "401", description = "未登录或登录已失效"),
+            @ApiResponse(responseCode = "403", description = "权限不足"),
+            @ApiResponse(responseCode = "404", description = "资源不存在"),
+            @ApiResponse(responseCode = "409", description = "状态冲突"),
+            @ApiResponse(responseCode = "429", description = "限流、额度或并发超限"),
+            @ApiResponse(responseCode = "500", description = "服务端操作失败"),
+            @ApiResponse(responseCode = "503", description = "依赖或功能暂不可用")
+    })
+    public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException ex) {
         log.warn("业务异常: {}", ex.getMessage());
-        return ResultUtils.error(ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus())
+                .body(ResultUtils.error(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

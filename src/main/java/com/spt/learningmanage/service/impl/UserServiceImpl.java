@@ -15,6 +15,7 @@ import com.spt.learningmanage.service.UserService;
 import com.spt.learningmanage.service.JwtTokenService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -61,7 +62,7 @@ public class UserServiceImpl implements UserService {
         queryWrapper.eq("account", userAccount);
         Long count = userMapper.selectCount(queryWrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该账号已被注册，请更换账号或直接登录");
+            throw accountAlreadyExists();
         }
         // 密码加密
         String encryptedPwd = BCrypt.hashpw(userPassword, BCrypt.gensalt());
@@ -71,11 +72,23 @@ public class UserServiceImpl implements UserService {
         user.setUsername(StrUtil.isNotBlank(username) ? username.trim() : UUID.randomUUID().toString().substring(0, 10));
         user.setPassword(encryptedPwd);
         user.setUserRole(SystemRoleEnum.USER.getValue());
-        int result = userMapper.insert(user);
+        int result;
+        try {
+            result = userMapper.insert(user);
+        } catch (DuplicateKeyException exception) {
+            throw accountAlreadyExists();
+        }
         if (result <= 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "注册失败");
         }
         return user.getId();
+    }
+
+    private BusinessException accountAlreadyExists() {
+        return new BusinessException(
+                ErrorCode.ACCOUNT_ALREADY_EXISTS,
+                "该账号已被注册，请更换账号或直接登录"
+        );
     }
 
     @Override

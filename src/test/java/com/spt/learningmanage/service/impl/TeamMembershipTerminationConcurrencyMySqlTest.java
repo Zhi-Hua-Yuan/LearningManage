@@ -13,6 +13,7 @@ import com.spt.learningmanage.service.TeamMembershipTerminationService;
 import com.spt.learningmanage.utils.UserHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -74,7 +75,7 @@ class TeamMembershipTerminationConcurrencyMySqlTest {
         assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
 
-    @Test
+    @RepeatedTest(10)
     void createAssignedTaskVsMemberRemoveNeverLeavesInactiveAssignee() throws Exception {
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);

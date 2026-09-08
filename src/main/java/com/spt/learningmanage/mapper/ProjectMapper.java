@@ -10,6 +10,18 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface ProjectMapper extends BaseMapper<Project> {
 
+    @Select("SELECT * FROM project WHERE id = #{id} AND is_delete = 0 " +
+            "AND deleted_at IS NULL FOR UPDATE")
+    Project selectActiveByIdForUpdate(@Param("id") Long id);
+
+    @Select("SELECT order_no FROM project WHERE user_id = #{userId} AND team_id IS NULL " +
+            "AND is_delete = 0 AND deleted_at IS NULL ORDER BY order_no DESC LIMIT 1 FOR UPDATE")
+    Integer selectMaxPersonalOrderNoForUpdate(@Param("userId") Long userId);
+
+    @Select("SELECT order_no FROM project WHERE team_id = #{teamId} " +
+            "AND is_delete = 0 AND deleted_at IS NULL ORDER BY order_no DESC LIMIT 1 FOR UPDATE")
+    Integer selectMaxTeamOrderNoForUpdate(@Param("teamId") Long teamId);
+
     /** Reads a logically deleted project for the recovery workflow. */
     @Select("SELECT * FROM project WHERE id = #{id} AND deleted_at IS NOT NULL LIMIT 1")
     Project selectDeletedById(@Param("id") Long id);

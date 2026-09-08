@@ -7,15 +7,14 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskAssignmentLogMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
-import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
-import com.spt.learningmanage.model.entity.Team;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.BusinessDataVersionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,13 +34,13 @@ public class TaskCreationServiceImpl implements TaskCreationService {
     private TaskAssigneePolicy taskAssigneePolicy;
 
     @Resource
-    private TeamMapper teamMapper;
-
-    @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
 
     @Resource
     private BusinessDataVersionService businessDataVersionService;
+
+    @Resource
+    private TeamWriteLockService teamWriteLockService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,12 +48,7 @@ public class TaskCreationServiceImpl implements TaskCreationService {
         if (task == null || scope == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务和项目权限范围不能为空");
         }
-        if (scope.isTeamProject()) {
-            Team team = teamMapper.selectActiveByIdForUpdate(scope.teamId());
-            if (team == null) {
-                throw new com.spt.learningmanage.exception.PermissionDeniedException();
-            }
-        }
+        teamWriteLockService.lockProjectScope(scope);
         Long assigneeUserId = taskAssigneePolicy.resolveInitialAssignee(scope, requestedAssigneeUserId);
         LocalDateTime now = LocalDateTime.now();
         task.setCreatedByUserId(scope.actorUserId());
