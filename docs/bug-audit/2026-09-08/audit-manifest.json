@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 2,
+  "auditDate": "2026-09-08",
+  "auditBaselineDecision": "NO_GO",
+  "decision": "CONDITIONAL_GO",
+  "baseline": {
+    "backend": {
+      "branch": "develop",
+      "commit": "fd493cf77090579604a568f2f0ef8bed076d2a6e"
+    },
+    "frontend": {
+      "branch": "codex/team-management-20260907",
+      "commit": "3455f1349a152e93cb3cd988f5e32e1dd962dbcc"
+    }
+  },
+  "remediation": {
+    "worktreeUncommitted": false,
+    "commits": {
+      "backendCode": "0ec567c",
+      "frontend": "f5c7a58"
+    },
+    "resolvedDefects": 7,
+    "remainingConfirmedP0": 0,
+    "remainingConfirmedP1": 0,
+    "remainingConfirmedP2": 0,
+    "environmentBlocked": ["firefox-smoke"]
+  },
+  "confirmedDefects": {
+    "total": 7,
+    "p0": 0,
+    "p1": 6,
+    "p2": 1,
+    "p3": 0
+  },
+  "tests": {
+    "backendNonMysql": { "tests": 817, "failures": 0, "errors": 0 },
+    "backendMysql": { "tests": 79, "failures": 0, "errors": 0 },
+    "v8EndToEnd": { "tests": 17, "failures": 0, "errors": 0 },
+    "frontendVitest": { "files": 71, "tests": 515, "failures": 0 },
+    "playwright": {
+      "total": 30,
+      "passed": 28,
+      "environmentBlocked": 2,
+      "knownBugExpectedFailures": 0
+    }
+  },
+  "frontendCoveragePercent": {
+    "statements": 84.36,
+    "branches": 74.91,
+    "functions": 84.89,
+    "lines": 87.94
+  },
+  "apiContract": {
+    "frontendOperations": 71,
+    "backendRuntimeOperations": 95,
+    "missingFrontendOperations": 0,
+    "backendOnlyOperations": 24
+  },
+  "dependencyAudit": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+  },
+  "scope": {
+    "productionDataUsed": false,
+    "realQwenCalled": false,
+    "businessCodeFixed": true,
+    "releaseOperationExecuted": false,
+    "deterministicAiStubUsed": true
+  }
+}
