@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.spt.learningmanage.constant.TeamRoleEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
+import com.spt.learningmanage.exception.PermissionDeniedException;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TeamMemberMapper;
@@ -36,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,6 +80,19 @@ class TeamLifecycleServiceImplTest {
         assertEquals("New description", result.getDescription());
         assertEquals("ADMIN", result.getRole());
         verify(businessDataVersionService).incrementTeam(7L);
+        verify(permissionService).requireActiveActor(11L);
+    }
+
+    @Test
+    void inactiveActorCannotUpdateTeamProfile() {
+        doThrow(new PermissionDeniedException()).when(permissionService).requireActiveActor(11L);
+        TeamUpdateRequest request = new TeamUpdateRequest();
+        request.setTeamId(7L);
+        request.setName("Blocked");
+
+        assertThrows(PermissionDeniedException.class, () -> service.updateTeam(request));
+
+        verifyNoInteractions(teamMapper, teamMemberMapper);
     }
 
     @Test

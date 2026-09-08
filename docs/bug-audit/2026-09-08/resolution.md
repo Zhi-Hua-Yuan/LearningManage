@@ -22,7 +22,7 @@ P0/P1。尚未执行发布操作，Firefox smoke 因本机浏览器运行时无�
 | `BUG-AUDIT-003` | 捕获注册唯一键竞态并统一映射为账号已存在冲突 | Chromium 桌面/移动端各 8 路并发：仅 1 个成功，无 500 | RESOLVED |
 | `BUG-AUDIT-004` | 个人项目锁用户、团队项目锁团队；排序读取改为 `FOR UPDATE` 当前读，并为列表增加稳定 ID 次序 | Chromium 桌面/移动端各并发创建 12 个项目，排序号全部唯一 | RESOLVED |
 | `BUG-AUDIT-005` | 里程碑排序号按包含逻辑删除历史的最大值单调递增，项目内写入串行化，重复键转为业务冲突 | 删除末尾里程碑后创建替代项，桌面/移动端均通过 | RESOLVED |
-| `BUG-AUDIT-006` | 后端 CI 和发布门禁固定计数同步更新为 896，静态契约同步更新 | 817 个非 MySQL + 79 个 MySQL 测试；静态契约 11/11 | RESOLVED |
+| `BUG-AUDIT-006` | 合并最新远程 `develop` 后，后端 CI 和发布门禁固定计数同步更新为 899，静态契约同步更新 | 820 个非 MySQL + 79 个 MySQL 测试；静态契约随完整套件通过 | RESOLVED |
 | `BUG-AUDIT-007` | 升级 Axios、ECharts、PostCSS 及传递依赖，锁文件重新生成 | 官方 registry `npm audit --omit=dev`：0 vulnerabilities | RESOLVED |
 
 项目排序首次修复使用父行锁加普通快照读。真实 MySQL E2E 证明，在默认
@@ -35,7 +35,7 @@ P0/P1。尚未执行发布操作，Firefox smoke 因本机浏览器运行时无�
 
 | 门禁 | 结果 |
 |---|---|
-| 非 MySQL 测试 | PASS，817 tests，0 failures，0 errors |
+| 非 MySQL 测试 | PASS，820 tests，0 failures，0 errors |
 | MySQL 集成/并发测试 | PASS，79 tests，0 failures，0 errors |
 | V8 知识索引、RAG、Agent、清理 E2E | PASS，17 tests，0 failures，0 errors |
 | Flyway 空库 V1→V8 | PASS，本轮在全新数据库执行 8 个迁移 |

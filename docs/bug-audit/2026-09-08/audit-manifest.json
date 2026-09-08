@@ -17,7 +17,8 @@
     "worktreeUncommitted": false,
     "commits": {
       "backendCode": "0ec567c",
-      "frontend": "f5c7a58"
+      "frontend": "f5c7a58",
+      "mergedOriginDevelop": "4ed4cdf"
     },
     "resolvedDefects": 7,
     "remainingConfirmedP0": 0,
@@ -33,7 +34,7 @@
     "p3": 0
   },
   "tests": {
-    "backendNonMysql": { "tests": 817, "failures": 0, "errors": 0 },
+    "backendNonMysql": { "tests": 820, "failures": 0, "errors": 0 },
     "backendMysql": { "tests": 79, "failures": 0, "errors": 0 },
     "v8EndToEnd": { "tests": 17, "failures": 0, "errors": 0 },
     "frontendVitest": { "files": 71, "tests": 515, "failures": 0 },

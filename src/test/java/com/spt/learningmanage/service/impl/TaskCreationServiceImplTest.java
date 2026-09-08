@@ -55,7 +55,8 @@ class TaskCreationServiceImplTest {
         Assertions.assertEquals(1L, task.getAssignedByUserId());
         Assertions.assertNotNull(task.getAssignedAt());
         ArgumentCaptor<TaskAssignmentLog> captor = ArgumentCaptor.forClass(TaskAssignmentLog.class);
-        InOrder inOrder = inOrder(policy, taskMapper, logMapper);
+        InOrder inOrder = inOrder(teamWriteLockService, policy, taskMapper, logMapper);
+        inOrder.verify(teamWriteLockService).lockProjectScope(scope);
         inOrder.verify(policy).resolveInitialAssignee(scope, 2L);
         inOrder.verify(taskMapper).insert(task);
         inOrder.verify(logMapper).insert(captor.capture());
@@ -80,7 +81,8 @@ class TaskCreationServiceImplTest {
         service.createTask(task, scope, null);
         Assertions.assertNull(task.getAssigneeUserId());
         Assertions.assertNull(task.getAssignedAt());
-        InOrder inOrder = inOrder(policy, taskMapper);
+        InOrder inOrder = inOrder(teamWriteLockService, policy, taskMapper);
+        inOrder.verify(teamWriteLockService).lockProjectScope(scope);
         inOrder.verify(policy).resolveInitialAssignee(scope, null);
         inOrder.verify(taskMapper).insert(task);
         verify(logMapper, never()).insert(any(TaskAssignmentLog.class));
@@ -98,6 +100,7 @@ class TaskCreationServiceImplTest {
                 () -> service.createTask(task, scope, 2L));
 
         Assertions.assertEquals(ErrorCode.PARAMS_ERROR, ex.getErrorCode());
+        verify(teamWriteLockService).lockProjectScope(scope);
         verify(policy).resolveInitialAssignee(scope, 2L);
         verifyNoInteractions(taskMapper, logMapper);
     }
@@ -111,7 +114,8 @@ class TaskCreationServiceImplTest {
         BusinessException ex = Assertions.assertThrows(BusinessException.class,
                 () -> service.createTask(task, scope, null));
         Assertions.assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
-        InOrder inOrder = inOrder(policy, taskMapper);
+        InOrder inOrder = inOrder(teamWriteLockService, policy, taskMapper);
+        inOrder.verify(teamWriteLockService).lockProjectScope(scope);
         inOrder.verify(policy).resolveInitialAssignee(scope, null);
         inOrder.verify(taskMapper).insert(task);
         verify(logMapper, never()).insert(any(TaskAssignmentLog.class));
@@ -133,7 +137,8 @@ class TaskCreationServiceImplTest {
                 () -> service.createTask(task, scope, 2L));
 
         Assertions.assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
-        InOrder inOrder = inOrder(policy, taskMapper, logMapper);
+        InOrder inOrder = inOrder(teamWriteLockService, policy, taskMapper, logMapper);
+        inOrder.verify(teamWriteLockService).lockProjectScope(scope);
         inOrder.verify(policy).resolveInitialAssignee(scope, 2L);
         inOrder.verify(taskMapper).insert(task);
         inOrder.verify(logMapper).insert(argThat((TaskAssignmentLog log) ->

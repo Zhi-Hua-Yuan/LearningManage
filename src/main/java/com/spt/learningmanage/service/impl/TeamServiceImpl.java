@@ -373,6 +373,7 @@ public class TeamServiceImpl implements TeamService {
     @Transactional(rollbackFor = Exception.class)
     public TeamVO updateTeam(TeamUpdateRequest request) {
         Long userId = getLoginUserId();
+        permissionService.requireActiveActor(userId);
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         }
