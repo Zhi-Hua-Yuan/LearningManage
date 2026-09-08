@@ -13,6 +13,7 @@ import com.spt.learningmanage.mapper.MilestoneMapper;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TeamMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
+import com.spt.learningmanage.mapper.UserMapper;
 import com.spt.learningmanage.mapper.WeeklyReviewMapper;
 import com.spt.learningmanage.model.dto.project.ProjectCreateRequest;
 import com.spt.learningmanage.model.dto.project.ProjectQueryRequest;
@@ -31,6 +32,7 @@ import com.spt.learningmanage.service.ProjectService;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.BusinessDataVersionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -62,6 +64,9 @@ public class ProjectServiceImpl implements ProjectService {
     private TeamMapper teamMapper;
 
     @Resource
+    private UserMapper userMapper;
+
+    @Resource
     private PermissionService permissionService;
 
     @Resource
@@ -73,7 +78,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Resource
     private BusinessDataVersionService businessDataVersionService;
 
+    @Resource
+    private TeamWriteLockService teamWriteLockService;
+
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateRequest projectCreateRequest) {
         Long userId = UserHolder.get();
         if (userId == null) {
@@ -88,6 +97,9 @@ public class ProjectServiceImpl implements ProjectService {
         String color = normalizeColor(projectCreateRequest.getColor());
         validateColor(color);
         validateDateRange(projectCreateRequest.getStartDate(), projectCreateRequest.getEndDate());
+        if (userMapper.selectActiveByIdForUpdate(userId) == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
 
         Project project = new Project();
         project.setName(projectCreateRequest.getName().trim());
@@ -202,7 +214,9 @@ public class ProjectServiceImpl implements ProjectService {
         if (StringUtils.hasText(validProjectQueryRequest.getKeyword())) {
             wrapper.like(Project::getName, validProjectQueryRequest.getKeyword());
         }
-        wrapper.orderByAsc(Project::getOrderNo).orderByDesc(Project::getCreateTime);
+        wrapper.orderByAsc(Project::getOrderNo)
+                .orderByDesc(Project::getCreateTime)
+                .orderByAsc(Project::getId);
 
         Page<Project> page = new Page<>(pageNum, pageSize);
         Page<Project> resultPage = projectMapper.selectPage(page, wrapper);
@@ -242,7 +256,9 @@ public class ProjectServiceImpl implements ProjectService {
         if (StringUtils.hasText(keyword)) {
             wrapper.like(Project::getName, keyword.trim());
         }
-        wrapper.orderByAsc(Project::getOrderNo).orderByDesc(Project::getCreateTime);
+        wrapper.orderByAsc(Project::getOrderNo)
+                .orderByDesc(Project::getCreateTime)
+                .orderByAsc(Project::getId);
 
         Page<Project> page = new Page<>(pageNum, pageSize);
         Page<Project> resultPage = projectMapper.selectPage(page, wrapper);
@@ -267,6 +283,12 @@ public class ProjectServiceImpl implements ProjectService {
                 .eq(Project::getIsDelete, 0)
                 .isNull(Project::getDeletedAt);
         Project existing = projectMapper.selectOne(wrapper);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+        teamWriteLockService.lockOwningTeam(existing.getId());
+        permissionService.requireProjectManage(userId, existing.getId());
+        existing = projectMapper.selectActiveByIdForUpdate(existing.getId());
         if (existing == null) {
             throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -343,6 +365,11 @@ public class ProjectServiceImpl implements ProjectService {
         if (scopes.size() != idSet.size() || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
             throw new com.spt.learningmanage.exception.PermissionDeniedException();
         }
+        teamWriteLockService.lockOwningTeams(idSet);
+        scopes = permissionService.resolveProjectScopes(userId, idSet);
+        if (scopes.size() != idSet.size() || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
+        }
 
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(Project::getId, idSet)
@@ -381,6 +408,12 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Map<Long, ProjectAccessScope> scopes = permissionService.resolveProjectScopes(userId, ids);
+        if (scopes.size() != new HashSet<>(ids).size()
+                || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
+            throw new com.spt.learningmanage.exception.PermissionDeniedException();
+        }
+        teamWriteLockService.lockOwningTeams(ids);
+        scopes = permissionService.resolveProjectScopes(userId, ids);
         if (scopes.size() != new HashSet<>(ids).size()
                 || scopes.values().stream().anyMatch(scope -> !scope.canManage())) {
             throw new com.spt.learningmanage.exception.PermissionDeniedException();
@@ -435,6 +468,8 @@ public class ProjectServiceImpl implements ProjectService {
         if (existing.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        teamWriteLockService.lockOwningTeam(id);
+        permissionService.requireProjectManage(userId, id);
 
         LocalDateTime deleteTime = LocalDateTime.now();
 
@@ -496,6 +531,8 @@ public class ProjectServiceImpl implements ProjectService {
         if (existing.getDeletedAt().plusDays(30).isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不合法");
         }
+        teamWriteLockService.lockTeam(existing.getTeamId());
+        permissionService.requireProjectRecover(userId, id);
 
         LambdaUpdateWrapper<Project> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Project::getId, id)
@@ -623,32 +660,20 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private Integer getNextPersonalProjectOrderNo(Long userId) {
-        // 个人项目排序号按“当前用户 + teamId 为空”维度递增
-        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getUserId, userId)
-                .isNull(Project::getTeamId)
-                .isNull(Project::getDeletedAt)
-                .orderByDesc(Project::getOrderNo)
-                .last("LIMIT 1");
-        Project lastProject = projectMapper.selectOne(wrapper);
-        if (lastProject == null || lastProject.getOrderNo() == null) {
+        // 使用锁定读获取最新已提交值，避免 REPEATABLE READ 在等待用户锁前创建的旧快照。
+        Integer maxOrderNo = projectMapper.selectMaxPersonalOrderNoForUpdate(userId);
+        if (maxOrderNo == null) {
             return 0;
         }
-        return lastProject.getOrderNo() + 1;
+        return maxOrderNo + 1;
     }
 
     private Integer getNextTeamProjectOrderNo(Long teamId) {
-        // 团队项目排序号按 teamId 维度递增
-        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Project::getTeamId, teamId)
-                .isNull(Project::getDeletedAt)
-                .orderByDesc(Project::getOrderNo)
-                .last("LIMIT 1");
-        Project lastProject = projectMapper.selectOne(wrapper);
-        if (lastProject == null || lastProject.getOrderNo() == null) {
+        Integer maxOrderNo = projectMapper.selectMaxTeamOrderNoForUpdate(teamId);
+        if (maxOrderNo == null) {
             return 0;
         }
-        return lastProject.getOrderNo() + 1;
+        return maxOrderNo + 1;
     }
 
     private Team getValidTeamById(Long teamId) {
@@ -665,5 +690,3 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
 }
-
-

@@ -1,0 +1,6 @@
+DELETE FROM task_assignment_log WHERE task_id = 65001;
+DELETE FROM task WHERE id = 65001;
+DELETE FROM project WHERE id = 45001;
+DELETE FROM team_member WHERE id IN (35001, 35002, 35003);
+DELETE FROM team WHERE id = 25001;
+DELETE FROM `user` WHERE id IN (15001, 15002, 15003);

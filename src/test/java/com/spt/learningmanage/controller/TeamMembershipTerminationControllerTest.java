@@ -115,7 +115,7 @@ class TeamMembershipTerminationControllerTest {
     void noTokenAndForbiddenResponsesDoNotLeakTargetState() throws Exception {
         mockMvc.perform(post(CONTEXT_PATH + "/team/7/leave")
                 .contextPath(CONTEXT_PATH))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100))
                 .andExpect(jsonPath("$.data").value((Object) null));
         verify(terminationService, never()).leaveTeam(any());
@@ -124,7 +124,7 @@ class TeamMembershipTerminationControllerTest {
         MvcResult forbidden = mockMvc.perform(post(CONTEXT_PATH + "/team/7/leave")
                         .contextPath(CONTEXT_PATH)
                         .header("Authorization", "Bearer valid-token"))
-                .andExpect(status().isOk())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40300))
                 .andExpect(jsonPath("$.data").value((Object) null))
                 .andReturn();

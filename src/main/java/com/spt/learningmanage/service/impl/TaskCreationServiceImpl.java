@@ -14,6 +14,7 @@ import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.BusinessDataVersionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,12 +39,16 @@ public class TaskCreationServiceImpl implements TaskCreationService {
     @Resource
     private BusinessDataVersionService businessDataVersionService;
 
+    @Resource
+    private TeamWriteLockService teamWriteLockService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createTask(Task task, ProjectAccessScope scope, Long requestedAssigneeUserId) {
         if (task == null || scope == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务和项目权限范围不能为空");
         }
+        teamWriteLockService.lockProjectScope(scope);
         Long assigneeUserId = taskAssigneePolicy.resolveInitialAssignee(scope, requestedAssigneeUserId);
         LocalDateTime now = LocalDateTime.now();
         task.setCreatedByUserId(scope.actorUserId());

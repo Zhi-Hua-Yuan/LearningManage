@@ -40,6 +40,7 @@ import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
 import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.service.TaskService;
 import com.spt.learningmanage.service.BusinessDataVersionService;
 import jakarta.annotation.Resource;
@@ -83,6 +84,9 @@ public class TaskServiceImpl implements TaskService {
 
     @Resource
     private TaskCreationService taskCreationService;
+
+    @Resource
+    private TeamWriteLockService teamWriteLockService;
 
     @Resource
     private TaskAssigneePolicy taskAssigneePolicy;
@@ -265,6 +269,17 @@ public class TaskServiceImpl implements TaskService {
             permissionService.requireTaskView(userId, request.getId());
         }
 
+        teamWriteLockService.lockOwningTeam(existing.getProjectId());
+        if (contentChanged) {
+            permissionService.requireTaskEditContent(userId, request.getId());
+        }
+        if (reorganizeChanged) {
+            permissionService.requireTaskReorganize(userId, request.getId());
+        }
+        if (!contentChanged && !reorganizeChanged) {
+            permissionService.requireTaskView(userId, request.getId());
+        }
+
         // 3. 使用 UpdateWrapper 构造更新
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Task::getId, request.getId())
@@ -318,6 +333,9 @@ public class TaskServiceImpl implements TaskService {
         if (task == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在或无权限");
         }
+
+        teamWriteLockService.lockOwningTeam(task.getProjectId());
+        permissionService.requireTaskChangeStatus(userId, request.getTaskId());
 
         Integer oldStatus = task.getStatus();
         Integer targetStatus = request.getTargetStatus();
@@ -428,6 +446,9 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不存在");
         }
 
+        teamWriteLockService.lockOwningTeam(existing.getProjectId());
+        permissionService.requireTaskDelete(userId, id);
+
         LambdaUpdateWrapper<Task> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Task::getId, id)
                 .eq(Task::getIsDelete, 0)
@@ -478,6 +499,12 @@ public class TaskServiceImpl implements TaskService {
                 logMap.put(log.getTaskId(), log);
             }
         }
+        List<Long> renameProjectIds = taskMapper.selectBatchIds(logMap.keySet()).stream()
+                .map(Task::getProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        teamWriteLockService.lockOwningTeams(renameProjectIds);
 
         int successCount = 0;
         int skipCount = 0;
@@ -563,6 +590,15 @@ public class TaskServiceImpl implements TaskService {
         if (logs.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该批次没有可回滚的改名记录");
         }
+
+        List<Long> rollbackProjectIds = taskMapper.selectBatchIds(
+                        logs.stream().map(TaskTitleRenameLog::getTaskId).filter(Objects::nonNull).toList())
+                .stream()
+                .map(Task::getProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        teamWriteLockService.lockOwningTeams(rollbackProjectIds);
 
         int rollbackCount = 0;
         List<Long> rolledBackTaskIds = new ArrayList<>();

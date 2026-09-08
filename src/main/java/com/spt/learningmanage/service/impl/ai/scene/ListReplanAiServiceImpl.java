@@ -22,9 +22,11 @@ import com.spt.learningmanage.model.entity.AiReplanItem;
 import com.spt.learningmanage.model.entity.AiReplanOperation;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
 import com.spt.learningmanage.service.PermissionService;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.BusinessDataVersionService;
 import jakarta.annotation.Resource;
@@ -76,6 +78,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     private final AiReplanWriteGuard replanWriteGuard;
     private final AiModelSelector modelSelector;
     private final AiJsonResponseSanitizer jsonSanitizer;
+    private final TeamWriteLockService teamWriteLockService;
 
     @Resource
     private KnowledgeIndexEventPublisher knowledgeIndexEventPublisher;
@@ -91,7 +94,8 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                                    PermissionService permissionService,
                                    AiReplanWriteGuard replanWriteGuard,
                                    AiModelSelector modelSelector,
-                                   AiJsonResponseSanitizer jsonSanitizer) {
+                                   AiJsonResponseSanitizer jsonSanitizer,
+                                   TeamWriteLockService teamWriteLockService) {
         this.taskMapper = taskMapper;
         this.projectMapper = projectMapper;
         this.aiReplanOperationMapper = aiReplanOperationMapper;
@@ -101,6 +105,7 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         this.replanWriteGuard = replanWriteGuard;
         this.modelSelector = modelSelector;
         this.jsonSanitizer = jsonSanitizer;
+        this.teamWriteLockService = teamWriteLockService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -159,6 +164,9 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                 }
         ).data();
 
+        ProjectAccessScope lockedScope = permissionService.requireProjectManage(currentUserId, listId);
+        teamWriteLockService.lockProjectScope(lockedScope);
+        permissionService.requireProjectManage(currentUserId, listId);
         int updatedCount = applyListReplanItems(replanItems, currentUserId);
         syncProjectEndDateIfNeeded(listId, currentUserId, project.getEndDate());
         return updatedCount > 0;
@@ -256,6 +264,8 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
     }
 
     private boolean applyConfirmedReplan(Long currentUserId, Long listId, AiReplanOperation operation) {
+        ProjectAccessScope scope = permissionService.requireProjectManage(currentUserId, listId);
+        teamWriteLockService.lockProjectScope(scope);
         permissionService.requireProjectManage(currentUserId, listId);
         List<AiReplanItem> items = aiReplanItemMapper.selectList(new LambdaQueryWrapper<AiReplanItem>()
                 .eq(AiReplanItem::getOperationId, operation.getOperationId()));

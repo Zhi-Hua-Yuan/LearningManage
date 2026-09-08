@@ -6,6 +6,7 @@ import com.spt.learningmanage.constant.DeleteSourceConstant;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.MilestoneMapper;
+import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.milestone.MilestoneCreateRequest;
 import com.spt.learningmanage.model.dto.milestone.MilestoneQueryRequest;
@@ -18,6 +19,7 @@ import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.utils.UserHolder;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,12 +37,16 @@ public class MilestoneServiceImpl implements MilestoneService {
     private MilestoneMapper milestoneMapper;
 
     @Resource
+    private ProjectMapper projectMapper;
+
+    @Resource
     private TaskMapper taskMapper;
 
     @Resource
     private PermissionService permissionService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long create(MilestoneCreateRequest request) {
         Long userId = getCurrentUserId();
         if (request == null || request.getProjectId() == null) {
@@ -48,6 +54,8 @@ public class MilestoneServiceImpl implements MilestoneService {
         }
         validateProjectId(request.getProjectId());
         validateName(request.getName());
+        permissionService.requireProjectManage(userId, request.getProjectId());
+        lockProject(request.getProjectId());
         permissionService.requireProjectManage(userId, request.getProjectId());
 
         int nextOrderNo = getNextOrderNo(request.getProjectId());
@@ -61,7 +69,13 @@ public class MilestoneServiceImpl implements MilestoneService {
         milestone.setDeleteSource(DeleteSourceConstant.NORMAL);
         milestone.setDeletedAt(null);
 
-        int rows = milestoneMapper.insert(milestone);
+        int rows;
+        try {
+            rows = milestoneMapper.insert(milestone);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    "里程碑排序已被其他请求占用，请重试");
+        }
         if (rows != 1 || milestone.getId() == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建里程碑失败");
         }
@@ -90,6 +104,7 @@ public class MilestoneServiceImpl implements MilestoneService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(MilestoneUpdateRequest request) {
         Long userId = getCurrentUserId();
         if (request == null || request.getId() == null || request.getId() <= 0) {
@@ -103,6 +118,8 @@ public class MilestoneServiceImpl implements MilestoneService {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑不存在");
         }
 
+        permissionService.requireProjectManage(userId, existing.getProjectId());
+        lockProject(existing.getProjectId());
         permissionService.requireProjectManage(userId, existing.getProjectId());
 
         boolean hasUpdateField = false;
@@ -132,7 +149,13 @@ public class MilestoneServiceImpl implements MilestoneService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "没有可更新的字段");
         }
 
-        int rows = milestoneMapper.update(null, updateWrapper);
+        int rows;
+        try {
+            rows = milestoneMapper.update(null, updateWrapper);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    "里程碑排序已被其他记录占用");
+        }
         if (rows != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新里程碑失败");
         }
@@ -153,6 +176,8 @@ public class MilestoneServiceImpl implements MilestoneService {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "里程碑不存在");
         }
 
+        permissionService.requireProjectManage(userId, existing.getProjectId());
+        lockProject(existing.getProjectId());
         permissionService.requireProjectManage(userId, existing.getProjectId());
 
         LambdaUpdateWrapper<Task> taskUpdateWrapper = new LambdaUpdateWrapper<>();
@@ -181,24 +206,20 @@ public class MilestoneServiceImpl implements MilestoneService {
     }
 
     private int getNextOrderNo(Long projectId) {
-        LambdaQueryWrapper<Milestone> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Milestone::getProjectId, projectId)
-                .eq(Milestone::getIsDelete, 0)
-                .orderByDesc(Milestone::getOrderNo)
-                .last("limit 1");
-        Milestone latest = milestoneMapper.selectOne(wrapper);
-        return latest == null || latest.getOrderNo() == null ? 1 : latest.getOrderNo() + 1;
+        Integer maxOrderNo = milestoneMapper.selectMaxOrderNoIncludingDeleted(projectId);
+        return maxOrderNo == null ? 1 : maxOrderNo + 1;
     }
 
     private void ensureOrderNoUnique(Long projectId, Integer orderNo, Long milestoneId) {
-        LambdaQueryWrapper<Milestone> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Milestone::getProjectId, projectId)
-                .eq(Milestone::getIsDelete, 0)
-                .eq(Milestone::getOrderNo, orderNo)
-                .ne(Milestone::getId, milestoneId);
-        Milestone duplicate = milestoneMapper.selectOne(wrapper);
-        if (duplicate != null) {
+        if (milestoneMapper.countOrderNoIncludingDeletedExcludingId(
+                projectId, orderNo, milestoneId) > 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该排序号已存在");
+        }
+    }
+
+    private void lockProject(Long projectId) {
+        if (projectMapper.selectActiveByIdForUpdate(projectId) == null) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
         }
     }
 

@@ -199,7 +199,7 @@ class TaskAssignmentHistoryControllerTest {
     @Test
     void shouldRejectRequestWithoutTokenBeforeServiceInvocation() throws Exception {
         mockMvc.perform(get(HISTORY_PATH).contextPath(CONTEXT_PATH))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100))
                 .andExpect(jsonPath("$.data").value((Object) null));
 
@@ -215,7 +215,7 @@ class TaskAssignmentHistoryControllerTest {
         mockMvc.perform(get(HISTORY_PATH)
                         .contextPath(CONTEXT_PATH)
                         .header("Authorization", "Bearer invalid-token"))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(40100))
                 .andExpect(jsonPath("$.data").value((Object) null));
 
@@ -230,7 +230,7 @@ class TaskAssignmentHistoryControllerTest {
                 .thenThrow(new PermissionDeniedException());
 
         MvcResult result = mockMvc.perform(authenticatedGet(HISTORY_PATH))
-                .andExpect(status().isOk())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40300))
                 .andExpect(jsonPath("$.message").value("无权限执行该操作"))
                 .andExpect(jsonPath("$.data").value((Object) null))
@@ -241,14 +241,14 @@ class TaskAssignmentHistoryControllerTest {
     }
 
     @Test
-    void shouldPreserveBusinessValidationHttpCompatibility() throws Exception {
+    void shouldReturnBadRequestForBusinessValidation() throws Exception {
         when(taskAssignmentService.listAssignmentHistory(
                 argThat(request -> request.getCurrent().equals(0L))))
                 .thenThrow(new BusinessException(
                         ErrorCode.PARAMS_ERROR, "current 必须大于等于1"));
 
         mockMvc.perform(authenticatedGet(HISTORY_PATH).queryParam("current", "0"))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40000))
                 .andExpect(jsonPath("$.message").value("current 必须大于等于1"))
                 .andExpect(jsonPath("$.data").value((Object) null));

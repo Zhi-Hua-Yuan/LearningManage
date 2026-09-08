@@ -30,8 +30,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(classes = LearningManageApplication.class)
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Sql(scripts = "/db/stage1/task_assignment_d2e_concurrency_seed.sql",
+@Sql(scripts = {
+        "/db/stage1/task_assignment_d2e_concurrency_cleanup.sql",
+        "/db/stage1/task_assignment_d2e_concurrency_seed.sql"
+},
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@Sql(scripts = "/db/stage1/task_assignment_d2e_concurrency_cleanup.sql",
+        executionPhase = Sql.ExecutionPhase.AFTER_TEST_CLASS)
 class TaskAssignmentConcurrencyMySqlTest {
 
     @Autowired

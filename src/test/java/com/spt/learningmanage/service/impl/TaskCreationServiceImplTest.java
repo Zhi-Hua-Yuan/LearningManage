@@ -9,6 +9,7 @@ import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.TaskAssigneePolicy;
+import com.spt.learningmanage.service.TeamWriteLockService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,8 @@ class TaskCreationServiceImplTest {
     private TaskAssignmentLogMapper logMapper;
     @Mock
     private TaskAssigneePolicy policy;
+    @Mock
+    private TeamWriteLockService teamWriteLockService;
 
     @InjectMocks
     private TaskCreationServiceImpl service;
