@@ -7,6 +7,9 @@ import com.spt.learningmanage.agent.model.ProjectHistoryEvidence;
 import com.spt.learningmanage.agent.model.ProjectHistoryToolResult;
 import com.spt.learningmanage.config.AgentProperties;
 import com.spt.learningmanage.constant.AgentSceneEnum;
+import com.spt.learningmanage.constant.KnowledgeVisibilityTypeEnum;
+import com.spt.learningmanage.model.permission.ProjectAccessScope;
+import com.spt.learningmanage.model.rag.RagCandidate;
 import com.spt.learningmanage.model.rag.RagRetrievalOutcome;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.rag.RagRetrievalService;
@@ -41,12 +44,26 @@ public class RetrieveProjectHistoryAgentTool implements AgentTool<ProjectHistory
         RagRetrievalOutcome outcome = retrievalService.retrieve(
                 context.actorUserId(), scope, query, context.traceId());
         AtomicInteger sequence = new AtomicInteger();
-        var evidence = outcome.candidates().stream().limit(properties.getHistoryLimit())
+        var evidence = outcome.candidates().stream()
+                .filter(value -> isAllowedForReportAudience(scope, value))
+                .limit(properties.getHistoryLimit())
                 .map(value -> new ProjectHistoryEvidence(
                         "S" + sequence.incrementAndGet(), value.sourceType().name(), value.sourceId(),
                         value.documentKey(), value.chunkIndex(), value.contentHash(), value.payloadHash(),
                         value.title(), value.text(), value.finalScore(), value.sourceUpdatedAt()))
                 .toList();
         return new ProjectHistoryToolResult(evidence, outcome.degraded(), outcome.degradationReason());
+    }
+
+    private boolean isAllowedForReportAudience(ProjectAccessScope scope, RagCandidate candidate) {
+        if (scope.isPersonalProject()) {
+            return true;
+        }
+        // Hydration already matched documentKey to the current MySQL projection. A team Project
+        // Risk report is readable by project members, so its model input must use TEAM evidence only.
+        String documentKey = candidate.documentKey();
+        String teamProjectionSuffix = ":" + KnowledgeVisibilityTypeEnum.TEAM.name()
+                + ":" + scope.projectId();
+        return documentKey != null && documentKey.endsWith(teamProjectionSuffix);
     }
 }
