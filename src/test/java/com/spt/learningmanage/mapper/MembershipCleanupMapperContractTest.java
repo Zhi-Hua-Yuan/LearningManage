@@ -64,6 +64,7 @@ class MembershipCleanupMapperContractTest {
         String lowerUpdate = update.toLowerCase();
 
         for (String fragment : new String[]{
+                "t.project_id as project_id",
                 "p.team_id = #{teamid}",
                 "t.assignee_user_id = #{memberuserid}",
                 "t.status = 0",

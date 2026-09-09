@@ -67,6 +67,9 @@ class TeamMembershipTerminationReconciliationMySqlTest {
 
     @Test
     void removeMemberReconcilesTasksLogsMembershipAndOperationTime() {
+        long affectedProjectVersion = dataVersion("project", 48001L);
+        long unaffectedProjectVersion = dataVersion("project", 48002L);
+        long teamVersion = dataVersion("team", TEAM_ID);
         UserHolder.set(OWNER_ID);
         TeamMembershipTerminationVO result = terminationService.removeMember(
                 removeRequest(TARGET_ID));
@@ -123,10 +126,16 @@ class TeamMembershipTerminationReconciliationMySqlTest {
                         + "LEFT JOIN task t ON t.id = l.task_id "
                         + "WHERE l.task_id IN (68001,68002) AND t.id IS NULL",
                 Integer.class));
+        assertEquals(affectedProjectVersion + 1, dataVersion("project", 48001L));
+        assertEquals(unaffectedProjectVersion, dataVersion("project", 48002L));
+        assertEquals(teamVersion + 1, dataVersion("team", TEAM_ID));
     }
 
     @Test
     void leaveTeamReconcilesMemberLeftLogsAndPreservesCompletedHistory() {
+        long affectedProjectVersion = dataVersion("project", 48001L);
+        long unaffectedProjectVersion = dataVersion("project", 48002L);
+        long teamVersion = dataVersion("team", TEAM_ID);
         UserHolder.set(TARGET_ID);
         TeamMembershipTerminationVO result = terminationService.leaveTeam(TEAM_ID);
 
@@ -151,10 +160,16 @@ class TeamMembershipTerminationReconciliationMySqlTest {
                 "SELECT COUNT(*) FROM task_assignment_log "
                         + "WHERE task_id = 68003 AND action IN "
                         + "('MEMBER_LEFT','MEMBER_REMOVED')", Integer.class));
+        assertEquals(affectedProjectVersion + 1, dataVersion("project", 48001L));
+        assertEquals(unaffectedProjectVersion, dataVersion("project", 48002L));
+        assertEquals(teamVersion + 1, dataVersion("team", TEAM_ID));
     }
 
     @Test
     void leavingMemberWithOnlyCompletedTasksProducesNoTerminationLog() {
+        long affectedProjectVersion = dataVersion("project", 48001L);
+        long unaffectedProjectVersion = dataVersion("project", 48002L);
+        long teamVersion = dataVersion("team", TEAM_ID);
         UserHolder.set(COMPLETED_ONLY_ID);
         TeamMembershipTerminationVO result = terminationService.leaveTeam(TEAM_ID);
 
@@ -169,6 +184,17 @@ class TeamMembershipTerminationReconciliationMySqlTest {
                         + "WHERE team_id = 28001 AND user_id = 18004", Integer.class));
         assertEquals(COMPLETED_ONLY_ID, jdbcTemplate.queryForObject(
                 "SELECT assignee_user_id FROM task WHERE id = 68004", Long.class));
+        assertEquals(affectedProjectVersion, dataVersion("project", 48001L));
+        assertEquals(unaffectedProjectVersion, dataVersion("project", 48002L));
+        assertEquals(teamVersion + 1, dataVersion("team", TEAM_ID));
+    }
+
+    private long dataVersion(String table, long id) {
+        if (!("project".equals(table) || "team".equals(table))) {
+            throw new IllegalArgumentException("unsupported version table");
+        }
+        return jdbcTemplate.queryForObject(
+                "SELECT data_version FROM " + table + " WHERE id=?", Long.class, id);
     }
 
     private TeamMemberRemoveRequest removeRequest(long targetUserId) {

@@ -70,6 +70,8 @@ class MembershipCleanupMapperMySqlTest {
 
         assertEquals(List.of(66001L, 66002L, 66003L, 66004L),
                 rows.stream().map(MembershipTaskCleanupRow::getTaskId).toList());
+        assertEquals(List.of(46001L, 46001L, 46002L, 46003L),
+                rows.stream().map(MembershipTaskCleanupRow::getProjectId).toList());
         assertTrue(rows.stream().allMatch(row -> row.getAssigneeUserId().equals(16003L)));
     }
 

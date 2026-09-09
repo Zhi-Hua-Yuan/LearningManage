@@ -20,6 +20,7 @@ import com.spt.learningmanage.model.dto.knowledge.VectorSearchHit;
 import com.spt.learningmanage.model.dto.rag.RerankItem;
 import com.spt.learningmanage.model.dto.rag.RerankRequest;
 import com.spt.learningmanage.model.dto.rag.RerankResult;
+import com.spt.learningmanage.model.dto.team.TeamMemberRemoveRequest;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.Team;
@@ -30,14 +31,18 @@ import com.spt.learningmanage.model.knowledge.KnowledgeDocumentProjection;
 import com.spt.learningmanage.model.knowledge.KnowledgeSourceRef;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.rag.RagCandidate;
+import com.spt.learningmanage.exception.BusinessException;
+import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.service.AgentReportService;
 import com.spt.learningmanage.service.AgentRunService;
 import com.spt.learningmanage.service.AiModelClient;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.EmbeddingClient;
 import com.spt.learningmanage.service.KnowledgeDocumentFactory;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.RerankClient;
 import com.spt.learningmanage.service.TaskCreationService;
+import com.spt.learningmanage.service.TeamMembershipTerminationService;
 import com.spt.learningmanage.service.VectorSearchClient;
 import com.spt.learningmanage.service.agent.AgentRunQueueService;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
@@ -60,12 +65,17 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -110,6 +120,8 @@ class AgentPrivateEvidenceIsolationMySqlTest {
     @Autowired AgentRunQueueService queueService;
     @Autowired AgentRunWorker worker;
     @Autowired AgentReportService reportService;
+    @Autowired TeamMembershipTerminationService terminationService;
+    @Autowired BusinessDataVersionService versionService;
     @Autowired JdbcTemplate jdbcTemplate;
 
     @MockBean AiModelClient aiModelClient;
@@ -119,6 +131,9 @@ class AgentPrivateEvidenceIsolationMySqlTest {
 
     private final AtomicReference<List<VectorSearchHit>> vectorHits = new AtomicReference<>(List.of());
     private final AtomicReference<String> modelPrompt = new AtomicReference<>("");
+    private volatile boolean blockModel;
+    private volatile CountDownLatch modelEntered;
+    private volatile CountDownLatch modelRelease;
 
     @BeforeEach
     void setUp() {
@@ -181,6 +196,9 @@ class AgentPrivateEvidenceIsolationMySqlTest {
 
     @AfterEach
     void tearDown() {
+        if (modelRelease != null) {
+            modelRelease.countDown();
+        }
         UserHolder.remove();
         cleanup();
         Mockito.reset(aiModelClient, embeddingClient, vectorSearchClient, rerankClient);
@@ -245,9 +263,58 @@ class AgentPrivateEvidenceIsolationMySqlTest {
                 + "draftSecret=false reportSecret=false readerBSecret=false");
     }
 
+    @Test
+    void memberRemovalDuringProjectRiskMarksRunPartialAndRejectsDraftConfirmation() throws Exception {
+        UserHolder.set(OWNER_ID);
+        AgentProjectRiskRequest request = new AgentProjectRiskRequest();
+        request.setProjectId(PROJECT_ID);
+        request.setClientRequestId("membership-version-agent-run");
+        var submitted = runService.submitProjectRisk(request);
+        var claimed = queueService.claimReady("membership-version-worker", 1);
+        assertEquals(1, claimed.size());
+
+        blockModel = true;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            var future = executor.submit(() -> worker.process(claimed.get(0)));
+            assertTrue(modelEntered.await(10, TimeUnit.SECONDS),
+                    "worker did not reach deterministic model barrier");
+            long startVersion = versionService.projectVersion(PROJECT_ID);
+
+            TeamMemberRemoveRequest remove = new TeamMemberRemoveRequest();
+            remove.setTeamId(TEAM_ID);
+            remove.setTargetUserId(AUTHOR_ID);
+            terminationService.removeMember(remove);
+            assertEquals(startVersion + 1, versionService.projectVersion(PROJECT_ID));
+
+            modelRelease.countDown();
+            future.get(20, TimeUnit.SECONDS);
+            var run = runService.getRun(submitted.runId());
+            assertEquals("PARTIAL", run.status());
+            assertTrue(run.degraded());
+            assertTrue(run.partialReason().contains("项目数据发生变化"));
+            assertNotNull(run.draftId());
+
+            AgentReportConfirmRequest confirm = new AgentReportConfirmRequest();
+            confirm.setDraftId(run.draftId());
+            confirm.setOperationId("membership-version-agent-confirm");
+            BusinessException stale = assertThrows(BusinessException.class,
+                    () -> reportService.confirm(confirm));
+            assertEquals(ErrorCode.AGENT_REPORT_STALE, stale.getErrorCode());
+        } finally {
+            modelRelease.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+            blockModel = false;
+        }
+    }
+
     private void configureDeterministicProviders() {
         vectorHits.set(List.of());
         modelPrompt.set("");
+        blockModel = false;
+        modelEntered = new CountDownLatch(1);
+        modelRelease = new CountDownLatch(1);
         when(embeddingClient.embedQuery(any(), any())).thenReturn(new EmbeddingBatchResult(
                 List.of(List.of(0.10f, 0.20f, 0.30f)), "stub-embedding", 3L, 3L,
                 "stub-embedding-request"));
@@ -266,6 +333,12 @@ class AgentPrivateEvidenceIsolationMySqlTest {
                     .map(message -> message.content() == null ? "" : message.content())
                     .reduce("", (left, right) -> left + "\n" + right);
             modelPrompt.set(prompt);
+            if (blockModel) {
+                modelEntered.countDown();
+                if (!modelRelease.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("deterministic model barrier timed out");
+                }
+            }
             String summary = prompt.contains(PRIVATE_SECRET) ? PRIVATE_SECRET : SAFE_SUMMARY;
             String json = """
                     {"riskLevel":"LOW","summary":"%s","riskItems":[{"category":"HISTORY","severity":"LOW","reason":"%s","impact":"synthetic impact","recommendation":"%s","evidenceIds":[]}],"positiveSignals":[],"insufficientEvidence":false,"citations":[]}
