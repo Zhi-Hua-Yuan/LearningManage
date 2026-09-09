@@ -1,6 +1,5 @@
 package com.spt.learningmanage.service.rag;
 
-import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeVisibilityTypeEnum;
 import com.spt.learningmanage.model.dto.knowledge.VectorSearchHit;
@@ -10,15 +9,18 @@ import com.spt.learningmanage.model.knowledge.KnowledgeSourceRef;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.rag.RagCandidate;
 import com.spt.learningmanage.service.KnowledgeDocumentFactory;
-import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.knowledge.KnowledgeChunker;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
+import com.spt.learningmanage.service.knowledge.KnowledgeRecoveryEventService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,21 +29,23 @@ import java.util.Set;
 
 @Service
 public class RagCandidateHydrator {
+    private static final Logger log = LoggerFactory.getLogger(RagCandidateHydrator.class);
+
     private final KnowledgeDocumentFactory documentFactory;
     private final KnowledgeChunker chunker;
     private final KnowledgeHashing hashing;
-    private final KnowledgeIndexEventPublisher eventPublisher;
+    private final KnowledgeRecoveryEventService recoveryEventService;
     private final PermissionService permissionService;
 
     public RagCandidateHydrator(KnowledgeDocumentFactory documentFactory,
                                 KnowledgeChunker chunker,
                                 KnowledgeHashing hashing,
-                                KnowledgeIndexEventPublisher eventPublisher,
+                                KnowledgeRecoveryEventService recoveryEventService,
                                 PermissionService permissionService) {
         this.documentFactory = documentFactory;
         this.chunker = chunker;
         this.hashing = hashing;
-        this.eventPublisher = eventPublisher;
+        this.recoveryEventService = recoveryEventService;
         this.permissionService = permissionService;
     }
 
@@ -49,6 +53,7 @@ public class RagCandidateHydrator {
                                       ProjectAccessScope scope,
                                       List<VectorSearchHit> hits) {
         Map<KnowledgeSourceRef, List<KnowledgeDocumentProjection>> projections = new LinkedHashMap<>();
+        Set<KnowledgeSourceRef> scheduledCorrections = new HashSet<>();
         List<RagCandidate> result = new ArrayList<>();
         List<ParsedHit> parsedHits = new ArrayList<>();
         for (VectorSearchHit hit : hits) {
@@ -93,18 +98,18 @@ public class RagCandidateHydrator {
                     .findFirst().orElse(null);
             if (projection == null || !projection.projectId().equals(scope.projectId())
                     || !visible(actorUserId, scope, projection)) {
-                scheduleCorrection(source);
+                scheduleCorrection(source, scheduledCorrections);
                 continue;
             }
             String contentHash = hashing.contentHash(projection.canonicalText());
             String payloadHash = hashing.payloadHash(projection.payload());
             if (!payload.sourceVersion().equals(contentHash + ':' + payloadHash)) {
-                scheduleCorrection(source);
+                scheduleCorrection(source, scheduledCorrections);
                 continue;
             }
             List<KnowledgeChunk> chunks = chunker.chunk(projection.repeatPrefix(), projection.semanticBody());
             if (payload.chunkIndex() < 0 || payload.chunkIndex() >= chunks.size()) {
-                scheduleCorrection(source);
+                scheduleCorrection(source, scheduledCorrections);
                 continue;
             }
             KnowledgeChunk chunk = chunks.get(payload.chunkIndex());
@@ -201,11 +206,17 @@ public class RagCandidateHydrator {
         return value.isBlank() ? projection.sourceType().name() + "#" + projection.sourceId() : value;
     }
 
-    private void scheduleCorrection(KnowledgeSourceRef source) {
+    private void scheduleCorrection(KnowledgeSourceRef source,
+                                    Set<KnowledgeSourceRef> scheduledCorrections) {
+        if (!scheduledCorrections.add(source)) {
+            return;
+        }
         try {
-            eventPublisher.publish(source.sourceType(), source.sourceId(), KnowledgeEventTypeEnum.SOURCE_CHANGED);
-        } catch (RuntimeException ignored) {
+            recoveryEventService.enqueue(source);
+        } catch (RuntimeException exception) {
             // Retrieval correctness does not depend on the corrective event succeeding.
+            log.warn("RAG stale-source correction enqueue failed: sourceType={}, sourceId={}, failureType={}",
+                    source.sourceType(), source.sourceId(), exception.getClass().getSimpleName());
         }
     }
 
