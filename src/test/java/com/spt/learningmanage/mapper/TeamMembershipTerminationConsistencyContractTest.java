@@ -38,9 +38,14 @@ class TeamMembershipTerminationConsistencyContractTest {
                 "batchInsertMembershipTerminationLogs(");
         assertBefore(source, "batchInsertMembershipTerminationLogs(",
                 "deactivateMembershipCas(");
+        assertBefore(source, "deactivateMembershipCas(",
+                "businessDataVersionService.incrementProject(");
+        assertBefore(source, "businessDataVersionService.incrementProject(",
+                "businessDataVersionService.incrementTeam(");
         assertTrue(source.contains("updatedCount != taskIds.size()"));
         assertTrue(source.contains("logCount != updatedCount"));
         assertTrue(source.contains("memberRows != 1"));
+        assertTrue(source.contains("new TreeSet<>()"));
     }
 
     @Test
@@ -54,7 +59,7 @@ class TeamMembershipTerminationConsistencyContractTest {
         assertTrue(seed.contains("18001"));
         assertTrue(cleanup.contains("delete l"));
         assertTrue(cleanup.contains("delete i"));
-        assertTrue(cleanup.contains("where t.project_id = 48001"));
+        assertTrue(cleanup.contains("where t.project_id in (48001, 48002)"));
         assertTrue(cleanup.contains("where id between 18001 and 18004"));
         assertTrue(!seed.contains("create table"));
         assertTrue(!seed.contains("alter table"));

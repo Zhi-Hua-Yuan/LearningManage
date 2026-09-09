@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 /** 团队成员终止事务实现。 */
 @Service
@@ -149,10 +150,11 @@ public class TeamMembershipTerminationServiceImpl
                         targetMember.getTeamId(),
                         targetMember.getUserId()
                 );
-        List<Long> taskIds = validateLockedTasks(
+        LockedTaskSet lockedTaskSet = validateLockedTasks(
                 lockedTasks,
                 targetMember.getUserId()
         );
+        List<Long> taskIds = lockedTaskSet.taskIds();
         List<Long> affectedReviewIds = findAffectedReviewIds(targetMember);
 
         int updatedCount = 0;
@@ -211,6 +213,9 @@ public class TeamMembershipTerminationServiceImpl
                     affectedReviewIds, KnowledgeEventTypeEnum.ACCESS_CHANGED);
         }
         if (businessDataVersionService != null) {
+            for (Long projectId : lockedTaskSet.projectIds()) {
+                businessDataVersionService.incrementProject(projectId);
+            }
             businessDataVersionService.incrementTeam(targetMember.getTeamId());
         }
 
@@ -242,7 +247,7 @@ public class TeamMembershipTerminationServiceImpl
                 .stream().map(WeeklyReview::getId).toList();
     }
 
-    private List<Long> validateLockedTasks(
+    private LockedTaskSet validateLockedTasks(
             List<MembershipTaskCleanupRow> lockedTasks,
             Long targetUserId
     ) {
@@ -253,16 +258,19 @@ public class TeamMembershipTerminationServiceImpl
             );
         }
         if (lockedTasks.isEmpty()) {
-            return List.of();
+            return new LockedTaskSet(List.of(), List.of());
         }
 
         List<Long> taskIds = new ArrayList<>(lockedTasks.size());
         Set<Long> uniqueIds = new HashSet<>();
+        Set<Long> projectIds = new TreeSet<>();
         long previousId = Long.MIN_VALUE;
         for (MembershipTaskCleanupRow row : lockedTasks) {
             if (row == null
                     || row.getTaskId() == null
                     || row.getTaskId() <= 0
+                    || row.getProjectId() == null
+                    || row.getProjectId() <= 0
                     || !uniqueIds.add(row.getTaskId())
                     || row.getTaskId() <= previousId
                     || !java.util.Objects.equals(
@@ -274,8 +282,9 @@ public class TeamMembershipTerminationServiceImpl
             }
             previousId = row.getTaskId();
             taskIds.add(row.getTaskId());
+            projectIds.add(row.getProjectId());
         }
-        return taskIds;
+        return new LockedTaskSet(List.copyOf(taskIds), List.copyOf(projectIds));
     }
 
     private List<TaskAssignmentLog> buildTerminationLogs(
@@ -323,5 +332,8 @@ public class TeamMembershipTerminationServiceImpl
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         return userId;
+    }
+
+    private record LockedTaskSet(List<Long> taskIds, List<Long> projectIds) {
     }
 }

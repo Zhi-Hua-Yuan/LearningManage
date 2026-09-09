@@ -40,6 +40,7 @@
             resultType="com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow">
         SELECT
             t.id AS task_id,
+            t.project_id AS project_id,
             t.assignee_user_id AS assignee_user_id
         FROM task t
         INNER JOIN project p

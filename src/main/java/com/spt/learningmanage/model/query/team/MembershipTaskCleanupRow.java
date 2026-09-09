@@ -11,5 +11,7 @@ public class MembershipTaskCleanupRow {
 
     private Long taskId;
 
+    private Long projectId;
+
     private Long assigneeUserId;
 }

@@ -12,6 +12,7 @@ import com.spt.learningmanage.model.entity.TaskAssignmentLog;
 import com.spt.learningmanage.model.entity.TeamMember;
 import com.spt.learningmanage.model.query.team.MembershipTaskCleanupRow;
 import com.spt.learningmanage.model.vo.team.TeamMembershipTerminationVO;
+import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.TeamMembershipTerminationPolicy;
 import com.spt.learningmanage.utils.UserHolder;
@@ -35,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -49,6 +51,7 @@ class TeamMembershipTerminationServiceImplTest {
     @Mock private TaskAssignmentLogMapper taskAssignmentLogMapper;
     @Mock private PermissionService permissionService;
     @Mock private TeamMembershipTerminationPolicy terminationPolicy;
+    @Mock private BusinessDataVersionService businessDataVersionService;
     @InjectMocks private TeamMembershipTerminationServiceImpl service;
 
     @BeforeEach
@@ -69,11 +72,14 @@ class TeamMembershipTerminationServiceImplTest {
         when(terminationPolicy.requireLeaveAllowed(11L, 7L, List.of(target)))
                 .thenReturn(target);
         when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 11L))
-                .thenReturn(List.of(task(701L, 11L), task(702L, 11L)));
+                .thenReturn(List.of(
+                        task(701L, 42L, 11L),
+                        task(702L, 41L, 11L),
+                        task(703L, 42L, 11L)));
         when(taskMapper.bulkUnassignIncompleteTeamTasks(eq(7L), eq(11L),
-                eq(List.of(701L, 702L)), eq(11L), any())).thenReturn(2);
+                eq(List.of(701L, 702L, 703L)), eq(11L), any())).thenReturn(3);
         when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
-                .thenReturn(2);
+                .thenReturn(3);
         when(teamMemberMapper.deactivateMembershipCas(eq(301L), eq(7L), eq(11L),
                 eq("MEMBER"), any())).thenReturn(1);
 
@@ -82,11 +88,11 @@ class TeamMembershipTerminationServiceImplTest {
         assertEquals(7L, result.getTeamId());
         assertEquals(11L, result.getMemberUserId());
         assertEquals("MEMBER_LEFT", result.getAction());
-        assertEquals(2, result.getUnassignedTaskCount());
+        assertEquals(3, result.getUnassignedTaskCount());
         assertNotNull(result.getTerminatedAt());
         ArgumentCaptor<List<TaskAssignmentLog>> logs = ArgumentCaptor.forClass(List.class);
         verify(taskAssignmentLogMapper).batchInsertMembershipTerminationLogs(logs.capture());
-        assertEquals(2, logs.getValue().size());
+        assertEquals(3, logs.getValue().size());
         assertEquals(TaskAssignmentActionEnum.MEMBER_LEFT.getValue(),
                 logs.getValue().get(0).getAction());
         assertEquals(11L, logs.getValue().get(0).getFromAssigneeUserId());
@@ -94,6 +100,10 @@ class TeamMembershipTerminationServiceImplTest {
         assertEquals(result.getTerminatedAt(), logs.getValue().get(0).getCreateTime());
         verify(teamMemberMapper).deactivateMembershipCas(301L, 7L, 11L,
                 "MEMBER", result.getTerminatedAt());
+        var versionOrder = inOrder(businessDataVersionService);
+        versionOrder.verify(businessDataVersionService).incrementProject(41L);
+        versionOrder.verify(businessDataVersionService).incrementProject(42L);
+        versionOrder.verify(businessDataVersionService).incrementTeam(7L);
     }
 
     @Test
@@ -105,7 +115,7 @@ class TeamMembershipTerminationServiceImplTest {
         when(terminationPolicy.requireRemoveAllowed(eq(21L), eq(7L), eq(22L), any()))
                 .thenReturn(target);
         when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 22L))
-                .thenReturn(List.of(task(703L, 22L)));
+                .thenReturn(List.of(task(703L, 43L, 22L)));
         when(taskMapper.bulkUnassignIncompleteTeamTasks(eq(7L), eq(22L),
                 eq(List.of(703L)), eq(21L), any())).thenReturn(1);
         when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
@@ -122,6 +132,9 @@ class TeamMembershipTerminationServiceImplTest {
         assertEquals(21L, logs.getValue().get(0).getAssignedByUserId());
         assertEquals(TaskAssignmentActionEnum.MEMBER_REMOVED.getValue(),
                 logs.getValue().get(0).getAction());
+        var versionOrder = inOrder(businessDataVersionService);
+        versionOrder.verify(businessDataVersionService).incrementProject(43L);
+        versionOrder.verify(businessDataVersionService).incrementTeam(7L);
     }
 
     @Test
@@ -142,6 +155,8 @@ class TeamMembershipTerminationServiceImplTest {
         verify(taskMapper, never()).bulkUnassignIncompleteTeamTasks(any(), any(),
                 any(), any(), any());
         verify(taskAssignmentLogMapper, never()).batchInsertMembershipTerminationLogs(anyList());
+        verify(businessDataVersionService, never()).incrementProject(any());
+        verify(businessDataVersionService).incrementTeam(7L);
     }
 
     @Test
@@ -152,7 +167,7 @@ class TeamMembershipTerminationServiceImplTest {
         when(terminationPolicy.requireLeaveAllowed(11L, 7L, List.of(target)))
                 .thenReturn(target);
         when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 11L))
-                .thenReturn(List.of(task(704L, 11L)));
+                .thenReturn(List.of(task(704L, 44L, 11L)));
         when(taskMapper.bulkUnassignIncompleteTeamTasks(eq(7L), eq(11L),
                 eq(List.of(704L)), eq(11L), any())).thenReturn(0);
 
@@ -161,6 +176,7 @@ class TeamMembershipTerminationServiceImplTest {
         assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
         verify(taskAssignmentLogMapper, never()).batchInsertMembershipTerminationLogs(anyList());
         verify(teamMemberMapper, never()).deactivateMembershipCas(any(), any(), any(), any(), any());
+        verifyNoInteractions(businessDataVersionService);
     }
 
     @Test
@@ -171,7 +187,7 @@ class TeamMembershipTerminationServiceImplTest {
         when(terminationPolicy.requireLeaveAllowed(11L, 7L, List.of(target)))
                 .thenReturn(target);
         when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 11L))
-                .thenReturn(List.of(task(705L, 11L)));
+                .thenReturn(List.of(task(705L, 45L, 11L)));
         when(taskMapper.bulkUnassignIncompleteTeamTasks(eq(7L), eq(11L),
                 eq(List.of(705L)), eq(11L), any())).thenReturn(1);
         when(taskAssignmentLogMapper.batchInsertMembershipTerminationLogs(anyList()))
@@ -181,6 +197,29 @@ class TeamMembershipTerminationServiceImplTest {
                 () -> service.leaveTeam(7L));
         assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
         verify(teamMemberMapper, never()).deactivateMembershipCas(any(), any(), any(), any(), any());
+        verifyNoInteractions(businessDataVersionService);
+    }
+
+    @Test
+    void lockedTaskWithoutProjectFailsClosedBeforeMutation() {
+        TeamMember target = member(306L, 7L, 11L, "MEMBER");
+        when(teamMemberMapper.selectActiveMembersForUpdate(7L, List.of(11L)))
+                .thenReturn(List.of(target));
+        when(terminationPolicy.requireLeaveAllowed(11L, 7L, List.of(target)))
+                .thenReturn(target);
+        MembershipTaskCleanupRow invalid = new MembershipTaskCleanupRow();
+        invalid.setTaskId(706L);
+        invalid.setAssigneeUserId(11L);
+        when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 11L))
+                .thenReturn(List.of(invalid));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.leaveTeam(7L));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
+        verify(taskMapper, never()).bulkUnassignIncompleteTeamTasks(any(), any(),
+                any(), any(), any());
+        verifyNoInteractions(taskAssignmentLogMapper, businessDataVersionService);
     }
 
     @Test
@@ -191,7 +230,7 @@ class TeamMembershipTerminationServiceImplTest {
         assertThrows(PermissionDeniedException.class, () -> service.leaveTeam(7L));
 
         verifyNoInteractions(teamMemberMapper, taskMapper, taskAssignmentLogMapper,
-                terminationPolicy);
+                terminationPolicy, businessDataVersionService);
     }
 
     @Test
@@ -203,7 +242,7 @@ class TeamMembershipTerminationServiceImplTest {
         assertThrows(PermissionDeniedException.class, () -> service.removeMember(request));
 
         verifyNoInteractions(teamMemberMapper, taskMapper, taskAssignmentLogMapper,
-                terminationPolicy);
+                terminationPolicy, businessDataVersionService);
     }
 
     @Test
@@ -229,9 +268,10 @@ class TeamMembershipTerminationServiceImplTest {
         return member;
     }
 
-    private MembershipTaskCleanupRow task(Long taskId, Long assigneeUserId) {
+    private MembershipTaskCleanupRow task(Long taskId, Long projectId, Long assigneeUserId) {
         MembershipTaskCleanupRow row = new MembershipTaskCleanupRow();
         row.setTaskId(taskId);
+        row.setProjectId(projectId);
         row.setAssigneeUserId(assigneeUserId);
         return row;
     }

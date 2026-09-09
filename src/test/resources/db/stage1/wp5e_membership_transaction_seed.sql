@@ -1,14 +1,16 @@
 -- WP5-E: isolated transaction and reconciliation fixture.
+DELETE FROM ai_knowledge_index_event
+WHERE source_type = 'TASK' AND source_id BETWEEN 68001 AND 68005;
 DELETE l
 FROM task_assignment_log l
 JOIN task t ON t.id = l.task_id
-WHERE t.project_id = 48001;
+WHERE t.project_id IN (48001, 48002);
 DELETE i
 FROM task_status_idempotency i
 JOIN task t ON t.id = i.task_id
-WHERE t.project_id = 48001;
-DELETE FROM task WHERE project_id = 48001;
-DELETE FROM project WHERE id = 48001;
+WHERE t.project_id IN (48001, 48002);
+DELETE FROM task WHERE project_id IN (48001, 48002);
+DELETE FROM project WHERE id IN (48001, 48002);
 DELETE FROM team_member WHERE team_id = 28001;
 DELETE FROM team WHERE id = 28001;
 DELETE FROM user WHERE id BETWEEN 18001 AND 18004;
@@ -40,7 +42,10 @@ VALUES
 
 INSERT INTO project (id, user_id, team_id, name, status, order_no, progress,
                      is_delete, create_time, update_time, deleted_at)
-VALUES (48001, 18001, 28001, 'WP5E Project', 0, 0, 0.00, 0,
+VALUES
+    (48001, 18001, 28001, 'WP5E Affected Project', 0, 0, 0.00, 0,
+        '2026-08-29 00:00:00', '2026-08-29 00:00:00', NULL),
+    (48002, 18001, 28001, 'WP5E Unaffected Project', 0, 1, 0.00, 0,
         '2026-08-29 00:00:00', '2026-08-29 00:00:00', NULL);
 
 INSERT INTO task (id, project_id, milestone_id, user_id, title, description,
@@ -63,6 +68,10 @@ VALUES
     (68004, 48001, NULL, 18001, 'WP5E completed other member', 'fixture',
         1, 0, NULL, '2026-08-29 02:00:00', NULL, 0, 0,
         '2026-08-29 00:00:00', '2026-08-29 02:00:00', 18004, 18001,
+        '2026-08-29 00:00:00'),
+    (68005, 48002, NULL, 18001, 'WP5E unaffected project task', 'fixture',
+        0, 0, NULL, NULL, NULL, 0, 0,
+        '2026-08-29 00:00:00', '2026-08-29 00:00:00', 18001, 18001,
         '2026-08-29 00:00:00');
 
 INSERT INTO task_assignment_log
@@ -76,4 +85,6 @@ VALUES
     (78003, 68003, NULL, 18003, 18001, 'INITIAL_ASSIGN', NULL,
         '2026-08-29 00:00:00'),
     (78004, 68004, NULL, 18004, 18001, 'INITIAL_ASSIGN', NULL,
+        '2026-08-29 00:00:00'),
+    (78005, 68005, NULL, 18001, 18001, 'INITIAL_ASSIGN', NULL,
         '2026-08-29 00:00:00');

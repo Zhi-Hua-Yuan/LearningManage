@@ -1,7 +1,6 @@
 package com.spt.learningmanage.service.rag;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.spt.learningmanage.constant.KnowledgeEventTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeSourceTypeEnum;
 import com.spt.learningmanage.constant.KnowledgeVisibilityTypeEnum;
 import com.spt.learningmanage.model.dto.knowledge.VectorSearchHit;
@@ -9,30 +8,33 @@ import com.spt.learningmanage.model.knowledge.KnowledgeDocumentProjection;
 import com.spt.learningmanage.model.knowledge.KnowledgeSourceRef;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.KnowledgeDocumentFactory;
-import com.spt.learningmanage.service.KnowledgeIndexEventPublisher;
 import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.knowledge.KnowledgeChunker;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
+import com.spt.learningmanage.service.knowledge.KnowledgeRecoveryEventService;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RagCandidateHydratorTest {
     private final KnowledgeDocumentFactory factory = mock(KnowledgeDocumentFactory.class);
-    private final KnowledgeIndexEventPublisher publisher = mock(KnowledgeIndexEventPublisher.class);
+    private final KnowledgeRecoveryEventService recoveryEventService = mock(KnowledgeRecoveryEventService.class);
     private final PermissionService permissionService = mock(PermissionService.class);
     private final KnowledgeHashing hashing = new KnowledgeHashing(new ObjectMapper());
     private final RagCandidateHydrator hydrator = new RagCandidateHydrator(
-            factory, new KnowledgeChunker(), hashing, publisher, permissionService);
+            factory, new KnowledgeChunker(), hashing, recoveryEventService, permissionService);
 
     @Test
     void forgedPrivateOwnerIsRejectedBeforeAnyDatabaseHydration() {
@@ -59,7 +61,7 @@ class RagCandidateHydratorTest {
         assertEquals(1, result.size());
         assertEquals("实现RAG", result.get(0).title());
         assertEquals("任务标题: 实现RAG\n完成权限检索", result.get(0).text());
-        verify(publisher, never()).publish(any(), any(), any());
+        verify(recoveryEventService, never()).enqueue(any());
     }
 
     @Test
@@ -73,8 +75,42 @@ class RagCandidateHydratorTest {
                 new VectorSearchHit("p1", 0.9, payload(7L, "old:version"))));
 
         assertEquals(List.of(), result);
-        verify(publisher).publish(KnowledgeSourceTypeEnum.TASK, 20L,
-                KnowledgeEventTypeEnum.SOURCE_CHANGED);
+        verify(recoveryEventService).enqueue(
+                new KnowledgeSourceRef(KnowledgeSourceTypeEnum.TASK, 20L));
+    }
+
+    @Test
+    void duplicateStaleChunksScheduleSingleCorrectionPerSource() {
+        KnowledgeDocumentProjection projection = projection();
+        when(factory.buildDesiredDocuments(new KnowledgeSourceRef(KnowledgeSourceTypeEnum.TASK, 20L)))
+                .thenReturn(List.of(projection));
+        when(permissionService.filterReadableTaskIds(7L, List.of(20L)))
+                .thenReturn(java.util.Set.of(20L));
+
+        var result = hydrator.hydrate(7L, personalScope(), List.of(
+                new VectorSearchHit("p1", 0.9, payload(7L, "old:version")),
+                new VectorSearchHit("p2", 0.8, payload(7L, "old:version"))));
+
+        assertEquals(List.of(), result);
+        verify(recoveryEventService, times(1)).enqueue(
+                new KnowledgeSourceRef(KnowledgeSourceTypeEnum.TASK, 20L));
+    }
+
+    @Test
+    void correctionFailureDoesNotAllowStaleCandidateThrough() {
+        KnowledgeSourceRef source = new KnowledgeSourceRef(KnowledgeSourceTypeEnum.TASK, 20L);
+        KnowledgeDocumentProjection projection = projection();
+        when(factory.buildDesiredDocuments(source)).thenReturn(List.of(projection));
+        when(permissionService.filterReadableTaskIds(7L, List.of(20L)))
+                .thenReturn(java.util.Set.of(20L));
+        doThrow(new IllegalStateException("synthetic correction failure"))
+                .when(recoveryEventService).enqueue(source);
+
+        var result = assertDoesNotThrow(() -> hydrator.hydrate(7L, personalScope(), List.of(
+                new VectorSearchHit("p1", 0.9, payload(7L, "old:version")))));
+
+        assertEquals(List.of(), result);
+        verify(recoveryEventService).enqueue(source);
     }
 
     private ProjectAccessScope personalScope() {
