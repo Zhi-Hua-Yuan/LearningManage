@@ -86,7 +86,9 @@ jobs:
           TEST_DB_NAME: ${{ env.CI_EMPTY_DB_NAME }}
         run: ./mvnw -B -ntp -Dtest=DataCleanupLifecycleV8IT test
       - name: Validate Stage 7 static acceptance
-        run: bash scripts/ci/verify-stage7-acceptance.sh
+        run: |
+          bash scripts/ci/verify-stage7-acceptance.sh
+          bash scripts/ci/verify-production-deployment.sh
       - name: Validate Compose, Prometheus and Tempo files
         env:
           MYSQL_ROOT_PASSWORD: ci-root

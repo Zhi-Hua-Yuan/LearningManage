@@ -1,0 +1,27 @@
+services:
+  ai-stub:
+    image: ${CI_AI_STUB_IMAGE:?CI_AI_STUB_IMAGE is required}
+    command: ["python", "/opt/ai-stub/ai-chat-completions-stub.py"]
+    volumes:
+      - ../scripts/ci/stubs/ai-chat-completions-stub.py:/opt/ai-stub/ai-chat-completions-stub.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+    mem_limit: 64m
+    pids_limit: 64
+    networks:
+      - edge
+
+  backend:
+    depends_on:
+      ai-stub:
+        condition: service_healthy
+    environment:
+      AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1
+      AI_MODEL: ci-ai-stub
+      AI_BREAKDOWN_MODEL: ci-ai-stub
+      AI_POLISH_MODEL: ci-ai-stub
+      AI_FALLBACK_MODEL: ci-ai-stub

@@ -8,6 +8,13 @@
 /.dockerignore text eol=lf
 /.gitignore text eol=lf
 /Dockerfile text eol=lf
+/deploy/Dockerfile.* text eol=lf
+/deploy/apt/* text eol=lf
+/deploy/systemd/* text eol=lf
+/deploy/sudoers/* text eol=lf
+*.conf text eol=lf
+*.cnf text eol=lf
+*.example text eol=lf
 /deploy/*.yml text eol=lf
 /.github/workflows/*.yml text eol=lf
 /evals/stage3/** text eol=lf

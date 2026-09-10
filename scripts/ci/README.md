@@ -26,6 +26,7 @@
 | `verify-stage2-release-manifest.sh` | 按 JSON Schema 和阶段不变量校验 Stage 2 Manifest 及 sidecar |
 | `validate-release-candidate.sh` | 验证跨仓候选输入、仓库身份、`develop` 最新性和运行期间分支稳定性 |
 | `create-release-manifest.sh` | 生成不含凭据的跨仓候选 Manifest 和 SHA-256 |
+| `verify-production-deployment.sh` | 校验生产 Compose、资源/端口/网络边界、暗启动参数、镜像 digest、Nginx和运维脚本契约 |
 | `verify-stage0-acceptance.sh` | 校验阶段 0 验收合同、残余风险分类、证据路径和封存前置条件 |
 | `validate-json-schema.py` | 使用仓库内无第三方依赖校验器验证阶段 0 合同 Schema |
 | `tests/static-guards-test.sh` | 不连接数据库的静态负向保护自检 |

@@ -65,7 +65,7 @@ public class KnowledgeIndexWorker {
             indexService.reconcileSource(source,
                     new IndexExecutionContext(event.getId(), token, event.getTraceId(), eventType));
             if (!queueService.markSuccess(event.getId(), token)) {
-                log.warn("knowledge event success lost fencing race: eventId={}", event.getId());
+                log.warn("知识索引事件成功回写失败（fencing 竞争丢失）：eventId={}", event.getId());
                 return;
             }
             record(event, "SUCCEEDED", "none", startedAt);
@@ -76,7 +76,7 @@ public class KnowledgeIndexWorker {
                 record(event, "FAILED", exception.getFailureType().name(), startedAt);
             }
         } catch (RuntimeException exception) {
-            log.warn("knowledge event failed: eventId={}, type={}",
+            log.warn("知识索引事件处理失败：eventId={}, type={}",
                     event.getId(), exception.getClass().getSimpleName());
             markDocumentFailureSafely(source, event, KnowledgeFailureTypeEnum.INTERNAL,
                     "知识索引内部处理失败");
@@ -106,7 +106,7 @@ public class KnowledgeIndexWorker {
                             KnowledgeEventTypeEnum.valueOf(event.getEventType())),
                     failureType, safeError);
         } catch (RuntimeException exception) {
-            log.warn("knowledge document failure state update failed: eventId={}", event.getId());
+            log.warn("知识文档失败状态更新失败：eventId={}", event.getId());
         }
     }
 }

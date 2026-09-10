@@ -38,7 +38,7 @@ public class KnowledgeIndexEventPublisherImpl implements KnowledgeIndexEventPubl
                         KnowledgeEventTypeEnum eventType,
                         Long backfillRunId) {
         if (sourceType == null || eventType == null || sourceId == null || sourceId <= 0) {
-            throw new IllegalArgumentException("Knowledge index event source is invalid");
+            throw new IllegalArgumentException("知识索引事件来源参数不合法");
         }
         AiKnowledgeIndexEvent event = new AiKnowledgeIndexEvent();
         event.setSourceType(sourceType.name());
@@ -49,7 +49,7 @@ public class KnowledgeIndexEventPublisherImpl implements KnowledgeIndexEventPubl
         event.setBackfillRunId(backfillRunId);
         event.setTraceId(TraceContext.currentOrCreate());
         if (eventMapper.insert(event) != 1) {
-            throw new IllegalStateException("Unable to persist knowledge index event");
+            throw new IllegalStateException("知识索引事件持久化失败");
         }
     }
 

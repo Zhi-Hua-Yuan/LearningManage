@@ -39,7 +39,7 @@ public class KnowledgeEventQueueService {
             event.setLeaseUntil(now.plusSeconds(properties.getLeaseSeconds()));
             event.setNextAttemptAt(null);
             if (eventMapper.updateById(event) != 1) {
-                throw new IllegalStateException("Unable to claim knowledge event " + event.getId());
+                throw new IllegalStateException("认领知识索引事件失败，eventId=" + event.getId());
             }
         }
         return events;

@@ -63,7 +63,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
                     });
         } catch (KnowledgeRestTransport.TransportFailureException exception) {
             throw failure(KnowledgeFailureTypeEnum.NETWORK, true,
-                    "Embedding 服务暂时不可用", "Embedding HTTP transport failed", exception);
+                    "Embedding 服务暂时不可用", "Embedding HTTP 传输失败", exception);
         }
         return parse(response, texts.size());
     }
@@ -71,7 +71,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
     @Override
     public EmbeddingBatchResult embedQuery(String text, EmbeddingCallContext context) {
         if (text == null || text.isBlank()) {
-            throw new IllegalArgumentException("Embedding query must not be blank");
+            throw new IllegalArgumentException("Embedding 查询内容不能为空");
         }
         String sanitizedText = sanitize(text);
         ObjectNode request = objectMapper.createObjectNode();
@@ -98,7 +98,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
                     });
         } catch (KnowledgeRestTransport.TransportFailureException exception) {
             throw failure(KnowledgeFailureTypeEnum.NETWORK, true,
-                    "Embedding 服务暂时不可用", "Query embedding HTTP transport failed", exception);
+                    "Embedding 服务暂时不可用", "查询 Embedding HTTP 传输失败", exception);
         }
         return parseQuery(response);
     }
@@ -111,14 +111,14 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
                 embeddings = root.path("data");
             }
             if (!embeddings.isArray() || embeddings.size() != 1) {
-                throw new IllegalArgumentException("Query embedding response item count mismatch");
+                throw new IllegalArgumentException("查询 Embedding 返回结果数量不匹配");
             }
             JsonNode vectorNode = embeddings.get(0).path("embedding");
             if (!vectorNode.isArray() || vectorNode.size() != properties.getDimension()) {
                 throw failure(KnowledgeFailureTypeEnum.DIMENSION_MISMATCH, false,
                         "Embedding 向量维度不符合配置",
-                        "Expected query dimension " + properties.getDimension()
-                                + " but received " + vectorNode.size(), null);
+                        "期望查询 Embedding 维度为 " + properties.getDimension()
+                                + "，实际收到 " + vectorNode.size(), null);
             }
             List<Float> vector = new ArrayList<>(vectorNode.size());
             vectorNode.forEach(value -> vector.add((float) value.asDouble()));
@@ -139,7 +139,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             throw exception;
         } catch (Exception exception) {
             throw failure(KnowledgeFailureTypeEnum.EMBEDDING_PROTOCOL, false,
-                    "Embedding 返回格式异常", "Unable to parse query embedding response", exception);
+                    "Embedding 返回格式异常", "无法解析查询 Embedding 响应", exception);
         }
     }
 
@@ -148,7 +148,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode data = root.path("data");
             if (!data.isArray() || data.size() != expectedCount) {
-                throw new IllegalArgumentException("Embedding response item count mismatch");
+                throw new IllegalArgumentException("Embedding 返回结果数量不匹配");
             }
             List<IndexedVector> indexed = new ArrayList<>();
             for (int offset = 0; offset < data.size(); offset++) {
@@ -158,7 +158,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
                 if (!embedding.isArray() || embedding.size() != properties.getDimension()) {
                     throw failure(KnowledgeFailureTypeEnum.DIMENSION_MISMATCH, false,
                             "Embedding 向量维度不符合配置",
-                            "Expected dimension " + properties.getDimension() + " but received " + embedding.size(),
+                            "期望 Embedding 维度为 " + properties.getDimension() + "，实际收到 " + embedding.size(),
                             null);
                 }
                 List<Float> vector = new ArrayList<>(embedding.size());
@@ -168,7 +168,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             indexed.sort(Comparator.comparingInt(IndexedVector::index));
             for (int index = 0; index < indexed.size(); index++) {
                 if (indexed.get(index).index() != index) {
-                    throw new IllegalArgumentException("Embedding response indices are not contiguous");
+                    throw new IllegalArgumentException("Embedding 返回结果索引不连续");
                 }
             }
             JsonNode usage = root.path("usage");
@@ -176,7 +176,7 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             Long totalTokens = nullableLong(usage, "total_tokens");
             String model = root.path("model").asText("").trim();
             if (model.isBlank()) {
-                throw new IllegalArgumentException("Embedding provider did not identify the executed model");
+                throw new IllegalArgumentException("Embedding 服务未返回已执行模型信息");
             }
             String requestId = response.requestId();
             if ((requestId == null || requestId.isBlank()) && root.hasNonNull("id")) {
@@ -190,17 +190,17 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
             throw exception;
         } catch (Exception exception) {
             throw failure(KnowledgeFailureTypeEnum.EMBEDDING_PROTOCOL, false,
-                    "Embedding 返回格式异常", "Unable to parse embedding response", exception);
+                    "Embedding 返回格式异常", "无法解析 Embedding 响应", exception);
         }
     }
 
     private void validateInput(List<String> texts) {
         if (texts == null || texts.isEmpty() || texts.size() > properties.getMaxBatchSize()) {
-            throw new IllegalArgumentException("Embedding input size must be between 1 and "
-                    + properties.getMaxBatchSize());
+            throw new IllegalArgumentException("Embedding 输入数量必须在 1 到 "
+                    + properties.getMaxBatchSize() + " 之间");
         }
         if (texts.stream().anyMatch(text -> text == null || text.isBlank())) {
-            throw new IllegalArgumentException("Embedding text must not be blank");
+            throw new IllegalArgumentException("Embedding 文本不能为空");
         }
     }
 
@@ -208,10 +208,10 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
         var result = contentSanitizer.sanitizeForProvider(text);
         if (result.status() == AiSanitizationStatus.BLOCKED) {
             throw failure(KnowledgeFailureTypeEnum.CONFIG, false,
-                    "知识正文包含禁止发送的敏感信息", "Embedding content sanitizer blocked input", null);
+                    "知识正文包含禁止发送的敏感信息", "Embedding 内容清洗器拦截了输入内容", null);
         }
         if (result.value() == null || result.value().isBlank()) {
-            throw new IllegalArgumentException("Embedding text is empty after sanitization");
+            throw new IllegalArgumentException("清洗后 Embedding 文本为空");
         }
         return result.value();
     }
@@ -223,18 +223,18 @@ public class AliyunEmbeddingClient implements EmbeddingClient {
         }
         if (status == 401 || status == 403) {
             throw failure(KnowledgeFailureTypeEnum.AUTH, false,
-                    "Embedding 服务认证失败", "Embedding provider rejected credentials", null);
+                    "Embedding 服务认证失败", "Embedding 服务拒绝了凭证", null);
         }
         if (status == 429) {
             throw failure(KnowledgeFailureTypeEnum.RATE_LIMIT, true,
-                    "Embedding 服务请求过多", "Embedding provider rate limited request", null);
+                    "Embedding 服务请求过多", "Embedding 服务对请求做了限流", null);
         }
         if (status == 408 || status == 504) {
             throw failure(KnowledgeFailureTypeEnum.TIMEOUT, true,
-                    "Embedding 服务响应超时", "Embedding provider timed out", null);
+                    "Embedding 服务响应超时", "Embedding 服务响应超时", null);
         }
         throw failure(KnowledgeFailureTypeEnum.NETWORK, status >= 500,
-                "Embedding 服务调用失败", "Embedding provider returned HTTP " + status, null);
+                "Embedding 服务调用失败", "Embedding 服务返回 HTTP " + status, null);
     }
 
     private KnowledgeRestTransport transport() {
