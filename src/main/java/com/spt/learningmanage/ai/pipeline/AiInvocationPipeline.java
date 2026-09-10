@@ -84,8 +84,8 @@ public class AiInvocationPipeline {
     }
 
     /**
-     * Execute one Tool-capable Agent model round. Request and response bodies
-     * are never persisted; each round is correlated to its durable Agent Run.
+     * 执行一次支持 Tool 的 Agent 模型轮次。请求体和响应体不会被持久化；
+     * 每一轮都与其对应的持久化 Agent Run 关联。
      */
     public AiExecutionResult<AiChatResult> executeChatRound(AiChatRoundExecutionCommand command) {
         if (command == null) {
