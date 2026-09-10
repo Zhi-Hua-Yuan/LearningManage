@@ -62,6 +62,15 @@ services:
       JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
     expose:
       - "8123"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 896m
+    pids_limit: 192
     networks:
       - release-internal
 

@@ -165,6 +165,7 @@ jobs:
           bash scripts/ci/tests/static-guards-test.sh
           bash scripts/ci/verify-stage0-acceptance.sh
           bash scripts/ci/verify-stage2-acceptance.sh
+          bash scripts/ci/verify-production-deployment.sh
           bash scripts/ci/verify-ai-invocation-boundary.sh
           bash scripts/ci/verify-published-migrations.sh
           bash scripts/ci/verify-stage2-wp2-protocol-stub.sh
@@ -577,8 +578,23 @@ jobs:
       CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs
       CI_FULL_STACK_BASE_URL: http://127.0.0.1:18080
       CI_AI_FLOW_OUTPUT_DIR: ci-artifacts/full-stack
-      CI_NGINX_IMAGE: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+      CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
       CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+      CI_PRODUCTION_FRONTEND_IMAGE: learningmanage-frontend-release:${{ needs.freeze-candidate.outputs.frontend_sha }}
+      CI_PRODUCTION_FRONTEND_CONTAINER: learningmanage-prod-frontend-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_PRODUCTION_MIGRATION_DB: learning_manage_ci_production_entrypoint
+      CI_PRODUCTION_COMPOSE_PROJECT_NAME: learningmanage-prod-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_PRODUCTION_ENV_FILE: ${{ runner.temp }}/learning-manage-production-gate.env
+      CI_REDIS_IMAGE: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+      CI_QDRANT_IMAGE: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
+      CI_PROMETHEUS_IMAGE: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
+      CI_TEMPO_IMAGE: grafana/tempo:2.6.1@sha256:ef4384fce6e8ad22b95b243d8fc165628cda655376fd50e7850536ad89d71d50
+      CI_GRAFANA_IMAGE: grafana/grafana:11.2.2@sha256:d5133220d770aba5cb655147b619fa8770b90f41d8489a821d33b1cd34d16f89
+      CI_PROD_ROOT_PASSWORD: ci_prod_root_${{ github.run_id }}_${{ github.run_attempt }}_Aa9x
+      CI_PROD_APP_PASSWORD: ci_prod_app_${{ github.run_id }}_${{ github.run_attempt }}_Aa9x_secure
+      CI_PROD_MIGRATOR_PASSWORD: ci_prod_migrator_${{ github.run_id }}_${{ github.run_attempt }}_Aa9x_secure
+      CI_PROD_REDIS_PASSWORD: ci_prod_redis_${{ github.run_id }}_${{ github.run_attempt }}_Aa9x_secure
+      CI_PROD_QDRANT_KEY: ci_prod_qdrant_${{ github.run_id }}_${{ github.run_attempt }}_Aa9x_secure
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -614,11 +630,30 @@ jobs:
           set -Eeuo pipefail
           test -d "$CI_FRONTEND_DIST_DIR"
           (cd frontend-artifacts && sha256sum --check dist.sha256)
-      - name: Build backend candidate image
+      - name: Build production backend and frontend candidate images
         run: |
-          docker build --pull \
+          set -Eeuo pipefail
+          mkdir -p backend frontend
+          cp ci-artifacts/LearningManage-0.0.1-SNAPSHOT.jar backend/app.jar
+          cp -a frontend-artifacts/dist frontend/
+          docker build \
             --build-arg RUNTIME_IMAGE=eclipse-temurin:17-jre-alpine@sha256:b0ae54a36f82e04dc6c45e40ca5c55762e20b9a0858ee457faf557d440a9b571 \
+            --build-arg BACKEND_SHA='${{ needs.freeze-candidate.outputs.backend_sha }}' \
+            --file deploy/Dockerfile.backend.prod \
             --tag "$CI_BACKEND_IMAGE" .
+          docker build \
+            --build-arg NGINX_IMAGE="$CI_NGINX_IMAGE" \
+            --build-arg FRONTEND_SHA='${{ needs.freeze-candidate.outputs.frontend_sha }}' \
+            --file deploy/Dockerfile.frontend.prod \
+            --tag "$CI_PRODUCTION_FRONTEND_IMAGE" .
+          test "$(docker image inspect "$CI_BACKEND_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = '${{ needs.freeze-candidate.outputs.backend_sha }}'
+          test "$(docker image inspect "$CI_PRODUCTION_FRONTEND_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = '${{ needs.freeze-candidate.outputs.frontend_sha }}'
+      - name: Validate production frontend Nginx configuration
+        run: |
+          docker run --rm \
+            --add-host backend:127.0.0.1 \
+            --entrypoint nginx \
+            "$CI_PRODUCTION_FRONTEND_IMAGE" -t
       - name: Start isolated database and migrate
         shell: bash
         run: |
@@ -628,12 +663,191 @@ jobs:
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh
           bash scripts/ci/verify-empty-database.sh
+      - name: Validate production PropertiesLauncher migrator entrypoint
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" \
+            exec -T mysql mysql -uroot -p"$CI_MYSQL_ADMIN_PASSWORD" --execute="
+              CREATE DATABASE \`learning_manage_ci_production_entrypoint\`
+                CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES,
+                    ALTER, DROP, INDEX, REFERENCES
+                ON \`learning_manage_ci_production_entrypoint\`.*
+                TO 'learning_manage_ci_migrator'@'%';"
+          network_id="$(docker network ls \
+            --filter "label=com.docker.compose.project=$CI_COMPOSE_PROJECT_NAME" \
+            --filter 'label=com.docker.compose.network=release-internal' \
+            --format '{{.ID}}')"
+          test -n "$network_id"
+          run_production_migrator() {
+            docker run --rm \
+              --network "$network_id" \
+              --read-only \
+              --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+              --cap-drop ALL \
+              --security-opt no-new-privileges:true \
+              --memory 512m \
+              --pids-limit 128 \
+              --env DB_HOST=mysql \
+              --env DB_PORT=3306 \
+              --env "DB_NAME=$CI_PRODUCTION_MIGRATION_DB" \
+              --env "FLYWAY_DB_USERNAME=$FLYWAY_DB_USERNAME" \
+              --env "FLYWAY_DB_PASSWORD=$FLYWAY_DB_PASSWORD" \
+              --env "FLYWAY_ALLOW_PENDING_VALIDATE=${FLYWAY_ALLOW_PENDING_VALIDATE:-false}" \
+              --entrypoint java \
+              "$CI_BACKEND_IMAGE" \
+              -Dloader.main=com.spt.learningmanage.flyway.FlywayAdmin \
+              -cp /app/app.jar \
+              org.springframework.boot.loader.launch.PropertiesLauncher \
+              "$@"
+          }
+          run_production_migrator info
+          FLYWAY_ALLOW_PENDING_VALIDATE=true run_production_migrator validate
+          run_production_migrator migrate
+          run_production_migrator validate
+          history_total="$(docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" \
+            exec -T mysql mysql -N -B -uroot -p"$CI_MYSQL_ADMIN_PASSWORD" "$CI_PRODUCTION_MIGRATION_DB" \
+            --execute='SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1;')"
+          test "$history_total" = 8
+      - name: Run full production Compose Phase A gate
+        shell: bash
+        env:
+          RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
+        run: |
+          set -Eeuo pipefail
+          secret_dir="$RUNNER_TEMP/learning-manage-production-secrets"
+          mkdir -p "$secret_dir"
+          printf '%s\n' "$CI_PROD_ROOT_PASSWORD" > "$secret_dir/mysql-root-password"
+          printf '%s\n' 'ci_prod_grafana_password_Aa9x_secure_1234' > "$secret_dir/grafana-admin-password"
+          chmod 0600 "$secret_dir"/*
+          cat > "$CI_PRODUCTION_ENV_FILE" <<EOF
+          BACKEND_IMAGE=$CI_BACKEND_IMAGE
+          FRONTEND_IMAGE=$CI_PRODUCTION_FRONTEND_IMAGE
+          MYSQL_IMAGE=$CI_MYSQL_IMAGE
+          REDIS_IMAGE=$CI_REDIS_IMAGE
+          QDRANT_IMAGE=$CI_QDRANT_IMAGE
+          PROMETHEUS_IMAGE=$CI_PROMETHEUS_IMAGE
+          TEMPO_IMAGE=$CI_TEMPO_IMAGE
+          GRAFANA_IMAGE=$CI_GRAFANA_IMAGE
+          MYSQL_ROOT_PASSWORD_FILE=$secret_dir/mysql-root-password
+          GRAFANA_ADMIN_PASSWORD_FILE=$secret_dir/grafana-admin-password
+          DB_NAME=learning_manage_prod_gate
+          DB_USERNAME=learning_manage_ci_app
+          DB_PASSWORD=$CI_PROD_APP_PASSWORD
+          REDIS_PASSWORD=$CI_PROD_REDIS_PASSWORD
+          JWT_SECRET=ci_prod_jwt_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_Aa9x_secure_secret
+          ALIYUN_API_KEY=ci-only-not-a-real-provider-key
+          AI_EMBEDDING_API_KEY=ci-only-not-a-real-provider-key
+          AI_RERANK_API_KEY=ci-only-not-a-real-provider-key
+          AI_RAG_QUESTION_HMAC_SECRET=ci_prod_rag_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_Aa9x_secure_secret
+          QDRANT_API_KEY=$CI_PROD_QDRANT_KEY
+          FLYWAY_DB_USERNAME=learning_manage_ci_migrator
+          FLYWAY_DB_PASSWORD=$CI_PROD_MIGRATOR_PASSWORD
+          AI_KNOWLEDGE_WORKER_ENABLED=false
+          AI_RAG_ENABLED=false
+          AI_AGENT_ENABLED=false
+          AI_AGENT_WORKER_ENABLED=false
+          AI_AGENT_TOOL_CALLING_ENABLED=false
+          AI_CLEANUP_ENABLED=false
+          AI_CLEANUP_SCHEDULE_ENABLED=false
+          MANAGEMENT_TRACING_ENABLED=false
+          EOF
+          chmod 0600 "$CI_PRODUCTION_ENV_FILE"
+          prod_compose=(docker compose \
+            --project-name "$CI_PRODUCTION_COMPOSE_PROJECT_NAME" \
+            --env-file "$CI_PRODUCTION_ENV_FILE" \
+            --file deploy/docker-compose.prod.yml \
+            --file deploy/docker-compose.prod-gate.yml)
+          "${prod_compose[@]}" config --quiet
+          "${prod_compose[@]}" up -d --wait mysql redis qdrant
+          "${prod_compose[@]}" exec -T \
+            --env "CI_PROD_MIGRATOR_PASSWORD=$CI_PROD_MIGRATOR_PASSWORD" \
+            --env "CI_PROD_APP_PASSWORD=$CI_PROD_APP_PASSWORD" \
+            mysql sh -eu -c '
+            MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"
+            export MYSQL_PWD
+            mysql -uroot --protocol=socket --execute="
+              CREATE USER '\''learning_manage_ci_migrator'\''@'\''%'\'' IDENTIFIED BY '\''${CI_PROD_MIGRATOR_PASSWORD}'\'';
+              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES,
+                    ALTER, DROP, INDEX, REFERENCES ON \`learning_manage_prod_gate\`.*
+                TO '\''learning_manage_ci_migrator'\''@'\''%'\'';
+              CREATE USER '\''learning_manage_ci_app'\''@'\''%'\'' IDENTIFIED BY '\''${CI_PROD_APP_PASSWORD}'\'';
+              GRANT SELECT, INSERT, UPDATE, DELETE ON \`learning_manage_prod_gate\`.*
+                TO '\''learning_manage_ci_app'\''@'\''%'\'';"
+          '
+          "${prod_compose[@]}" --profile admin run --rm migrator info
+          "${prod_compose[@]}" --profile admin run --rm -e FLYWAY_ALLOW_PENDING_VALIDATE=true migrator validate
+          "${prod_compose[@]}" --profile admin run --rm migrator migrate
+          "${prod_compose[@]}" --profile admin run --rm migrator validate
+          mysql_settings="$("${prod_compose[@]}" exec -T mysql sh -eu -c '
+            MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"
+            export MYSQL_PWD
+            mysql -N -B -uroot --protocol=socket --execute="SELECT @@innodb_buffer_pool_size, @@max_connections, @@performance_schema;"
+          ')"
+          test "$mysql_settings" = $'268435456\t50\t0'
+          test "$("${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning ping)" = PONG
+          test "$("${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning EVAL "return redis.call('incr', KEYS[1])" 1 rate_limit:ai:ci:probe)" = 1
+          if "${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning FLUSHALL >/dev/null 2>&1; then
+            printf '%s\n' 'production Redis ACL unexpectedly allowed FLUSHALL' >&2
+            exit 1
+          fi
+          "${prod_compose[@]}" up -d --wait ai-stub backend frontend
+          "${prod_compose[@]}" exec -T backend sh -eu -c '
+            wget -q -O - --header="api-key: ${QDRANT_API_KEY}" http://qdrant:6333/collections | grep -q result
+            if wget -q -O /dev/null http://qdrant:6333/collections; then
+              printf "%s\n" "Qdrant unexpectedly allowed an unauthenticated request" >&2
+              exit 1
+            fi
+          '
+          CI_FULL_STACK_BASE_URL=http://127.0.0.1:18080 \
+          CI_AI_FLOW_OUTPUT_DIR=ci-artifacts/production-full-stack \
+            bash scripts/ci/verify-ai-breakdown-flow.sh
+          "${prod_compose[@]}" down --volumes --remove-orphans
       - name: Start full-stack runtime and verify edge health
         shell: bash
         run: |
           set -Eeuo pipefail
           docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" up -d ai-stub backend frontend
           bash scripts/ci/verify-docker-runtime.sh
+      - name: Run production frontend image with hardened runtime options
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          network_id="$(docker network ls \
+            --filter "label=com.docker.compose.project=$CI_COMPOSE_PROJECT_NAME" \
+            --filter 'label=com.docker.compose.network=release-internal' \
+            --format '{{.ID}}')"
+          test -n "$network_id"
+          docker run -d \
+            --name "$CI_PRODUCTION_FRONTEND_CONTAINER" \
+            --network "$network_id" \
+            --publish 127.0.0.1:18081:80 \
+            --read-only \
+            --tmpfs /var/cache/nginx:rw,noexec,nosuid,size=16m,mode=0755 \
+            --tmpfs /var/run:rw,noexec,nosuid,size=2m,mode=0755 \
+            --tmpfs /tmp:rw,noexec,nosuid,size=8m,mode=1777 \
+            --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add DAC_OVERRIDE \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --cap-add NET_BIND_SERVICE \
+            --security-opt no-new-privileges:true \
+            --memory 64m \
+            --pids-limit 64 \
+            --entrypoint nginx \
+            "$CI_PRODUCTION_FRONTEND_IMAGE" -g 'daemon off;'
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:18081/api/health \
+                | grep -q '"code":0'; then
+              break
+            fi
+            test "$attempt" -lt 30
+            sleep 2
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18081/api/v3/api-docs)" = 404
+          docker rm -f "$CI_PRODUCTION_FRONTEND_CONTAINER"
       - name: Export runtime OpenAPI and compare frontend contract
         id: api-contract
         shell: bash
@@ -670,6 +884,13 @@ jobs:
             > "$RUNNER_TEMP/release-docker-logs/compose-ps.txt" || true
           docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" logs --no-color \
             > "$RUNNER_TEMP/release-docker-logs/compose-logs.txt" || true
+          if [[ -f "$CI_PRODUCTION_ENV_FILE" ]]; then
+            docker compose --project-name "$CI_PRODUCTION_COMPOSE_PROJECT_NAME" \
+              --env-file "$CI_PRODUCTION_ENV_FILE" \
+              --file deploy/docker-compose.prod.yml \
+              --file deploy/docker-compose.prod-gate.yml \
+              logs --no-color > "$RUNNER_TEMP/release-docker-logs/production-compose-logs.txt" || true
+          fi
       - name: Upload Docker diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -684,7 +905,16 @@ jobs:
         run: |
           set -Eeuo pipefail
           docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" down --volumes --remove-orphans || true
+          if [[ -f "$CI_PRODUCTION_ENV_FILE" ]]; then
+            docker compose --project-name "$CI_PRODUCTION_COMPOSE_PROJECT_NAME" \
+              --env-file "$CI_PRODUCTION_ENV_FILE" \
+              --file deploy/docker-compose.prod.yml \
+              --file deploy/docker-compose.prod-gate.yml \
+              down --volumes --remove-orphans || true
+          fi
+          docker rm -f "$CI_PRODUCTION_FRONTEND_CONTAINER" || true
           docker image rm "$CI_BACKEND_IMAGE" || true
+          docker image rm "$CI_PRODUCTION_FRONTEND_IMAGE" || true
 
   candidate-manifest:
     name: Candidate manifest
@@ -761,6 +991,14 @@ jobs:
           WORKFLOW_ACTOR: ${{ github.actor }}
           WORKFLOW_EXECUTED_AT: ${{ steps.timestamp.outputs.value }}
         run: bash scripts/ci/create-release-manifest.sh
+      - name: Create production release manifest
+        id: production-manifest
+        shell: bash
+        run: |
+          bash scripts/prod/create-production-manifest.sh \
+            "${{ steps.manifest.outputs.manifest_path }}" \
+            deploy/release-images.env.example \
+            "${{ runner.temp }}/release-manifest/production-release-manifest.json"
       - name: Verify generated manifest
         shell: bash
         run: |
@@ -782,6 +1020,9 @@ jobs:
           verify_bound_hash riskRegisterSha256 "$risk_register"
           verify_bound_hash schemaSha256 "$schema"
           (cd "$(dirname "$manifest")" && sha256sum --check "$(basename "$manifest").sha256")
+          production_manifest='${{ runner.temp }}/release-manifest/production-release-manifest.json'
+          jq -e '.schemaVersion == 1 and .status == "PASS" and (.migrations | keys | length) == 8 and (.externalImages | keys | length) == 8' "$production_manifest" >/dev/null
+          (cd "$(dirname "$production_manifest")" && sha256sum --check "$(basename "$production_manifest").sha256")
       - name: Upload release candidate manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -792,6 +1033,7 @@ jobs:
       - name: Write candidate summary
         shell: bash
         run: |
+          production_manifest_sha256="$(sha256sum "${{ runner.temp }}/release-manifest/production-release-manifest.json" | awk '{print toupper($1)}')"
           {
             printf '## Cross-repository candidate PASS\n\n'
             printf -- '- Candidate: `%s`\n' '${{ needs.freeze-candidate.outputs.candidate_id }}'
@@ -800,4 +1042,5 @@ jobs:
             printf -- '- Matched frontend operations: `%s`\n' '${{ needs.docker-gate.outputs.matched_operation_count }}'
             printf -- '- AI breakdown flow: `%s` projects, `%s` milestones, `%s` tasks\n' '${{ needs.docker-gate.outputs.full_stack_confirmed_project_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_milestone_count }}' '${{ needs.docker-gate.outputs.full_stack_confirmed_task_count }}'
             printf -- '- Manifest SHA-256: `%s`\n' '${{ steps.manifest.outputs.manifest_sha256 }}'
+            printf -- '- Production manifest SHA-256: `%s`\n' "$production_manifest_sha256"
           } >> "$GITHUB_STEP_SUMMARY"
