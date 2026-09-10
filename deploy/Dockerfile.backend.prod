@@ -1,0 +1,18 @@
+ARG RUNTIME_IMAGE
+FROM ${RUNTIME_IMAGE}
+
+ARG BACKEND_SHA
+LABEL org.opencontainers.image.revision=${BACKEND_SHA}
+LABEL org.opencontainers.image.source="https://github.com/Zhi-Hua-Yuan/LearningManage"
+
+WORKDIR /app
+
+RUN addgroup -S app && adduser -S -G app app
+COPY --chown=app:app backend/app.jar /app/app.jar
+
+USER app
+
+EXPOSE 8123 9123
+
+ENV SPRING_PROFILES_ACTIVE=prod
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

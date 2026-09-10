@@ -1,0 +1,354 @@
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  mysql:
+    <<: *service-defaults
+    image: ${MYSQL_IMAGE:?MYSQL_IMAGE with an immutable digest is required}
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: ${DB_NAME:?DB_NAME is required}
+      TZ: Asia/Shanghai
+    secrets:
+      - mysql_root_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/learning-manage.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$(cat /run/secrets/mysql_root_password)\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 640m
+    pids_limit: 160
+    networks:
+      - data-internal
+
+  redis:
+    <<: *service-defaults
+    image: ${REDIS_IMAGE:?REDIS_IMAGE with an immutable digest is required}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "/opt/learning/redis-entrypoint-prod.sh"]
+    volumes:
+      - redis-data:/data
+      - ./redis/redis-entrypoint-prod.sh:/opt/learning/redis-entrypoint-prod.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user learning_app --pass \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    mem_limit: 128m
+    pids_limit: 64
+    networks:
+      - data-internal
+
+  qdrant:
+    <<: *service-defaults
+    image: ${QDRANT_IMAGE:?QDRANT_IMAGE with an immutable digest is required}
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?QDRANT_API_KEY is required}
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - data-internal
+
+  backend:
+    <<: *service-defaults
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx512m -XX:MaxMetaspaceSize=192m}
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_CONNECTION_TIMEOUT_MS: ${DB_CONNECTION_TIMEOUT_MS:-5000}
+      DB_VALIDATION_TIMEOUT_MS: ${DB_VALIDATION_TIMEOUT_MS:-2000}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      FLYWAY_ENABLED: "false"
+      FLYWAY_DB_USERNAME: __flyway_migrator_not_configured__
+      FLYWAY_DB_PASSWORD: __flyway_migrator_not_configured__
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_USERNAME: learning_app
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-86400}
+      ALIYUN_API_KEY: ${ALIYUN_API_KEY:?ALIYUN_API_KEY is required}
+      AI_BASE_URL: ${AI_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      AI_MODEL: ${AI_MODEL:-qwen-plus}
+      AI_BREAKDOWN_MODEL: ${AI_BREAKDOWN_MODEL:-qwen-plus}
+      AI_POLISH_MODEL: ${AI_POLISH_MODEL:-qwen-flash}
+      AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL:-qwen-plus}
+      AI_CHAT_ENABLED: ${AI_CHAT_ENABLED:-true}
+      AI_CONNECT_TIMEOUT_MS: ${AI_CONNECT_TIMEOUT_MS:-5000}
+      AI_READ_TIMEOUT_MS: ${AI_READ_TIMEOUT_MS:-60000}
+      AI_TOTAL_TIMEOUT_MS: ${AI_TOTAL_TIMEOUT_MS:-120000}
+      AI_MAX_CONCURRENT_CALLS: ${AI_MAX_CONCURRENT_CALLS:-4}
+      AI_MAX_WAIT_MILLIS: ${AI_MAX_WAIT_MILLIS:-0}
+      AI_PRICE_VERSION: ${AI_PRICE_VERSION:-}
+      AI_PRICE_CURRENCY: ${AI_PRICE_CURRENCY:-CNY}
+      QWEN_PLUS_INPUT_PRICE: ${QWEN_PLUS_INPUT_PRICE:-}
+      QWEN_PLUS_OUTPUT_PRICE: ${QWEN_PLUS_OUTPUT_PRICE:-}
+      AI_RATE_LIMIT_ENABLED: ${AI_RATE_LIMIT_ENABLED:-true}
+      AI_RATE_LIMIT_FAIL_OPEN: ${AI_RATE_LIMIT_FAIL_OPEN:-false}
+      AI_KNOWLEDGE_WORKER_ENABLED: ${AI_KNOWLEDGE_WORKER_ENABLED:-false}
+      AI_KNOWLEDGE_POLL_MS: ${AI_KNOWLEDGE_POLL_MS:-2000}
+      AI_KNOWLEDGE_CLAIM_BATCH_SIZE: ${AI_KNOWLEDGE_CLAIM_BATCH_SIZE:-5}
+      AI_KNOWLEDGE_WORKER_CONCURRENCY: ${AI_KNOWLEDGE_WORKER_CONCURRENCY:-1}
+      AI_KNOWLEDGE_LEASE_SECONDS: ${AI_KNOWLEDGE_LEASE_SECONDS:-60}
+      AI_KNOWLEDGE_MAX_ATTEMPTS: ${AI_KNOWLEDGE_MAX_ATTEMPTS:-5}
+      AI_KNOWLEDGE_EMBEDDING_CONCURRENCY: ${AI_KNOWLEDGE_EMBEDDING_CONCURRENCY:-1}
+      AI_KNOWLEDGE_VECTOR_CONCURRENCY: ${AI_KNOWLEDGE_VECTOR_CONCURRENCY:-2}
+      AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      AI_EMBEDDING_QUERY_BASE_URL: ${AI_EMBEDDING_QUERY_BASE_URL:-https://dashscope.aliyuncs.com/api/v1}
+      AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:?AI_EMBEDDING_API_KEY is required}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-v4}
+      AI_EMBEDDING_DIMENSION: ${AI_EMBEDDING_DIMENSION:-1024}
+      AI_EMBEDDING_BATCH_SIZE: ${AI_EMBEDDING_BATCH_SIZE:-10}
+      AI_RAG_ENABLED: ${AI_RAG_ENABLED:-false}
+      AI_RAG_REQUIRE_BACKFILL: ${AI_RAG_REQUIRE_BACKFILL:-true}
+      AI_RAG_QUESTION_HMAC_SECRET: ${AI_RAG_QUESTION_HMAC_SECRET:?AI_RAG_QUESTION_HMAC_SECRET is required}
+      AI_RAG_CONFIG_VERSION: ${AI_RAG_CONFIG_VERSION:-rag-v1}
+      AI_RAG_INITIAL_TOP_K: ${AI_RAG_INITIAL_TOP_K:-20}
+      AI_RAG_FINAL_TOP_K: ${AI_RAG_FINAL_TOP_K:-8}
+      AI_RAG_VECTOR_SCORE_THRESHOLD: ${AI_RAG_VECTOR_SCORE_THRESHOLD:-0.25}
+      AI_RAG_RERANK_SCORE_THRESHOLD: ${AI_RAG_RERANK_SCORE_THRESHOLD:-0.20}
+      AI_RAG_RESULT_RETENTION_DAYS: ${AI_RAG_RESULT_RETENTION_DAYS:-30}
+      AI_RERANK_BASE_URL: ${AI_RERANK_BASE_URL:-https://dashscope.aliyuncs.com/compatible-api/v1}
+      AI_RERANK_API_KEY: ${AI_RERANK_API_KEY:?AI_RERANK_API_KEY is required}
+      AI_RERANK_MODEL: ${AI_RERANK_MODEL:-qwen3-rerank}
+      AI_RERANK_MAX_CONCURRENT_CALLS: ${AI_RERANK_MAX_CONCURRENT_CALLS:-1}
+      QDRANT_BASE_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?QDRANT_API_KEY is required}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-learning_knowledge_v1_1024}
+      QDRANT_ALIAS: ${QDRANT_ALIAS:-learning_knowledge_current}
+      QDRANT_REQUIRE_SECURE_TRANSPORT: "false"
+      AI_AGENT_ENABLED: ${AI_AGENT_ENABLED:-false}
+      AI_AGENT_WORKER_ENABLED: ${AI_AGENT_WORKER_ENABLED:-false}
+      AI_AGENT_TOOL_CALLING_ENABLED: ${AI_AGENT_TOOL_CALLING_ENABLED:-false}
+      AI_AGENT_POLL_DELAY_MS: ${AI_AGENT_POLL_DELAY_MS:-1000}
+      AI_AGENT_BATCH_SIZE: ${AI_AGENT_BATCH_SIZE:-1}
+      AI_AGENT_MAX_CONCURRENT_RUNS: ${AI_AGENT_MAX_CONCURRENT_RUNS:-1}
+      AI_AGENT_MAX_CONCURRENT_RUNS_PER_USER: ${AI_AGENT_MAX_CONCURRENT_RUNS_PER_USER:-1}
+      AI_AGENT_LEASE_SECONDS: ${AI_AGENT_LEASE_SECONDS:-90}
+      AI_AGENT_HEARTBEAT_SECONDS: ${AI_AGENT_HEARTBEAT_SECONDS:-15}
+      AI_AGENT_OVERALL_TIMEOUT_SECONDS: ${AI_AGENT_OVERALL_TIMEOUT_SECONDS:-60}
+      AI_AGENT_TOOL_TIMEOUT_SECONDS: ${AI_AGENT_TOOL_TIMEOUT_SECONDS:-10}
+      AI_AGENT_MAX_TOOL_CALLS: ${AI_AGENT_MAX_TOOL_CALLS:-4}
+      AI_AGENT_MAX_ATTEMPTS: ${AI_AGENT_MAX_ATTEMPTS:-2}
+      MANAGEMENT_PORT: "9123"
+      MANAGEMENT_ADDRESS: 0.0.0.0
+      MANAGEMENT_TRACING_ENABLED: ${MANAGEMENT_TRACING_ENABLED:-false}
+      MANAGEMENT_TRACING_SAMPLING: ${MANAGEMENT_TRACING_SAMPLING:-0.02}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4318/v1/traces}
+      AI_CLEANUP_ENABLED: ${AI_CLEANUP_ENABLED:-false}
+      AI_CLEANUP_SCHEDULE_ENABLED: ${AI_CLEANUP_SCHEDULE_ENABLED:-false}
+      AI_CLEANUP_POLICY_VERSION: ${AI_CLEANUP_POLICY_VERSION:-stage7-v1}
+      AI_CLEANUP_BATCH_SIZE: ${AI_CLEANUP_BATCH_SIZE:-100}
+      AI_CLEANUP_MAX_RUNTIME_SECONDS: ${AI_CLEANUP_MAX_RUNTIME_SECONDS:-300}
+      AI_CLEANUP_LEASE_SECONDS: ${AI_CLEANUP_LEASE_SECONDS:-90}
+      AI_CLEANUP_DRY_RUN_VALID_HOURS: ${AI_CLEANUP_DRY_RUN_VALID_HOURS:-24}
+      AI_CLEANUP_BODY_RETENTION_DAYS: ${AI_CLEANUP_BODY_RETENTION_DAYS:-30}
+      AI_CLEANUP_METADATA_RETENTION_DAYS: ${AI_CLEANUP_METADATA_RETENTION_DAYS:-90}
+      AI_CLEANUP_SUCCESS_EVENT_RETENTION_DAYS: ${AI_CLEANUP_SUCCESS_EVENT_RETENTION_DAYS:-14}
+      AI_CLEANUP_ADMIN_AUDIT_RETENTION_DAYS: ${AI_CLEANUP_ADMIN_AUDIT_RETENTION_DAYS:-180}
+      AI_DAILY_COST_SOFT_LIMIT: ${AI_DAILY_COST_SOFT_LIMIT:-}
+      AI_DAILY_COST_HARD_LIMIT: ${AI_DAILY_COST_HARD_LIMIT:-}
+    expose:
+      - "8123"
+      - "9123"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9123/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    mem_limit: 896m
+    pids_limit: 192
+    networks:
+      - edge
+      - data-internal
+      - observability-internal
+
+  frontend:
+    <<: *service-defaults
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=0755
+      - /var/run:size=2m,mode=0755
+      - /tmp:size=8m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    mem_limit: 64m
+    pids_limit: 64
+    networks:
+      - edge
+
+  migrator:
+    profiles: ["admin"]
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    restart: "no"
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    entrypoint:
+      - java
+      - -Dloader.main=com.spt.learningmanage.flyway.FlywayAdmin
+      - -cp
+      - /app/app.jar
+      - org.springframework.boot.loader.launch.PropertiesLauncher
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      FLYWAY_DB_USERNAME: ${FLYWAY_DB_USERNAME:-__migration_credentials_not_configured__}
+      FLYWAY_DB_PASSWORD: ${FLYWAY_DB_PASSWORD:-__migration_credentials_not_configured__}
+      FLYWAY_EXPECTED_DB_NAME: ${DB_NAME:?DB_NAME is required}
+      FLYWAY_BASELINE_AUTHORIZED: "false"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - data-internal
+
+  prometheus:
+    profiles: ["observability"]
+    <<: *service-defaults
+    image: ${PROMETHEUS_IMAGE:?PROMETHEUS_IMAGE with an immutable digest is required}
+    depends_on:
+      backend:
+        condition: service_healthy
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=3d
+      - --storage.tsdb.retention.size=512MB
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 256m
+    pids_limit: 96
+    networks:
+      - observability-internal
+
+  tempo:
+    profiles: ["observability"]
+    <<: *service-defaults
+    image: ${TEMPO_IMAGE:?TEMPO_IMAGE with an immutable digest is required}
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.prod.yml:/etc/tempo.yml:ro
+      - tempo-data:/var/tempo
+    mem_limit: 192m
+    pids_limit: 96
+    networks:
+      - observability-internal
+
+  grafana:
+    profiles: ["observability"]
+    <<: *service-defaults
+    image: ${GRAFANA_IMAGE:?GRAFANA_IMAGE with an immutable digest is required}
+    depends_on:
+      - prometheus
+      - tempo
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    secrets:
+      - grafana_admin_password
+    ports:
+      - "127.0.0.1:13000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    mem_limit: 256m
+    pids_limit: 128
+    networks:
+      - observability-internal
+
+networks:
+  edge:
+    driver: bridge
+  data-internal:
+    driver: bridge
+    internal: true
+  observability-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  mysql-data:
+  redis-data:
+  qdrant-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:
+
+secrets:
+  mysql_root_password:
+    file: ${MYSQL_ROOT_PASSWORD_FILE:?MYSQL_ROOT_PASSWORD_FILE is required}
+  grafana_admin_password:
+    file: ${GRAFANA_ADMIN_PASSWORD_FILE:-/etc/learning-manage/secrets/grafana-admin-password}

@@ -1,0 +1,4 @@
+# lmdeploy is already root-equivalent through membership in the Docker group.
+# Explicit sudo keeps host-level Nginx, Certbot, UFW and systemd operations
+# auditable instead of relying on a Docker socket privilege-escalation trick.
+lmdeploy ALL=(ALL:ALL) NOPASSWD: ALL

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "production-release-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "backendSha",
+    "frontendSha",
+    "candidateManifestSha256",
+    "applicationImages",
+    "externalImages",
+    "migrations"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "const": "PASS" },
+    "backendSha": { "$ref": "#/$defs/gitSha" },
+    "frontendSha": { "$ref": "#/$defs/gitSha" },
+    "candidateManifestSha256": { "$ref": "#/$defs/sha256" },
+    "applicationImages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend"],
+      "properties": {
+        "backend": { "type": "string", "pattern": "^learningmanage-backend:[0-9a-f]{40}$" },
+        "frontend": { "type": "string", "pattern": "^learningmanage-frontend:[0-9a-f]{40}$" }
+      }
+    },
+    "externalImages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime", "nginx", "mysql", "redis", "qdrant", "prometheus", "tempo", "grafana"],
+      "properties": {
+        "runtime": { "$ref": "#/$defs/digestImage" },
+        "nginx": { "$ref": "#/$defs/digestImage" },
+        "mysql": { "$ref": "#/$defs/digestImage" },
+        "redis": { "$ref": "#/$defs/digestImage" },
+        "qdrant": { "$ref": "#/$defs/digestImage" },
+        "prometheus": { "$ref": "#/$defs/digestImage" },
+        "tempo": { "$ref": "#/$defs/digestImage" },
+        "grafana": { "$ref": "#/$defs/digestImage" }
+      }
+    },
+    "migrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8"],
+      "properties": {
+        "V1": { "$ref": "#/$defs/sha256" },
+        "V2": { "$ref": "#/$defs/sha256" },
+        "V3": { "$ref": "#/$defs/sha256" },
+        "V4": { "$ref": "#/$defs/sha256" },
+        "V5": { "$ref": "#/$defs/sha256" },
+        "V6": { "$ref": "#/$defs/sha256" },
+        "V7": { "$ref": "#/$defs/sha256" },
+        "V8": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  },
+  "$defs": {
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9A-F]{64}$" },
+    "digestImage": { "type": "string", "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$" }
+  }
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=LearningManage encrypted MySQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=lmdeploy
+Group=lmdeploy
+SupplementaryGroups=docker
+UMask=0077
+Environment=DOCKER_CONFIG=/tmp/docker-config
+ExecStart=/opt/learning-manage/current/scripts/prod/backup-mysql.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/learning-manage
+
+[Install]
+WantedBy=multi-user.target

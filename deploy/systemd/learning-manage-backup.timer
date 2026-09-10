@@ -1,0 +1,10 @@
+[Unit]
+Description=Run LearningManage backup daily at 01:30 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 01:30:00 Asia/Shanghai
+Persistent=true
+Unit=learning-manage-backup.service
+
+[Install]
+WantedBy=timers.target

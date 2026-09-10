@@ -1,0 +1,6 @@
+**
+!deploy/
+!deploy/nginx.prod.conf
+!frontend/
+!frontend/dist/
+!frontend/dist/**
