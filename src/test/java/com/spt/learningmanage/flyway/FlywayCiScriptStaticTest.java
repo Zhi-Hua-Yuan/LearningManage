@@ -194,6 +194,8 @@ class FlywayCiScriptStaticTest {
         assertTrue(compose.contains("ci-host-access"));
         assertTrue(compose.contains("ci-edge-access"));
         assertTrue(flow.contains("/api/ai/breakdown/preview"));
+        assertTrue(flow.contains("\"$work_dir/cancel-confirm.json\" \"$token\" 409"));
+        assertTrue(flow.contains(".code == 30005"));
         assertTrue(flow.contains("idempotentReplay"));
         assertTrue(flow.contains("full-stack-ai-flow-evidence.json"));
         assertTrue(stub.contains("/compatible-mode/v1/chat/completions"));

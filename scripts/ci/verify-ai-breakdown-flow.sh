@@ -28,6 +28,7 @@ request_json() {
     local body="$3"
     local output="$4"
     local token="${5:-}"
+    local expected_status="${6:-2xx}"
     local http_code
     local -a args=(--silent --show-error --max-time 30 --request "$method")
 
@@ -39,17 +40,24 @@ request_json() {
     fi
 
     http_code="$(curl "${args[@]}" --output "$output" --write-out '%{http_code}' "${base_url}${path}")"
-    [[ "$http_code" =~ ^2[0-9][0-9]$ ]] || ci_fail "http_request_failed_${path//\//_}_${http_code}"
+    case "$expected_status" in
+        2xx)
+            [[ "$http_code" =~ ^2[0-9][0-9]$ ]] \
+                || ci_fail "http_request_failed_${path//\//_}_${http_code}"
+            ;;
+        [1-5][0-9][0-9])
+            [[ "$http_code" == "$expected_status" ]] \
+                || ci_fail "http_request_failed_${path//\//_}_${http_code}_expected_${expected_status}"
+            ;;
+        *)
+            ci_fail "invalid_expected_http_status"
+            ;;
+    esac
 }
 
 assert_success() {
     local file="$1"
     jq -e '.code == 0' "$file" >/dev/null || ci_fail "api_business_failure"
-}
-
-assert_failure() {
-    local file="$1"
-    jq -e '.code != 0' "$file" >/dev/null || ci_fail "expected_api_business_failure"
 }
 
 json_body() {
@@ -113,8 +121,9 @@ jq -e '.data.status == 2' "$work_dir/cancel-detail-after.json" >/dev/null \
 request_json POST /api/ai/breakdown/confirm \
     "$(json_body --arg draftId "$cancel_draft_id" --arg operationId "cancel-confirm-$RELEASE_CANDIDATE_ID" \
         '{draftId:$draftId,operationId:$operationId,projectName:"cancelled-ci-project"}')" \
-    "$work_dir/cancel-confirm.json" "$token"
-assert_failure "$work_dir/cancel-confirm.json"
+    "$work_dir/cancel-confirm.json" "$token" 409
+jq -e '.code == 30005' "$work_dir/cancel-confirm.json" >/dev/null \
+    || ci_fail "cancel_confirm_error_contract_invalid"
 
 # Confirmation path: preview -> confirm -> detail(CONFIRMED) -> same operation replay.
 request_json POST /api/ai/breakdown/preview "$preview_request" "$work_dir/preview-confirm.json" "$token"
