@@ -716,9 +716,6 @@ jobs:
           RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
         run: |
           set -Eeuo pipefail
-          # Job-level CI database variables would otherwise override values
-          # loaded from the dedicated production --env-file.
-          unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD
           secret_dir="$RUNNER_TEMP/learning-manage-production-secrets"
           mkdir -p "$secret_dir"
           printf '%s\n' "$CI_PROD_ROOT_PASSWORD" > "$secret_dir/mysql-root-password"
@@ -757,7 +754,14 @@ jobs:
           MANAGEMENT_TRACING_ENABLED=false
           EOF
           chmod 0600 "$CI_PRODUCTION_ENV_FILE"
-          prod_compose=(docker compose \
+          # Remove job-level CI database values only for Compose interpolation,
+          # so the dedicated production env file wins without stripping the
+          # safety identity required by later CI scripts in this step.
+          prod_compose=(env \
+            --unset=DB_NAME \
+            --unset=FLYWAY_DB_USERNAME \
+            --unset=FLYWAY_DB_PASSWORD \
+            docker compose \
             --project-name "$CI_PRODUCTION_COMPOSE_PROJECT_NAME" \
             --env-file "$CI_PRODUCTION_ENV_FILE" \
             --file deploy/docker-compose.prod.yml \
@@ -791,10 +795,11 @@ jobs:
           test "$mysql_settings" = $'268435456\t50\t0'
           test "$("${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning ping)" = PONG
           test "$("${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning EVAL "return redis.call('incr', KEYS[1])" 1 rate_limit:ai:ci:probe)" = 1
-          if "${prod_compose[@]}" exec -T redis redis-cli --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning FLUSHALL >/dev/null 2>&1; then
+          if flushall_output="$("${prod_compose[@]}" exec -T redis redis-cli -e --user learning_app --pass "$CI_PROD_REDIS_PASSWORD" --no-auth-warning FLUSHALL 2>&1)"; then
             printf '%s\n' 'production Redis ACL unexpectedly allowed FLUSHALL' >&2
             exit 1
           fi
+          grep -q 'NOPERM' <<<"$flushall_output"
           "${prod_compose[@]}" up -d --wait ai-stub backend frontend
           "${prod_compose[@]}" exec -T backend sh -eu -c '
             wget -q -O - --header="api-key: ${QDRANT_API_KEY}" http://qdrant:6333/collections | grep -q result
