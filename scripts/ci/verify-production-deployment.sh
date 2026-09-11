@@ -141,6 +141,12 @@ grep -Fq -- "--build-arg RUNTIME_IMAGE=${runtime_image}" .github/workflows/relea
   || { printf '%s\n' 'RUNTIME_IMAGE does not match the Release Gate' >&2; exit 1; }
 grep -Fq 'bash scripts/prod/create-production-manifest.sh' .github/workflows/release-gate.yml
 grep -Fq 'production-release-manifest.json' .github/workflows/release-gate.yml
+grep -Fq 'CI_PRODUCTION_ENV_FILE: ${{ github.workspace }}/learning-manage-production-gate.env' \
+  .github/workflows/release-gate.yml
+if grep -Fq 'CI_PRODUCTION_ENV_FILE: ${{ runner.temp }}' .github/workflows/release-gate.yml; then
+  printf '%s\n' 'job-level production env path must not use the unavailable runner context' >&2
+  exit 1
+fi
 grep -Fq -- '--file deploy/Dockerfile.backend.prod' .github/workflows/release-gate.yml
 grep -Fq -- '--file deploy/Dockerfile.frontend.prod' .github/workflows/release-gate.yml
 grep -Fq 'org.springframework.boot.loader.launch.PropertiesLauncher' .github/workflows/release-gate.yml

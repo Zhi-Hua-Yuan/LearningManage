@@ -584,7 +584,7 @@ jobs:
       CI_PRODUCTION_FRONTEND_CONTAINER: learningmanage-prod-frontend-${{ github.run_id }}-${{ github.run_attempt }}
       CI_PRODUCTION_MIGRATION_DB: learning_manage_ci_production_entrypoint
       CI_PRODUCTION_COMPOSE_PROJECT_NAME: learningmanage-prod-${{ github.run_id }}-${{ github.run_attempt }}
-      CI_PRODUCTION_ENV_FILE: ${{ runner.temp }}/learning-manage-production-gate.env
+      CI_PRODUCTION_ENV_FILE: ${{ github.workspace }}/learning-manage-production-gate.env
       CI_REDIS_IMAGE: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
       CI_QDRANT_IMAGE: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
       CI_PROMETHEUS_IMAGE: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
