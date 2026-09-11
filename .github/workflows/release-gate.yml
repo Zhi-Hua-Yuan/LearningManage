@@ -716,6 +716,9 @@ jobs:
           RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
         run: |
           set -Eeuo pipefail
+          # Job-level CI database variables would otherwise override values
+          # loaded from the dedicated production --env-file.
+          unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD
           secret_dir="$RUNNER_TEMP/learning-manage-production-secrets"
           mkdir -p "$secret_dir"
           printf '%s\n' "$CI_PROD_ROOT_PASSWORD" > "$secret_dir/mysql-root-password"
