@@ -822,14 +822,19 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          network_id="$(docker network ls \
+          internal_network_id="$(docker network ls \
             --filter "label=com.docker.compose.project=$CI_COMPOSE_PROJECT_NAME" \
             --filter 'label=com.docker.compose.network=release-internal' \
             --format '{{.ID}}')"
-          test -n "$network_id"
-          docker run -d \
+          edge_network_id="$(docker network ls \
+            --filter "label=com.docker.compose.project=$CI_COMPOSE_PROJECT_NAME" \
+            --filter 'label=com.docker.compose.network=ci-edge-access' \
+            --format '{{.ID}}')"
+          test -n "$internal_network_id"
+          test -n "$edge_network_id"
+          docker create \
             --name "$CI_PRODUCTION_FRONTEND_CONTAINER" \
-            --network "$network_id" \
+            --network "$edge_network_id" \
             --publish 127.0.0.1:18081:80 \
             --read-only \
             --tmpfs /var/cache/nginx:rw,noexec,nosuid,size=16m,mode=0755 \
@@ -846,6 +851,8 @@ jobs:
             --pids-limit 64 \
             --entrypoint nginx \
             "$CI_PRODUCTION_FRONTEND_IMAGE" -g 'daemon off;'
+          docker network connect "$internal_network_id" "$CI_PRODUCTION_FRONTEND_CONTAINER"
+          docker start "$CI_PRODUCTION_FRONTEND_CONTAINER"
           for attempt in {1..30}; do
             if curl --fail --silent --show-error http://127.0.0.1:18081/api/health \
                 | grep -q '"code":0'; then

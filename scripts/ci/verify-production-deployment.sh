@@ -153,6 +153,10 @@ grep -Fq 'org.springframework.boot.loader.launch.PropertiesLauncher' .github/wor
 grep -Fq 'run_production_migrator migrate' .github/workflows/release-gate.yml
 grep -Fq 'CREATE TEMPORARY TABLES' .github/workflows/release-gate.yml
 grep -Fq 'Run production frontend image with hardened runtime options' .github/workflows/release-gate.yml
+grep -Fq "label=com.docker.compose.network=ci-edge-access" .github/workflows/release-gate.yml
+grep -Fq 'docker create' .github/workflows/release-gate.yml
+grep -Fq 'docker network connect "$internal_network_id"' .github/workflows/release-gate.yml
+grep -Fq 'docker start "$CI_PRODUCTION_FRONTEND_CONTAINER"' .github/workflows/release-gate.yml
 grep -Fq 'Run full production Compose Phase A gate' .github/workflows/release-gate.yml
 grep -Fq -- '--unset=DB_NAME' \
   .github/workflows/release-gate.yml

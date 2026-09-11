@@ -187,6 +187,9 @@ class FlywayCiScriptStaticTest {
         assertFalse(workflow.contains("unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD"));
         assertTrue(workflow.contains("redis-cli -e --user learning_app"));
         assertTrue(workflow.contains("grep -q 'NOPERM'"));
+        assertTrue(workflow.contains("label=com.docker.compose.network=ci-edge-access"));
+        assertTrue(workflow.contains("docker network connect \"$internal_network_id\""));
+        assertTrue(workflow.contains("docker start \"$CI_PRODUCTION_FRONTEND_CONTAINER\""));
         assertTrue(compose.contains("127.0.0.1:18080:80"));
         assertTrue(compose.contains("AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1"));
         assertTrue(compose.contains("FLYWAY_ENABLED: \"false\""));
