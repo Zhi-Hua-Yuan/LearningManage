@@ -154,8 +154,17 @@ grep -Fq 'run_production_migrator migrate' .github/workflows/release-gate.yml
 grep -Fq 'CREATE TEMPORARY TABLES' .github/workflows/release-gate.yml
 grep -Fq 'Run production frontend image with hardened runtime options' .github/workflows/release-gate.yml
 grep -Fq 'Run full production Compose Phase A gate' .github/workflows/release-gate.yml
-grep -Fq 'unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD' \
+grep -Fq -- '--unset=DB_NAME' \
   .github/workflows/release-gate.yml
+grep -Fq -- '--unset=FLYWAY_DB_USERNAME' .github/workflows/release-gate.yml
+grep -Fq -- '--unset=FLYWAY_DB_PASSWORD' .github/workflows/release-gate.yml
+if grep -Fq 'unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD' \
+    .github/workflows/release-gate.yml; then
+  printf '%s\n' 'production Compose isolation must not strip later CI safety variables' >&2
+  exit 1
+fi
+grep -Fq 'redis-cli -e --user learning_app' .github/workflows/release-gate.yml
+grep -Fq "grep -q 'NOPERM'" .github/workflows/release-gate.yml
 
 tmp_dir="$(mktemp -d)"
 trap '[[ "$tmp_dir" == /tmp/* ]] && rm -rf -- "$tmp_dir"' EXIT

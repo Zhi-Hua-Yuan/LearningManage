@@ -181,7 +181,12 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs"));
         assertTrue(workflow.contains("CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:"));
         assertTrue(workflow.contains("CI_AI_STUB_IMAGE: python:3.12.8-alpine@sha256:"));
-        assertTrue(workflow.contains("unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD"));
+        assertTrue(workflow.contains("--unset=DB_NAME"));
+        assertTrue(workflow.contains("--unset=FLYWAY_DB_USERNAME"));
+        assertTrue(workflow.contains("--unset=FLYWAY_DB_PASSWORD"));
+        assertFalse(workflow.contains("unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD"));
+        assertTrue(workflow.contains("redis-cli -e --user learning_app"));
+        assertTrue(workflow.contains("grep -q 'NOPERM'"));
         assertTrue(compose.contains("127.0.0.1:18080:80"));
         assertTrue(compose.contains("AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1"));
         assertTrue(compose.contains("FLYWAY_ENABLED: \"false\""));
