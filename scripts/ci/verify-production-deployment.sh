@@ -154,6 +154,8 @@ grep -Fq 'run_production_migrator migrate' .github/workflows/release-gate.yml
 grep -Fq 'CREATE TEMPORARY TABLES' .github/workflows/release-gate.yml
 grep -Fq 'Run production frontend image with hardened runtime options' .github/workflows/release-gate.yml
 grep -Fq 'Run full production Compose Phase A gate' .github/workflows/release-gate.yml
+grep -Fq 'unset DB_NAME FLYWAY_DB_USERNAME FLYWAY_DB_PASSWORD' \
+  .github/workflows/release-gate.yml
 
 tmp_dir="$(mktemp -d)"
 trap '[[ "$tmp_dir" == /tmp/* ]] && rm -rf -- "$tmp_dir"' EXIT
