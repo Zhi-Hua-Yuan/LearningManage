@@ -51,7 +51,7 @@ public class DefaultAiPromptTemplateProvider {
                 + "{\"strategy\":\"balanced\",\"items\":[{\"taskId\":1,\"difficulty\":3,\"cost\":2,\"benefit\":5,\"estimatedMinutes\":30,\"reason\":\"...\"}]}。"
                 + "要求：difficulty/cost/benefit 必须是1-5整数；estimatedMinutes为10-240整数；items必须覆盖所有输入taskId且不重复。");
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, """
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, 2, """
                 你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成紧凑、可执行且严格落在周期内的普通计划。
                 硬性要求：
                 1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
@@ -66,7 +66,7 @@ public class DefaultAiPromptTemplateProvider {
                 严格结构：[{"name":"阶段名称","tasks":[{"name":"动作与产出","priority":2,"dueDate":"yyyy-MM-dd"}]}]
                 """);
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, """
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, 2, """
                 你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成细颗粒度、可落地且严格落在周期内的详细计划。
                 硬性要求：
                 1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
@@ -133,11 +133,15 @@ public class DefaultAiPromptTemplateProvider {
     }
 
     private void register(AiPromptCodeEnum promptCode, String systemPrompt) {
+        register(promptCode, DEFAULT_TEMPLATE_VERSION, systemPrompt);
+    }
+
+    private void register(AiPromptCodeEnum promptCode, int version, String systemPrompt) {
         templates.put(promptCode, new AiPromptTemplate(
                 null,
                 promptCode.getCode(),
                 promptCode.getScene().getCode(),
-                DEFAULT_TEMPLATE_VERSION,
+                version,
                 AiPromptSourceEnum.BUILTIN,
                 systemPrompt
         ));

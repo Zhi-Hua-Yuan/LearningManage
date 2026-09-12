@@ -49,8 +49,10 @@ public class PromptTemplateResolver {
 
             PromptTemplate template = templates.get(0);
             if (!isValid(template, promptCode)) {
-                log.warn("Prompt 模板配置不合法，使用内置模板: code={}, id={}",
-                        promptCode.getCode(), template.getId());
+                log.warn("Prompt 模板配置不合法，使用内置模板: code={}, id={}, version={}, minimumVersion={}",
+                        promptCode.getCode(), template == null ? null : template.getId(),
+                        template == null ? null : template.getVersion(),
+                        promptCode.getMinimumCompatibleVersion());
                 return defaultProvider.getRequired(promptCode);
             }
 
@@ -71,7 +73,7 @@ public class PromptTemplateResolver {
     private boolean isValid(PromptTemplate template, AiPromptCodeEnum promptCode) {
         return template != null
                 && template.getVersion() != null
-                && template.getVersion() > 0
+                && template.getVersion() >= promptCode.getMinimumCompatibleVersion()
                 && StrUtil.isNotBlank(template.getTemplateContent())
                 && StrUtil.equals(template.getTemplateCode(), promptCode.getCode())
                 && StrUtil.equals(template.getScene(), promptCode.getScene().getCode());
