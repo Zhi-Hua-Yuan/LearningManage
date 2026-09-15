@@ -122,10 +122,6 @@ jobs:
           CI_MYSQL_ADMIN_PASSWORD: ci-stage7-root-${{ github.run_id }}
           CI_APP_PASSWORD: ci-stage7-app-${{ github.run_id }}
           CI_REDIS_PASSWORD: ci-stage7-redis-${{ github.run_id }}
-          CI_KNOWLEDGE_WORKER_ENABLED: 'true'
-          CI_RAG_ENABLED: 'true'
-          CI_AGENT_ENABLED: 'true'
-          CI_AGENT_WORKER_ENABLED: 'true'
         run: |
           ./mvnw -B -ntp -DskipTests package
           docker build -t "$CI_BACKEND_IMAGE" .

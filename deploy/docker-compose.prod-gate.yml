@@ -4,6 +4,7 @@ services:
     command: ["python", "/opt/ai-stub/ai-chat-completions-stub.py"]
     volumes:
       - ../scripts/ci/stubs/ai-chat-completions-stub.py:/opt/ai-stub/ai-chat-completions-stub.py:ro
+      - ../scripts/ci/verify-stage7-enabled-ai.py:/opt/learning-ci/verify-stage7-enabled-ai.py:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
       interval: 3s

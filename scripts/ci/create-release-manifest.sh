@@ -159,6 +159,18 @@ jq -n \
             backendRuntime: "PASS",
             applicationFlywayEnabled: false
         },
+        featureDefaults: {
+            knowledgeWorker: true,
+            rag: true,
+            agent: true,
+            agentWorker: true,
+            toolCalling: true,
+            cleanup: false,
+            cleanupSchedule: false,
+            globalModelToolsRegistered: false,
+            aiFailureAffectsCoreReadiness: false,
+            agentResultBoundary: "DRAFT_ONLY"
+        },
         fullStackRuntime: {
             gate: "PASS",
             frontendViaNginx: "PASS",

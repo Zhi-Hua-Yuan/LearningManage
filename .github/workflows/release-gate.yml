@@ -31,7 +31,7 @@ env:
   JAVA_VERSION: '17'
   NODE_VERSION: '22.13.1'
   NPM_VERSION: '10.9.2'
-  CI_EXPECTED_TEST_COUNT: '910'
+  CI_EXPECTED_TEST_COUNT: '914'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -716,7 +716,7 @@ jobs:
             exec -T mysql mysql -N -B -uroot -p"$CI_MYSQL_ADMIN_PASSWORD" "$CI_PRODUCTION_MIGRATION_DB" \
             --execute='SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1;')"
           test "$history_total" = 8
-      - name: Run full production Compose Phase A gate
+      - name: Run full production Compose default-enabled gate
         shell: bash
         env:
           RELEASE_CANDIDATE_ID: ${{ needs.freeze-candidate.outputs.candidate_id }}
@@ -750,11 +750,6 @@ jobs:
           QDRANT_API_KEY=$CI_PROD_QDRANT_KEY
           FLYWAY_DB_USERNAME=learning_manage_ci_migrator
           FLYWAY_DB_PASSWORD=$CI_PROD_MIGRATOR_PASSWORD
-          AI_KNOWLEDGE_WORKER_ENABLED=false
-          AI_RAG_ENABLED=false
-          AI_AGENT_ENABLED=false
-          AI_AGENT_WORKER_ENABLED=false
-          AI_AGENT_TOOL_CALLING_ENABLED=false
           AI_CLEANUP_ENABLED=false
           AI_CLEANUP_SCHEDULE_ENABLED=false
           MANAGEMENT_TRACING_ENABLED=false
@@ -817,6 +812,8 @@ jobs:
           CI_FULL_STACK_BASE_URL=http://127.0.0.1:18080 \
           CI_AI_FLOW_OUTPUT_DIR=ci-artifacts/production-full-stack \
             bash scripts/ci/verify-ai-breakdown-flow.sh
+          "${prod_compose[@]}" exec -T ai-stub \
+            python /opt/learning-ci/verify-stage7-enabled-ai.py
           "${prod_compose[@]}" down --volumes --remove-orphans
       - name: Start full-stack runtime and verify edge health
         shell: bash
@@ -1047,7 +1044,7 @@ jobs:
           matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
           risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
           schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
-          jq -e '.schemaVersion == 5 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.breakingChangeGate == "PASS" and .interfaceContract.oasdiffVersion == "1.28.0" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
+          jq -e '.schemaVersion == 5 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.breakingChangeGate == "PASS" and .interfaceContract.oasdiffVersion == "1.28.0" and .interfaceContract.missingOperationCount == 0 and .featureDefaults == {knowledgeWorker:true,rag:true,agent:true,agentWorker:true,toolCalling:true,cleanup:false,cleanupSchedule:false,globalModelToolsRegistered:false,aiFailureAffectsCoreReadiness:false,agentResultBoundary:"DRAFT_ONLY"} and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
           verify_bound_hash() {
             local field="$1" file="$2" actual expected
             actual="$(sha256sum "$file" | awk '{print toupper($1)}')"

@@ -37,4 +37,4 @@ docker stats --no-stream \
     "$(lm_compose ps -q backend)" \
     "$(lm_compose ps -q frontend)"
 
-lm_log "Phase A smoke checks passed"
+lm_log "production smoke checks passed"

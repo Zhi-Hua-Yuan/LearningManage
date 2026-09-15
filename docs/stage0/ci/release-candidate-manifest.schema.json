@@ -13,6 +13,7 @@
     "frontend",
     "flyway",
     "docker",
+    "featureDefaults",
     "interfaceContract",
     "fullStackRuntime",
     "stage0Acceptance",
@@ -45,6 +46,9 @@
     },
     "docker": {
       "$ref": "#/$defs/docker"
+    },
+    "featureDefaults": {
+      "$ref": "#/$defs/featureDefaults"
     },
     "interfaceContract": {
       "$ref": "#/$defs/interfaceContract"
@@ -164,6 +168,34 @@
         "applicationFlywayEnabled": {
           "const": false
         }
+      }
+    },
+    "featureDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeWorker",
+        "rag",
+        "agent",
+        "agentWorker",
+        "toolCalling",
+        "cleanup",
+        "cleanupSchedule",
+        "globalModelToolsRegistered",
+        "aiFailureAffectsCoreReadiness",
+        "agentResultBoundary"
+      ],
+      "properties": {
+        "knowledgeWorker": { "const": true },
+        "rag": { "const": true },
+        "agent": { "const": true },
+        "agentWorker": { "const": true },
+        "toolCalling": { "const": true },
+        "cleanup": { "const": false },
+        "cleanupSchedule": { "const": false },
+        "globalModelToolsRegistered": { "const": false },
+        "aiFailureAffectsCoreReadiness": { "const": false },
+        "agentResultBoundary": { "const": "DRAFT_ONLY" }
       }
     },
     "fullStackRuntime": {

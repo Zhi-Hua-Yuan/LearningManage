@@ -73,6 +73,8 @@ def wait_for_agent(project_id, token, client_request_id):
         if status in TERMINAL_AGENT_STATES:
             if status != "SUCCEEDED" or not run.get("draftId"):
                 raise RuntimeError(f"Stage 7 Agent smoke terminal state is {status}")
+            if run.get("orchestrationMode") != "TOOL_CALLING":
+                raise RuntimeError("Stage 7 Agent smoke did not use controlled Tool Calling")
             return
         time.sleep(1)
     raise RuntimeError("Stage 7 Agent smoke timed out")

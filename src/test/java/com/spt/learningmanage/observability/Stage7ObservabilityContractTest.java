@@ -70,8 +70,12 @@ class Stage7ObservabilityContractTest {
         assertTrue(workflow.contains("grafana/tempo:2.6.1@sha256:"));
         assertTrue(workflow.contains("grafana/grafana:11.2.2@sha256:"));
         assertTrue(workflow.contains("nginx:1.29.1-alpine@sha256:"));
-        assertTrue(workflow.contains("CI_RAG_ENABLED: 'true'"));
-        assertTrue(workflow.contains("CI_AGENT_WORKER_ENABLED: 'true'"));
+        String compose = read("deploy/docker-compose.stage7-gate.yml");
+        assertTrue(compose.contains("CI_RAG_ENABLED:-true"));
+        assertTrue(compose.contains("CI_AGENT_WORKER_ENABLED:-true"));
+        assertTrue(compose.contains("CI_AGENT_TOOL_CALLING_ENABLED:-true"));
+        assertFalse(workflow.contains("CI_RAG_ENABLED: 'true'"));
+        assertFalse(workflow.contains("CI_AGENT_WORKER_ENABLED: 'true'"));
         String runtimeGate = read("scripts/ci/verify-stage7-runtime.sh");
         assertTrue(runtimeGate.contains("verify-stage7-enabled-ai.py"));
     }

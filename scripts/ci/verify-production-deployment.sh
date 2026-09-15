@@ -76,7 +76,7 @@ grep -Fq 'innodb_buffer_pool_size=256M' deploy/mysql/my.cnf
 grep -Fq 'max_connections=50' deploy/mysql/my.cnf
 grep -Fq 'CREATE TEMPORARY TABLES' scripts/prod/provision-database.sh
 grep -Fq 'verify-production-secrets.sh' scripts/prod/deploy.sh
-grep -Fq 'must be false for a new Phase A deployment' scripts/prod/deploy.sh
+grep -Fq 'must be false for a new deployment' scripts/prod/deploy.sh
 grep -Fq 'TZ=Asia/Shanghai date +%u' scripts/prod/backup-mysql.sh
 grep -Fq 'restored task row count does not match backup metadata' scripts/prod/restore-drill.sh
 grep -Fq 'AI_CLEANUP_SCHEDULE_ENABLED=false' scripts/prod/rollback.sh
@@ -115,12 +115,16 @@ for setting in \
   grep -Fqx "$setting" deploy/learning.env.example
 done
 
+for enabled in \
+  AI_KNOWLEDGE_WORKER_ENABLED=true \
+  AI_RAG_ENABLED=true \
+  AI_AGENT_ENABLED=true \
+  AI_AGENT_WORKER_ENABLED=true \
+  AI_AGENT_TOOL_CALLING_ENABLED=true; do
+  grep -Fqx "$enabled" deploy/learning.env.example
+done
+
 for disabled in \
-  AI_KNOWLEDGE_WORKER_ENABLED=false \
-  AI_RAG_ENABLED=false \
-  AI_AGENT_ENABLED=false \
-  AI_AGENT_WORKER_ENABLED=false \
-  AI_AGENT_TOOL_CALLING_ENABLED=false \
   AI_CLEANUP_ENABLED=false \
   AI_CLEANUP_SCHEDULE_ENABLED=false; do
   grep -Fqx "$disabled" deploy/learning.env.example
@@ -157,7 +161,7 @@ grep -Fq "label=com.docker.compose.network=ci-edge-access" .github/workflows/rel
 grep -Fq 'docker create' .github/workflows/release-gate.yml
 grep -Fq 'docker network connect "$internal_network_id"' .github/workflows/release-gate.yml
 grep -Fq 'docker start "$CI_PRODUCTION_FRONTEND_CONTAINER"' .github/workflows/release-gate.yml
-grep -Fq 'Run full production Compose Phase A gate' .github/workflows/release-gate.yml
+grep -Fq 'Run full production Compose default-enabled gate' .github/workflows/release-gate.yml
 grep -Fq -- '--unset=DB_NAME' \
   .github/workflows/release-gate.yml
 grep -Fq -- '--unset=FLYWAY_DB_USERNAME' .github/workflows/release-gate.yml
