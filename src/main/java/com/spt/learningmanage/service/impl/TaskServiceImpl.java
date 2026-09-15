@@ -422,7 +422,8 @@ public class TaskServiceImpl implements TaskService {
                     .eq(TaskStatusIdempotency::getClientRequestId, clientRequestId)
                     .last("limit 1"));
             if (duplicate == null) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "幂等请求处理失败，请重试");
+                throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT,
+                        "任务状态幂等记录已被并发修改，请刷新后重试");
             }
             return toStatusChangeVO(duplicate, true);
         }
