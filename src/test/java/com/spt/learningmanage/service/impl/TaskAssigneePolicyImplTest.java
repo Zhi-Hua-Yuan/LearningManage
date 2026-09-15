@@ -105,13 +105,13 @@ class TaskAssigneePolicyImplTest {
     }
 
     @Test
-    void reopen_rejectsInactiveTeamMemberWithOperationError() {
+    void reopen_rejectsInactiveTeamMemberAsResourceStateConflict() {
         ProjectAccessScope scope = new ProjectAccessScope(1L, 10L, 1L, 20L, TeamRoleEnum.MEMBER);
         when(queryMapper.selectActiveTeamAssigneeForUpdate(20L, 2L)).thenReturn(null);
 
         BusinessException ex = Assertions.assertThrows(BusinessException.class,
                 () -> policy.validateReopenAssignee(scope, 2L));
-        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
     }
 
     @Test
@@ -121,6 +121,6 @@ class TaskAssigneePolicyImplTest {
         Assertions.assertDoesNotThrow(() -> policy.validateReopenAssignee(scope, 1L));
         BusinessException ex = Assertions.assertThrows(BusinessException.class,
                 () -> policy.validateReopenAssignee(scope, 2L));
-        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(com.spt.learningmanage.exception.ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
     }
 }

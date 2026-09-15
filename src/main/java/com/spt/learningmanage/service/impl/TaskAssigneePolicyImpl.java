@@ -93,7 +93,7 @@ public class TaskAssigneePolicyImpl implements TaskAssigneePolicy {
 
     private BusinessException reopenAssigneeInvalid() {
         return new BusinessException(
-                ErrorCode.OPERATION_ERROR,
+                ErrorCode.RESOURCE_STATE_CONFLICT,
                 "当前负责人已不具备任务受理资格，请先转派或取消分配后再重新打开"
         );
     }
