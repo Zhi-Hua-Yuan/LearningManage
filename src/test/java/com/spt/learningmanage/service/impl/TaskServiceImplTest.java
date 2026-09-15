@@ -147,7 +147,7 @@ class TaskServiceImplTest {
         when(taskMapper.update(any(), any())).thenReturn(0);
 
         BusinessException ex = Assertions.assertThrows(BusinessException.class, () -> taskService.changeStatus(request));
-        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
     }
 
     @Test
@@ -235,7 +235,7 @@ class TaskServiceImplTest {
 
         BusinessException ex = Assertions.assertThrows(BusinessException.class,
                 () -> taskService.changeStatus(request));
-        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
         verify(taskStatusIdempotencyMapper, never()).insert(any(TaskStatusIdempotency.class));
     }
 

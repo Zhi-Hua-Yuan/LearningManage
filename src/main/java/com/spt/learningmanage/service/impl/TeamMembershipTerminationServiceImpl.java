@@ -168,7 +168,7 @@ public class TeamMembershipTerminationServiceImpl
             );
             if (updatedCount != taskIds.size()) {
                 throw new BusinessException(
-                        ErrorCode.OPERATION_ERROR,
+                        ErrorCode.RESOURCE_STATE_CONFLICT,
                         "操作状态已变化，请刷新后重试"
                 );
             }
@@ -201,7 +201,7 @@ public class TeamMembershipTerminationServiceImpl
         );
         if (memberRows != 1) {
             throw new BusinessException(
-                    ErrorCode.OPERATION_ERROR,
+                    ErrorCode.RESOURCE_STATE_CONFLICT,
                     "成员关系状态已变化，请刷新后重试"
             );
         }

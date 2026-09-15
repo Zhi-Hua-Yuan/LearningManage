@@ -128,7 +128,7 @@ class TaskAssignmentConcurrencyMySqlTest {
 
     private record Outcome(boolean success, Integer errorCode, TaskAssignVO result) {
         boolean conflict() {
-            return Integer.valueOf(50001).equals(errorCode);
+            return Integer.valueOf(40901).equals(errorCode);
         }
     }
 }

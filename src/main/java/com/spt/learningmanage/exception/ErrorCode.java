@@ -14,6 +14,7 @@ public enum ErrorCode {
     NO_AUTH_ERROR(40101, "无权限", HttpStatus.FORBIDDEN),
     NOT_FOUND_ERROR(40400, "请求数据不存在", HttpStatus.NOT_FOUND),
     FORBIDDEN_ERROR(40300, "禁止访问", HttpStatus.FORBIDDEN),
+    RESOURCE_STATE_CONFLICT(40901, "资源状态已发生变化", HttpStatus.CONFLICT),
     RATE_LIMIT_ERROR(42900, "请求过于频繁", HttpStatus.TOO_MANY_REQUESTS),
     SYSTEM_ERROR(50000, "系统内部异常", HttpStatus.INTERNAL_SERVER_ERROR),
     OPERATION_ERROR(50001, "操作失败", HttpStatus.INTERNAL_SERVER_ERROR),

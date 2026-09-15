@@ -173,10 +173,29 @@ class TeamMembershipTerminationServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.leaveTeam(7L));
-        assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
         verify(taskAssignmentLogMapper, never()).batchInsertMembershipTerminationLogs(anyList());
         verify(teamMemberMapper, never()).deactivateMembershipCas(any(), any(), any(), any(), any());
         verifyNoInteractions(businessDataVersionService);
+    }
+
+    @Test
+    void staleMembershipCasReturnsResourceStateConflict() {
+        TeamMember target = member(307L, 7L, 11L, "MEMBER");
+        when(teamMemberMapper.selectActiveMembersForUpdate(7L, List.of(11L)))
+                .thenReturn(List.of(target));
+        when(terminationPolicy.requireLeaveAllowed(11L, 7L, List.of(target)))
+                .thenReturn(target);
+        when(taskMapper.selectIncompleteAssignedTeamTasksForUpdate(7L, 11L))
+                .thenReturn(List.of());
+        when(teamMemberMapper.deactivateMembershipCas(eq(307L), eq(7L), eq(11L),
+                eq("MEMBER"), any())).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.leaveTeam(7L));
+
+        assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
+        verifyNoInteractions(taskAssignmentLogMapper, businessDataVersionService);
     }
 
     @Test

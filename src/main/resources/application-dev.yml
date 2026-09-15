@@ -32,6 +32,10 @@ ai:
   breakdown-model: ${AI_BREAKDOWN_MODEL:qwen-plus}
   polish-model: ${AI_POLISH_MODEL:qwen-flash}
   fallback-model: ${AI_FALLBACK_MODEL:qwen-plus}
+  agent:
+    enabled: ${AI_AGENT_ENABLED:false}
+    worker-enabled: ${AI_AGENT_WORKER_ENABLED:false}
+    tool-calling-enabled: ${AI_AGENT_TOOL_CALLING_ENABLED:false}
 
 rate-limit:
   ai:
