@@ -153,15 +153,19 @@ check_runtime_api_contract_workflow() {
     grep -Fq 'verify-runtime-api-contract.sh' "$release_workflow" \
         && grep -Fq 'CI_RUNTIME_OPENAPI_URL' "$release_workflow" \
         && grep -Fq 'release-api-contract-' "$release_workflow" \
-        && grep -Fq 'schemaVersion == 4' "$release_workflow" \
+        && grep -Fq 'schemaVersion == 5' "$release_workflow" \
         && grep -Fq 'interfaceContract' "$release_schema" \
-        && grep -Fq 'schemaVersion: 4' "$project_root/scripts/ci/create-release-manifest.sh" \
+        && grep -Fq 'schemaVersion: 5' "$project_root/scripts/ci/create-release-manifest.sh" \
         && grep -Fq 'STAGE0_ACCEPTANCE_SHA256' "$release_workflow" \
         && grep -Fq 'STAGE0_MATRIX_SHA256' "$release_workflow" \
         && grep -Fq 'STAGE0_RISK_REGISTER_SHA256' "$release_workflow" \
         && grep -Fq 'STAGE0_SCHEMA_SHA256' "$release_workflow" \
         && grep -Fq 'stage0Acceptance' "$project_root/scripts/ci/create-release-manifest.sh" \
         && grep -Fq 'frontend_operation_missing_from_runtime_openapi' "$runtime_contract" \
+        && grep -Fq 'runtime_openapi_breaking_change_detected' "$runtime_contract" \
+        && grep -Fq 'openapi-breaking-change-report.json' "$runtime_contract" \
+        && grep -Fq 'CI_OASDIFF_VERSION: 1.28.0' "$release_workflow" \
+        && grep -Fq 'stage8-pre-spring-ai-v1.0.0-openapi.json' "$release_workflow" \
         && ! grep -Eiq 'password|token|api[-_]?key|secret' "$runtime_contract"
 }
 

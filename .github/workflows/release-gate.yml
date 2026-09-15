@@ -31,7 +31,7 @@ env:
   JAVA_VERSION: '17'
   NODE_VERSION: '22.13.1'
   NPM_VERSION: '10.9.2'
-  CI_EXPECTED_TEST_COUNT: '908'
+  CI_EXPECTED_TEST_COUNT: '910'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -556,6 +556,9 @@ jobs:
       matched_operation_count: ${{ steps.api-contract.outputs.matched_operation_count }}
       missing_operation_count: ${{ steps.api-contract.outputs.missing_operation_count }}
       runtime_openapi_version: ${{ steps.api-contract.outputs.runtime_openapi_version }}
+      baseline_document_sha256: ${{ steps.api-contract.outputs.baseline_document_sha256 }}
+      breaking_report_sha256: ${{ steps.api-contract.outputs.breaking_report_sha256 }}
+      oasdiff_version: ${{ steps.api-contract.outputs.oasdiff_version }}
       full_stack_evidence_sha256: ${{ steps.ai_flow.outputs.full_stack_evidence_sha256 }}
       full_stack_confirmed_project_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_project_count }}
       full_stack_confirmed_milestone_count: ${{ steps.ai_flow.outputs.full_stack_confirmed_milestone_count }}
@@ -576,6 +579,9 @@ jobs:
       CI_FRONTEND_DIST_DIR: ${{ github.workspace }}/frontend-artifacts/dist
       CI_API_CONTRACT_OUTPUT_DIR: ci-artifacts/api-contract
       CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs
+      CI_OPENAPI_BASELINE_FILE: docs/api/baseline/stage8-pre-spring-ai-v1.0.0-openapi.json
+      CI_OASDIFF_VERSION: 1.28.0
+      CI_OASDIFF_BIN: ${{ runner.temp }}/oasdiff-1.28.0/oasdiff
       CI_FULL_STACK_BASE_URL: http://127.0.0.1:18080
       CI_AI_FLOW_OUTPUT_DIR: ci-artifacts/full-stack
       CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
@@ -863,6 +869,21 @@ jobs:
           done
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18081/api/v3/api-docs)" = 404
           docker rm -f "$CI_PRODUCTION_FRONTEND_CONTAINER"
+      - name: Install checksum-locked OpenAPI diff tool
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          archive="$RUNNER_TEMP/oasdiff_1.28.0_linux_amd64.tar.gz"
+          install_dir="$RUNNER_TEMP/oasdiff-1.28.0"
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            https://github.com/oasdiff/oasdiff/releases/download/v1.28.0/oasdiff_1.28.0_linux_amd64.tar.gz \
+            --output "$archive"
+          printf '%s  %s\n' \
+            'e0ef076f2cf953d922addc04be9c3851cf3ec18f7678d2b94d44cea23dca51b5' \
+            "$archive" | sha256sum --check --strict
+          mkdir -p "$install_dir"
+          tar --extract --gzip --file "$archive" --directory "$install_dir" oasdiff
+          chmod 0755 "$CI_OASDIFF_BIN"
       - name: Export runtime OpenAPI and compare frontend contract
         id: api-contract
         shell: bash
@@ -987,6 +1008,9 @@ jobs:
           FRONTEND_CONTRACT_SHA256: ${{ needs.docker-gate.outputs.frontend_contract_sha256 }}
           RUNTIME_DOCUMENT_SHA256: ${{ needs.docker-gate.outputs.runtime_document_sha256 }}
           COMPARISON_REPORT_SHA256: ${{ needs.docker-gate.outputs.comparison_report_sha256 }}
+          OPENAPI_BASELINE_SHA256: ${{ needs.docker-gate.outputs.baseline_document_sha256 }}
+          OPENAPI_BREAKING_REPORT_SHA256: ${{ needs.docker-gate.outputs.breaking_report_sha256 }}
+          OASDIFF_VERSION: ${{ needs.docker-gate.outputs.oasdiff_version }}
           FRONTEND_OPERATION_COUNT: ${{ needs.docker-gate.outputs.frontend_operation_count }}
           RUNTIME_OPERATION_COUNT: ${{ needs.docker-gate.outputs.runtime_operation_count }}
           MATCHED_OPERATION_COUNT: ${{ needs.docker-gate.outputs.matched_operation_count }}
@@ -1023,7 +1047,7 @@ jobs:
           matrix='docs/stage0/acceptance/stage0-acceptance-matrix-2026-08-23.md'
           risk_register='docs/stage0/acceptance/stage0-risk-register-2026-08-23.md'
           schema='docs/stage0/acceptance/stage0-acceptance.schema.json'
-          jq -e '.schemaVersion == 4 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
+          jq -e '.schemaVersion == 5 and .status == "PASS" and .interfaceContract.existenceGate == "PASS" and .interfaceContract.breakingChangeGate == "PASS" and .interfaceContract.oasdiffVersion == "1.28.0" and .interfaceContract.missingOperationCount == 0 and .fullStackRuntime.gate == "PASS" and .fullStackRuntime.idempotentReplay == "PASS" and .stage0Acceptance.bindingStatus == "BOUND" and .stage0Acceptance.contractStatus == "PROVISIONAL" and .stage0Acceptance.requiredFailureCount == 0 and .stage0Acceptance.pendingClosingGateCount == 2' "$manifest" >/dev/null
           verify_bound_hash() {
             local field="$1" file="$2" actual expected
             actual="$(sha256sum "$file" | awk '{print toupper($1)}')"

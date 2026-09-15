@@ -14,6 +14,7 @@ for name in \
     BACKEND_RULESET_SHA256 FRONTEND_RULESET_SHA256 \
     BACKEND_TEST_COUNT BACKEND_JAR_SHA256 BACKEND_ARTIFACT_SCAN_SHA256 FRONTEND_DIST_MANIFEST_SHA256 FRONTEND_ARTIFACT_SCAN_SHA256 \
     FRONTEND_CONTRACT_SHA256 RUNTIME_DOCUMENT_SHA256 COMPARISON_REPORT_SHA256 \
+    OPENAPI_BASELINE_SHA256 OPENAPI_BREAKING_REPORT_SHA256 OASDIFF_VERSION \
     FRONTEND_OPERATION_COUNT RUNTIME_OPERATION_COUNT MATCHED_OPERATION_COUNT MISSING_OPERATION_COUNT \
     RUNTIME_OPENAPI_VERSION FULL_STACK_EVIDENCE_SHA256 \
     FULL_STACK_CONFIRMED_PROJECT_COUNT FULL_STACK_CONFIRMED_MILESTONE_COUNT FULL_STACK_CONFIRMED_TASK_COUNT \
@@ -33,6 +34,7 @@ for value in \
     "$V1_SHA256" "$BACKEND_RULESET_SHA256" "$FRONTEND_RULESET_SHA256" \
     "$BACKEND_JAR_SHA256" "$BACKEND_ARTIFACT_SCAN_SHA256" "$FRONTEND_DIST_MANIFEST_SHA256" "$FRONTEND_ARTIFACT_SCAN_SHA256" \
     "$FRONTEND_CONTRACT_SHA256" "$RUNTIME_DOCUMENT_SHA256" "$COMPARISON_REPORT_SHA256" \
+    "$OPENAPI_BASELINE_SHA256" "$OPENAPI_BREAKING_REPORT_SHA256" \
     "$FULL_STACK_EVIDENCE_SHA256" "$STAGE0_ACCEPTANCE_SHA256" "$STAGE0_MATRIX_SHA256" \
     "$STAGE0_RISK_REGISTER_SHA256" "$STAGE0_SCHEMA_SHA256"; do
     release_validate_sha256 "$value"
@@ -49,6 +51,7 @@ done
     || release_fail "api_contract_match_count_mismatch"
 [[ "$RUNTIME_OPENAPI_VERSION" =~ ^3\.[0-9]+([.][0-9]+)?$ ]] \
     || release_fail "invalid_runtime_openapi_version"
+[[ "$OASDIFF_VERSION" == "1.28.0" ]] || release_fail "invalid_oasdiff_version"
 for value in \
     "$FULL_STACK_CONFIRMED_PROJECT_COUNT" "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" "$FULL_STACK_CONFIRMED_TASK_COUNT"; do
     [[ "$value" =~ ^[0-9]+$ ]] || release_fail "invalid_full_stack_count"
@@ -81,6 +84,9 @@ jq -n \
     --arg frontendContractSha256 "$FRONTEND_CONTRACT_SHA256" \
     --arg runtimeDocumentSha256 "$RUNTIME_DOCUMENT_SHA256" \
     --arg comparisonReportSha256 "$COMPARISON_REPORT_SHA256" \
+    --arg openapiBaselineSha256 "$OPENAPI_BASELINE_SHA256" \
+    --arg openapiBreakingReportSha256 "$OPENAPI_BREAKING_REPORT_SHA256" \
+    --arg oasdiffVersion "$OASDIFF_VERSION" \
     --arg runtimeOpenapiVersion "$RUNTIME_OPENAPI_VERSION" \
     --arg fullStackEvidenceSha256 "$FULL_STACK_EVIDENCE_SHA256" \
     --arg stage0AcceptanceSha256 "$STAGE0_ACCEPTANCE_SHA256" \
@@ -101,7 +107,7 @@ jq -n \
     --argjson fullStackConfirmedMilestoneCount "$FULL_STACK_CONFIRMED_MILESTONE_COUNT" \
     --argjson fullStackConfirmedTaskCount "$FULL_STACK_CONFIRMED_TASK_COUNT" \
     '{
-        schemaVersion: 4,
+        schemaVersion: 5,
         candidateId: $candidateId,
         reason: $reason,
         status: "PASS",
@@ -129,6 +135,8 @@ jq -n \
         },
         interfaceContract: {
             existenceGate: "PASS",
+            breakingChangeGate: "PASS",
+            oasdiffVersion: $oasdiffVersion,
             frontendSchemaVersion: 1,
             frontendBasePath: "/api",
             runtimeOpenapiVersion: $runtimeOpenapiVersion,
@@ -138,7 +146,9 @@ jq -n \
             missingOperationCount: $missingOperationCount,
             frontendContractSha256: $frontendContractSha256,
             runtimeDocumentSha256: $runtimeDocumentSha256,
-            comparisonReportSha256: $comparisonReportSha256
+            comparisonReportSha256: $comparisonReportSha256,
+            baselineDocumentSha256: $openapiBaselineSha256,
+            breakingReportSha256: $openapiBreakingReportSha256
         },
         flyway: {
             publishedV1Sha256: $v1Sha256,

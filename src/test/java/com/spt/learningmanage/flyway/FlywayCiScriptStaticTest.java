@@ -158,16 +158,23 @@ class FlywayCiScriptStaticTest {
         assertTrue(workflow.contains("verify-runtime-api-contract.sh"));
         assertTrue(workflow.contains("CI_RUNTIME_OPENAPI_URL"));
         assertTrue(workflow.contains("release-api-contract-"));
-        assertTrue(workflow.contains("schemaVersion == 4"));
+        assertTrue(workflow.contains("schemaVersion == 5"));
         assertTrue(workflow.contains("matched_operation_count"));
         assertTrue(script.contains("/api/v3/api-docs") || workflow.contains("/api/v3/api-docs"));
         assertTrue(script.contains("frontend_operation_missing_from_runtime_openapi"));
+        assertTrue(script.contains("runtime_openapi_breaking_change_detected"));
+        assertTrue(script.contains("openapi-breaking-change-report.json"));
+        assertTrue(script.contains("--fail-on ERR"));
+        assertTrue(script.contains("--allow-external-refs=false"));
+        assertTrue(workflow.contains("CI_OASDIFF_VERSION: 1.28.0"));
+        assertTrue(workflow.contains("e0ef076f2cf953d922addc04be9c3851cf3ec18f7678d2b94d44cea23dca51b5"));
+        assertTrue(workflow.contains("stage8-pre-spring-ai-v1.0.0-openapi.json"));
         assertTrue(script.contains("runtime-openapi.json"));
         assertTrue(manifestScript.contains("interfaceContract"));
-        assertTrue(manifestScript.contains("schemaVersion: 4"));
+        assertTrue(manifestScript.contains("schemaVersion: 5"));
         assertTrue(manifestSchema.contains("\"interfaceContract\""));
         assertTrue(manifestSchema.contains("\"fullStackRuntime\""));
-        assertTrue(manifestSchema.contains("\"const\": 4"));
+        assertTrue(manifestSchema.contains("\"const\": 5"));
     }
 
     @Test
@@ -223,7 +230,7 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
             assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '8'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '908'"));
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '910'"));
             assertTrue(workflow.contains("-Dtest=**/*Test,!**/*MySqlTest"));
             assertTrue(workflow.contains("-Dtest=**/*MySqlTest"));
         }

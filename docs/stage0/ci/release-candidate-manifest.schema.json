@@ -20,7 +20,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 4
+      "const": 5
     },
     "candidateId": {
       "type": "string",
@@ -255,6 +255,8 @@
       "additionalProperties": false,
       "required": [
         "existenceGate",
+        "breakingChangeGate",
+        "oasdiffVersion",
         "frontendSchemaVersion",
         "frontendBasePath",
         "runtimeOpenapiVersion",
@@ -264,11 +266,19 @@
         "missingOperationCount",
         "frontendContractSha256",
         "runtimeDocumentSha256",
-        "comparisonReportSha256"
+        "comparisonReportSha256",
+        "baselineDocumentSha256",
+        "breakingReportSha256"
       ],
       "properties": {
         "existenceGate": {
           "const": "PASS"
+        },
+        "breakingChangeGate": {
+          "const": "PASS"
+        },
+        "oasdiffVersion": {
+          "const": "1.28.0"
         },
         "frontendSchemaVersion": {
           "const": 1
@@ -302,6 +312,12 @@
           "$ref": "#/$defs/sha256"
         },
         "comparisonReportSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "baselineDocumentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "breakingReportSha256": {
           "$ref": "#/$defs/sha256"
         }
       }
