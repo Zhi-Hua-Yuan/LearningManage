@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Locale;
 
-/** Low-cardinality Stage 7 metrics. Never accepts IDs or content as tags. */
+/** 低基数的 Stage 7 指标。不接受任何 ID 或内容作为 tag。 */
 @Component
 public class AiMetricsRecorder {
     private final MeterRegistry registry;

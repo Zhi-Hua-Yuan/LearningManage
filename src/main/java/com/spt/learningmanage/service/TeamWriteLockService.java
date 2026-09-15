@@ -4,12 +4,12 @@ import com.spt.learningmanage.model.permission.ProjectAccessScope;
 
 import java.util.Collection;
 
-/** Serializes team-owned writes before lower-level rows are mutated. */
+/** 在修改底层数据行前，对团队内写操作进行串行化。 */
 public interface TeamWriteLockService {
 
     void lockTeam(Long teamId);
 
-    /** Locks the project scope and validates team membership with a current locking read. */
+    /** 锁定项目作用域，并通过当前加锁读取校验团队成员关系。 */
     void lockProjectScope(ProjectAccessScope scope);
 
     void lockOwningTeam(Long projectId);
