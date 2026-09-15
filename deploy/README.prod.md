@@ -3,6 +3,9 @@
 These files implement the low-resource, single-node production topology. They
 do not change the public API, DTOs, or the V1-V8 database schema.
 
+For routine application fixes after the first production deployment, follow
+the checked-in [production bug-fix release guide](BUGFIX_RELEASE_GUIDE.md).
+
 ## Immutable inputs
 
 Only artifacts downloaded from one successful cross-repository Release Gate

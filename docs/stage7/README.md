@@ -1,6 +1,6 @@
 # Stage 7: Production operations, observability and data lifecycle
 
-Status: `IMPLEMENTATION_COMPLETE / LOCAL_ACCEPTANCE_PASS / RELEASE_PENDING`
+Status: `RELEASED / LOCAL_ACCEPTANCE_PASS / REAL_QWEN_OBSERVABILITY_WAIVED`
 
 Stage 7 starts from the released `stage6-v1.0.0` candidate and adds no new AI
 business scene. Its boundary is operational safety: private management-plane
@@ -56,3 +56,7 @@ Metric source, grain and freshness definitions are frozen in the
 [metric catalog](observability/metric-catalog.md). Local Docker, migration,
 failure-drill and regression results are recorded in the
 [local verification evidence](evidence/local-verification-2026-09-07.md).
+
+Stage 7 was published as `stage7-v1.0.0`. The protected real-Qwen
+observability validation was explicitly waived for that release: it was not
+run and must not be represented as passing evidence.

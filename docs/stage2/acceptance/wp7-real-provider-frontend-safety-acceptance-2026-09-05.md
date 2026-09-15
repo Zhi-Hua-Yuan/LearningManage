@@ -19,7 +19,7 @@
 - 工作流：[run 33942527673](https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/33942527673)
 - 后端提交：`11d2f6604cc4f32fc7605627427c04e642d07000`
 - 模型：`qwen-plus`
-- 结果：3/3 轮、9/9 场景通过。
+- 结果：模型协议验证限定范围内 3/3 轮、9/9 场景通过；该数字不代表业务语义质量评测。
 - Usage：输入 999、输出 84、总计 1083 Token。
 - 估算成本：`0.00096720 CNY`，价格版本 `qwen-plus-2025-12-01-cn-beijing-0-128k-list-price-2026-09-05`。
 - 原始请求 ID 仅保存 SHA-256 哈希；证据不含 API Key、Authorization、完整 Prompt、完整响应或原始请求 ID。
