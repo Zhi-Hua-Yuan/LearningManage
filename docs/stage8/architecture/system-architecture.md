@@ -143,7 +143,7 @@ flowchart LR
 
 - 公共业务 API 使用应用端口；Actuator 使用不映射到宿主机的私有管理端口 `9123`。
 - MySQL 故障使 Core Readiness 为 `DOWN`；Redis、Qdrant、模型和遥测故障只使 AI 依赖状态为 `DEGRADED`。
-- RAG、Agent、Agent Worker、Knowledge Worker 均有独立功能开关，默认安全关闭后再按环境启用。
+- RAG、Agent、Agent Worker、Knowledge Worker 和受控 Tool Calling 均默认开启，并保留独立环境变量紧急关闭能力；Cleanup Worker 仍需显式启用。
 - Qdrant 丢失后通过 MySQL 文档元数据和幂等 Backfill 重建；Redis 丢失不影响正式业务事实。
 - 数据库结构只通过 Flyway 前向迁移，应用账号保持 DML-only。
 

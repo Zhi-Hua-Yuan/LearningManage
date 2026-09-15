@@ -28,9 +28,9 @@
 
 ### A.1 本次最小候选
 
-本次建议先部署 Phase A：Frontend、Backend、MySQL、Redis、Qdrant 常驻；普通 Chat/任务拆解可配置启用；Knowledge Worker、RAG、Agent、Tool Calling、Cleanup 全部关闭。Prometheus、Tempo、Grafana 只在验收或排障时通过 `observability` profile 启动。
+Phase 0 候选部署 Frontend、Backend、MySQL、Redis、Qdrant；Knowledge Worker、RAG、Agent、Agent Worker 和受控 Tool Calling 默认开启，Cleanup 保持关闭。Prometheus、Tempo、Grafana 只在验收或排障时通过 `observability` profile 启动。
 
-这里的 Qdrant 即使在 Phase A 不消费索引，仍是当前 Compose 的启动依赖：Backend 对 MySQL、Redis、Qdrant 都声明了 `service_healthy`。因此“不启用 RAG”目前不等于“可以不启动 Qdrant”。如需改变这一点，必须修改 Compose 并重新通过发布门禁，不能临时删服务。
+Qdrant 是当前 Compose 的启动依赖：Backend 对 MySQL、Redis、Qdrant 都声明了 `service_healthy`。显式关闭 RAG 目前不等于可以不启动 Qdrant；如需改变这一点，必须修改 Compose 并重新通过发布门禁，不能临时删服务。
 
 Knowledge、Agent和Cleanup Worker不是独立容器，而是Backend JVM内由Spring调度的任务；各自再检查功能开关。Frontend、Backend、MySQL、Redis、Qdrant则是同一台目标主机上的独立容器。
 
@@ -134,15 +134,15 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 | 迁移 | `FLYWAY_DB_USERNAME`、`FLYWAY_DB_PASSWORD` | 一次性 Flyway 管理 | 临时 `migration.env` | 是 | 用户固定为 `learning_manage_migrator`；用后删除 |
 | Redis | `REDIS_DATABASE`、`REDIS_PASSWORD` | AI 场景限流/ACL | `learning.env` | 密码敏感 | default 用户关闭；prod `fail-open=false` |
 | 会话 | `JWT_SECRET`、`JWT_EXPIRE_SECONDS` | JWT 签名和过期时间 | `learning.env` | Secret 敏感 | Secret 至少 32 位且不得复用；默认 86400 秒 |
-| Chat | `ALIYUN_API_KEY`、`AI_BASE_URL`、`AI_MODEL`、`AI_BREAKDOWN_MODEL`、`AI_POLISH_MODEL`、`AI_FALLBACK_MODEL` | 普通 AI 场景 | 服务端受保护配置 | Key 敏感 | Phase A 可启用；Key 不进入浏览器 |
+| Chat | `ALIYUN_API_KEY`、`AI_BASE_URL`、`AI_MODEL`、`AI_BREAKDOWN_MODEL`、`AI_POLISH_MODEL`、`AI_FALLBACK_MODEL` | 普通 AI 场景 | 服务端受保护配置 | Key 敏感 | Key 不进入浏览器 |
 | AI 超时/并发 | `AI_CONNECT_TIMEOUT_MS`、`AI_READ_TIMEOUT_MS`、`AI_TOTAL_TIMEOUT_MS`、`AI_MAX_CONCURRENT_CALLS`、`AI_MAX_WAIT_MILLIS` | 连接、读取、总超时和并发 | 低资源配置 | 否 | 5s/60s/120s/4/0 |
-| Embedding | `AI_EMBEDDING_BASE_URL`、`AI_EMBEDDING_QUERY_BASE_URL`、`AI_EMBEDDING_API_KEY`、`AI_EMBEDDING_MODEL`、`AI_EMBEDDING_DIMENSION`、`AI_EMBEDDING_BATCH_SIZE` | 知识索引向量化 | 服务端受保护配置 | Key 敏感 | Worker关闭；维度1024、批量10 |
-| Rerank | `AI_RERANK_BASE_URL`、`AI_RERANK_API_KEY`、`AI_RERANK_MODEL`、`AI_RERANK_MAX_CONCURRENT_CALLS` | RAG重排 | 服务端受保护配置 | Key 敏感 | RAG关闭；并发1 |
+| Embedding | `AI_EMBEDDING_BASE_URL`、`AI_EMBEDDING_QUERY_BASE_URL`、`AI_EMBEDDING_API_KEY`、`AI_EMBEDDING_MODEL`、`AI_EMBEDDING_DIMENSION`、`AI_EMBEDDING_BATCH_SIZE` | 知识索引向量化 | 服务端受保护配置 | Key 敏感 | Worker默认开启；维度1024、批量10 |
+| Rerank | `AI_RERANK_BASE_URL`、`AI_RERANK_API_KEY`、`AI_RERANK_MODEL`、`AI_RERANK_MAX_CONCURRENT_CALLS` | RAG重排 | 服务端受保护配置 | Key 敏感 | RAG默认开启；并发1 |
 | Qdrant | `QDRANT_API_KEY`、`QDRANT_COLLECTION`、`QDRANT_ALIAS` | 向量鉴权和版本切换 | `learning.env` | Key 敏感 | 不发布端口；collection与alias必须不同 |
-| RAG | `AI_RAG_ENABLED`、`AI_RAG_REQUIRE_BACKFILL`、`AI_RAG_QUESTION_HMAC_SECRET`及 Top-K/阈值项 | RAG开关、就绪门槛、问题摘要 | `learning.env` | HMAC 敏感 | Phase A关闭；启用时强制完成 backfill |
-| Worker | `AI_KNOWLEDGE_WORKER_ENABLED`、claim/worker/embedding/vector并发与lease项 | 索引队列消费者 | `learning.env` | 否 | Phase A关闭；低资源并发1/1/2 |
-| Agent | `AI_AGENT_ENABLED`、`AI_AGENT_WORKER_ENABLED`、`AI_AGENT_TOOL_CALLING_ENABLED`、batch/concurrency/lease/timeout项 | API、消费者和Tool Calling分别控制 | `learning.env` | 否 | Phase A全关；最大并发1 |
-| Cleanup | `AI_CLEANUP_ENABLED`、`AI_CLEANUP_SCHEDULE_ENABLED`及保留/批量/租约项 | 数据生命周期 | `learning.env` | 否 | Phase A全关；schedule不能先于功能启用 |
+| RAG | `AI_RAG_ENABLED`、`AI_RAG_REQUIRE_BACKFILL`、`AI_RAG_QUESTION_HMAC_SECRET`及 Top-K/阈值项 | RAG开关、就绪门槛、问题摘要 | `learning.env` | HMAC 敏感 | 默认开启；强制完成 backfill 后才可回答 |
+| Worker | `AI_KNOWLEDGE_WORKER_ENABLED`、claim/worker/embedding/vector并发与lease项 | 索引队列消费者 | `learning.env` | 否 | 默认开启；低资源并发1/1/2 |
+| Agent | `AI_AGENT_ENABLED`、`AI_AGENT_WORKER_ENABLED`、`AI_AGENT_TOOL_CALLING_ENABLED`、batch/concurrency/lease/timeout项 | API、消费者和Tool Calling分别控制 | `learning.env` | 否 | 三项默认开启；最大并发1；仅注入场景白名单只读Tool |
+| Cleanup | `AI_CLEANUP_ENABLED`、`AI_CLEANUP_SCHEDULE_ENABLED`及保留/批量/租约项 | 数据生命周期 | `learning.env` | 否 | 默认关闭；schedule不能先于功能启用 |
 | 管理面 | `MANAGEMENT_TRACING_ENABLED`、`MANAGEMENT_TRACING_SAMPLING`、`OTEL_EXPORTER_OTLP_ENDPOINT`、`GRAFANA_ADMIN_PASSWORD_FILE` | 指标、Trace、Grafana | base/observability env和密钥文件 | Grafana密码敏感 | tracing默认关；采样0.02；Grafana仅回环 |
 | 费用观测 | `AI_PRICE_VERSION`、`AI_PRICE_CURRENCY`、模型单价、`AI_DAILY_COST_SOFT_LIMIT`、`AI_DAILY_COST_HARD_LIMIT` | 估算指标和告警阈值 | 经确认的价格表 | 否 | 空值代表未配置；当前没有调用前费用硬阻断 |
 | 备份 | `BACKUP_AGE_RECIPIENT`、`OSS_BUCKET_URI`、`S3CMD_CONFIG`、`BACKUP_DIRECTORY` | 加密和对象存储 | `backup.env`/受限配置 | s3凭据敏感 | age只存公钥；私钥离线保存 |
@@ -216,7 +216,7 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 
 ## F. 启动与功能启用顺序
 
-### F.1 Phase A首次部署
+### F.1 Phase 0 baseline 首次部署
 
 1. **Bundle验证**：校验目录名、manifest、JAR/dist、V1～V8和镜像digest。
 2. **镜像组装**：只从验证产物构建SHA标签的Backend/Frontend镜像。
@@ -224,7 +224,7 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 4. **依赖健康**：MySQL ping、Redis ACL PING、Qdrant TCP探针通过。
 5. **账户与迁移**：仅首次空库执行provision和V1～V8。
 6. **Backend/Frontend启动**：Backend readiness通过后再启动Frontend。
-7. **Phase A smoke**：健康、页面、登录、基础业务和计划内普通AI。
+7. **默认开启 smoke**：健康、页面、登录、基础业务、Knowledge/RAG/Agent/Tool Calling 和 Draft 边界。
 8. **原子切换**：全部通过后才将 `/opt/learning-manage/current`指向新release。
 
 `depends_on: service_healthy`只证明对应容器探针通过，不证明完整业务、真实模型、RAG或Agent可用。Backend readiness当前包含应用状态和核心数据库，不包含AI依赖；AI应另查内部 `/actuator/health/ai`。`/api/health`本身只返回固定应用存活响应，也不能单独证明数据库或模型可用。
@@ -243,16 +243,12 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 | Agent可用 | Agent API与Worker都开启；Run可领取、心跳、完成；Draft→Confirm→Report通过 |
 | Tool Calling可用 | 在Agent可用基础上，Tool开关、白名单、权限、次数和超时验证通过 |
 
-### F.3 分阶段启用
+### F.3 默认开启与故障关闭
 
-- Phase B：只开启 `AI_KNOWLEDGE_WORKER_ENABLED`，完成初始backfill和V6 REBUILD验收。
-- Phase C：开启 `AI_RAG_ENABLED`，保持 `AI_RAG_REQUIRE_BACKFILL=true`。
-- Phase D1：开启 `AI_AGENT_ENABLED`和 `AI_AGENT_WORKER_ENABLED`，Tool Calling仍关。
-- Phase D2：单独开启 `AI_AGENT_TOOL_CALLING_ENABLED`，并发保持1。
-- Phase E1：开启Cleanup，schedule保持关闭，先Dry Run再人工批准一次正式运行。
-- Phase E2：只有E1通过后才开启每日调度。
-
-失败时反向关闭：Tool Calling → Agent → RAG → Worker；每次只重建Backend，不重启MySQL、Redis或Qdrant。
+- `AI_KNOWLEDGE_WORKER_ENABLED`、`AI_RAG_ENABLED`、`AI_AGENT_ENABLED`、`AI_AGENT_WORKER_ENABLED` 和 `AI_AGENT_TOOL_CALLING_ENABLED` 默认均为 `true`。
+- 默认开启不会绕过 backfill、权限、Citation、Tool 白名单、调用次数、超时或 Draft 确认边界。
+- Cleanup 仍默认关闭；首次启用时 schedule 保持关闭，先 Dry Run、复核预计数量并由 SYSTEM_ADMIN 批准正式执行。
+- 故障时按 Tool Calling → Agent Worker → Agent → RAG → Knowledge Worker 的顺序显式设为 `false`；每次只重建 Backend，不重启 MySQL、Redis 或 Qdrant。
 
 ## G. 目标服务器验证清单
 
@@ -260,14 +256,14 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 
 | 项目 | 前置条件 | 操作 | 预期结果 | 实际证据 | 未验证范围 |
 |---|---|---|---|---|---|
-| 页面访问 | Phase A healthy；备案前SSH隧道或备案后HTTPS | 打开登录页并刷新一个非根路由 | 静态资源200、刷新不404 | 待执行 | 不代表API可用 |
+| 页面访问 | baseline healthy；备案前SSH隧道或备案后HTTPS | 打开登录页并刷新一个非根路由 | 静态资源200、刷新不404 | 待执行 | 不代表API可用 |
 | 登录 | 合成账号存在 | 正确/错误密码各一次 | 正确登录；错误凭据不泄露细节 | 待执行 | 未授权公众注册 |
 | 项目与任务 | 已登录 | 创建、查询、更新、归档/恢复项目与任务 | 返回统一响应，刷新后数据仍在 | 待执行 | 不做压测 |
 | 跨账号权限 | 两个合成账号 | B账号读取/修改A的私人资源 | 拒绝访问且不返回私人正文 | 待执行 | 不使用私人真实数据 |
 | AI草稿 | 用户明确批准少量模型调用和预算 | preview → 查看草稿 → confirm | 模型输出不直接写业务，确认后才落库 | 待执行 | Stub不能替代真实Provider |
-| Knowledge | Phase B获批 | 发起backfill，查看status/events | backlog归零、DEAD=0、1024维alias正确 | 待执行 | Phase A不适用 |
-| RAG引用 | Phase C获批 | 提问、读取result、修改/撤权后复查 | 引用可追溯；无权或STALE内容不返回 | 待执行 | 需限定付费调用次数 |
-| Agent完整链路 | Phase D获批 | 创建Run、等待完成、确认Draft、读取Report | Run状态完整、白名单有效、确认后生成报告 | 待执行 | Tool Calling分开验收 |
+| Knowledge | 默认开启且依赖就绪 | 发起backfill，查看status/events | backlog归零、DEAD=0、1024维alias正确 | 待执行 | 需限定付费调用次数 |
+| RAG引用 | 默认开启且backfill就绪 | 提问、读取result、修改/撤权后复查 | 引用可追溯；无权或STALE内容不返回 | 待执行 | 需限定付费调用次数 |
+| Agent完整链路 | Agent/Worker/Tool Calling默认开启 | 创建Run、等待完成、确认Draft、读取Report | Run状态完整、场景白名单有效、确认后生成报告 | 待执行 | 无全局Tool注册 |
 | 内部端口 | 服务启动 | 云外核查22/80/443；目标机 `ss -lntp`核查 | DB/Backend/Qdrant/Actuator/Grafana无公网监听 | 待执行 | 不粘贴完整敏感输出 |
 | 管理端点 | SSH会话/容器网络 | 查liveness、readiness、AI分组和metrics | 管理端点内部可达、外部不可达 | 待执行 | healthy不等于AI功能通过 |
 | 普通重启 | 已有合成数据且已备份 | 受控重启应用容器 | MySQL数据、Run/Outbox状态保留 | 待执行 | 不停止生产数据库做故障演练 |
@@ -283,7 +279,7 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 - 应用AI限流按 `userId + scene + time bucket`写Redis，prod设置 `fail-open=false`。
 - 宿主机Nginx对登录、注册和全部 `/api/ai/`另做IP限流。
 - 普通AI并发上限4；Knowledge、Embedding、Rerank和Agent按低资源值限制；Agent全局和单用户并发均为1。
-- Agent使用持久Run、租约/heartbeat、Tool白名单、Tool次数和超时；Tool Calling默认关闭。
+- Agent使用持久Run、租约/heartbeat、Tool白名单、Tool次数和超时；Tool Calling默认开启，但不注册全局默认Tool。
 - Worker/RAG/Agent/Cleanup都有独立紧急关闭开关。
 
 ### H.2 仍存在的边界
@@ -369,7 +365,7 @@ Spring 先加载 `application.yml`，`SPRING_PROFILES_ACTIVE=prod`后再用 `app
 | 前端本地dist和后端`deploy/dist`均非权威产物 | 只使用同一次Gate生成的dist和`dist.sha256` | manifest、文件清单、镜像revision一致 | 拒绝Bundle |
 | 开放范围/公众注册未确认 | 明确“本人/受邀/公开注册”；建议受邀并阻断register | 公网register返回预期拒绝；既有账号登录正常 | 恢复原Nginx配置需重新审批 |
 | 真实域名、备案/DNS/证书当前状态未确认 | 核对后再开放80/443 | DNS、HTTPS、renew dry-run和外部端口检查 | 继续只开放22和SSH隧道 |
-| 模型、次数、预算和Provider授权未确认 | 先批准Phase A模型及最大调用次数；其他阶段逐项批准 | Provider账单/调用ID脱敏摘要 | 关闭AI开关，保留基础业务 |
+| 模型、次数、预算和Provider授权未确认 | 批准模型及最大调用次数 | Provider账单/调用ID脱敏摘要 | 按故障顺序关闭AI开关，保留基础业务 |
 | 目标主机现状未在本轮核实 | 脱敏核对OS/架构/资源/Docker/同机服务/重要数据 | `verify-host.sh`及人工复核 | 不执行初始化/部署 |
 | 备份目标和离线age恢复介质未验证 | 配置私有Bucket最小权限并先做隔离恢复 | checksum、对象存在、mysqlcheck和计数 | 不宣称可恢复，不开放真实数据 |
 

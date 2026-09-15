@@ -6,12 +6,10 @@
 
 > 本地修改必须经过提交、Release Gate、不可变 Release Bundle 和生产 smoke，禁止直接修改服务器中的代码、JAR、前端文件或容器。
 
-发布流程需要区分两类验收：
-
-- **阶段恢复验收**：如果生产环境在发布前已经启用 Phase B～E，任何应用或生产资产新 Release 都必须先受控降回 Phase A，完成新版本 Phase A smoke 后，再按 B、C、D1、D2、E1、E2 顺序恢复并通过各阶段准入检查。此流程不能因 Bug 较小而跳过。
-- **业务回归范围**：不要求每个小 Bug 都从头执行全部人工业务用例；除固定 smoke 和阶段准入检查外，根据代码影响范围选择专项回归。无法判断影响范围时，扩大验收范围。
-
-因此，“每次发布都要按顺序恢复阶段”与“每次发布都要完整重做所有人工用例”不是同一件事。
+Phase 0 冻结后的默认运行矩阵为：Knowledge Worker、RAG、Agent、Agent Worker、
+受控 Tool Calling 开启，Cleanup 与 Cleanup Schedule 关闭。发布前后都必须记录这七个开关的
+实际值；发生故障时允许按 Tool Calling → Agent Worker → Agent → RAG → Knowledge Worker
+顺序显式关闭。业务回归根据代码影响范围选择，无法判断影响范围时扩大验收。
 
 ## 1. 先判断是否需要发布新版本
 
@@ -236,50 +234,40 @@ docker image inspect learningmanage-frontend:<FRONTEND_SHA> \
 - 保持 MySQL、Redis、Qdrant 及数据卷；
 - 启动或更新 Backend、Frontend；
 - 检查健康状态；
-- 运行 Phase A smoke；
+- 运行默认开启 smoke；
 - smoke 成功后原子切换 `/opt/learning-manage/current`。
 
 只有看到以下结果才算发布成功：
 
 ```text
-[learning-manage] Phase A smoke checks passed
-[learning-manage] Phase A deployed; current now points to ...
+[learning-manage] production smoke checks passed
+[learning-manage] Release deployed; current now points to ...
 ```
 
 ## 9. 高风险 AI 功能的发布边界与回归范围
 
-当前 `deploy.sh` 明确要求下列七个开关全部为 `false`：
+当前默认运行矩阵为：
 
 ```text
-AI_KNOWLEDGE_WORKER_ENABLED
-AI_RAG_ENABLED
-AI_AGENT_ENABLED
-AI_AGENT_WORKER_ENABLED
-AI_AGENT_TOOL_CALLING_ENABLED
-AI_CLEANUP_ENABLED
-AI_CLEANUP_SCHEDULE_ENABLED
+AI_KNOWLEDGE_WORKER_ENABLED=true
+AI_RAG_ENABLED=true
+AI_AGENT_ENABLED=true
+AI_AGENT_WORKER_ENABLED=true
+AI_AGENT_TOOL_CALLING_ENABLED=true
+AI_CLEANUP_ENABLED=false
+AI_CLEANUP_SCHEDULE_ENABLED=false
 ```
 
-因此：
+`deploy.sh` 只强制 Cleanup 两项保持 `false`；其他五项允许因故障处置被显式关闭，
+但发布记录必须说明实际值与原因。不得为了发布临时绕过权限、Citation、Draft 或 Tool 边界。
 
-- 当前 Phase A 发布可以直接使用普通 `deploy.sh`；
-- 如果以后已经启用 Phase B～E，发布新应用前必须先按受控流程降回 Phase A；
-- 新应用通过 Phase A smoke 后，再按 B、C、D1、D2、E1、E2 顺序逐阶段恢复；
-- 每个阶段只重建 Backend，并完成对应验收；
-- 不要为了绕过脚本保护而删除检查或一次性开启全部功能。
+### 9.1 开关记录与恢复
 
-### 9.1 强制执行的阶段恢复
-
-只要本次变更需要产生新 Release，无论改动大小，生产发布前都应先记录当前启用阶段和七个高风险功能的开关状态。如果发布前已经启用 Phase B～E，则必须：
-
-1. 使用受控配置变更降回 Phase A；
-2. 确认七个高风险开关全部为 `false`；
-3. 执行普通 `deploy.sh` 并通过 Phase A smoke；
-4. 按 B、C、D1、D2、E1、E2 顺序恢复到发布前已经批准的阶段；
-5. 每恢复一个阶段，只重建 Backend，并完成该阶段最低准入检查；
-6. 任一阶段失败时立即停止后续恢复，保持在最后一个已通过的安全阶段。
-
-不要在新版本发布过程中顺带启用发布前尚未批准的更高阶段。新增阶段启用应作为独立生产变更验收。
+1. 发布前记录七个开关的实际值和任何显式关闭原因。
+2. 执行普通 `deploy.sh` 并通过默认开启 smoke；Cleanup 两项必须为 `false`。
+3. 若某项因事故被关闭，发布不会自动重开；应在依赖和专项门禁通过后用独立配置变更恢复。
+4. 恢复时每次只重建 Backend，并完成对应最低准入检查。
+5. 任一检查失败立即停止恢复，保留最后一个已验证状态。
 
 ### 9.2 每次发布固定验收
 
@@ -287,7 +275,7 @@ AI_CLEANUP_SCHEDULE_ENABLED
 
 - Release Bundle、Manifest、SHA 和应用镜像 revision label 校验；
 - Compose config 和生产 secrets 保护性校验；
-- Phase A smoke；
+- 默认开启 smoke；
 - `/api/health`、登录、核心 Project/Milestone/Task 路径；
 - 普通 AI 和 Task Breakdown；
 - 本次 Bug 原始复现路径及相邻正常路径；
@@ -299,9 +287,9 @@ AI_CLEANUP_SCHEDULE_ENABLED
 | 修改范围 | 最低追加验收 |
 | --- | --- |
 | 纯前端样式、文案或局部交互 | 对应页面、主要浏览器路径和 API 兼容性 |
-| 普通 CRUD、Dashboard 或业务规则 | Phase A 对应模块、权限和相邻数据路径 |
+| 普通 CRUD、Dashboard 或业务规则 | 对应模块、权限和相邻数据路径 |
 | 登录、JWT、Team 隔离或公共权限逻辑 | 所有受影响的数据访问、RAG 和 Agent 权限边界 |
-| 普通 AI、Prompt、Task Breakdown | Phase A AI；公共 AI 客户端变更时扩大到 B～D |
+| 普通 AI、Prompt、Task Breakdown | 普通 AI；公共 AI 客户端变更时扩大到 Knowledge、RAG 与 Agent |
 | Embedding、Knowledge Worker、Qdrant 写入 | Phase B 和 Phase C |
 | RAG、Citation、Rerank、向量检索 | Phase B 和 Phase C |
 | Agent Fixed Workflow 或 Tool Calling | Phase D1 和 Phase D2 |
@@ -309,7 +297,7 @@ AI_CLEANUP_SCHEDULE_ENABLED
 | Compose、Nginx、网络、Secret 映射或公共配置 | 基础设施检查及所有受影响阶段 |
 | 公共数据库表、共享 DTO、AI SDK/Provider 或无法判断影响范围 | 扩大到完整 A～E 关键链路 |
 
-上述“追加验收”决定人工回归深度，不替代 9.1 的阶段恢复顺序。即使只修改前端样式，只要发布前生产环境已启用 B～E，也仍需按受控顺序恢复这些阶段；但无需重复执行与改动无关的全部深度业务用例。
+上述“追加验收”决定人工回归深度，不替代 9.1 的开关记录与恢复要求。
 
 ## 10. 数据库变更的特殊限制
 
@@ -377,7 +365,7 @@ http://127.0.0.1:18080/
 - 浏览器控制台和 Backend 日志没有新增异常；
 - 内存低于既定阈值且 Swap 不持续增长。
 
-如果发布前生产环境已经启用 Phase B～E，以上检查只表示新版本 Phase A 发布成功，尚不表示本次生产变更全部完成。还必须按照第 9 节恢复到发布前批准的阶段，并记录每个阶段的验收结果。只有目标阶段全部恢复成功，本次发布才可标记为完成。
+如果发布前有功能因故障被显式关闭，以上检查不会自动恢复该功能；必须按照第 9 节完成独立恢复并记录结果。
 
 SSH 隧道断开会导致浏览器出现 `ERR_CONNECTION_REFUSED`，这不等同于生产容器故障。
 
@@ -439,17 +427,12 @@ SSH 隧道断开会导致浏览器出现 `ERR_CONNECTION_REFUSED`，这不等同
 - 上一 Release：
 - 新 Release：
 - 是否包含数据库变更：否
-- 发布前启用阶段：Phase A / B / C / D1 / D2 / E1 / E2
+- 发布前七项开关实际值：
 - 本次专项回归范围：
 - Bundle 校验：通过 / 失败
 - 应用镜像校验：通过 / 失败
-- Phase A smoke：通过 / 失败
-- Phase B 恢复与验收：不适用 / 通过 / 失败
-- Phase C 恢复与验收：不适用 / 通过 / 失败
-- Phase D1 恢复与验收：不适用 / 通过 / 失败
-- Phase D2 恢复与验收：不适用 / 通过 / 失败
-- Phase E1 恢复与验收：不适用 / 通过 / 失败
-- Phase E2 恢复与验收：不适用 / 通过 / 失败
+- 默认开启 smoke：通过 / 失败
+- 显式关闭项恢复与验收：不适用 / 通过 / 失败
 - 浏览器业务验收：通过 / 失败
 - 当前链接：
 - 资源状态：
@@ -469,19 +452,17 @@ SSH 隧道断开会导致浏览器出现 `ERR_CONNECTION_REFUSED`，这不等同
 [ ] 上传归档 SHA-256 一致
 [ ] 新 Release 使用双 SHA 独立目录
 [ ] 已记录当前 Release 作为回滚目标
-[ ] 已记录发布前启用阶段和高风险功能开关状态
-[ ] 若发布前启用 B～E，已受控降回 Phase A
+[ ] 已记录发布前七项功能开关状态和显式关闭原因
 [ ] learning.env 仅同步新 Backend/Frontend SHA
 [ ] 生产 secrets 校验通过
 [ ] Compose config 校验通过
 [ ] 应用镜像及 revision label 校验通过
 [ ] 执行 deploy.sh，未使用 --initialize-database
-[ ] Phase A smoke 通过
+[ ] 默认开启 smoke 通过
 [ ] current 指向新 Release
 [ ] SSH 隧道业务验收通过
 [ ] 已按改动影响范围完成专项回归
-[ ] 若发布前启用 B～E，已按 B、C、D1、D2、E1、E2 恢复到原批准阶段
-[ ] 每个恢复阶段均已记录验收结果，失败时未继续扩大启用范围
+[ ] 显式关闭项如需恢复，已通过独立配置变更和专项验收
 [ ] 当前和上一 Release 均已保留
 [ ] 发布记录已归档
 ```

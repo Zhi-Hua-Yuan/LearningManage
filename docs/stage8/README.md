@@ -16,6 +16,7 @@
 | Agent 状态机与 Tool Calling 图 | [architecture/agent-state-and-tool-calling.md](architecture/agent-state-and-tool-calling.md) |
 | 项目总结 | [presentation/project-summary.md](presentation/project-summary.md) |
 | 1、3、10 分钟项目介绍 | [presentation/project-introductions.md](presentation/project-introductions.md) |
+| Phase 0 baseline 需求、TODO、复核与交接 | [../phase0-baseline/requirements.md](../phase0-baseline/requirements.md)、[../phase0-baseline/todo.md](../phase0-baseline/todo.md)、[../phase0-baseline/review.md](../phase0-baseline/review.md)、[../phase0-baseline/handover.md](../phase0-baseline/handover.md) |
 
 ## 阅读顺序
 

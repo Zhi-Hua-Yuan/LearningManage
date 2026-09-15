@@ -94,7 +94,7 @@ docs/stage8/presentation/project-summary.md
 | 前后端SHA、镜像digest、V1～V8 checksum绑定 | 已实现生产manifest schema和Release Gate job | 当前SHA的Gate未验证 |
 | 主机初始化、SSH加固、Nginx/Certbot安装流程 | 已实现脚本/模板 | 目标服务器未执行或未复核 |
 | 空库账户provision及独立Flyway migrator | 已实现脚本和admin profile | 目标数据库待执行 |
-| Phase A smoke与原子切换current | 已实现 | 目标服务器待执行 |
+| 默认开启 smoke与原子切换current | 已实现 | 目标服务器待执行 |
 | 按需Prometheus/Tempo/Grafana | 已实现profile和on/off脚本 | 目标服务器待执行 |
 | MySQL加密备份、OSS上传、systemd timer | 已实现 | 目标服务器待执行 |
 | 隔离恢复演练 | 已实现脚本 | 本次备份待执行 |
@@ -117,7 +117,7 @@ docs/stage8/presentation/project-summary.md
 | 备份 | 私有OSS、zstd+age、日7/周4、月度隔离恢复 | 待确认 | 用户提供方案 |
 | 旧腾讯云 | 仅作为2026-11-10前临时加密副本，不做在线依赖 | 未验证 | 用户提供方案 |
 
-本次推荐最小部署范围仍为Phase A：MySQL、Redis、Qdrant、Backend、Frontend常驻；普通AI/任务拆解在预算获批后验证；Knowledge Worker、RAG、Agent、Tool Calling、Cleanup全部关闭；观测按需。是否公众注册尚未确认。
+Phase 0 baseline 的候选范围为 MySQL、Redis、Qdrant、Backend、Frontend 常驻；Knowledge Worker、RAG、Agent、Agent Worker 和受控 Tool Calling 默认开启，Cleanup 关闭；观测按需。是否公众注册尚未确认。
 
 ## 7. 批准的配置差异（不含真实值）
 
@@ -147,14 +147,14 @@ docs/stage8/presentation/project-summary.md
 
 ### 8.2 功能开关
 
-| 功能 | Phase A计划 | 目标实际值 | 验证状态 |
+| 功能 | Phase 0 默认值 | 目标实际值 | 验证状态 |
 |---|---|---|---|
 | 基础业务 | 开启 | 待执行 | 待执行 |
 | 普通Chat/任务拆解 | 计划开启，需先批准模型/次数/预算 | 待确认 | 未验证 |
-| Knowledge Worker | 关闭 | 待执行 | 未验证 |
-| RAG | 关闭 | 待执行 | 未验证 |
-| Agent API/Worker | 关闭 | 待执行 | 未验证 |
-| Tool Calling | 关闭 | 待执行 | 未验证 |
+| Knowledge Worker | 开启 | 待执行 | 未验证 |
+| RAG | 开启 | 待执行 | 未验证 |
+| Agent API/Worker | 开启 | 待执行 | 未验证 |
+| Tool Calling | 开启（场景白名单只读Tool） | 待执行 | 未验证 |
 | Cleanup/Schedule | 关闭 | 待执行 | 未验证 |
 | Prometheus/Tempo/Grafana | 按需 | 待确认 | 未验证 |
 
@@ -169,7 +169,7 @@ docs/stage8/presentation/project-summary.md
 | 2026-09-10 | 核对三项关键修复 ancestry和源码证据 | 三项均进入当前HEAD | 已执行通过 | 本地隔离环境 |
 | 2026-09-10 | 创建三份部署准备文档 | 不含部署配置修改 | 已执行通过 | 本地隔离环境 |
 | 待定 | Release Gate、Bundle组装 | PR已由外部流程合并；其余尚未开始 | 待执行 | 历史发布记录/可信构建机 |
-| 待定 | 主机初始化、迁移、Phase A、HTTPS、备份恢复 | 尚未开始 | 待执行 | 目标服务器 |
+| 待定 | 主机初始化、迁移、baseline、HTTPS、备份恢复 | 尚未开始 | 待执行 | 目标服务器 |
 
 ## 10. 验证与证据台账
 
@@ -181,7 +181,7 @@ docs/stage8/presentation/project-summary.md
 | 当前后端13e916f Release Gate | 无成功产物记录 | 未验证 | 历史发布记录 | 待补 |
 | 当前前后端绑定manifest | 未生成 | 待执行 | 历史发布记录 | 待补 |
 | 目标机端口/防火墙 | 未连接 | 待执行 | 目标服务器 | 待补脱敏摘要 |
-| 目标机Phase A smoke | 未部署 | 待执行 | 目标服务器 | 待补 |
+| 目标机默认开启 smoke | 未部署 | 待执行 | 目标服务器 | 待补 |
 | 真实模型调用 | 未获本轮授权 | 待执行 | 目标服务器 | 待补调用次数/模型/结果摘要 |
 | 公网HTTPS/续期dry-run | 未执行 | 待执行 | 目标服务器 | 待补 |
 | 加密备份上传 | 未执行 | 待执行 | 目标服务器 | 待补对象key后缀、size、checksum |
@@ -222,12 +222,12 @@ docs/stage8/presentation/project-summary.md
 2. 组装、校验、上传Release Bundle。
 3. 脱敏核实目标主机现状和同机服务。
 4. 确认空库、开放范围、域名/备案、模型预算、观测范围和备份介质。
-5. 完成迁移、Phase A验收、HTTPS、备份、隔离恢复和回滚演练。
-6. 根据批准逐步决定是否启用Worker、RAG、Agent和Cleanup。
+5. 完成迁移、默认开启矩阵验收、HTTPS、备份、隔离恢复和回滚演练。
+6. Cleanup 如需启用，单独完成 Dry Run、数量复核和管理员审批。
 
 ### 13.2 当前适合对谁开放
 
-当前尚未上线，因此不适合对任何外部用户开放。完成Phase A与安全验收后，优先只向本人和受邀面试演示账号开放；允许公众注册必须另行确认费用与滥用风险。
+当前尚未上线，因此不适合对任何外部用户开放。完成 baseline 与安全验收后，优先只向本人和受邀面试演示账号开放；允许公众注册必须另行确认费用与滥用风险。
 
 ### 13.3 观察时段
 
@@ -238,7 +238,7 @@ docs/stage8/presentation/project-summary.md
 1. 最终开放范围：本人、受邀，还是公开注册？
 2. 目标机规格和已完成主机配置是否仍与此前方案一致？是否有同机服务或重要数据？
 3. 域名、备案、DNS和证书当前状态？
-4. Phase A真实模型、允许调用次数、预算和账号授权？
+4. baseline 真实模型、允许调用次数、预算和账号授权？
 5. 观测组件是否继续按需启动？
 6. 私有OSS、最小权限子账号和age离线恢复介质是否已准备？
 
