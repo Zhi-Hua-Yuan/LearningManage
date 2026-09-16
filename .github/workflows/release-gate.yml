@@ -581,7 +581,9 @@ jobs:
       CI_RUNTIME_OPENAPI_URL: http://127.0.0.1:18080/api/v3/api-docs
       CI_OPENAPI_BASELINE_FILE: docs/api/baseline/stage8-pre-spring-ai-v1.0.0-openapi.json
       CI_OASDIFF_VERSION: 1.28.0
-      CI_OASDIFF_BIN: ${{ runner.temp }}/oasdiff-1.28.0/oasdiff
+      # `runner` is not available in a job-level env expression. Keep the
+      # checksum-locked binary in this disposable workspace instead.
+      CI_OASDIFF_BIN: ${{ github.workspace }}/.ci-tools/oasdiff-1.28.0/oasdiff
       CI_FULL_STACK_BASE_URL: http://127.0.0.1:18080
       CI_AI_FLOW_OUTPUT_DIR: ci-artifacts/full-stack
       CI_NGINX_IMAGE: nginx:1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
@@ -871,7 +873,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           archive="$RUNNER_TEMP/oasdiff_1.28.0_linux_amd64.tar.gz"
-          install_dir="$RUNNER_TEMP/oasdiff-1.28.0"
+          install_dir="$GITHUB_WORKSPACE/.ci-tools/oasdiff-1.28.0"
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
             https://github.com/oasdiff/oasdiff/releases/download/v1.28.0/oasdiff_1.28.0_linux_amd64.tar.gz \
             --output "$archive"
