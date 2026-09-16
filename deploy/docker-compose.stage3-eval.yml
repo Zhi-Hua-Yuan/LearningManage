@@ -62,6 +62,14 @@ services:
       # model circuit and change the contract exercised by a later case.
       AI_CB_SLIDING_WINDOW_SIZE: "1000"
       AI_CB_MINIMUM_CALLS: "1000"
+      # Stage 3 evaluates the five ordinary prompt scenes and intentionally
+      # has no Qdrant or Redis service. It is a scenario-local override, not a
+      # production default.
+      AI_KNOWLEDGE_WORKER_ENABLED: "false"
+      AI_RAG_ENABLED: "false"
+      AI_AGENT_ENABLED: "false"
+      AI_AGENT_WORKER_ENABLED: "false"
+      AI_AGENT_TOOL_CALLING_ENABLED: "false"
       AI_RATE_LIMIT_ENABLED: "false"
       ALIYUN_API_KEY: ci-only-not-a-real-key
       JWT_SECRET: ci-only-stage3-jwt-secret-with-at-least-32-bytes

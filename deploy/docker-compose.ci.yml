@@ -33,6 +33,14 @@ services:
       FLYWAY_DB_PASSWORD: __flyway_migrator_not_configured__
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: "6379"
+      # This minimal database/runtime gate intentionally has no Qdrant, Redis,
+      # or AI stub service. Override the production defaults locally so it only
+      # verifies that core readiness remains independent from AI dependencies.
+      AI_KNOWLEDGE_WORKER_ENABLED: "false"
+      AI_RAG_ENABLED: "false"
+      AI_AGENT_ENABLED: "false"
+      AI_AGENT_WORKER_ENABLED: "false"
+      AI_AGENT_TOOL_CALLING_ENABLED: "false"
       AI_RATE_LIMIT_ENABLED: "false"
       ALIYUN_API_KEY: ci-only-not-a-real-key
       JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
