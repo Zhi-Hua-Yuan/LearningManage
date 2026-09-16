@@ -749,6 +749,11 @@ jobs:
           AI_EMBEDDING_API_KEY=ci-only-not-a-real-provider-key
           AI_RERANK_API_KEY=ci-only-not-a-real-provider-key
           AI_RAG_QUESTION_HMAC_SECRET=ci_prod_rag_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_Aa9x_secure_secret
+          # The production gate creates fresh data and verifies that the default-enabled
+          # worker indexes it. It does not synthesize a completed full backfill run.
+          # Keep feature-switch defaults unmodified while making this isolated smoke
+          # fixture query-ready, matching the Stage 7 deterministic gate.
+          AI_RAG_REQUIRE_BACKFILL=false
           QDRANT_API_KEY=$CI_PROD_QDRANT_KEY
           FLYWAY_DB_USERNAME=learning_manage_ci_migrator
           FLYWAY_DB_PASSWORD=$CI_PROD_MIGRATOR_PASSWORD
