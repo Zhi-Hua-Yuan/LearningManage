@@ -32,7 +32,7 @@ jq -e '
     (all(.migrations[]; test("^[0-9A-F]{64}$")))
 ' "$production_manifest" >/dev/null \
     || lm_die "production manifest did not pass schema identity checks"
-jq -e '.schemaVersion == 4 and .status == "PASS"' "$candidate_manifest" >/dev/null \
+jq -e '.schemaVersion == 5 and .status == "PASS"' "$candidate_manifest" >/dev/null \
     || lm_die "candidate manifest did not pass schema identity checks"
 
 candidate_hash="$(sha256sum "$candidate_manifest" | awk '{print toupper($1)}')"

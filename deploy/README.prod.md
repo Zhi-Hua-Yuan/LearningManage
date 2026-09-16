@@ -3,6 +3,9 @@
 These files implement the low-resource, single-node production topology. They
 do not change the public API, DTOs, or the V1-V8 database schema.
 
+For routine application fixes after the first production deployment, follow
+the checked-in [production bug-fix release guide](BUGFIX_RELEASE_GUIDE.md).
+
 ## Immutable inputs
 
 Only artifacts downloaded from one successful cross-repository Release Gate
@@ -88,37 +91,28 @@ Use an SSH tunnel for acceptance:
 local 18080 -> server 127.0.0.1:18080
 ```
 
-The first deployment performs only Phase A. Ordinary AI and task breakdown
-remain available; Knowledge Worker, RAG, Agent, Tool Calling, Cleanup, and
-Cleanup scheduling remain disabled. `deploy.sh` refuses to proceed unless all
-seven higher-risk feature flags are explicitly false, including on later
-application releases.
-Before `current` changes, the deployment script runs the complete Phase A smoke
-suite. Release Gate also runs an isolated full production Compose stack using
-the production MySQL settings, Redis ACL, Qdrant API key, Backend, Frontend, and
-deterministic AI stub.
+The first deployment uses the frozen Phase 0 defaults: Knowledge Worker, RAG,
+Agent, Agent Worker, and controlled Tool Calling are enabled. Cleanup and its
+schedule remain disabled, and `deploy.sh` refuses a new deployment when either
+Cleanup switch is true. Before `current` changes, the deployment script runs
+the complete smoke suite. Release Gate also runs an isolated full production
+Compose stack using the production MySQL settings, Redis ACL, Qdrant API key,
+Backend, Frontend, and deterministic AI stub.
 
-## Controlled feature phases
+## Controlled feature switches
 
-Change only the listed feature flags, atomically replace `learning.env`, and
-recreate only Backend after each approved phase:
+Default enablement does not bypass backfill readiness, authorization, citation,
+tool allowlists, tool timeouts, or Draft confirmation. For incident response,
+atomically change `learning.env` and recreate only Backend in this order:
 
-1. Phase B: set `AI_KNOWLEDGE_WORKER_ENABLED=true`. Require V6 REBUILD success,
-   backlog 0, DEAD 0, 1024-dimensional vectors, and the expected alias.
-2. Phase C: set `AI_RAG_ENABLED=true`, retaining
-   `AI_RAG_REQUIRE_BACKFILL=true`. Verify citation, authorization, STALE,
-   rerank degradation, and fail-closed behavior.
-3. Phase D1: set `AI_AGENT_ENABLED=true` and
-   `AI_AGENT_WORKER_ENABLED=true`; keep Tool Calling false. Verify the fixed
-   Draft -> Confirm -> Report workflow.
-4. Phase D2: set `AI_AGENT_TOOL_CALLING_ENABLED=true`. Verify the tool
-   allowlist, authorization, timeout, and concurrency limit of one.
-5. Phase E1: set `AI_CLEANUP_ENABLED=true`; keep scheduling false. Complete an
-   approved dry run and the first manual execution.
-6. Phase E2: set `AI_CLEANUP_SCHEDULE_ENABLED=true` only after Phase E1 passes.
+1. Disable Tool Calling.
+2. Disable Agent Worker, then Agent.
+3. Disable RAG.
+4. Disable Knowledge Worker if required.
 
-On failure, disable Tool Calling, Agent, RAG, then Worker, recreating only
-Backend after each change.
+Cleanup remains a separate opt-in procedure: enable it without scheduling,
+complete and review a dry run, execute one approved formal run, and only then
+consider enabling its schedule.
 
 Qdrant uses an API key over the same-host `data-internal` bridge and publishes
 no host port. This is an explicit single-node residual-risk exception to the

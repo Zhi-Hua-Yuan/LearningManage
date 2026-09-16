@@ -20,7 +20,7 @@ class DefaultAiPromptTemplateProviderTest {
 
             Assertions.assertEquals(promptCode.getCode(), template.code());
             Assertions.assertEquals(promptCode.getScene().getCode(), template.scene());
-            Assertions.assertEquals(1, template.version());
+            Assertions.assertEquals(promptCode.getMinimumCompatibleVersion(), template.version());
             Assertions.assertFalse(template.systemPrompt().isBlank());
         }
     }

@@ -195,7 +195,8 @@ Prompt 数据存储于 `prompt_template` 表。核心字段如下：
 1. 后端优先查询数据库中与目标 `template_code` 匹配且 `enabled=1` 的模板。
 2. 同一 `template_code` 必须恰好存在一个启用版本；存在 0 个或多个启用版本时，后端回退到内置模板。
 3. 启用版本的 `template_code`、`scene`、`version` 和 `template_content` 不合法时，后端也回退到内置模板。
-4. 查询数据库失败时，后端记录异常并回退到内置模板，避免 Prompt 配置问题阻断 AI 主流程。
+4. 数据库模板必须达到场景所需的最低兼容版本；任务拆解普通/详细模式最低均为 V2，旧 V1 与当前固定 `3×3`/`3×4` 输出契约冲突，会自动回退到内置 V2。
+5. 查询数据库失败时，后端记录异常并回退到内置模板，避免 Prompt 配置问题阻断 AI 主流程。
 
 发布新版本的建议步骤：
 
@@ -256,4 +257,3 @@ Prompt 使用情况可通过 `ai_call_log` 中的 `prompt_type`、`prompt_templa
 4. AI Key 通过环境变量注入，日志中没有输出完整密钥。
 5. `prompt_template` 中每个业务使用的模板编码只有一个 `enabled=1` 版本。
 6. 生成 AI 草稿后，`ai_draft` 和 `ai_call_log` 均有预期记录；确认后 `ai_draft_confirm_log`、`project`、`milestone`、`task` 数据一致。
-

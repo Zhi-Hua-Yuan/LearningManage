@@ -16,9 +16,8 @@ import java.util.List;
 public interface TeamMemberMapper extends BaseMapper<TeamMember> {
 
     /**
-     * Lock the active membership rows that participate in a membership
-     * termination decision. The implementation orders by relationship id so
-     * callers can use one deterministic lock order for actor and target rows.
+     * 锁定参与成员关系终止决策的有效成员记录。
+     * 实现按关系 id 排序，便于调用方对操作者与目标记录使用确定性的加锁顺序。
      */
     List<TeamMember> selectActiveMembersForUpdate(
             @Param("teamId") Long teamId,
@@ -33,8 +32,7 @@ public interface TeamMemberMapper extends BaseMapper<TeamMember> {
     );
 
     /**
-     * Atomically invalidate one membership row when its role and active state
-     * still match the locked snapshot.
+     * 当角色与有效状态仍与加锁快照一致时，以原子方式将单条成员关系置为失效。
      */
     int deactivateMembershipCas(
             @Param("membershipId") Long membershipId,

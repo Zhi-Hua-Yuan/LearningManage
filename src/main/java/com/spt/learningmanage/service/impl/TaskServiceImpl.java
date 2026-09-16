@@ -342,7 +342,7 @@ public class TaskServiceImpl implements TaskService {
         validateStatus(targetStatus);
         validateStatusTransition(oldStatus, targetStatus);
         if (request.getExpectedStatus() != null && !Objects.equals(request.getExpectedStatus(), oldStatus)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已变化，请刷新后重试");
+            throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT, "任务状态已变化，请刷新后重试");
         }
 
         boolean changed = false;
@@ -370,7 +370,7 @@ public class TaskServiceImpl implements TaskService {
                         newCompletedAt
                 );
                 if (rows == 0) {
-                    throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                    throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT,
                             "任务状态或负责人已被其他请求更新，请刷新后重试");
                 }
             } else {
@@ -399,7 +399,7 @@ public class TaskServiceImpl implements TaskService {
                 finalStatus = latest.getStatus();
                 finalCompletedAt = latest.getCompletedAt();
                 if (!Objects.equals(finalStatus, targetStatus)) {
-                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务状态已被其他请求更新，请刷新后重试");
+                    throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT, "任务状态已被其他请求更新，请刷新后重试");
                 }
             }
         }
@@ -422,7 +422,8 @@ public class TaskServiceImpl implements TaskService {
                     .eq(TaskStatusIdempotency::getClientRequestId, clientRequestId)
                     .last("limit 1"));
             if (duplicate == null) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "幂等请求处理失败，请重试");
+                throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT,
+                        "任务状态幂等记录已被并发修改，请刷新后重试");
             }
             return toStatusChangeVO(duplicate, true);
         }

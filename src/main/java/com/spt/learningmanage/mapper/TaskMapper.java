@@ -29,9 +29,9 @@ public interface TaskMapper extends BaseMapper<Task> {
 	);
 
 	/**
-	 * Lock all incomplete tasks currently assigned to a member in one team.
-	 * The SQL intentionally does not filter logical deletion or project archive
-	 * state because recovered resources must not retain an invalid assignee.
+	 * 锁定某个团队内当前分配给该成员的所有未完成任务。
+	 * 这里的 SQL 有意不按逻辑删除或项目归档状态过滤，
+	 * 因为被恢复的资源不应继续保留无效负责人。
 	 */
 	List<MembershipTaskCleanupRow> selectIncompleteAssignedTeamTasksForUpdate(
 			@Param("teamId") Long teamId,
@@ -39,9 +39,8 @@ public interface TaskMapper extends BaseMapper<Task> {
 	);
 
 	/**
-	 * Clear the assignee for the previously locked task set and stamp the
-	 * operation actor/time. The caller compares the returned count with the
-	 * locked row count inside its transaction.
+	 * 对先前已加锁的任务集合清空负责人，并记录操作人/操作时间。
+	 * 调用方会在同一事务内将返回影响行数与已加锁行数进行比对。
 	 */
 	int bulkUnassignIncompleteTeamTasks(
 			@Param("teamId") Long teamId,
@@ -67,8 +66,7 @@ public interface TaskMapper extends BaseMapper<Task> {
 								  @Param("assignedAt") java.time.LocalDateTime assignedAt);
 
 	/**
-	 * Reopen a completed task only when both its expected status and expected
-	 * assignee still match the snapshot that was qualification-checked.
+	 * 仅当任务的预期状态与预期负责人仍与资格校验时的快照一致时，才允许重开已完成任务。
 	 */
 	@Update("""
 			UPDATE task
@@ -86,9 +84,8 @@ public interface TaskMapper extends BaseMapper<Task> {
 									 @Param("completedAt") LocalDateTime completedAt);
 
 	/**
-	 * Apply one persisted AI replan item only while the task still exactly
-	 * matches the preview snapshot. MySQL's null-safe equality keeps nullable
-	 * due dates and snapshot timestamps inside the same CAS predicate.
+	 * 仅当任务仍与预览快照完全一致时，才应用一条已落库的 AI 重规划项。
+	 * MySQL 的空值安全比较可将可空截止日期与快照时间戳纳入同一 CAS 条件。
 	 */
 	@Update("""
 			UPDATE task

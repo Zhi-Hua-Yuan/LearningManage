@@ -30,6 +30,14 @@ ai:
   breakdown-model: ${AI_BREAKDOWN_MODEL:qwen-plus}
   polish-model: ${AI_POLISH_MODEL:qwen-flash}
   fallback-model: ${AI_FALLBACK_MODEL:qwen-plus}
+  knowledge-index:
+    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:true}
+  rag:
+    enabled: ${AI_RAG_ENABLED:true}
+  agent:
+    enabled: ${AI_AGENT_ENABLED:true}
+    worker-enabled: ${AI_AGENT_WORKER_ENABLED:true}
+    tool-calling-enabled: ${AI_AGENT_TOOL_CALLING_ENABLED:true}
 
 qdrant:
   require-secure-transport: ${QDRANT_REQUIRE_SECURE_TRANSPORT:true}

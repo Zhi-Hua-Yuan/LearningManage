@@ -104,7 +104,7 @@ ai:
         output-per-million: ${QWEN_PLUS_OUTPUT_PRICE:}
   knowledge-index:
     # Outbox rows are always captured after V4. This switch controls consumers only.
-    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:false}
+    worker-enabled: ${AI_KNOWLEDGE_WORKER_ENABLED:true}
     poll-interval-ms: ${AI_KNOWLEDGE_POLL_MS:2000}
     claim-batch-size: ${AI_KNOWLEDGE_CLAIM_BATCH_SIZE:20}
     worker-concurrency: ${AI_KNOWLEDGE_WORKER_CONCURRENCY:4}
@@ -127,7 +127,7 @@ ai:
     read-timeout-ms: ${AI_EMBEDDING_READ_TIMEOUT_MS:30000}
     query-instruction: ${AI_EMBEDDING_QUERY_INSTRUCTION:Given a project-management question, retrieve passages that directly answer it.}
   rag:
-    enabled: ${AI_RAG_ENABLED:false}
+    enabled: ${AI_RAG_ENABLED:true}
     initial-top-k: ${AI_RAG_INITIAL_TOP_K:20}
     final-top-k: ${AI_RAG_FINAL_TOP_K:8}
     max-chunks-per-source-before-rerank: ${AI_RAG_MAX_CHUNKS_BEFORE_RERANK:3}
@@ -144,9 +144,9 @@ ai:
     status-refresh-ms: ${AI_RAG_STATUS_REFRESH_MS:600000}
     status-refresh-batch-size: ${AI_RAG_STATUS_REFRESH_BATCH_SIZE:100}
   agent:
-    enabled: ${AI_AGENT_ENABLED:false}
-    worker-enabled: ${AI_AGENT_WORKER_ENABLED:false}
-    tool-calling-enabled: ${AI_AGENT_TOOL_CALLING_ENABLED:false}
+    enabled: ${AI_AGENT_ENABLED:true}
+    worker-enabled: ${AI_AGENT_WORKER_ENABLED:true}
+    tool-calling-enabled: ${AI_AGENT_TOOL_CALLING_ENABLED:true}
     poll-delay-ms: ${AI_AGENT_POLL_DELAY_MS:1000}
     batch-size: ${AI_AGENT_BATCH_SIZE:5}
     max-concurrent-runs: ${AI_AGENT_MAX_CONCURRENT_RUNS:4}

@@ -99,6 +99,7 @@ release_assets=(
     deploy/Dockerfile.backend.prod.dockerignore
     deploy/Dockerfile.frontend.prod
     deploy/Dockerfile.frontend.prod.dockerignore
+    deploy/BUGFIX_RELEASE_GUIDE.md
     deploy/README.prod.md
     deploy/apt
     deploy/backup.env.example

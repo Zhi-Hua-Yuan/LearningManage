@@ -11,8 +11,8 @@ import lombok.Getter;
 @Getter
 public enum AiPromptCodeEnum {
 
-    TASK_BREAKDOWN_DEFAULT("task-breakdown.default", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-普通模式"),
-    TASK_BREAKDOWN_DETAILED("task-breakdown.detailed", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-详细模式"),
+    TASK_BREAKDOWN_DEFAULT("task-breakdown.default", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-普通模式", 2),
+    TASK_BREAKDOWN_DETAILED("task-breakdown.detailed", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-详细模式", 2),
     WEEKLY_POLISH_DEFAULT("weekly-polish.default", AiSceneEnum.WEEKLY_POLISH, "周总结润色"),
     TODAY_ORDER_DEFAULT("today-order.default", AiSceneEnum.TODAY_ORDER, "今日任务排序"),
     DAILY_REVIEW_RENAME_DEFAULT("daily-review-rename.default", AiSceneEnum.DAILY_REVIEW_RENAME, "日报任务改名"),
@@ -28,10 +28,23 @@ public enum AiPromptCodeEnum {
 
     private final String description;
 
+    /**
+     * 模板允许参与当前运行时契约的最低兼容版本。
+     *
+     * 任务拆解 V1 的可变数量约束与当前固定 3x3/3x4 响应契约冲突，
+     * 因此该场景必须使用 V2 或更高版本。
+     */
+    private final int minimumCompatibleVersion;
+
     AiPromptCodeEnum(String code, AiSceneEnum scene, String description) {
+        this(code, scene, description, 1);
+    }
+
+    AiPromptCodeEnum(String code, AiSceneEnum scene, String description, int minimumCompatibleVersion) {
         this.code = code;
         this.scene = scene;
         this.description = description;
+        this.minimumCompatibleVersion = minimumCompatibleVersion;
     }
 
     public static AiPromptCodeEnum fromCode(String code) {

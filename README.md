@@ -134,8 +134,9 @@ docker compose up -d --build
 - `JWT_SECRET`
 - `ALIYUN_API_KEY`
 
-RAG、Agent 和数据清理默认关闭。数据库先迁移到 V8，再按
-Knowledge Worker、RAG、Agent Worker、Agent、Cleanup Dry Run 的顺序启用。
+RAG、Knowledge Worker、Agent、Agent Worker 和受控 Tool Calling 默认开启，
+并可通过各自环境变量显式关闭。Cleanup Worker 仍默认关闭，正式清理必须先完成 Dry Run、
+数量复核和管理员审批。AI 依赖故障不会改变核心业务 Readiness。
 
 ## 鉴权与调用约定
 

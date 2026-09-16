@@ -83,7 +83,7 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         Long currentAssigneeUserId = task.getAssigneeUserId();
         Long targetAssigneeUserId = request.getAssigneeUserId();
         if (!Objects.equals(currentAssigneeUserId, request.getExpectedAssigneeUserId())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务负责人已变化，请刷新后重试");
+            throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT, "任务负责人已变化，请刷新后重试");
         }
         taskAssigneePolicy.validateAssignmentTarget(scope, targetAssigneeUserId);
 
@@ -95,7 +95,7 @@ public class TaskAssignmentServiceImpl implements TaskAssignmentService {
         int rows = taskMapper.compareAndSetAssignee(
                 task.getId(), currentAssigneeUserId, targetAssigneeUserId, actorUserId, assignedAt);
         if (rows != 1) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务负责人已被其他请求更新，请刷新后重试");
+            throw new BusinessException(ErrorCode.RESOURCE_STATE_CONFLICT, "任务负责人已被其他请求更新，请刷新后重试");
         }
 
         TaskAssignmentActionEnum action = TaskAssignmentActionEnum.resolve(

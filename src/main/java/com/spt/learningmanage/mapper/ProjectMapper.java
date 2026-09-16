@@ -22,7 +22,7 @@ public interface ProjectMapper extends BaseMapper<Project> {
             "AND is_delete = 0 AND deleted_at IS NULL ORDER BY order_no DESC LIMIT 1 FOR UPDATE")
     Integer selectMaxTeamOrderNoForUpdate(@Param("teamId") Long teamId);
 
-    /** Reads a logically deleted project for the recovery workflow. */
+    /** 为恢复流程读取已逻辑删除的项目。 */
     @Select("SELECT * FROM project WHERE id = #{id} AND deleted_at IS NOT NULL LIMIT 1")
     Project selectDeletedById(@Param("id") Long id);
 

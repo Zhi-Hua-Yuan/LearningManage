@@ -54,6 +54,26 @@ class PromptTemplateResolverTest {
     }
 
     @Test
+    void resolve_shouldRejectLegacyTaskBreakdownTemplateThatConflictsWithCurrentShape() {
+        PromptTemplate legacyTemplate = new PromptTemplate();
+        legacyTemplate.setId(100L);
+        legacyTemplate.setTemplateCode(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED.getCode());
+        legacyTemplate.setScene(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED.getScene().getCode());
+        legacyTemplate.setVersion(1);
+        legacyTemplate.setEnabled(1);
+        legacyTemplate.setTemplateContent("里程碑 3-4 个，每个里程碑 4-6 个任务");
+        when(promptTemplateMapper.selectList(any())).thenReturn(List.of(legacyTemplate));
+
+        AiPromptTemplate result = resolver.resolve(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED);
+
+        Assertions.assertNull(result.templateId());
+        Assertions.assertEquals(2, result.version());
+        Assertions.assertEquals(AiPromptSourceEnum.BUILTIN, result.source());
+        Assertions.assertTrue(result.systemPrompt().contains("必须恰好输出 3 个"));
+        Assertions.assertTrue(result.systemPrompt().contains("每个里程碑必须恰好输出 4 个任务"));
+    }
+
+    @Test
     void resolve_shouldFallBackToBuiltinWhenEnabledTemplateSceneIsInvalid() {
         PromptTemplate invalidTemplate = new PromptTemplate();
         invalidTemplate.setId(102L);

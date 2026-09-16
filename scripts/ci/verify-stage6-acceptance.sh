@@ -17,6 +17,6 @@ if (contract.acceptanceThresholds.unauthorizedToolCalls !== 0
 }
 NODE
 
-grep -Fq 'AI_AGENT_ENABLED=false' .env.example
-grep -Fq 'AI_AGENT_WORKER_ENABLED=false' .env.example
-grep -Fq 'AI_AGENT_TOOL_CALLING_ENABLED=false' .env.example
+grep -Fq 'AI_AGENT_ENABLED=true' .env.example
+grep -Fq 'AI_AGENT_WORKER_ENABLED=true' .env.example
+grep -Fq 'AI_AGENT_TOOL_CALLING_ENABLED=true' .env.example

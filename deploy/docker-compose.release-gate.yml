@@ -57,6 +57,13 @@ services:
       AI_BREAKDOWN_MODEL: ci-ai-stub
       AI_POLISH_MODEL: ci-ai-stub
       AI_FALLBACK_MODEL: ci-ai-stub
+      # This API compatibility gate intentionally omits Qdrant and Redis.
+      # The Stage 7 and production gates exercise the default-enabled AI path.
+      AI_KNOWLEDGE_WORKER_ENABLED: "false"
+      AI_RAG_ENABLED: "false"
+      AI_AGENT_ENABLED: "false"
+      AI_AGENT_WORKER_ENABLED: "false"
+      AI_AGENT_TOOL_CALLING_ENABLED: "false"
       AI_RATE_LIMIT_ENABLED: "false"
       ALIYUN_API_KEY: ci-only-not-a-real-key
       JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 
@@ -147,7 +148,28 @@ class TaskServiceImplTest {
         when(taskMapper.update(any(), any())).thenReturn(0);
 
         BusinessException ex = Assertions.assertThrows(BusinessException.class, () -> taskService.changeStatus(request));
-        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
+    }
+
+    @Test
+    void changeStatus_shouldReportConflictWhenConcurrentIdempotencyWinnerCannotBeRead() {
+        UserHolder.set(1L);
+        TaskStatusChangeRequest request = new TaskStatusChangeRequest();
+        request.setTaskId(100L);
+        request.setTargetStatus(1);
+        request.setClientRequestId("req-idempotency-race");
+
+        Task task = taskWithStatus(0);
+        when(taskStatusIdempotencyMapper.selectOne(any())).thenReturn(null).thenReturn(null);
+        when(taskMapper.selectOne(any())).thenReturn(task);
+        when(taskMapper.update(any(), any())).thenReturn(1);
+        when(taskStatusIdempotencyMapper.insert(any(TaskStatusIdempotency.class)))
+                .thenThrow(new DuplicateKeyException("concurrent idempotency winner"));
+
+        BusinessException exception = Assertions.assertThrows(BusinessException.class,
+                () -> taskService.changeStatus(request));
+
+        Assertions.assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, exception.getErrorCode());
     }
 
     @Test
@@ -235,7 +257,7 @@ class TaskServiceImplTest {
 
         BusinessException ex = Assertions.assertThrows(BusinessException.class,
                 () -> taskService.changeStatus(request));
-        Assertions.assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        Assertions.assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
         verify(taskStatusIdempotencyMapper, never()).insert(any(TaskStatusIdempotency.class));
     }
 

@@ -15,7 +15,7 @@ output="$3"
 lm_require_command jq
 lm_require_command sha256sum
 
-jq -e '.schemaVersion == 4 and .status == "PASS" and .flyway.emptyDatabase == "PASS"' \
+jq -e '.schemaVersion == 5 and .status == "PASS" and .flyway.emptyDatabase == "PASS"' \
     "$candidate_manifest" >/dev/null || lm_die "candidate manifest is not a passing schema-v4 manifest"
 
 backend_sha="$(jq -er '.backend.sha' "$candidate_manifest")"

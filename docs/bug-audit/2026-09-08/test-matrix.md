@@ -16,7 +16,7 @@
 | Stage 5 权限感知 RAG E2E | PASS | 3 tests |
 | Stage 6 Agent E2E | PASS | 4 tests |
 | 10 万知识 ID/哈希稳定性 | PASS | 已包含于 809 项回归 |
-| 100 条 Outbox→Qdrant 新鲜度 | PASS | Stage 4 E2E 的 60 秒 P95 门槛通过 |
+| 100 条 Outbox→Qdrant 新鲜度 | PASS | 由 4 路并发 Knowledge Worker 执行线程处理，Stage 4 E2E 的 60 秒 P95 门槛通过 |
 | 后端打包 | PASS | 当前 SHA JAR 构建成功 |
 | Stage 7 静态脚本原命令 | BLOCKED | Windows `python3` App Alias 无执行权限 |
 | Stage 7 等价静态校验 | PASS | 合同、敏感标签规则、6 个 Grafana dashboard 均通过 |

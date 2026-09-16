@@ -39,6 +39,7 @@ class ErrorCodeHttpStatusTest {
         assertStatus(handler, ErrorCode.NOT_LOGIN_ERROR, HttpStatus.UNAUTHORIZED);
         assertStatus(handler, ErrorCode.FORBIDDEN_ERROR, HttpStatus.FORBIDDEN);
         assertStatus(handler, ErrorCode.ACCOUNT_ALREADY_EXISTS, HttpStatus.CONFLICT);
+        assertStatus(handler, ErrorCode.RESOURCE_STATE_CONFLICT, HttpStatus.CONFLICT);
         assertStatus(handler, ErrorCode.OPERATION_ERROR, HttpStatus.INTERNAL_SERVER_ERROR);
         assertStatus(handler, ErrorCode.RATE_LIMIT_ERROR, HttpStatus.TOO_MANY_REQUESTS);
         assertStatus(handler, ErrorCode.AI_SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);

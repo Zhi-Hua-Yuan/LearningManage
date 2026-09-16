@@ -13,6 +13,7 @@
     "frontend",
     "flyway",
     "docker",
+    "featureDefaults",
     "interfaceContract",
     "fullStackRuntime",
     "stage0Acceptance",
@@ -20,7 +21,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 4
+      "const": 5
     },
     "candidateId": {
       "type": "string",
@@ -45,6 +46,9 @@
     },
     "docker": {
       "$ref": "#/$defs/docker"
+    },
+    "featureDefaults": {
+      "$ref": "#/$defs/featureDefaults"
     },
     "interfaceContract": {
       "$ref": "#/$defs/interfaceContract"
@@ -166,6 +170,34 @@
         }
       }
     },
+    "featureDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeWorker",
+        "rag",
+        "agent",
+        "agentWorker",
+        "toolCalling",
+        "cleanup",
+        "cleanupSchedule",
+        "globalModelToolsRegistered",
+        "aiFailureAffectsCoreReadiness",
+        "agentResultBoundary"
+      ],
+      "properties": {
+        "knowledgeWorker": { "const": true },
+        "rag": { "const": true },
+        "agent": { "const": true },
+        "agentWorker": { "const": true },
+        "toolCalling": { "const": true },
+        "cleanup": { "const": false },
+        "cleanupSchedule": { "const": false },
+        "globalModelToolsRegistered": { "const": false },
+        "aiFailureAffectsCoreReadiness": { "const": false },
+        "agentResultBoundary": { "const": "DRAFT_ONLY" }
+      }
+    },
     "fullStackRuntime": {
       "type": "object",
       "additionalProperties": false,
@@ -255,6 +287,8 @@
       "additionalProperties": false,
       "required": [
         "existenceGate",
+        "breakingChangeGate",
+        "oasdiffVersion",
         "frontendSchemaVersion",
         "frontendBasePath",
         "runtimeOpenapiVersion",
@@ -264,11 +298,19 @@
         "missingOperationCount",
         "frontendContractSha256",
         "runtimeDocumentSha256",
-        "comparisonReportSha256"
+        "comparisonReportSha256",
+        "baselineDocumentSha256",
+        "breakingReportSha256"
       ],
       "properties": {
         "existenceGate": {
           "const": "PASS"
+        },
+        "breakingChangeGate": {
+          "const": "PASS"
+        },
+        "oasdiffVersion": {
+          "const": "1.28.0"
         },
         "frontendSchemaVersion": {
           "const": 1
@@ -302,6 +344,12 @@
           "$ref": "#/$defs/sha256"
         },
         "comparisonReportSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "baselineDocumentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "breakingReportSha256": {
           "$ref": "#/$defs/sha256"
         }
       }

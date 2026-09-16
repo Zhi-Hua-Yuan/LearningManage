@@ -13,9 +13,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-// Run after Micrometer's observation filter. TelemetryMdcFilter copies the
-// standard span IDs first, then this filter restores the application trace ID
-// so OTel MDC correlation cannot replace the existing X-Trace-Id contract.
+// 在 Micrometer 的 observation filter 之后执行。TelemetryMdcFilter 先复制标准 span
+// ID，然后此过滤器恢复应用层的 trace ID，确保 OTel 的 MDC 关联不会覆盖现有的
+// X-Trace-Id 约定。
 @Order(Ordered.LOWEST_PRECEDENCE - 5)
 public class TraceIdFilter extends OncePerRequestFilter {
 

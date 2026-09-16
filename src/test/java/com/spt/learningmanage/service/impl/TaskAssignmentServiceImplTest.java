@@ -133,7 +133,7 @@ class TaskAssignmentServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.assign(request(10L, 3L, 1L)));
-        assertEquals(50001, ex.getErrorCode().getCode());
+        assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
         verifyNoInteractions(taskAssigneePolicy);
         verify(taskMapper, never()).compareAndSetAssignee(any(), any(), any(), any(), any());
         verifyNoInteractions(taskAssignmentLogMapper);
@@ -182,7 +182,7 @@ class TaskAssignmentServiceImplTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.assign(request(10L, 3L, 2L)));
 
-        assertEquals(ErrorCode.OPERATION_ERROR, ex.getErrorCode());
+        assertEquals(ErrorCode.RESOURCE_STATE_CONFLICT, ex.getErrorCode());
         InOrder inOrder = inOrder(taskAssigneePolicy, taskMapper);
         inOrder.verify(taskAssigneePolicy).validateAssignmentTarget(any(ProjectAccessScope.class), eq(3L));
         inOrder.verify(taskMapper).compareAndSetAssignee(eq(10L), eq(2L), eq(3L), eq(9L), any());

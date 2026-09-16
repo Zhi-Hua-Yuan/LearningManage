@@ -142,7 +142,7 @@ class TeamMembershipTerminationConcurrencyMySqlTest {
         assertTrue(status == 0 || status == 1);
         assertNoIncompleteTaskAssignedToInactiveMember();
         if (!reopenResult.success()) {
-            assertEquals(50001, reopenResult.errorCode());
+            assertEquals(40901, reopenResult.errorCode());
             assertTrue(removeResult.success());
             assertEquals(1, status);
             assertEquals(MEMBER_ID, ((Number) task.get("assignee_user_id")).longValue());

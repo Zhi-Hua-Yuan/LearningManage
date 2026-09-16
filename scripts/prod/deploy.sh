@@ -43,16 +43,9 @@ manifest="${LM_RELEASE_DIR}/production-release-manifest.json"
 [[ "$(lm_env_value "$LM_ENV_FILE" FRONTEND_SHA)" == "$(jq -er '.frontendSha' "$manifest")" ]] \
     || lm_die "FRONTEND_SHA in learning.env does not match this release"
 
-for phase_a_flag in \
-    AI_KNOWLEDGE_WORKER_ENABLED \
-    AI_RAG_ENABLED \
-    AI_AGENT_ENABLED \
-    AI_AGENT_WORKER_ENABLED \
-    AI_AGENT_TOOL_CALLING_ENABLED \
-    AI_CLEANUP_ENABLED \
-    AI_CLEANUP_SCHEDULE_ENABLED; do
-    [[ "$(lm_env_value "$LM_ENV_FILE" "$phase_a_flag")" == false ]] \
-        || lm_die "$phase_a_flag must be false for a new Phase A deployment"
+for cleanup_flag in AI_CLEANUP_ENABLED AI_CLEANUP_SCHEDULE_ENABLED; do
+    [[ "$(lm_env_value "$LM_ENV_FILE" "$cleanup_flag")" == false ]] \
+        || lm_die "$cleanup_flag must be false for a new deployment"
 done
 
 "${script_dir}/build-release-images.sh"
@@ -80,4 +73,4 @@ next_link="${LM_CURRENT_LINK}.next"
 ln -sfn "$LM_RELEASE_DIR" "$next_link"
 mv -Tf "$next_link" "$LM_CURRENT_LINK"
 
-lm_log "Phase A deployed; current now points to $LM_RELEASE_DIR"
+lm_log "Release deployed; current now points to $LM_RELEASE_DIR"
