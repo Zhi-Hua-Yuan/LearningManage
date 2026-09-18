@@ -26,3 +26,24 @@ services:
       AI_BREAKDOWN_MODEL: ci-ai-stub
       AI_POLISH_MODEL: ci-ai-stub
       AI_FALLBACK_MODEL: ci-ai-stub
+      # The RAG/Agent smoke must exercise the local stub for every provider
+      # endpoint. AI_BASE_URL alone only covers chat completions; without these
+      # the query embedding would still be sent to the real DashScope host with
+      # a placeholder key, and POST /ai/rag/ask would fail with 32003
+      # (RAG_DEPENDENCY_UNAVAILABLE) for the whole smoke budget.
+      AI_EMBEDDING_BASE_URL: http://ai-stub:8080/compatible-mode/v1
+      AI_EMBEDDING_QUERY_BASE_URL: http://ai-stub:8080/api/v1
+      AI_RERANK_BASE_URL: http://ai-stub:8080/compatible-api/v1
+      # The stub returns deterministic, non-semantic vectors, so the production
+      # similarity thresholds would filter out the only indexed chunk. A
+      # negative value is the application's explicit "threshold disabled"
+      # sentinel, matching the Stage 7 deterministic gate.
+      AI_RAG_VECTOR_SCORE_THRESHOLD: '-1.0'
+      AI_RAG_RERANK_SCORE_THRESHOLD: '0.0'
+      # The smoke polls POST /ai/rag/ask once per second for up to 90 seconds,
+      # while the production rule for `rag-project-ask` allows only 10 calls per
+      # 60 seconds and the interceptor counts failed polls too. On a slow cold
+      # start the smoke would die with a rate-limit error instead of reporting
+      # the real readiness state, so the CI overlay disables AI throttling for
+      # this fixture exactly like the Stage 7 deterministic gate.
+      RATE_LIMIT_AI_ENABLED: 'false'
