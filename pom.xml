@@ -29,6 +29,7 @@
     <properties>
         <java.version>17</java.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <springdoc.version>2.8.17</springdoc.version>
     </properties>
     <dependencies>
@@ -43,7 +44,13 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <version>3.5.7</version>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <!-- 自 3.5.9 起 JSqlParser 相关能力拆为独立构件，PaginationInnerInterceptor 依赖它 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
 
         <dependency>
@@ -98,7 +105,7 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter-test</artifactId>
-            <version>3.5.7</version>
+            <version>${mybatis-plus.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
