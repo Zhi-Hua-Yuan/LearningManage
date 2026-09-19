@@ -357,6 +357,106 @@ test('provider fingerprints formal business content instead of comparing row cou
   assert.doesNotMatch(providerSource, /formalRowsAfter\s*-\s*formalRowsBefore/);
 });
 
+test('a missing call log is returned as data so the failing case keeps its evidence', async () => {
+  const providerPath = path.join(root, 'providers', 'learning-manage-http.js');
+  delete require.cache[require.resolve(providerPath)];
+  const Provider = require(providerPath);
+  assert.equal(typeof Provider.lookupMetadataSafely, 'function');
+
+  const traceId = 's3_TO-REG-019_a7a49946621b';
+
+  // 1) The row genuinely is absent: this is the only outcome that may claim "not found".
+  const absent = await Provider.lookupMetadataSafely(traceId, async () => Provider.lookupMetadata(traceId, {
+    queryCallLog: async () => null
+  }));
+  assert.equal(absent.callLogQueryFailed, false);
+  assert.equal(absent.persisted.callLogFound, false);
+  assert.equal(absent.persisted.callLogId, null);
+  assert.match(absent.persisted.callLogError, /No ai_call_log record found for Stage 3 trace/);
+
+  // 2) The row WAS found but enrichment failed. Reporting this as `callLogFound: false`
+  //    would misdiagnose a present row as an uncorrelated trace and drop every field.
+  const row = {
+    id: 41, scene: 'today-order', requested_model: 'qwen-plus', model_name: 'qwen-plus',
+    finish_reason: 'stop', provider_request_id: 'req-1', prompt_tokens: 10, completion_tokens: 5,
+    total_tokens: 15, estimated_cost: 0.001, price_version: 'v1',
+    prompt_type: 'today-order.default', prompt_version: 1, prompt_source: 'BUILTIN',
+    degraded: 0, failure_type: null, fallback_used: 0, cost_time_ms: 123
+  };
+  const degraded = await Provider.lookupMetadataSafely(traceId, async () => Provider.lookupMetadata(traceId, {
+    queryCallLog: async () => row,
+    manifestLoader: () => { throw new Error('Prompt manifest does not exist: /nope/manifest.json'); }
+  }));
+  assert.equal(degraded.callLogQueryFailed, false);
+  assert.equal(degraded.persisted.callLogFound, true);
+  assert.equal(degraded.persisted.callLogId, '41');
+  assert.equal(degraded.persisted.callLogError, null);
+  assert.equal(degraded.persisted.promptContentHash, null);
+  assert.match(degraded.persisted.promptManifestError, /Prompt manifest does not exist/);
+  // The retrieved row must survive intact.
+  assert.equal(degraded.persisted.totalTokens, 15);
+  assert.equal(degraded.persisted.latencyMs, 123);
+
+  // 3) The query itself failed: whether a row exists is unknown, so it must not be
+  //    reported with the "no record" wording.
+  const failed = await Provider.lookupMetadataSafely(traceId, async () => {
+    throw new Error('connect ECONNREFUSED 127.0.0.1:13316');
+  });
+  assert.equal(failed.callLogQueryFailed, true);
+  assert.equal(failed.persisted, null);
+  assert.match(failed.callLogError, /ai_call_log lookup failed for Stage 3 trace/);
+  assert.match(failed.callLogError, /ECONNREFUSED/);
+
+  // The failures must stay failures: the common assertion rejects this exact shape.
+  const assertion = require(path.join(root, 'assertions', 'common.js'));
+  for (const meta of [
+    { traceId, callLogFound: false, callLogId: null, callLogError: absent.persisted.callLogError, callLogQueryFailed: false },
+    { traceId, callLogFound: false, callLogId: null, callLogError: failed.callLogError, callLogQueryFailed: true }
+  ]) {
+    const verdict = assertion(JSON.stringify({
+      caseId: 'TO-REG-019', scene: 'today-order', success: true, data: {},
+      meta: { ...meta, formalBusinessWrites: 0 }
+    }), { vars: { caseId: 'TO-REG-019', scene: 'today-order', tags: '[]', expectedInvariants: '{}' } });
+    assert.equal(verdict.pass, false);
+    assert.match(verdict.reason, /not correlated to a persisted AI call log/);
+  }
+
+  const providerSource = fs.readFileSync(providerPath, 'utf8');
+  assert.doesNotMatch(providerSource, /const persisted = await lookupMetadata\(/);
+  assert.doesNotMatch(providerSource, /if \(!row\) throw new Error/);
+  assert.match(providerSource, /callLogFound: false/);
+  assert.match(providerSource, /sanitizeEvidence\(text\)/);
+});
+
+test('provider evidence redaction keeps credential-shaped content out of scanned output', () => {
+  const providerPath = path.join(root, 'providers', 'learning-manage-http.js');
+  delete require.cache[require.resolve(providerPath)];
+  const Provider = require(providerPath);
+  assert.equal(typeof Provider.sanitizeEvidence, 'function');
+
+  // Same shape the stage3 workflows grep for, so this stays honest if the gate tightens.
+  const gatePattern = /(^|[^A-Za-z0-9_])(?:Bearer\s+[A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9_-]{16,})/;
+  const hostile = JSON.stringify({
+    token: 'sk-ABCDEFGHIJKLMNOPQRST',
+    authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
+    message: 'task-breakdown_business_contract'
+  });
+  assert.equal(gatePattern.test(hostile), true);
+
+  const redacted = Provider.sanitizeEvidence(hostile);
+  assert.equal(gatePattern.test(redacted), false);
+  assert.ok(redacted.includes('<redacted>'));
+  // Non-credential context survives, otherwise the evidence would be useless.
+  assert.ok(redacted.includes('task-breakdown_business_contract'));
+
+  assert.equal(Provider.sanitizeEvidence(''), null);
+  assert.equal(Provider.sanitizeEvidence(null), null);
+
+  const truncated = Provider.sanitizeEvidence('x'.repeat(9000));
+  assert.ok(truncated.length < 4100);
+  assert.match(truncated, /<truncated 5000 chars>$/);
+});
+
 test('summary separates deterministic gates from semantic scores', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-summary-'));
   try {

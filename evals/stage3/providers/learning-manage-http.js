@@ -36,6 +36,20 @@ function apiBaseUrl() {
   return env('STAGE3_API_BASE_URL', 'http://127.0.0.1:18133/api').replace(/\/$/, '');
 }
 
+// Evidence kept for a failed case is copied into output.json, which is scanned by
+// stage3-eval.yml for credential-shaped content. Redact proactively instead of
+// relying on the application never echoing a credential back: the pattern here is
+// deliberately stricter (8 chars) than the gate's (16 for sk-, 20 for Bearer).
+const CREDENTIAL_PATTERN = /(^|[^A-Za-z0-9_])(Bearer\s+[A-Za-z0-9._-]{8,}|sk-[A-Za-z0-9_-]{8,})/g;
+const EVIDENCE_MAX_CHARS = 4000;
+
+function sanitizeEvidence(value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  const redacted = value.replace(CREDENTIAL_PATTERN, '$1<redacted>');
+  if (redacted.length <= EVIDENCE_MAX_CHARS) return redacted;
+  return `${redacted.slice(0, EVIDENCE_MAX_CHARS)}<truncated ${redacted.length - EVIDENCE_MAX_CHARS} chars>`;
+}
+
 async function login(actor) {
   if (tokenCache.has(actor)) return tokenCache.get(actor);
   const account = ACTOR_ACCOUNTS[actor];
@@ -89,7 +103,7 @@ function loadPromptManifest() {
   return Object.fromEntries((manifest.prompts || []).map((item) => [`${item.code}:${item.version}:${item.source}`, item]));
 }
 
-async function lookupMetadata(traceId) {
+async function queryCallLog(traceId) {
   const pool = await mysqlPool();
   const [rows] = await pool.execute(
     `SELECT id, scene, requested_model, model_name, finish_reason, provider_request_id, prompt_tokens,
@@ -102,17 +116,43 @@ async function lookupMetadata(traceId) {
       LIMIT 1`,
     [traceId]
   );
-  const row = rows[0];
-  if (!row) throw new Error(`No ai_call_log record found for Stage 3 trace ${traceId}`);
-  const manifest = loadPromptManifest();
-  const key = `${row.prompt_type}:${row.prompt_version}:${String(row.prompt_source || '').toUpperCase()}`;
+  return rows[0] || null;
+}
+
+// Enrichment is isolated from the lookup on purpose. A missing or malformed
+// STAGE3_PROMPT_MANIFEST used to abort the whole lookup, which reported a row that WAS
+// found as `callLogFound: false` and dropped every call-log field. Only the genuine
+// no-row condition may produce that shape; a broken manifest degrades the content hash
+// to null (the summary already reports an unknown hash as UNKNOWN) and records why.
+function enrichPromptContentHash(row, manifestLoader = loadPromptManifest) {
+  try {
+    const manifest = manifestLoader();
+    const key = `${row.prompt_type}:${row.prompt_version}:${String(row.prompt_source || '').toUpperCase()}`;
+    return { promptContentHash: manifest[key]?.sha256 || null, promptManifestError: null };
+  } catch (error) {
+    return { promptContentHash: null, promptManifestError: error?.message || String(error) };
+  }
+}
+
+async function lookupMetadata(traceId, deps = {}) {
+  const row = await (deps.queryCallLog || queryCallLog)(traceId);
+  if (!row) {
+    return {
+      callLogFound: false,
+      callLogId: null,
+      callLogError: `No ai_call_log record found for Stage 3 trace ${traceId}`
+    };
+  }
+  const { promptContentHash, promptManifestError } = enrichPromptContentHash(row, deps.manifestLoader);
   return {
     callLogFound: true,
     callLogId: String(row.id),
+    callLogError: null,
     promptCode: row.prompt_type,
     promptVersion: row.prompt_version,
     promptSource: row.prompt_source,
-    promptContentHash: manifest[key]?.sha256 || null,
+    promptContentHash,
+    promptManifestError,
     requestedModel: row.requested_model,
     actualModel: row.model_name,
     finishReason: row.finish_reason,
@@ -128,6 +168,28 @@ async function lookupMetadata(traceId) {
     estimatedCost: row.estimated_cost == null ? null : Number(row.estimated_cost),
     priceVersion: row.price_version
   };
+}
+
+// A missing ai_call_log row is a real failure and must stay a real failure: the common
+// assertion rejects `callLogFound !== true`, so the case still fails and the gate still
+// goes red. What must NOT happen is throwing here, because a thrown provider error
+// discards the HTTP status, the response body, the measured latency and this trace id —
+// which is exactly the evidence needed to tell "the application never wrote the log
+// row" apart from "the harness queried the wrong database". Return the failure as data.
+//
+// Only an exception reaches the catch, and that means the query itself failed, so
+// whether a row exists is genuinely unknown. Flag it separately instead of reusing the
+// "no record" wording, otherwise a database outage would read as an uncorrelated trace.
+async function lookupMetadataSafely(traceId, lookup = lookupMetadata) {
+  try {
+    return { persisted: await lookup(traceId), callLogQueryFailed: false };
+  } catch (error) {
+    return {
+      persisted: null,
+      callLogQueryFailed: true,
+      callLogError: `ai_call_log lookup failed for Stage 3 trace ${traceId}: ${error?.message || String(error)}`
+    };
+  }
 }
 
 function canonicalDatabaseValue(value) {
@@ -158,7 +220,7 @@ async function aiDraftRowCount() {
   return Number(rows[0]?.row_count || 0);
 }
 
-module.exports = class LearningManageHttpProvider {
+class LearningManageHttpProvider {
   constructor(options = {}) {
     this.providerId = options.id || 'learning-manage-http';
   }
@@ -192,10 +254,11 @@ module.exports = class LearningManageHttpProvider {
     const text = await response.text();
     let body;
     try { body = JSON.parse(text); } catch { body = { code: -1, message: 'Non-JSON application response', data: null }; }
-    const persisted = await lookupMetadata(traceId);
+    const success = response.ok && body?.code === 0;
+    const { persisted, callLogError, callLogQueryFailed } = await lookupMetadataSafely(traceId);
     const formalAfter = await formalBusinessSnapshot();
     const draftRowsAfter = await aiDraftRowCount();
-    const success = response.ok && body?.code === 0;
+    const callLogConfirmed = persisted?.callLogFound === true;
     const envelope = {
       caseId,
       scene,
@@ -203,24 +266,39 @@ module.exports = class LearningManageHttpProvider {
       data: success ? body.data : null,
       error: success ? null : { httpStatus: response.status, code: body?.code ?? null, message: body?.message || 'Unknown error' },
       meta: {
+        // Always reported so a failing case is diagnosable without re-running it.
+        httpStatus: response.status,
+        responseBody: success && callLogConfirmed ? null : sanitizeEvidence(text),
         traceId,
+        callLogFound: false,
+        callLogId: null,
+        callLogError,
+        callLogQueryFailed,
         formalBusinessWrites: Number(formalBefore.sha256 !== formalAfter.sha256),
         formalBusinessRowsBefore: formalBefore.rowCount,
         formalBusinessRowsAfter: formalAfter.rowCount,
         aiDraftWrites: draftRowsBefore == null || draftRowsAfter == null ? null : draftRowsAfter - draftRowsBefore,
-        latencyMs: persisted.latencyMs ?? Date.now() - startedAt,
-        ...persisted
+        latencyMs: persisted?.latencyMs ?? Date.now() - startedAt,
+        ...(persisted || {})
       }
     };
     return {
       output: JSON.stringify(envelope),
-      tokenUsage: persisted.totalTokens == null ? undefined : {
+      tokenUsage: persisted?.totalTokens == null ? undefined : {
         prompt: persisted.promptTokens,
         completion: persisted.completionTokens,
         total: persisted.totalTokens
       },
-      cost: persisted.estimatedCost ?? undefined,
+      cost: persisted?.estimatedCost ?? undefined,
       metadata: envelope.meta
     };
   }
-};
+}
+
+// Exported for the contract tests: these carry failure-path behaviour that a source-shape
+// assertion cannot verify.
+module.exports = LearningManageHttpProvider;
+module.exports.sanitizeEvidence = sanitizeEvidence;
+module.exports.lookupMetadata = lookupMetadata;
+module.exports.lookupMetadataSafely = lookupMetadataSafely;
+module.exports.enrichPromptContentHash = enrichPromptContentHash;
