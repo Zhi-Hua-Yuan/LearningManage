@@ -68,7 +68,7 @@ The project follows a standardized development process with a clear 5-step workf
 
 - **Base URL**: `http://localhost:8123/api`
 - **Health Check**: `GET /api/health`
-- **API Docs**: Available via Knife4j at `/api/doc.html`
+- **API Docs**: Available via springdoc-openapi Swagger UI at `/api/swagger-ui/index.html`
 
 ### Database
 

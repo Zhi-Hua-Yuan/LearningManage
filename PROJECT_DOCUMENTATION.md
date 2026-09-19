@@ -194,7 +194,7 @@ mybatis-plus:
 
 ### 访问接口文档
 - **基础 URL**: `http://localhost:8123/api`
-- **Knife4j 文档**: `http://localhost:8123/api/doc.html`
+- **Swagger UI 文档**: `http://localhost:8123/api/swagger-ui/index.html`
 - **健康检查**: `GET http://localhost:8123/api/health`
 
 ### 测试
