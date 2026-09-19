@@ -230,7 +230,9 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
             assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '8'"));
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '916'"));
+            // 这个字面量与 backend-ci.yml / release-gate.yml 里的 CI_EXPECTED_TEST_COUNT
+            // 保持一致：新增用例时三处必须同时更新（当前 927 = Phase 0 基线 916 + 11 条守卫用例）。
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '927'"));
             assertTrue(workflow.contains("-Dtest=**/*Test,!**/*MySqlTest"));
             assertTrue(workflow.contains("-Dtest=**/*MySqlTest"));
         }

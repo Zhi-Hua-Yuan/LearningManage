@@ -1,0 +1,8 @@
+{
+  "id": "req-fallback-1",
+  "model": "qwen-turbo",
+  "choices": [
+    {"finish_reason": "stop", "message": {"role": "assistant", "content": "备用模型回答"}}
+  ],
+  "usage": {"prompt_tokens": 5, "completion_tokens": 6, "total_tokens": 11}
+}
