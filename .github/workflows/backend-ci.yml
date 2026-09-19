@@ -24,7 +24,13 @@ env:
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
-  CI_EXPECTED_TEST_COUNT: '916'
+  # 916 (Phase 0 基线) + 22 新增用例：
+  #   AiChatWireContractGoldenTest          6（AI 线协议黄金树）
+  #   MybatisPaginationPluginContractTest   2（分页插件 + JSqlParser）
+  #   OpenApiConfigTest                     3（@NotBlank 派生 minLength 兼容）
+  #   TraceContextTest                      9（应用 trace id 不被遥测 MDC 覆盖）
+  #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
+  CI_EXPECTED_TEST_COUNT: '938'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -142,6 +148,8 @@ jobs:
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
           fi
+      - name: Verify backend dependency baseline
+        run: bash scripts/ci/verify-backend-dependency-baseline.sh
       - name: Provision and verify empty database
         shell: bash
         run: |

@@ -18,7 +18,7 @@
 ```text
 Base URL:  http://localhost:8123/api
 健康检查:  GET http://localhost:8123/api/health
-接口文档:  http://localhost:8123/api/doc.html
+接口文档:  http://localhost:8123/api/swagger-ui/index.html
 ```
 
 Windows 启动命令：

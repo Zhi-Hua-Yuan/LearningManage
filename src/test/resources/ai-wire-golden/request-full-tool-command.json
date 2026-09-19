@@ -1,0 +1,36 @@
+{
+  "model": "qwen-plus",
+  "messages": [
+    {"role": "system", "content": "系统\n提示"},
+    {"role": "user", "content": "项目“甲”"},
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {"index": 0, "id": "call-1", "type": "function", "function": {"name": "query_tasks", "arguments": "{\"projectId\":1001}"}},
+        {"index": 1, "id": "call-2", "type": "function", "function": {"name": "query_tasks", "arguments": "{\"projectId\":1002}"}}
+      ]
+    },
+    {"role": "tool", "content": "[]", "tool_call_id": "call-1"},
+    {"role": "tool", "content": "[]", "tool_call_id": "call-2"}
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "query_tasks",
+        "description": "查询任务",
+        "parameters": {
+          "type": "object",
+          "properties": {"projectId": {"type": "integer"}},
+          "required": ["projectId"]
+        }
+      }
+    }
+  ],
+  "parallel_tool_calls": false,
+  "tool_choice": {"type": "function", "function": {"name": "query_tasks"}},
+  "temperature": 0.2,
+  "max_tokens": 2000,
+  "stream": false
+}

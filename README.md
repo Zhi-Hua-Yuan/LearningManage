@@ -32,7 +32,7 @@ LearningManage 是一个学习管理系统后端项目，基于 Spring Boot 3 + 
 - 服务端口：`8123`
 - 上下文路径：`/api`
 - 健康检查：`GET /api/health`
-- 接口文档：`http://localhost:8123/api/doc.html`
+- 接口文档：`http://localhost:8123/api/swagger-ui/index.html`
 
 ## 目录说明
 
@@ -204,4 +204,4 @@ curl http://localhost:8123/api/health
 - [Stage 7 生产治理与数据生命周期](docs/stage7/README.md)
 - [Sprint 3 AI 草稿联调验收记录](docs/sprint/Sprint3_AI草稿联调验收记录.md)
 
-如需完整接口定义，优先以 Knife4j 文档页面和上述 API 文档为准：`/api/doc.html`。
+如需完整接口定义，优先以 Swagger UI 文档页面和上述 API 文档为准：`/api/swagger-ui/index.html`。

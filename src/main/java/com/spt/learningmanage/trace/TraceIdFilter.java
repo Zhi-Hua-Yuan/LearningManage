@@ -26,12 +26,16 @@ public class TraceIdFilter extends OncePerRequestFilter {
         Object resolved = request.getAttribute(TraceContext.REQUEST_ATTRIBUTE);
         String traceId = resolved instanceof String value
                 ? value : TraceContext.resolve(request.getHeader(TraceContext.HEADER_NAME));
+        // 同时绑定到 TraceContext：请求处理中途 micrometer 的 OTel 桥接会用遥测 ID
+        // 覆盖 MDC["traceId"]，只靠 MDC 会让后半程的读取拿到错误的值。
+        TraceContext.bind(traceId);
         MDC.put(TraceContext.MDC_KEY, traceId);
         response.setHeader(TraceContext.HEADER_NAME, traceId);
         try {
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove(TraceContext.MDC_KEY);
+            TraceContext.clear();
         }
     }
 }

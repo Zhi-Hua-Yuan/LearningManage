@@ -1,0 +1,17 @@
+{
+  "id": "req-abc-123",
+  "model": "qwen-plus-2026-05-01",
+  "choices": [
+    {
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {"id": "call-1", "type": "function", "function": {"name": "query_tasks", "arguments": "{\"projectId\":1001}"}}
+        ]
+      }
+    }
+  ],
+  "usage": {"prompt_tokens": 11, "completion_tokens": 22, "total_tokens": 33}
+}

@@ -1,0 +1,7 @@
+{
+  "model": "qwen-plus",
+  "messages": [
+    {"role": "user", "content": "今天有什么任务？"}
+  ],
+  "stream": false
+}
