@@ -357,6 +357,68 @@ test('provider fingerprints formal business content instead of comparing row cou
   assert.doesNotMatch(providerSource, /formalRowsAfter\s*-\s*formalRowsBefore/);
 });
 
+test('a missing call log is returned as data so the failing case keeps its evidence', async () => {
+  const providerPath = path.join(root, 'providers', 'learning-manage-http.js');
+  delete require.cache[require.resolve(providerPath)];
+  const Provider = require(providerPath);
+  assert.equal(typeof Provider.lookupMetadataSafely, 'function');
+
+  const missing = await Provider.lookupMetadataSafely('s3_TO-REG-019_a7a49946621b', async () => {
+    throw new Error('No ai_call_log record found for Stage 3 trace s3_TO-REG-019_a7a49946621b');
+  });
+  assert.equal(missing.persisted, null);
+  assert.match(missing.callLogError, /No ai_call_log record found for Stage 3 trace s3_TO-REG-019_a7a49946621b/);
+
+  const found = await Provider.lookupMetadataSafely('s3_TO-REG-019_a7a49946621b',
+    async () => ({ callLogFound: true, callLogId: '7', totalTokens: 10 }));
+  assert.equal(found.callLogError, null);
+  assert.equal(found.persisted.callLogId, '7');
+
+  // The failure must stay detectable: the common assertion rejects this exact shape.
+  const assertion = require(path.join(root, 'assertions', 'common.js'));
+  const envelope = JSON.stringify({
+    caseId: 'TO-REG-019', scene: 'today-order', success: true, data: {},
+    meta: { traceId: 's3_TO-REG-019_a7a49946621b', callLogFound: false, callLogId: null, callLogError: missing.callLogError, formalBusinessWrites: 0 }
+  });
+  const verdict = assertion(envelope, { vars: { caseId: 'TO-REG-019', scene: 'today-order', tags: '[]', expectedInvariants: '{}' } });
+  assert.equal(verdict.pass, false);
+  assert.match(verdict.reason, /not correlated to a persisted AI call log/);
+
+  const providerSource = fs.readFileSync(providerPath, 'utf8');
+  assert.doesNotMatch(providerSource, /const persisted = await lookupMetadata\(/);
+  assert.match(providerSource, /callLogFound: false/);
+  assert.match(providerSource, /sanitizeEvidence\(text\)/);
+});
+
+test('provider evidence redaction keeps credential-shaped content out of scanned output', () => {
+  const providerPath = path.join(root, 'providers', 'learning-manage-http.js');
+  delete require.cache[require.resolve(providerPath)];
+  const Provider = require(providerPath);
+  assert.equal(typeof Provider.sanitizeEvidence, 'function');
+
+  // Same shape the stage3 workflows grep for, so this stays honest if the gate tightens.
+  const gatePattern = /(^|[^A-Za-z0-9_])(?:Bearer\s+[A-Za-z0-9._-]{20,}|sk-[A-Za-z0-9_-]{16,})/;
+  const hostile = JSON.stringify({
+    token: 'sk-ABCDEFGHIJKLMNOPQRST',
+    authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
+    message: 'task-breakdown_business_contract'
+  });
+  assert.equal(gatePattern.test(hostile), true);
+
+  const redacted = Provider.sanitizeEvidence(hostile);
+  assert.equal(gatePattern.test(redacted), false);
+  assert.ok(redacted.includes('<redacted>'));
+  // Non-credential context survives, otherwise the evidence would be useless.
+  assert.ok(redacted.includes('task-breakdown_business_contract'));
+
+  assert.equal(Provider.sanitizeEvidence(''), null);
+  assert.equal(Provider.sanitizeEvidence(null), null);
+
+  const truncated = Provider.sanitizeEvidence('x'.repeat(9000));
+  assert.ok(truncated.length < 4100);
+  assert.match(truncated, /<truncated 5000 chars>$/);
+});
+
 test('summary separates deterministic gates from semantic scores', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-summary-'));
   try {
