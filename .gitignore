@@ -62,6 +62,8 @@ deploy/mysql-data/
 # 前端构建产物 (如果你把 dist 放进来了，建议忽略它，只传前端源码)
 deploy/dist/
 /.codex-tmp/
+# WorkBuddy 本地工作区数据（对话记忆、技能、缓存），属于个人本地材料，不进产品仓库
+/.workbuddy/
 
 # Stage 3 evaluation working files and expiring raw results
 evals/stage3/node_modules/
