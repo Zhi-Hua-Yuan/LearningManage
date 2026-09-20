@@ -122,14 +122,14 @@ class AiModelClientHttpIntegrationTest {
                         "function":{"name":"query_tasks","arguments":"{\\\"projectId\\\":1001}"}
                       }]},
                       "finish_reason":"tool_calls"
-                    }]}
+                    }],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
                     """
                     : """
                     {"id":"provider-call-2","model":"qwen-plus-provider-snapshot","choices":[{
                       "index":0,
                       "message":{"role":"assistant","content":"工具结果已分析"},
                       "finish_reason":"stop"
-                    }]}
+                    }],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
                     """;
             byte[] response = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");

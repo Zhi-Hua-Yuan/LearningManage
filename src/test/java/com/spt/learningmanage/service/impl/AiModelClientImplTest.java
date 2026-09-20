@@ -276,7 +276,8 @@ class AiModelClientImplTest {
                 .thenReturn(new AiHttpResponse(429, "rate limited"))
                 .thenReturn(new AiHttpResponse(
                         200,
-                        "{\"choices\":[{\"message\":{\"content\":\"fallback\"},\"finish_reason\":\"stop\"}]}",
+                        "{\"choices\":[{\"message\":{\"content\":\"fallback\"},\"finish_reason\":\"stop\"}],"
+                                + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}}",
                         Map.of("X-Request-ID", List.of("fallback-request"))
                 ));
 
@@ -393,7 +394,9 @@ class AiModelClientImplTest {
     private AiHttpResponse successResponse(String content) {
         return new AiHttpResponse(
                 200,
-                "{\"choices\":[{\"message\":{\"content\":\"" + content + "\"}}]}"
+                "{\"choices\":[{\"message\":{\"content\":\"" + content
+                        + "\"},\"finish_reason\":\"stop\"}],"
+                        + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}}"
         );
     }
 }

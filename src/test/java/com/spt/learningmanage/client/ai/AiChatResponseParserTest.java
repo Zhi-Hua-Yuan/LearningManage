@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.model.dto.ai.AiHttpResponse;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
+import com.spt.learningmanage.model.dto.ai.chat.AiUsage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,13 +47,13 @@ class AiChatResponseParserTest {
                 {"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[
                   {"id":"call-1","type":"function","function":{"name":"query_tasks","arguments":"{\\"projectId\\":1}"}},
                   {"id":"call-2","type":"function","function":{"name":"query_stats","arguments":"{}"}}
-                ]},"finish_reason":"tool_calls"}]}
+                ]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
                 """, Map.of()), "model", "model", 0, null);
 
         Assertions.assertNull(result.content());
         Assertions.assertEquals(2, result.toolCalls().size());
         Assertions.assertEquals("query_tasks", result.toolCalls().get(0).function().name());
-        Assertions.assertNull(result.usage());
+        Assertions.assertEquals(new AiUsage(10, 4, 14), result.usage());
 
         AiChatResult dashScopeCompatibilityResult = parser.parse(response(
                 toolResponse("call-3", "function", "query_tasks", "{}", "stop"), Map.of()),
@@ -75,17 +76,14 @@ class AiChatResponseParserTest {
     }
 
     @Test
-    void parse_shouldKeepMissingOrPartialUsageAsNullable() {
-        AiChatResult missing = parser.parse(response(textResponseWithoutId(), Map.of()),
-                "model", "model", 0, null);
-        AiChatResult partial = parser.parse(response("""
-                {"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":3}}
-                """, Map.of()), "model", "model", 0, null);
-
-        Assertions.assertNull(missing.usage());
-        Assertions.assertEquals(3, partial.usage().promptTokens());
-        Assertions.assertNull(partial.usage().completionTokens());
-        Assertions.assertNull(partial.usage().totalTokens());
+    void parse_shouldRejectMissingOrPartialUsage() {
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> parser.parse(response(textResponseWithoutUsage(), Map.of()),
+                        "model", "model", 0, null));
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> parser.parse(response("""
+                        {"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":3}}
+                        """, Map.of()), "model", "model", 0, null));
     }
 
     @Test
@@ -160,6 +158,11 @@ class AiChatResponseParserTest {
     }
 
     private String textResponseWithoutId() {
+        return "{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],"
+                + "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2,\"total_tokens\":3}}";
+    }
+
+    private String textResponseWithoutUsage() {
         return "{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}";
     }
 
@@ -167,6 +170,7 @@ class AiChatResponseParserTest {
         return "{\"choices\":[{\"message\":{\"content\":null,\"tool_calls\":[{"
                 + "\"id\":\"" + id + "\",\"type\":\"" + type + "\",\"function\":{"
                 + "\"name\":\"" + name + "\",\"arguments\":\"" + arguments.replace("\"", "\\\"")
-                + "\"}}]},\"finish_reason\":\"" + finishReason + "\"}]}";
+                + "\"}}]},\"finish_reason\":\"" + finishReason
+                + "\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}}";
     }
 }
