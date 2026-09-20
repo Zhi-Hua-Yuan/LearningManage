@@ -1,6 +1,7 @@
 package com.spt.learningmanage.config;
 
 import cn.hutool.core.util.StrUtil;
+import com.spt.learningmanage.client.ai.AiChatDeadlineContext;
 import com.spt.learningmanage.client.ai.AiTimeoutPolicy;
 import com.spt.learningmanage.client.ai.adapter.AiUpstreamErrorHandler;
 import org.springframework.ai.chat.client.ChatClient;
@@ -13,10 +14,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 
 /**
  * Spring AI chat 传输层的装配，仅在 {@code ai.chat.adapter=spring-ai} 时生效。
@@ -66,15 +70,21 @@ public class SpringAiChatConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public OpenAiApi springAiOpenAiApi(AiProperties aiProperties) {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofMillis(AiTimeoutPolicy.connectTimeoutMs(aiProperties)));
-        requestFactory.setReadTimeout(Duration.ofMillis(AiTimeoutPolicy.readTimeoutMs(aiProperties)));
+        DeadlineAwareRequestFactory requestFactory = new DeadlineAwareRequestFactory(
+                AiTimeoutPolicy.connectTimeoutMs(aiProperties),
+                AiTimeoutPolicy.readTimeoutMs(aiProperties));
 
         return OpenAiApi.builder()
                 .baseUrl(StrUtil.removeSuffix(aiProperties.getBaseUrl().trim(), "/"))
                 .completionsPath(CHAT_COMPLETIONS_PATH)
                 .apiKey(StrUtil.nullToEmpty(aiProperties.getApiKey()).trim())
-                .restClientBuilder(RestClient.builder().requestFactory(requestFactory))
+                // OpenAiApi writes the request through a streaming message
+                // converter. Buffering makes the request length explicit so
+                // the OpenAI-compatible CI stub (and strict proxies) receive
+                // a normal fixed-length JSON request instead of an empty body
+                // when no Content-Length was produced by the converter.
+                .restClientBuilder(RestClient.builder().requestFactory(
+                        new BufferingClientHttpRequestFactory(requestFactory)))
                 .responseErrorHandler(new AiUpstreamErrorHandler())
                 .build();
     }
@@ -99,5 +109,36 @@ public class SpringAiChatConfiguration {
     @ConditionalOnMissingBean
     public ChatClient springAiChatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel).build();
+    }
+
+    /**
+     * Applies the governance deadline at request creation time. A single
+     * ChatModel instance is shared by the application, so the per-attempt
+     * deadline is carried by the synchronous call's thread-local scope rather
+     * than by mutable model configuration.
+     */
+    static final class DeadlineAwareRequestFactory extends SimpleClientHttpRequestFactory {
+
+        private final int configuredConnectTimeoutMs;
+        private final int configuredReadTimeoutMs;
+
+        DeadlineAwareRequestFactory(int configuredConnectTimeoutMs, int configuredReadTimeoutMs) {
+            this.configuredConnectTimeoutMs = configuredConnectTimeoutMs;
+            this.configuredReadTimeoutMs = configuredReadTimeoutMs;
+            setConnectTimeout(Duration.ofMillis(configuredConnectTimeoutMs));
+            setReadTimeout(Duration.ofMillis(configuredReadTimeoutMs));
+        }
+
+        @Override
+        protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+            super.prepareConnection(connection, httpMethod);
+            Long deadlineNanos = AiChatDeadlineContext.currentDeadlineNanos();
+            if (deadlineNanos == null) {
+                return;
+            }
+            int remainingMs = AiTimeoutPolicy.remainingTimeoutMs(deadlineNanos);
+            connection.setConnectTimeout(Math.min(configuredConnectTimeoutMs, remainingMs));
+            connection.setReadTimeout(Math.min(configuredReadTimeoutMs, remainingMs));
+        }
     }
 }

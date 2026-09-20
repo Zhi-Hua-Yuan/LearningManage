@@ -20,7 +20,6 @@ import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 既有传输协议的适配器：Hutool HTTP 直连 Qwen 兼容接口。
@@ -197,11 +196,8 @@ public class LegacyAiChatAdapter implements AiChatAdapter {
     }
 
     private int resolveReadTimeoutMs(long deadlineNanos) {
-        long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime());
-        if (remainingMillis <= 0) {
-            return 1;
-        }
-        return (int) Math.max(1L, Math.min(AiTimeoutPolicy.readTimeoutMs(aiProperties), remainingMillis));
+        return Math.min(AiTimeoutPolicy.readTimeoutMs(aiProperties),
+                AiTimeoutPolicy.remainingTimeoutMs(deadlineNanos));
     }
 
     private boolean containsSocketTimeout(Throwable throwable) {

@@ -4,6 +4,8 @@ import com.spt.learningmanage.config.AiProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * AI 调用的超时口径（唯一来源）。
  *
@@ -57,6 +59,16 @@ public final class AiTimeoutPolicy {
                 READ_TIMEOUT_MAX_MS,
                 "readTimeoutMs"
         );
+    }
+
+    /**
+     * Converts the absolute governance deadline into a positive socket timeout.
+     * Keeping the conversion here makes legacy and Spring AI use the same
+     * truncation and lower-bound semantics.
+     */
+    public static int remainingTimeoutMs(long deadlineNanos) {
+        long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime());
+        return (int) Math.max(1L, remainingMillis);
     }
 
     private static int normalize(Integer configured,

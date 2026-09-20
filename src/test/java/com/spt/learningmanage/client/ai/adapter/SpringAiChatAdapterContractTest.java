@@ -48,6 +48,8 @@ class SpringAiChatAdapterContractTest {
 
     private final List<JsonNode> receivedBodies = new CopyOnWriteArrayList<>();
 
+    private final List<String> receivedContentLengths = new CopyOnWriteArrayList<>();
+
     private HttpServer server;
 
     private SpringAiChatAdapter adapter;
@@ -89,6 +91,8 @@ class SpringAiChatAdapterContractTest {
         Assertions.assertEquals(List.of(COMPLETIONS_PATH), receivedPaths,
                 "Spring AI 侧必须请求 base-url 原值 + /chat/completions；"
                         + "默认的 /v1/chat/completions 会拼出 /v1/v1/ 造成 404");
+        Assertions.assertNotNull(receivedContentLengths.get(0),
+                "Spring AI 请求必须带固定 Content-Length，避免兼容网关把流式请求误判为空 body");
     }
 
     @Test
@@ -311,6 +315,7 @@ class SpringAiChatAdapterContractTest {
 
     private void handle(HttpExchange exchange) throws IOException {
         receivedPaths.add(exchange.getRequestURI().getPath());
+        receivedContentLengths.add(exchange.getRequestHeaders().getFirst("Content-Length"));
         receivedBodies.add(objectMapper.readTree(new String(exchange.getRequestBody().readAllBytes(),
                 StandardCharsets.UTF_8)));
         byte[] payload = responseBodySupplier.get().getBytes(StandardCharsets.UTF_8);

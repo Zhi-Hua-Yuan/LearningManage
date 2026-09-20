@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.client.ai.spi.AiChatAdapter;
 import com.spt.learningmanage.client.ai.spi.AiChatDispatchContext;
+import com.spt.learningmanage.client.ai.AiChatDeadlineContext;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
@@ -30,9 +31,11 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -105,7 +108,9 @@ public class SpringAiChatAdapter implements AiChatAdapter {
 
         ChatResponse response;
         try {
-            response = chatModel.call(prompt);
+            try (AiChatDeadlineContext.Scope ignored = AiChatDeadlineContext.open(context.deadlineNanos())) {
+                response = chatModel.call(prompt);
+            }
         } catch (AiUpstreamHttpException e) {
             AiFailureTypeEnum failureType = resolveHttpFailureType(e.getStatusCode());
             throw invocationException(
@@ -118,6 +123,17 @@ public class SpringAiChatAdapter implements AiChatAdapter {
                     e.getStatusCode()
             );
         } catch (Exception e) {
+            if (containsResponseDecodingFailure(e)) {
+                throw invocationException(
+                        AiFailureTypeEnum.INVALID_RESPONSE,
+                        model,
+                        retryCount,
+                        "AI 返回结果格式异常，请重试",
+                        "解码 AI 上游响应失败: model=" + model,
+                        e,
+                        null
+                );
+            }
             if (containsSocketTimeout(e)) {
                 throw invocationException(
                         AiFailureTypeEnum.TIMEOUT,
@@ -403,6 +419,20 @@ public class SpringAiChatAdapter implements AiChatAdapter {
             if (current instanceof ResourceAccessException
                     && current.getMessage() != null
                     && current.getMessage().toLowerCase().contains("timed out")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsResponseDecodingFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof HttpMessageConversionException
+                    || (current instanceof RestClientException
+                    && current.getCause() instanceof HttpMessageConversionException)
+                    || current instanceof com.fasterxml.jackson.core.JsonProcessingException) {
                 return true;
             }
             current = current.getCause();
