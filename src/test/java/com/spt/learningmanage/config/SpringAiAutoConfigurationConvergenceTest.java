@@ -67,7 +67,15 @@ class SpringAiAutoConfigurationConvergenceTest {
                     assertThat(context).doesNotHaveBean(EmbeddingModel.class);
                     assertThat(context).doesNotHaveBean(ChatMemoryRepository.class);
                     assertThat(context).doesNotHaveBean(ToolCallingManager.class);
-                });
+        });
+    }
+
+    @Test
+    void invalidAdapterSelectorFailsContextStartup() {
+        contextRunner.withPropertyValues("ai.chat.adapter=typo").run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure()).hasMessageContaining("ai.chat.adapter");
+        });
     }
 
     @Configuration(proxyBeanMethods = false)
