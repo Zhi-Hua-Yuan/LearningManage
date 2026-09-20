@@ -21,6 +21,7 @@
     "eval:real": "npm run prepare:eval && node scripts/run-promptfoo.mjs eval -c promptfooconfig.yaml -o output.json --no-cache --no-share --max-concurrency 1",
     "report": "node scripts/summarize-results.mjs output.json summary.json report.md",
     "gate": "node scripts/verify-thresholds.mjs summary.json",
+    "compare:adapters": "node scripts/compare-adapters.mjs",
     "human:sample": "node scripts/create-human-review-sample.mjs",
     "human:verify": "node scripts/verify-human-review.mjs",
     "real:aggregate": "node scripts/aggregate-real-results.mjs",
