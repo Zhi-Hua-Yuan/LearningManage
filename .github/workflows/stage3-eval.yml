@@ -70,10 +70,14 @@ jobs:
         run: bash scripts/ci/verify-stage3-acceptance.sh
 
   offline-eval:
-    name: Production-path offline evaluation
+    name: Production-path offline evaluation (${{ matrix.ai_chat_adapter }})
     needs: contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        ai_chat_adapter: [legacy, spring-ai]
     env:
       CI_MYSQL_ADMIN_PASSWORD: ci_admin_${{ github.run_id }}_${{ github.run_attempt }}_stage3
       FLYWAY_DB_PASSWORD: ci_migrator_${{ github.run_id }}_${{ github.run_attempt }}_stage3
@@ -83,7 +87,8 @@ jobs:
       FLYWAY_BASELINE_ON_MIGRATE: 'false'
       CI_BACKEND_IMAGE: learningmanage-stage3-eval:${{ github.sha }}
       CI_COMPOSE_FILE: deploy/docker-compose.stage3-eval.yml
-      CI_COMPOSE_PROJECT_NAME: learningmanage-stage3-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_COMPOSE_PROJECT_NAME: learningmanage-stage3-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.ai_chat_adapter }}
+      AI_CHAT_ADAPTER: ${{ matrix.ai_chat_adapter }}
       STAGE3_API_BASE_URL: http://127.0.0.1:18133/api
       STAGE3_EVAL_PASSWORD: Stage3_${{ github.run_id }}_${{ github.run_attempt }}_Aa9
       STAGE3_DB_HOST: 127.0.0.1
@@ -173,7 +178,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: stage3-offline-eval-${{ github.run_id }}-${{ github.run_attempt }}
+          name: stage3-offline-eval-${{ matrix.ai_chat_adapter }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             evals/stage3/output.json
             evals/stage3/summary.json
@@ -189,3 +194,29 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" down --volumes --remove-orphans || true
+
+  adapter-parity:
+    name: Standardized Legacy/Spring AI parity
+    needs: offline-eval
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Download both adapter evaluation reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: stage3-offline-eval-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: stage3-adapter-reports
+          merge-multiple: false
+      - name: Compare normalized content, tools, finish, usage and model
+        working-directory: evals/stage3
+        run: |
+          set -Eeuo pipefail
+          node scripts/compare-adapters.mjs \
+            "../../stage3-adapter-reports/stage3-offline-eval-legacy-${{ github.run_id }}-${{ github.run_attempt }}/output.json" \
+            "../../stage3-adapter-reports/stage3-offline-eval-spring-ai-${{ github.run_id }}-${{ github.run_attempt }}/output.json"

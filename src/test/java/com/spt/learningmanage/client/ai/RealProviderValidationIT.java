@@ -3,6 +3,7 @@ package com.spt.learningmanage.client.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.spt.learningmanage.client.ai.adapter.LegacyAiChatAdapter;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
@@ -200,7 +201,8 @@ class RealProviderValidationIT {
         properties.setConnectTimeoutMs(5_000);
         properties.setReadTimeoutMs(60_000);
         properties.getResilience().setTotalTimeoutMs(120_000);
-        return new AiModelClientImpl(properties, new HutoolAiHttpTransport());
+        return new AiModelClientImpl(properties,
+                new LegacyAiChatAdapter(properties, new HutoolAiHttpTransport()));
     }
 
     private void writeReport(Path reportPath, ValidationReport report) throws IOException {

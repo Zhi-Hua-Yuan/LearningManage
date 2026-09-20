@@ -31,7 +31,26 @@
         <resilience4j.version>2.2.0</resilience4j.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <springdoc.version>2.8.17</springdoc.version>
+        <spring-ai.version>1.1.8</spring-ai.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--
+              Spring AI 只用来接管 chat 传输层（见 client/ai/adapter/SpringAiChatAdapter）。
+              引入 BOM 而非直接依赖各个 spring-ai-* 构件，保证传递依赖版本一致。
+              注意：1.1.x 需要 Spring Boot 3.x；2.x 才要求 Boot 4。
+            -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -127,6 +146,45 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-bulkhead</artifactId>
             <version>${resilience4j.version}</version>
+        </dependency>
+        <!--
+          Spring AI chat 传输层。刻意只引 starter-model-openai：
+          - 不引 spring-ai-starter-vector-store-qdrant：知识库向量仍走既有 Qdrant 客户端
+            与 DashScope embedding 通道，纳入 Spring AI 会改掉 RAG 的行为面；
+          - 不引 spring-ai-starter-model-* 之外的能力模块。
+          自动配置全部显式关闭（application.yml 的 spring.ai.model.*），
+          ChatModel 由 config/SpringAiChatConfiguration 手工装配。
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+            <exclusions>
+                <!--
+                  必须排除：Spring AI 的工具/结构化输出链路会经
+                  com.github.victools:jsonschema-module-swagger-2 传递引入
+                  io.swagger.core.v3:swagger-annotations-jakarta，
+                  且它的路径比 springdoc → swagger-core-jakarta 更短，
+                  按「最近优先」会把该构件从 2.2.47 降级到 2.2.38，
+                  而 swagger-core-jakarta 仍是 2.2.47 —— swagger 家族版本错配，
+                  直接作用于 OpenAPI 文档生成，而文档又受 oasdiff 契约门禁约束。
+                  排除后该构件只由 swagger-core-jakarta 提供（2.2.47），
+                  即与 springdoc 保持单一来源、自动同步。
+                -->
+                <exclusion>
+                    <groupId>io.swagger.core.v3</groupId>
+                    <artifactId>swagger-annotations-jakarta</artifactId>
+                </exclusion>
+                <!-- MCP is outside the Phase 1 Chat boundary; no MCP client/tool
+                     registration is allowed in the application runtime. -->
+                <exclusion>
+                    <groupId>io.modelcontextprotocol.sdk</groupId>
+                    <artifactId>mcp-json-jackson2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.modelcontextprotocol.sdk</groupId>
+                    <artifactId>mcp-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 

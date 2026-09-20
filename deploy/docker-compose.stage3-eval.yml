@@ -54,6 +54,7 @@ services:
       AI_BREAKDOWN_MODEL: ci-ai-stub
       AI_POLISH_MODEL: ci-ai-stub
       AI_FALLBACK_MODEL: ci-ai-stub
+      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-legacy}
       AI_CONNECT_TIMEOUT_MS: "2000"
       AI_READ_TIMEOUT_MS: "5000"
       AI_TOTAL_TIMEOUT_MS: "15000"

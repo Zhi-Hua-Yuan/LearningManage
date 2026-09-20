@@ -140,15 +140,14 @@ public class AiChatResponseParser {
     }
 
     private AiUsage parseUsage(JsonNode usageNode) {
-        if (usageNode == null || usageNode.isNull()) {
-            return null;
-        }
+        require(usageNode != null && !usageNode.isNull(), "AI 响应缺少 usage");
         require(usageNode.isObject(), "usage 必须是对象");
-        return new AiUsage(
-                parseTokenCount(usageNode.get("prompt_tokens"), "prompt_tokens"),
-                parseTokenCount(usageNode.get("completion_tokens"), "completion_tokens"),
-                parseTokenCount(usageNode.get("total_tokens"), "total_tokens")
-        );
+        Integer promptTokens = parseTokenCount(usageNode.get("prompt_tokens"), "prompt_tokens");
+        Integer completionTokens = parseTokenCount(usageNode.get("completion_tokens"), "completion_tokens");
+        Integer totalTokens = parseTokenCount(usageNode.get("total_tokens"), "total_tokens");
+        require(promptTokens != null && completionTokens != null && totalTokens != null,
+                "AI 响应 usage 缺少 token 明细");
+        return new AiUsage(promptTokens, completionTokens, totalTokens);
     }
 
     private Integer parseTokenCount(JsonNode node, String fieldName) {

@@ -2,11 +2,11 @@ package com.spt.learningmanage.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.client.ai.AiHttpTransport;
+import com.spt.learningmanage.client.ai.adapter.LegacyAiChatAdapter;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
 import com.spt.learningmanage.model.dto.ai.AiHttpResponse;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
@@ -48,15 +48,16 @@ class AiModelClientImplTest {
         aiProperties.setReadTimeoutMs(60000);
 
         aiHttpTransport = Mockito.mock(AiHttpTransport.class);
-        aiModelClient = new AiModelClientImpl(aiProperties, aiHttpTransport);
+        aiModelClient = new AiModelClientImpl(aiProperties,
+                new LegacyAiChatAdapter(aiProperties, aiHttpTransport));
     }
 
     @Test
-    void invoke_shouldReturnPrimaryModelResult() {
+    void chat_shouldPassConfiguredConnectAndReadTimeoutsToTransport() {
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(successResponse("主模型结果"));
 
-        AiInvocationResult result = aiModelClient.invoke("primary-model", "system", "user");
+        AiChatResult result = aiModelClient.chat(textCommand());
 
         Assertions.assertEquals("主模型结果", result.content());
         Assertions.assertEquals("primary-model", result.actualModel());
@@ -102,7 +103,8 @@ class AiModelClientImplTest {
     @Test
     void chat_shouldNotCallProviderWhenLogicalDeadlineAlreadyExpired() {
         aiProperties.getResilience().setTotalTimeoutMs(0);
-        aiModelClient = new AiModelClientImpl(aiProperties, aiHttpTransport);
+        aiModelClient = new AiModelClientImpl(aiProperties,
+                new LegacyAiChatAdapter(aiProperties, aiHttpTransport));
 
         AiInvocationException exception = Assertions.assertThrows(
                 AiInvocationException.class,
@@ -122,7 +124,8 @@ class AiModelClientImplTest {
         aiProperties.getResilience().setSlidingWindowSize(2);
         aiProperties.getResilience().setMinimumNumberOfCalls(1);
         aiProperties.getResilience().setFailureRateThreshold(50);
-        aiModelClient = new AiModelClientImpl(aiProperties, aiHttpTransport);
+        aiModelClient = new AiModelClientImpl(aiProperties,
+                new LegacyAiChatAdapter(aiProperties, aiHttpTransport));
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(new AiHttpResponse(500, "primary failed"))
                 .thenReturn(successResponse("fallback-1"))
@@ -142,13 +145,13 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldUseFallbackModelAfterPrimaryTimeout() {
+    void chat_shouldUseFallbackModelAfterPrimaryTimeout() {
         RuntimeException timeout = new RuntimeException(new SocketTimeoutException("read timed out"));
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenThrow(timeout)
                 .thenReturn(successResponse("兜底模型结果"));
 
-        AiInvocationResult result = aiModelClient.invoke("primary-model", "system", "user");
+        AiChatResult result = aiModelClient.chat(textCommand());
 
         Assertions.assertEquals("兜底模型结果", result.content());
         Assertions.assertEquals("fallback-model", result.actualModel());
@@ -158,13 +161,13 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldNotRetryRejectedRequest() {
+    void chat_shouldNotRetryRejectedRequestAndShouldNotLeakUpstreamBody() {
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(new AiHttpResponse(401, "sensitive upstream response"));
 
         AiInvocationException exception = Assertions.assertThrows(
                 AiInvocationException.class,
-                () -> aiModelClient.invoke("primary-model", "system", "user")
+                () -> aiModelClient.chat(textCommand())
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.UPSTREAM_REJECTED, exception.getFailureType());
@@ -176,7 +179,7 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldExposeFinalTimeoutMetadataWhenBothModelsTimeout() {
+    void chat_shouldExposeFinalTimeoutMetadataWhenBothModelsTimeout() {
         RuntimeException timeout = new RuntimeException(new SocketTimeoutException("read timed out"));
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenThrow(timeout)
@@ -184,7 +187,7 @@ class AiModelClientImplTest {
 
         AiInvocationException exception = Assertions.assertThrows(
                 AiInvocationException.class,
-                () -> aiModelClient.invoke("primary-model", "system", "user")
+                () -> aiModelClient.chat(textCommand())
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getFailureType());
@@ -216,14 +219,14 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldClassifyInvalidProviderResponse() {
+    void chat_shouldClassifyEmptyChoicesAsInvalidResponse() {
         aiProperties.setFallbackModel("primary-model");
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(new AiHttpResponse(200, "{\"choices\":[]}"));
 
         AiInvocationException exception = Assertions.assertThrows(
                 AiInvocationException.class,
-                () -> aiModelClient.invoke("primary-model", "system", "user")
+                () -> aiModelClient.chat(textCommand())
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.INVALID_RESPONSE, exception.getFailureType());
@@ -231,14 +234,14 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldClassifyGatewayTimeoutAsTimeout() {
+    void chat_shouldClassifyGatewayTimeoutAsTimeout() {
         aiProperties.setFallbackModel("primary-model");
         when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
                 .thenReturn(new AiHttpResponse(504, "gateway timeout"));
 
         AiInvocationException exception = Assertions.assertThrows(
                 AiInvocationException.class,
-                () -> aiModelClient.invoke("primary-model", "system", "user")
+                () -> aiModelClient.chat(textCommand())
         );
 
         Assertions.assertEquals(AiFailureTypeEnum.TIMEOUT, exception.getFailureType());
@@ -273,7 +276,8 @@ class AiModelClientImplTest {
                 .thenReturn(new AiHttpResponse(429, "rate limited"))
                 .thenReturn(new AiHttpResponse(
                         200,
-                        "{\"choices\":[{\"message\":{\"content\":\"fallback\"},\"finish_reason\":\"stop\"}]}",
+                        "{\"choices\":[{\"message\":{\"content\":\"fallback\"},\"finish_reason\":\"stop\"}],"
+                                + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}}",
                         Map.of("X-Request-ID", List.of("fallback-request"))
                 ));
 
@@ -345,24 +349,6 @@ class AiModelClientImplTest {
     }
 
     @Test
-    void invoke_shouldRejectToolOnlyResponse() {
-        aiProperties.setFallbackModel("primary-model");
-        when(aiHttpTransport.postChat(anyString(), anyString(), anyString(), anyInt(), anyInt()))
-                .thenReturn(new AiHttpResponse(200, """
-                        {"choices":[{"message":{"content":null,"tool_calls":[{
-                        "id":"call-1","type":"function","function":{"name":"query_tasks","arguments":"{}"}
-                        }]},"finish_reason":"tool_calls"}]}
-                        """));
-
-        AiInvocationException exception = Assertions.assertThrows(
-                AiInvocationException.class,
-                () -> aiModelClient.invoke("primary-model", "system", "user")
-        );
-
-        Assertions.assertEquals(AiFailureTypeEnum.INVALID_RESPONSE, exception.getFailureType());
-    }
-
-    @Test
     void chat_shouldClassifyMalformedResponseWithoutLeakingBody() {
         aiProperties.setFallbackModel("primary-model");
         String sensitiveBody = "not-json-api-key-secret";
@@ -408,7 +394,9 @@ class AiModelClientImplTest {
     private AiHttpResponse successResponse(String content) {
         return new AiHttpResponse(
                 200,
-                "{\"choices\":[{\"message\":{\"content\":\"" + content + "\"}}]}"
+                "{\"choices\":[{\"message\":{\"content\":\"" + content
+                        + "\"},\"finish_reason\":\"stop\"}],"
+                        + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}}"
         );
     }
 }

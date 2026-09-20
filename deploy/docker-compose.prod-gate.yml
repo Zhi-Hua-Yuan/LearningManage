@@ -26,6 +26,7 @@ services:
       AI_BREAKDOWN_MODEL: ci-ai-stub
       AI_POLISH_MODEL: ci-ai-stub
       AI_FALLBACK_MODEL: ci-ai-stub
+      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-legacy}
       # The RAG/Agent smoke must exercise the local stub for every provider
       # endpoint. AI_BASE_URL alone only covers chat completions; without these
       # the query embedding would still be sent to the real DashScope host with

@@ -2,6 +2,7 @@ package com.spt.learningmanage.client.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spt.learningmanage.client.ai.adapter.LegacyAiChatAdapter;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
@@ -45,15 +46,9 @@ class AiModelClientHttpIntegrationTest {
         properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
         properties.setApiKey("integration-test-key");
 
-        AiChatCommandValidator validator = new AiChatCommandValidator(objectMapper);
-        AiChatRequestMapper requestMapper = new AiChatRequestMapper(objectMapper);
-        AiChatResponseParser responseParser = new AiChatResponseParser(objectMapper);
         aiModelClient = new AiModelClientImpl(
                 properties,
-                new HutoolAiHttpTransport(),
-                validator,
-                requestMapper,
-                responseParser
+                new LegacyAiChatAdapter(properties, new HutoolAiHttpTransport())
         );
     }
 
@@ -127,14 +122,14 @@ class AiModelClientHttpIntegrationTest {
                         "function":{"name":"query_tasks","arguments":"{\\\"projectId\\\":1001}"}
                       }]},
                       "finish_reason":"tool_calls"
-                    }]}
+                    }],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
                     """
                     : """
                     {"id":"provider-call-2","model":"qwen-plus-provider-snapshot","choices":[{
                       "index":0,
                       "message":{"role":"assistant","content":"工具结果已分析"},
                       "finish_reason":"stop"
-                    }]}
+                    }],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}
                     """;
             byte[] response = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");

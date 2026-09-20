@@ -181,11 +181,11 @@ function failurePayload(scene, fault, index) {
 let failureIndex = 0;
 for (const [scene, faults] of Object.entries(faultMatrix)) {
   faults.forEach((fault, sceneIndex) => {
-    const sanitizable = fault === 'markdown-wrapped' || fault === 'missing-usage';
+    const sanitizable = fault === 'markdown-wrapped';
     const supportsRuleFallback = ['today-order', 'daily-rename', 'list-replan'].includes(scene);
     const expectSuccess = sanitizable || supportsRuleFallback;
     const expectedInvariants = { expectSuccess };
-    const technicalFailure = ['invalid-json', 'empty', 'missing-choices', 'http-429', 'http-500', 'timeout', 'invalid-structure'].includes(fault);
+    const technicalFailure = ['invalid-json', 'empty', 'missing-choices', 'http-429', 'http-500', 'timeout', 'invalid-structure', 'missing-usage'].includes(fault);
     const degradationExpected = ['unknown-id', 'duplicate-id'].includes(fault);
     const safelyNormalized = ['unauthorized-id', 'overlong-title', 'completed-id', 'invalid-date'].includes(fault);
     if (supportsRuleFallback && (technicalFailure || degradationExpected)) expectedInvariants.expectDegraded = true;

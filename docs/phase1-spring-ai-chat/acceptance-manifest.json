@@ -1,0 +1,14 @@
+{
+  "phase": "phase1",
+  "deliverable": "spring-ai-chat-dual-adapter",
+  "defaultAdapter": "legacy",
+  "supportedAdapters": ["legacy", "spring-ai"],
+  "realQwen": {
+    "status": "WAIVED_NOT_RUN",
+    "reason": "Phase 1 validates transport parity with deterministic stubs; external model execution is deferred.",
+    "mustNotBeReportedAs": "passed",
+    "followUpRequired": true
+  },
+  "rollbackBaseline": "stage8-pre-spring-ai-v1.0.0",
+  "apiAndSchemaChanges": false
+}
