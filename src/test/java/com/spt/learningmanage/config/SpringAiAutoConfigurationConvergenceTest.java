@@ -74,7 +74,7 @@ class SpringAiAutoConfigurationConvergenceTest {
     void invalidAdapterSelectorFailsContextStartup() {
         contextRunner.withPropertyValues("ai.chat.adapter=typo").run(context -> {
             assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure()).hasMessageContaining("ai.chat.adapter");
+            assertThat(context.getStartupFailure()).hasRootCauseMessage("ai.chat.adapter must be one of [legacy, spring-ai], but was: typo");
         });
     }
 
