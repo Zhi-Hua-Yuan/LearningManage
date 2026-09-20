@@ -31,13 +31,15 @@ for model_call in "${model_calls[@]}"; do
     || ci_fail "ai_model_client_call_outside_pipeline"
 done
 
+# HTTP 传输能力下移到 legacy 适配器后，AiModelClientImpl（治理层）与业务层
+# 都不再引用 AiHttpTransport；传输只允许出现在适配器边界内。
 mapfile -t transport_imports < <(
   grep -RIn --include='*.java' \
     'import com.spt.learningmanage.client.ai.AiHttpTransport;' "$main_source" || true
 )
 unexpected_transport_imports=()
 for import_line in "${transport_imports[@]}"; do
-  if [[ "$import_line" != *'/service/impl/AiModelClientImpl.java:'* ]]; then
+  if [[ "$import_line" != *'/client/ai/adapter/LegacyAiChatAdapter.java:'* ]]; then
     unexpected_transport_imports+=("$import_line")
   fi
 done
@@ -50,14 +52,30 @@ mapfile -t transport_references < <(
 unexpected_transport_references=()
 for source_file in "${transport_references[@]}"; do
   case "$source_file" in
-    */client/ai/AiHttpTransport.java|*/client/ai/HutoolAiHttpTransport.java|*/service/impl/AiModelClientImpl.java) ;;
+    */client/ai/AiHttpTransport.java|*/client/ai/HutoolAiHttpTransport.java|*/client/ai/adapter/LegacyAiChatAdapter.java) ;;
     *) unexpected_transport_references+=("$source_file") ;;
   esac
 done
 [[ "${#unexpected_transport_references[@]}" -eq 0 ]] \
   || ci_fail "ai_http_transport_reference_outside_boundary"
 
+# 框架不得渗入业务层：org.springframework.ai 只允许出现在 Spring AI
+# transport adapters 与它的配置类里。这条把「换协议不影响治理」变成可证伪的约束。
+mapfile -t spring_ai_imports < <(
+  grep -RIn --include='*.java' 'import org\.springframework\.ai\.' "$main_source" || true
+)
+unexpected_spring_ai_imports=()
+for import_line in "${spring_ai_imports[@]}"; do
+  case "$import_line" in
+    */client/ai/adapter/SpringAiChatAdapter.java:*|*/client/ai/adapter/SpringAiStreamingModelClient.java:*|*/config/SpringAiChatConfiguration.java:*) ;;
+    *) unexpected_spring_ai_imports+=("$import_line") ;;
+  esac
+done
+[[ "${#unexpected_spring_ai_imports[@]}" -eq 0 ]] \
+  || ci_fail "spring_ai_import_outside_adapter_boundary"
+
 ci_emit "ai.boundary.modelClientCalls" "${#model_calls[@]}"
 ci_emit "ai.boundary.businessDirectModelCalls" "0"
 ci_emit "ai.boundary.businessDirectTransportDependencies" "0"
+ci_emit "ai.boundary.springAiImports" "${#spring_ai_imports[@]}"
 ci_emit "ai.boundary.status" "PASS"

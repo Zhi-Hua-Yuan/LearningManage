@@ -7,17 +7,15 @@ import com.spt.learningmanage.ai.governance.AiFeatureGate;
 import com.spt.learningmanage.ai.governance.AiResilientCallExecutor;
 import com.spt.learningmanage.ai.governance.AiSanitizedContent;
 import com.spt.learningmanage.ai.governance.AiSanitizationStatus;
+import com.spt.learningmanage.ai.governance.DefaultAiContentSanitizer;
 import com.spt.learningmanage.client.ai.AiChatCommandValidator;
-import com.spt.learningmanage.client.ai.AiChatRequestMapper;
-import com.spt.learningmanage.client.ai.AiChatResponseParser;
-import com.spt.learningmanage.client.ai.AiHttpTransport;
+import com.spt.learningmanage.client.ai.spi.AiChatAdapter;
+import com.spt.learningmanage.client.ai.spi.AiChatDispatchContext;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
 import com.spt.learningmanage.exception.AiInvocationException;
-import com.spt.learningmanage.model.dto.ai.AiHttpResponse;
-import com.spt.learningmanage.model.dto.ai.AiInvocationResult;
-import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiAttemptSummary;
+import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
 import com.spt.learningmanage.model.dto.ai.chat.AiFunctionCall;
@@ -29,34 +27,30 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.net.ConnectException;
-import java.net.SocketTimeoutException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+/**
+ * 业务模型调用的治理入口（对应上游方案的 {@code GovernedAiModelClient} 角色）。
+ *
+ * <p>职责：Feature Gate、脱敏、总时限、主备模型、Usage/Cost 汇总、
+ * Bulkhead 与熔断（经 {@link AiResilientCallExecutor}）、错误映射，
+ * 以及响应与命令一致性校验。协议细节（URL、JSON、header、状态码分类）
+ * 全部下沉到 {@link AiChatAdapter} 实现，因此本类不感知 Spring AI 的存在。</p>
+ */
 @Service
 public class AiModelClientImpl implements AiModelClient {
 
     private static final Logger log = LoggerFactory.getLogger(AiModelClientImpl.class);
 
-    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 5000;
-    private static final int DEFAULT_READ_TIMEOUT_MS = 60000;
-    private static final int CONNECT_TIMEOUT_MIN_MS = 1000;
-    private static final int CONNECT_TIMEOUT_MAX_MS = 30000;
-    private static final int READ_TIMEOUT_MIN_MS = 5000;
-    private static final int READ_TIMEOUT_MAX_MS = 300000;
     private final AiProperties aiProperties;
 
-    private final AiHttpTransport aiHttpTransport;
+    private final AiChatAdapter aiChatAdapter;
 
     private final AiChatCommandValidator commandValidator;
-
-    private final AiChatRequestMapper requestMapper;
-
-    private final AiChatResponseParser responseParser;
 
     private final AiFeatureGate featureGate;
 
@@ -66,67 +60,25 @@ public class AiModelClientImpl implements AiModelClient {
 
     @Autowired
     public AiModelClientImpl(AiProperties aiProperties,
-                             AiHttpTransport aiHttpTransport,
+                             AiChatAdapter aiChatAdapter,
                              AiChatCommandValidator commandValidator,
-                             AiChatRequestMapper requestMapper,
-                             AiChatResponseParser responseParser,
                              AiFeatureGate featureGate,
                              AiContentSanitizer contentSanitizer,
                              AiResilientCallExecutor resilientCallExecutor) {
         this.aiProperties = aiProperties;
-        this.aiHttpTransport = aiHttpTransport;
+        this.aiChatAdapter = aiChatAdapter;
         this.commandValidator = commandValidator;
-        this.requestMapper = requestMapper;
-        this.responseParser = responseParser;
         this.featureGate = featureGate;
         this.contentSanitizer = contentSanitizer;
         this.resilientCallExecutor = resilientCallExecutor;
     }
 
-    public AiModelClientImpl(AiProperties aiProperties,
-                             AiHttpTransport aiHttpTransport,
-                             AiChatCommandValidator commandValidator,
-                             AiChatRequestMapper requestMapper,
-                             AiChatResponseParser responseParser) {
-        this(aiProperties, aiHttpTransport, commandValidator, requestMapper, responseParser,
-                new AiFeatureGate(aiProperties),
-                new com.spt.learningmanage.ai.governance.DefaultAiContentSanitizer(
-                        new ObjectMapper(), aiProperties),
-                new AiResilientCallExecutor(aiProperties));
-    }
-
-    public AiModelClientImpl(AiProperties aiProperties, AiHttpTransport aiHttpTransport) {
-        this(aiProperties, aiHttpTransport,
+    public AiModelClientImpl(AiProperties aiProperties, AiChatAdapter aiChatAdapter) {
+        this(aiProperties, aiChatAdapter,
                 new AiChatCommandValidator(new ObjectMapper()),
-                new AiChatRequestMapper(new ObjectMapper()),
-                new AiChatResponseParser(new ObjectMapper()),
                 new AiFeatureGate(aiProperties),
-                new com.spt.learningmanage.ai.governance.DefaultAiContentSanitizer(
-                        new ObjectMapper(), aiProperties),
+                new DefaultAiContentSanitizer(new ObjectMapper(), aiProperties),
                 new AiResilientCallExecutor(aiProperties));
-    }
-
-    @Override
-    public AiInvocationResult invoke(String primaryModel, String systemPrompt, String userPrompt) {
-        validateConfiguration(safeTrim(primaryModel));
-        AiChatCommand command = new AiChatCommand(
-                primaryModel,
-                List.of(AiChatMessage.system(systemPrompt), AiChatMessage.user(userPrompt)),
-                List.of(),
-                null,
-                null,
-                null
-        );
-        AiChatResult chatResult = chat(command);
-        if (StrUtil.isBlank(chatResult.content())) {
-            throw invalidResponse(chatResult.actualModel(), chatResult.retryCount(),
-                    "旧 invoke 接口收到非文本响应");
-        }
-        return new AiInvocationResult(
-                chatResult.content(),
-                chatResult.actualModel(),
-                chatResult.retryCount()
-        );
     }
 
     @Override
@@ -203,74 +155,11 @@ public class AiModelClientImpl implements AiModelClient {
                                      AiFailureTypeEnum fallbackReason,
                                      long deadlineNanos) {
         String model = command.requestedModel();
-        String requestBody;
+        AiChatResult result = aiChatAdapter.chat(command,
+                new AiChatDispatchContext(requestedModel, retryCount, fallbackReason, deadlineNanos));
         try {
-            requestBody = requestMapper.toJson(command);
-        } catch (RuntimeException e) {
-            throw invocationException(
-                    AiFailureTypeEnum.INTERNAL_ERROR,
-                    model,
-                    retryCount,
-                    "AI 请求构造失败，请联系管理员",
-                    "构造 AI 上游请求失败: model=" + model,
-                    e
-            );
-        }
-        AiHttpResponse response;
-        try {
-            response = aiHttpTransport.postChat(
-                    StrUtil.removeSuffix(aiProperties.getBaseUrl().trim(), "/") + "/chat/completions",
-                    aiProperties.getApiKey().trim(),
-                    requestBody,
-                    resolveConnectTimeoutMs(),
-                    resolveReadTimeoutMs(deadlineNanos)
-            );
-        } catch (Exception e) {
-            if (containsSocketTimeout(e)) {
-                throw invocationException(
-                        AiFailureTypeEnum.TIMEOUT,
-                        model,
-                        retryCount,
-                        "AI 服务响应超时，请稍后重试",
-                        "AI 请求超时: model=" + model,
-                        e
-                );
-            }
-            throw invocationException(
-                    AiFailureTypeEnum.NETWORK_ERROR,
-                    model,
-                    retryCount,
-                    "AI 服务暂时不可用，请稍后重试",
-                    "AI 网络请求失败: model=" + model + ", cause=" + e.getClass().getSimpleName(),
-                    e
-            );
-        }
-
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            AiFailureTypeEnum failureType = resolveHttpFailureType(response.statusCode());
-            throw invocationException(
-                    failureType,
-                    model,
-                    retryCount,
-                    safeMessageFor(failureType),
-                    "AI 上游响应异常: model=" + model
-                            + ", status=" + response.statusCode(),
-                    null,
-                    response.statusCode()
-            );
-        }
-
-        try {
-            AiChatResult result = responseParser.parse(
-                    response,
-                    requestedModel,
-                    model,
-                    retryCount,
-                    fallbackReason
-            );
             validateResponseAgainstCommand(command, result);
-            return result;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw invocationException(
                     AiFailureTypeEnum.INVALID_RESPONSE,
                     model,
@@ -280,6 +169,7 @@ public class AiModelClientImpl implements AiModelClient {
                     e
             );
         }
+        return result;
     }
 
     private void validateResponseAgainstCommand(AiChatCommand command, AiChatResult result) {
@@ -320,55 +210,12 @@ public class AiModelClientImpl implements AiModelClient {
         }
     }
 
-    private AiFailureTypeEnum resolveHttpFailureType(int statusCode) {
-        if (statusCode == 408 || statusCode == 504) {
-            return AiFailureTypeEnum.TIMEOUT;
-        }
-        if (statusCode == 429) {
-            return AiFailureTypeEnum.RATE_LIMITED;
-        }
-        if (statusCode >= 500) {
-            return AiFailureTypeEnum.UPSTREAM_SERVER_ERROR;
-        }
-        return AiFailureTypeEnum.UPSTREAM_REJECTED;
-    }
-
-    private String safeMessageFor(AiFailureTypeEnum failureType) {
-        return switch (failureType) {
-            case TIMEOUT -> "AI 服务响应超时，请稍后重试";
-            case RATE_LIMITED -> "AI 服务当前请求较多，请稍后重试";
-            case UPSTREAM_REJECTED -> "AI 服务请求被拒绝，请联系管理员";
-            default -> "AI 服务暂时不可用，请稍后重试";
-        };
-    }
-
-    private AiInvocationException invalidResponse(String model, int retryCount, String internalMessage) {
-        return invocationException(
-                AiFailureTypeEnum.INVALID_RESPONSE,
-                model,
-                retryCount,
-                "AI 返回结果格式异常，请重试",
-                internalMessage + ": model=" + model,
-                null
-        );
-    }
-
     private AiInvocationException invocationException(AiFailureTypeEnum failureType,
                                                       String model,
                                                       int retryCount,
                                                       String safeMessage,
                                                       String internalMessage,
                                                       Throwable cause) {
-        return invocationException(failureType, model, retryCount, safeMessage, internalMessage, cause, null);
-    }
-
-    private AiInvocationException invocationException(AiFailureTypeEnum failureType,
-                                                      String model,
-                                                      int retryCount,
-                                                      String safeMessage,
-                                                      String internalMessage,
-                                                      Throwable cause,
-                                                      Integer httpStatusCode) {
         return new AiInvocationException(
                 failureType,
                 model,
@@ -376,36 +223,8 @@ public class AiModelClientImpl implements AiModelClient {
                 safeMessage,
                 internalMessage,
                 cause,
-                httpStatusCode
+                null
         );
-    }
-
-    private int resolveConnectTimeoutMs() {
-        return normalizeTimeout(
-                aiProperties.getConnectTimeoutMs(),
-                DEFAULT_CONNECT_TIMEOUT_MS,
-                CONNECT_TIMEOUT_MIN_MS,
-                CONNECT_TIMEOUT_MAX_MS,
-                "connectTimeoutMs"
-        );
-    }
-
-    private int resolveReadTimeoutMs() {
-        return normalizeTimeout(
-                aiProperties.getReadTimeoutMs(),
-                DEFAULT_READ_TIMEOUT_MS,
-                READ_TIMEOUT_MIN_MS,
-                READ_TIMEOUT_MAX_MS,
-                "readTimeoutMs"
-        );
-    }
-
-    private int resolveReadTimeoutMs(long deadlineNanos) {
-        long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime());
-        if (remainingMillis <= 0) {
-            return 1;
-        }
-        return (int) Math.max(1L, Math.min(resolveReadTimeoutMs(), remainingMillis));
     }
 
     private void ensureTimeRemaining(String model, int retryCount, long deadlineNanos) {
@@ -463,34 +282,6 @@ public class AiModelClientImpl implements AiModelClient {
             );
         }
         return sanitized.value();
-    }
-
-    private int normalizeTimeout(Integer configured,
-                                 int defaultValue,
-                                 int minValue,
-                                 int maxValue,
-                                 String propertyName) {
-        if (configured == null || configured < minValue || configured > maxValue) {
-            log.warn("AI 超时配置不合法，使用默认值: property={}, configured={}, default={}",
-                    propertyName, configured, defaultValue);
-            return defaultValue;
-        }
-        return configured;
-    }
-
-    private boolean containsSocketTimeout(Throwable throwable) {
-        Throwable current = throwable;
-        while (current != null) {
-            if (current instanceof SocketTimeoutException) {
-                return true;
-            }
-            if (current instanceof ConnectException
-                    && StrUtil.containsIgnoreCase(current.getMessage(), "timed out")) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
     }
 
     private String safeTrim(String value) {

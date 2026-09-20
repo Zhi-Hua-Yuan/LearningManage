@@ -3,6 +3,7 @@ package com.spt.learningmanage.architecture;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
 import com.spt.learningmanage.client.ai.AiHttpTransport;
 import com.spt.learningmanage.client.ai.HutoolAiHttpTransport;
+import com.spt.learningmanage.client.ai.adapter.LegacyAiChatAdapter;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatCommand;
 import com.spt.learningmanage.service.AiModelClient;
 import com.spt.learningmanage.service.impl.AiModelClientImpl;
@@ -34,7 +35,7 @@ class AiInvocationArchitectureTest {
         noClasses()
                 .that().doNotHaveFullyQualifiedName(AiHttpTransport.class.getName())
                 .and().doNotHaveFullyQualifiedName(HutoolAiHttpTransport.class.getName())
-                .and().doNotHaveFullyQualifiedName(AiModelClientImpl.class.getName())
+                .and().doNotHaveFullyQualifiedName(LegacyAiChatAdapter.class.getName())
                 .should().dependOnClassesThat().areAssignableTo(AiHttpTransport.class)
                 .check(productionClasses);
     }
@@ -46,11 +47,6 @@ class AiInvocationArchitectureTest {
                 .and().doNotHaveFullyQualifiedName(AiModelClientImpl.class.getName())
                 .should().callMethod(AiModelClient.class, "chat", AiChatCommand.class)
                 .because(AiInvocationPipeline.class.getSimpleName() + " 必须是业务模型调用的唯一入口")
-                .check(productionClasses);
-        noClasses()
-                .that().doNotHaveFullyQualifiedName(AiModelClientImpl.class.getName())
-                .should().callMethod(AiModelClient.class, "invoke", String.class, String.class, String.class)
-                .because("旧 invoke 只能保留在模型客户端兼容适配器内部")
                 .check(productionClasses);
     }
 }
