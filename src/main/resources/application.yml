@@ -57,6 +57,40 @@ spring:
     hikari:
       connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:5000}
       validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:2000}
+  autoconfigure:
+    exclude:
+      # 这两个自动配置只靠 @ConditionalOnClass 激活（不认 spring.ai.model.* 开关），
+      # 只要 starter 在 classpath 上就会无条件造出单例：
+      #   ToolCallingAutoConfiguration  -> ToolCallbackResolver / ToolCallingManager
+      #   ChatMemoryAutoConfiguration   -> ChatMemoryRepository / MessageWindowChatMemory
+      # 本工程的工具执行由 agent 层负责、会话历史落在自己的表里，
+      # 这两套机制都用不到，留着只会让人误以为「工具/记忆已交给 Spring AI 管」。
+      # OpenAiChatModel 在未显式注入 ToolCallingManager 时会自建默认实现
+      # （OpenAiChatModel$Builder#build 的 else 分支），所以排除是安全的。
+      # 这样 ai.chat.adapter=legacy（默认值）下 Spring AI 不产生任何单例 Bean。
+      - org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration
+      - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
+  ai:
+    # Spring AI 的模型自动配置是「默认开启」的：这六个开关的 matchIfMissing 都是
+    # true，只要 starter 在 classpath 上，缺少任何一个开关都会凭空造出对应模型 Bean。
+    # 其中 embedding 风险最高——本工程的向量化走自己的 DashScope 通道，
+    # 多出一个 EmbeddingModel 会悄悄改变 RAG 行为面。
+    # 所以六个全部钉成 none；chat 由 config/SpringAiChatConfiguration 手工装配，
+    # 且仅在 ai.chat.adapter=spring-ai 时才存在。
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+    retry:
+      # 框架级重试的兜底口径。治理层负责重试与主备切换，框架层不得再插一层
+      # （Spring AI 默认 maxAttempts=10 + 指数退避，会让治理层的次数/耗时/计价失真）。
+      # SpringAiChatConfiguration 里还会对 ChatModel 显式注入 maxAttempts=1 的
+      # RetryTemplate，这里是第二道防线。
+      max-attempts: 1
 
 mybatis-plus:
   configuration:
@@ -89,6 +123,10 @@ ai:
   read-timeout-ms: ${AI_READ_TIMEOUT_MS:60000}
   chat:
     enabled: ${AI_CHAT_ENABLED:true}
+    # chat 传输层实现：legacy = 既有 Hutool HTTP 直连；spring-ai = Spring AI ChatModel。
+    # 默认 legacy —— 引入 Spring AI 不改变既有行为面，切换需显式改环境变量，可随时回退。
+    # 只在 application.yml 声明这一处，其他 profile 不重复覆盖。
+    adapter: ${AI_CHAT_ADAPTER:legacy}
   logging:
     max-body-chars: ${AI_LOG_MAX_BODY_CHARS:8000}
     max-error-chars: ${AI_LOG_MAX_ERROR_CHARS:2000}

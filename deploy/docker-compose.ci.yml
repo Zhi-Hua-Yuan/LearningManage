@@ -43,6 +43,7 @@ services:
       AI_AGENT_TOOL_CALLING_ENABLED: "false"
       AI_RATE_LIMIT_ENABLED: "false"
       ALIYUN_API_KEY: ci-only-not-a-real-key
+      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-legacy}
       JWT_SECRET: ci-only-jwt-secret-with-at-least-32-bytes
     ports:
       - "127.0.0.1:18123:8123"

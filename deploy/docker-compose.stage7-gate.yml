@@ -83,6 +83,7 @@ services:
       ALIYUN_API_KEY: ci-only-not-real
       AI_BASE_URL: http://ai-stub:8080/compatible-mode/v1
       AI_MODEL: ci-ai-stub
+      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-legacy}
       AI_EMBEDDING_BASE_URL: http://ai-stub:8080/compatible-mode/v1
       AI_EMBEDDING_QUERY_BASE_URL: http://ai-stub:8080/api/v1
       AI_EMBEDDING_API_KEY: ci-only-not-real

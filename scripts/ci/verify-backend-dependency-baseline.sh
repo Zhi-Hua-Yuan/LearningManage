@@ -5,11 +5,11 @@
 # 目的：把「本轮升级没有悄悄改变技术栈」从口头承诺变成 CI 可证伪的断言。
 # 三件事：
 #   1. 关键坐标必须落在预期版本上；
-#   2. 已淘汰 / 未获批的坐标必须不存在（knife4j、springdoc 2.3.0、org.springframework.ai）；
+#   2. 已淘汰 / 未获批的坐标必须不存在（knife4j、springdoc 2.3.0、Qdrant/MCP/WebFlux Starter）；
 #   3. 产出依赖树与校验和，作为发布候选制品的一部分。
 #
-# PR 1 阶段 org.springframework.ai 必须完全缺席——这是「PR 1 不引入 Spring AI」
-# 的可证伪形式。PR 2 引入 Spring AI 时需要显式修改本脚本，不允许通过放宽断言绕过。
+# Phase 1 PR 2 允许且只允许 Spring AI 1.1.8 的 OpenAI Chat Starter 及其必要传递模块。
+# 这条必须保持精确版本约束，避免通过放宽断言悄悄引入其他 Spring AI 能力。
 set -Eeuo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -101,8 +101,22 @@ trap 'rm -f "$resolved"' EXIT
 assert_absent 'com\.github\.xiaoymin|knife4j' "knife4j_dependency_present"
 # 旧版 springdoc 会在 Spring Framework 6.2 下抛 NoSuchMethodError。
 assert_absent 'springdoc-openapi[a-z-]*:jar:2\.3\.0' "legacy_springdoc_dependency_present"
-# PR 1 的程序性约束：不引入任何 Spring AI 构件，包括 BOM。
-assert_absent 'org\.springframework\.ai' "spring_ai_dependency_present"
+# Phase 1 允许 Spring AI Chat，但不允许把 RAG Vector Store、MCP 或其他模型 Starter
+# 带入产品。Starter 会传递 spring-webflux 供 Reactor streaming 使用；应用仍保持
+# Spring MVC，禁止直接引入 spring-boot-starter-webflux。
+assert_exact_version "org.springframework.ai:spring-ai-starter-model-openai" "1.1.8"
+if grep -E 'org\.springframework\.ai:.*:jar:' "$tree_file" \
+    | awk -F: '$4 != "1.1.8" { found=1 } END { exit found ? 0 : 1 }'; then
+    ci_fail "spring_ai_dependency_version_mismatch"
+fi
+assert_absent 'org\.springframework\.ai:.*(vector-store|qdrant|mcp)' "spring_ai_forbidden_capability_present"
+assert_absent 'io\.modelcontextprotocol\.sdk:' "mcp_dependency_present"
+if grep -E 'org\.springframework\.ai:spring-ai-starter-model-' "$tree_file" \
+    | grep -v 'spring-ai-starter-model-openai'; then
+    ci_fail "spring_ai_unapproved_model_starter_present"
+fi
+assert_absent 'org\.springframework\.boot:spring-boot-starter-webflux' "webflux_starter_present"
+assert_exact_version "org.springframework:spring-webflux" "6.2.19"
 
 printf '%s  %s\n' "$(sha256sum "$tree_file" | awk '{print toupper($1)}')" \
     "$(basename -- "$tree_file")" > "$tree_sha"
@@ -115,7 +129,7 @@ jq -n \
     '{
         schemaVersion: 1,
         status: "PASS",
-        forbiddenDependencies: ["com.github.xiaoymin:knife4j-*", "org.springdoc:*:2.3.0", "org.springframework.ai:*"],
+        forbiddenDependencies: ["com.github.xiaoymin:knife4j-*", "org.springdoc:*:2.3.0", "org.springframework.ai:*:vector-store/qdrant/mcp", "io.modelcontextprotocol.sdk:*", "org.springframework.boot:spring-boot-starter-webflux"],
         dependencyTreeSha256: $treeSha256,
         resolved: $resolved
     }' > "$report_file"
