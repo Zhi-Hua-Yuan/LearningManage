@@ -10,5 +10,20 @@
     "followUpRequired": true
   },
   "rollbackBaseline": "stage8-pre-spring-ai-v1.0.0",
-  "apiAndSchemaChanges": false
+  "apiAndSchemaChanges": false,
+  "closureStatus": "PASS_WITH_REAL_QWEN_WAIVER",
+  "postMergeEvidence": {
+    "pullRequest": 170,
+    "mergedAt": "2026-09-20T11:18:43Z",
+    "backendDevelopSha": "42fe52ed803f8ebe465e3d1b2809ef38df20dc0f",
+    "frontendDevelopSha": "5561e8bdbfbfbc96b78f75dc6d8de4015f5ee430",
+    "releaseGateRun": "https://github.com/Zhi-Hua-Yuan/LearningManage/actions/runs/35507744883",
+    "candidateId": "phase1-postmerge-20260920-001",
+    "candidateManifestSha256": "0EDE3F7AD6DA9D1F93BEE69EC7D0ADF1A3212673396E70586C379E8870D88AFA",
+    "candidateManifestStatus": "PASS",
+    "backendTestCount": 959,
+    "stage0BindingStatus": "BOUND",
+    "stage0ContractStatus": "PROVISIONAL",
+    "stage0PendingClosingGateCount": 2
+  }
 }
