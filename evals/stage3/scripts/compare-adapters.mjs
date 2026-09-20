@@ -8,7 +8,7 @@ if (!legacyFile || !springAiFile) {
 
 const volatileKeys = new Set([
   'traceId', 'callLogId', 'providerRequestIdHash', 'latencyMs',
-  'draftId', 'expireAt', 'createdAt', 'updatedAt'
+  'draftId', 'expireAt', 'createdAt', 'updatedAt', 'generatedAt', 'operationId'
 ]);
 
 function canonical(value, key = '') {
