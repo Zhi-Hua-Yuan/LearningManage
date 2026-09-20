@@ -13,3 +13,20 @@
 - Spring AI 的 provider request ID 取响应正文 `id`，不依赖额外响应头；需在真实 Qwen 补跑时确认供应商行为。
 - 本阶段没有 SSE 编排和前端接入，Streaming 只验证内部契约。
 - 真实 Qwen 未运行，不能将外部模型连通性、限流行为或生产延迟表述为已验证。
+
+## PR #170 Review Closure
+
+| Review 事项 | 处理 | 证据 |
+|---|---|---|
+| CI 测试总数应为 959 | 已解决 | `cd191e7`；`backend-ci.yml`、`release-gate.yml` 和 Flyway 静态门禁统一为 959 |
+| Spring AI 请求必须遵守剩余总时限 | 已解决 | `cd191e7`；`AiChatDeadlineContext` 与 `DeadlineAwareRequestFactory` 覆盖主模型和 fallback |
+| 2xx 解码/转换失败必须归类为 `INVALID_RESPONSE` | 已解决 | `55220c5`；转换和 Jackson JSON 处理异常在通用网络错误映射前分类 |
+| Legacy/Spring AI 标准化 parity 误报 | 已解决 | `421e9b1`；标准化动态 `generatedAt`、`operationId` 后 74/74 通过 |
+
+三个 GitHub review conversation 已回复并 resolved。PR #170 已合入 `develop`，后端 merge SHA 为 `42fe52ed803f8ebe465e3d1b2809ef38df20dc0f`。
+
+## 验证结论
+
+- 同一确定性 Stub 下 Legacy/Spring AI：74/74 parity 通过，覆盖 5 个场景和 6 个 Prompt code。
+- 非 MySQL Maven verification：878 tests，0 failures/errors。
+- 跨仓 Release Gate：全部 Job 成功；真实 Qwen 保持 `WAIVED_NOT_RUN`。
