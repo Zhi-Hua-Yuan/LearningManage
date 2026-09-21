@@ -184,12 +184,32 @@ jobs:
           mkdir -p real-results
           run_round() {
             local split="$1" round="$2"
+            local eval_status=1 report_status=1 gate_status=1
+            rm -f output.json summary.json report.md
+            set +e
             STAGE3_EVAL_SPLIT="$split" npm run eval:real
+            eval_status=$?
             STAGE3_EVAL_SPLIT="$split" STAGE3_ROUND_COUNT=1 npm run report
-            STAGE3_EVAL_SPLIT="$split" STAGE3_REQUIRE_USAGE=true npm run gate
-            mv output.json "real-results/${split}-round-${round}-raw.json"
-            mv summary.json "real-results/${split}-round-${round}-summary.json"
-            mv report.md "real-results/${split}-round-${round}-report.md"
+            report_status=$?
+            if [[ "$report_status" -eq 0 ]]; then
+              STAGE3_EVAL_SPLIT="$split" STAGE3_REQUIRE_USAGE=true npm run gate
+              gate_status=$?
+            fi
+            set -e
+            if [[ -s output.json ]]; then
+              mv output.json "real-results/${split}-round-${round}-raw.json"
+            fi
+            if [[ -s summary.json ]]; then
+              mv summary.json "real-results/${split}-round-${round}-summary.json"
+            fi
+            if [[ -s report.md ]]; then
+              mv report.md "real-results/${split}-round-${round}-report.md"
+            fi
+            if (( eval_status != 0 || report_status != 0 || gate_status != 0 )); then
+              printf 'phase5.round.failure=split:%s,round:%s,eval:%s,report:%s,gate:%s\n' \
+                "$split" "$round" "$eval_status" "$report_status" "$gate_status"
+              return 1
+            fi
           }
           run_round development 1
           for split in regression holdout; do
