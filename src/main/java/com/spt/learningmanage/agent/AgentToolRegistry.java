@@ -8,6 +8,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +37,21 @@ public class AgentToolRegistry {
     }
 
     public Set<String> namesFor(ToolExecutionContext context) {
-        return tools.values().stream()
-                .filter(tool -> tool.allowedScenes().contains(context.scene()))
+        return toolsFor(context.scene()).stream()
                 .map(AgentTool::name)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * Returns the registered tools for a scene in a stable order.  The order
+     * is part of the provider wire contract and must not depend on Spring's
+     * bean discovery order.
+     */
+    public List<AgentTool<?>> toolsFor(com.spt.learningmanage.constant.AgentSceneEnum scene) {
+        return tools.values().stream()
+                .filter(tool -> tool.allowedScenes().contains(scene))
+                .sorted(Comparator.comparing(AgentTool::name))
+                .toList();
     }
 
     public AgentToolExecution execute(String name, String argumentsJson, ToolExecutionContext context) {

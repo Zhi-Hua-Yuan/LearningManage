@@ -27,6 +27,7 @@ public class QueryTeamMemberWorkloadAgentTool implements AgentTool<EmptyToolArgu
     }
 
     @Override public String name() { return "queryTeamMemberWorkload"; }
+    @Override public String description() { return "查询团队成员负载指标（只读）"; }
     @Override public Set<AgentSceneEnum> allowedScenes() { return Set.of(AgentSceneEnum.TEAM_WORKLOAD); }
     @Override public Class<EmptyToolArguments> argumentType() { return EmptyToolArguments.class; }
 

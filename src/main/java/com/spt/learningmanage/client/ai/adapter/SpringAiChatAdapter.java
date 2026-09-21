@@ -1,6 +1,5 @@
 package com.spt.learningmanage.client.ai.adapter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.client.ai.spi.AiChatAdapter;
 import com.spt.learningmanage.client.ai.spi.AiChatDispatchContext;
@@ -31,6 +30,9 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.DefaultToolDefinition;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -41,7 +43,6 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -239,7 +240,9 @@ public class SpringAiChatAdapter implements AiChatAdapter {
             builder.maxTokens(command.maxOutputTokens());
         }
         if (!command.tools().isEmpty()) {
-            builder.tools(toFunctionTools(command.tools()));
+            // Request-scoped definition carriers only. The application Agent
+            // manager executes calls after this adapter returns.
+            builder.toolCallbacks(toToolCallbacks(command.tools()));
             // 与 legacy 一致：本工程不支持并行工具调用。
             builder.parallelToolCalls(false);
             // 工具由 agent 层执行，框架不得自行执行。
@@ -249,19 +252,34 @@ public class SpringAiChatAdapter implements AiChatAdapter {
         return builder.build();
     }
 
-    private List<OpenAiApi.FunctionTool> toFunctionTools(List<AiToolDefinition> tools) {
-        List<OpenAiApi.FunctionTool> functionTools = new ArrayList<>(tools.size());
-        for (AiToolDefinition tool : tools) {
-            Map<String, Object> parameters = objectMapper.convertValue(
-                    tool.function().parameters(), new TypeReference<LinkedHashMap<String, Object>>() {
-                    });
-            // 注意参数顺序：Spring AI 的 Function 构造器是 (description, name, ...)，
-            // 与其字段声明顺序相反，极易写反——契约测试里的线上报文断言就是为此设的。
-            OpenAiApi.FunctionTool.Function function = new OpenAiApi.FunctionTool.Function(
-                    tool.function().description(), tool.function().name(), parameters, null);
-            functionTools.add(new OpenAiApi.FunctionTool(OpenAiApi.FunctionTool.Type.FUNCTION, function));
+    private List<ToolCallback> toToolCallbacks(List<AiToolDefinition> tools) {
+        return tools.stream().map(this::toToolCallback).toList();
+    }
+
+    private ToolCallback toToolCallback(AiToolDefinition tool) {
+        try {
+            ToolDefinition definition = DefaultToolDefinition.builder()
+                    .name(tool.function().name())
+                    .description(tool.function().description())
+                    .inputSchema(objectMapper.writeValueAsString(tool.function().parameters()))
+                    .build();
+            return new ToolCallback() {
+                @Override
+                public ToolDefinition getToolDefinition() {
+                    return definition;
+                }
+
+                @Override
+                public String call(String arguments) {
+                    // A callback reaching here means framework-level
+                    // execution was enabled accidentally. Fail closed rather
+                    // than executing a business Tool without Run context.
+                    throw new IllegalStateException("LearningManage Tool 必须由应用级 Manager 执行");
+                }
+            };
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("Tool Schema 序列化失败: " + tool.function().name(), exception);
         }
-        return functionTools;
     }
 
     private Object toToolChoice(AiToolChoice toolChoice) {

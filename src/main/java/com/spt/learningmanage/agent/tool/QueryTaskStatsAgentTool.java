@@ -24,6 +24,7 @@ public class QueryTaskStatsAgentTool implements AgentTool<EmptyToolArguments> {
     }
 
     @Override public String name() { return "queryTaskStats"; }
+    @Override public String description() { return "查询当前项目任务统计（只读）"; }
     @Override public Set<AgentSceneEnum> allowedScenes() { return Set.of(AgentSceneEnum.PROJECT_RISK); }
     @Override public Class<EmptyToolArguments> argumentType() { return EmptyToolArguments.class; }
 
