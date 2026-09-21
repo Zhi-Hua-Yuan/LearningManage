@@ -17,6 +17,8 @@ import com.spt.learningmanage.model.rag.RagRetrievalOutcome;
 import com.spt.learningmanage.service.knowledge.KnowledgeHashing;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -52,6 +54,22 @@ public class RagResultPersistenceService {
                                    RagContext context,
                                    RagGeneratedAnswer generated,
                                    long durationMs) {
+        return save(requestId, userId, projectId, traceId, queryLog, retrieval, context,
+                generated, durationMs, () -> { });
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PersistedRagResult save(String requestId,
+                                   Long userId,
+                                   Long projectId,
+                                   String traceId,
+                                   AiRagQueryLog queryLog,
+                                   RagRetrievalOutcome retrieval,
+                                   RagContext context,
+                                   RagGeneratedAnswer generated,
+                                   long durationMs,
+                                   Runnable cancellationCheckpoint) {
+        registerCancellationCheckpoint(cancellationCheckpoint);
         RagAnswerContent answer = generated.content();
         LocalDateTime now = LocalDateTime.now();
         AiRagResult result = new AiRagResult();
@@ -101,6 +119,18 @@ public class RagResultPersistenceService {
                 ? RagQueryStatusEnum.INSUFFICIENT : RagQueryStatusEnum.SUCCEEDED;
         auditService.complete(queryLog.getId(), queryStatus, retrieval, durationMs);
         return new PersistedRagResult(result, sources);
+    }
+
+    private void registerCancellationCheckpoint(Runnable cancellationCheckpoint) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void beforeCommit(boolean readOnly) {
+                cancellationCheckpoint.run();
+            }
+        });
     }
 
     private String joinReasons(String first, String second) {

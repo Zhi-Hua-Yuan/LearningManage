@@ -4,7 +4,7 @@
 
 - 在不改变 Qdrant REST、权限 Payload、Outbox、Knowledge Worker、Citation 和 MySQL 事实源边界的前提下，引入 Spring AI `EmbeddingModel` 抽象。
 - 新增权限感知 RAG SSE 接口，只发送已授权的阶段事件和最终完整答案。
-- 原同步 RAG 接口、结果读取接口、`RagAnswerVO` 和数据库结构保持兼容。
+- 原同步 RAG 接口、结果读取接口、`RagAnswerVO` 和已发布 V1-V8 数据库结构保持兼容；取消审计状态通过 forward-only V9 扩展。
 
 ## Embedding
 
@@ -34,4 +34,4 @@ Accept: text/event-stream
 
 - 不迁移到 Spring AI Qdrant VectorStore。
 - 不新增写 Tool、Agent、Memory、MCP 或聊天历史。
-- 不修改 Flyway、同步 RAG API、RAG 结果 VO 或前端 Citation 数据结构。
+- 不修改已发布 Flyway V1-V8、同步 RAG API、RAG 结果 VO 或前端 Citation 数据结构；仅新增 V9 取消状态约束迁移。

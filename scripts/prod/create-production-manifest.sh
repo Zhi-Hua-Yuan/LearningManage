@@ -33,7 +33,7 @@ for name in RUNTIME_IMAGE NGINX_IMAGE MYSQL_IMAGE REDIS_IMAGE QDRANT_IMAGE PROME
 done
 
 migrations_json='{}'
-for version in {1..8}; do
+for version in {1..9}; do
     migration="$(find "${LM_RELEASE_DIR}/src/main/resources/db/migration" -maxdepth 1 -type f -name "V${version}__*.sql" -print)"
     [[ -n "$migration" && "$(wc -l <<<"$migration")" -eq 1 ]] \
         || lm_die "expected exactly one V${version} migration"

@@ -8,6 +8,7 @@
 - [x] 增加 RAG SSE endpoint、阶段事件、取消检查和有界执行器。
 - [x] 将 actorId 显式传入异步 RAG 执行。
 - [x] 增加 `CANCELED` Query Log 状态和流式指标。
+- [x] 通过 forward-only V9 迁移扩展 Query Log 状态约束。
 - [ ] 在受保护环境验证真实 Document/Query Embedding 和 Qwen Stream metadata。
 
 ## 前端

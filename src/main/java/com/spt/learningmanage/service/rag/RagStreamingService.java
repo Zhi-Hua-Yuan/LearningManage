@@ -41,11 +41,11 @@ public class RagStreamingService {
 
     public SseEmitter start(RagAskRequest request, Long actorUserId) {
         SseEmitter emitter = new SseEmitter((long) properties.getStreamTimeoutMs());
-        AtomicBoolean cancelled = new AtomicBoolean(false);
+        RagCancellationToken cancellation = new RagCancellationToken();
         AtomicBoolean terminal = new AtomicBoolean(false);
         AtomicReference<Future<?>> task = new AtomicReference<>();
         emitter.onTimeout(() -> {
-            cancelled.set(true);
+            cancellation.cancel();
             cancel(task);
             if (terminal.compareAndSet(false, true)) {
                 emitter.complete();
@@ -53,18 +53,18 @@ public class RagStreamingService {
         });
         emitter.onError(error -> {
             if (!terminal.get()) {
-                cancelled.set(true);
+                cancellation.cancel();
                 cancel(task);
             }
         });
         emitter.onCompletion(() -> {
             if (!terminal.get()) {
-                cancelled.set(true);
+                cancellation.cancel();
                 cancel(task);
             }
         });
 
-        Runnable work = () -> run(request, actorUserId, emitter, cancelled, terminal);
+        Runnable work = () -> run(request, actorUserId, emitter, cancellation, terminal);
         try {
             task.set(executor.submit(work));
         } catch (RejectedExecutionException exception) {
@@ -76,13 +76,13 @@ public class RagStreamingService {
     private void run(RagAskRequest request,
                      Long actorUserId,
                      SseEmitter emitter,
-                     AtomicBoolean cancelled,
+                     RagCancellationToken cancellation,
                      AtomicBoolean terminal) {
         String requestId = null;
         long startedAt = System.currentTimeMillis();
         try {
             requestId = requestId(request);
-            send(emitter, "accepted", Map.of("requestId", requestId), cancelled);
+            send(emitter, "accepted", Map.of("requestId", requestId), cancellation);
             String acceptedRequestId = requestId;
             RagExecutionObserver observer = new RagExecutionObserver() {
                 @Override
@@ -90,17 +90,18 @@ public class RagStreamingService {
                     send(emitter, "stage", Map.of(
                             "requestId", acceptedRequestId,
                             "stage", stage,
-                            "attempt", attempt), cancelled);
+                            "attempt", attempt), cancellation);
                 }
 
                 @Override
                 public boolean isCancelled() {
-                    return cancelled.get();
+                    return cancellation.isCancelled();
                 }
+
             };
             RagAnswerVO answer = ragService.ask(request, actorUserId, observer, requestId);
             observer.checkCancelled();
-            send(emitter, "complete", answer, cancelled);
+            send(emitter, "complete", answer, cancellation);
             record("COMPLETED", startedAt);
             terminal.set(true);
             emitter.complete();
@@ -109,25 +110,25 @@ public class RagStreamingService {
             terminal.set(true);
             emitter.complete();
         } catch (BusinessException exception) {
-            if (cancelled.get()) {
+            if (cancellation.isCancelled()) {
                 record("CANCELED", startedAt);
                 terminal.set(true);
                 emitter.complete();
                 return;
             }
             record("FAILED", startedAt);
-            sendError(emitter, requestId, exception.getErrorCode(), cancelled);
+            sendError(emitter, requestId, exception.getErrorCode(), cancellation);
             terminal.set(true);
             emitter.complete();
         } catch (Exception exception) {
-            if (cancelled.get()) {
+            if (cancellation.isCancelled()) {
                 record("CANCELED", startedAt);
                 terminal.set(true);
                 emitter.complete();
                 return;
             }
             record("FAILED", startedAt);
-            sendError(emitter, requestId, ErrorCode.SYSTEM_ERROR, cancelled);
+            sendError(emitter, requestId, ErrorCode.SYSTEM_ERROR, cancellation);
             terminal.set(true);
             emitter.complete();
         }
@@ -142,28 +143,28 @@ public class RagStreamingService {
     private void sendError(SseEmitter emitter,
                            String requestId,
                            ErrorCode errorCode,
-                           AtomicBoolean cancelled) {
-        if (cancelled.get()) {
+                           RagCancellationToken cancellation) {
+        if (cancellation.isCancelled()) {
             return;
         }
         Map<String, Object> data = requestId == null
                 ? Map.of("code", errorCode.getCode(), "message", errorCode.getMessage())
                 : Map.of("requestId", requestId, "code", errorCode.getCode(),
                 "message", errorCode.getMessage());
-        send(emitter, "error", data, cancelled);
+        send(emitter, "error", data, cancellation);
     }
 
     private void send(SseEmitter emitter,
                       String event,
                       Object data,
-                      AtomicBoolean cancelled) {
-        if (cancelled.get()) {
+                      RagCancellationToken cancellation) {
+        if (cancellation.isCancelled()) {
             throw new RagStreamCancelledException();
         }
         try {
             emitter.send(SseEmitter.event().name(event).data(data));
         } catch (IOException exception) {
-            cancelled.set(true);
+            cancellation.cancel();
             throw new RagStreamCancelledException();
         }
     }

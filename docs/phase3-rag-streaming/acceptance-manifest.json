@@ -23,7 +23,7 @@
   "compatibility": {
     "syncRagApiChanged": false,
     "ragAnswerVoChanged": false,
-    "flywayChanged": false,
+    "flywayChanged": true,
     "frontendFallbackOnlyBeforeAccepted": true
   },
   "verification": {

@@ -11,7 +11,7 @@
 ## 兼容性
 
 - `/api/ai/rag/ask` 和 `/api/ai/rag/result/{requestId}` 不变。
-- 无数据库迁移；`CANCELED` 是现有状态列允许的新审计终态。
+- 新增 forward-only Flyway V9，扩展 `ai_rag_query_log.status` 约束以允许 `CANCELED`。
 - `AI_EMBEDDING_ADAPTER=legacy` 可回退旧 Embedding HTTP 实现。
 - Chat 默认仍为 `legacy`，不提前执行 Phase 5 的 Adapter 下线。
 

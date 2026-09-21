@@ -301,14 +301,14 @@ AI_CLEANUP_SCHEDULE_ENABLED=false
 
 ## 10. 数据库变更的特殊限制
 
-当前生产工具链被锁定为 Flyway V1～V8：
+当前已发布的生产迁移为 Flyway V1～V9；新增结构变更必须继续使用 forward-only Migration：
 
-- Bundle 组装器只导出 V1～V8；
-- `deploy.sh` 明确检查成功记录数量为 8；
+- Bundle 组装器导出所有已发布的 V1～V9；
+- `deploy.sh` 明确检查成功记录数量为 9；
 - 普通 `deploy.sh` 不执行新增 Migration；
 - 首次使用的 `migration.env` 已按设计删除。
 
-所以当前版本不能直接发布 V9 或更高版本的数据库变更。如果 Bug 修复需要修改数据库结构，必须先完成独立的迁移工具链升级，包括：
+Bug 修复可以新增 V9 或更高版本的 forward-only Migration，但必须同步更新迁移工具链契约，包括：
 
 - 扩展 Production Manifest 和 Bundle 组装逻辑；
 - 扩展 Gate 中的空库、已有库、checksum 和回滚兼容验证；

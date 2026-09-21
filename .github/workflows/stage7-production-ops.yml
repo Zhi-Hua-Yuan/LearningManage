@@ -62,7 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client
-      - name: Provision empty database through V8
+      - name: Provision empty database through V9
         run: |
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh

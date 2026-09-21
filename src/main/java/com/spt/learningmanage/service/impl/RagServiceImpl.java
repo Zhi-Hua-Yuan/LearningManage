@@ -150,9 +150,11 @@ public class RagServiceImpl implements RagService {
                     // A client disconnect can race with source verification. Do not
                     // persist a result after the stream has been cancelled.
                     progress.checkCancelled();
-                    PersistedRagResult persisted = persistenceService.save(
-                            requestId, actorUserId, request.getProjectId(), traceId,
-                            queryLog, retrieval, context, generated, elapsed(startedAt));
+                    PersistedRagResult persisted = progress.executePersistence(() ->
+                            persistenceService.save(
+                                    requestId, actorUserId, request.getProjectId(), traceId,
+                                    queryLog, retrieval, context, generated, elapsed(startedAt),
+                                    progress::checkCancelled));
                     RagAnswerVO response = viewService.toVO(persisted);
                     if (metricsRecorder != null) {
                         boolean insufficient = Integer.valueOf(1).equals(

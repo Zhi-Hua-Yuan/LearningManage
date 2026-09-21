@@ -126,7 +126,7 @@ release_assets=(
 git -C "$LM_RELEASE_DIR" archive --format=tar "$backend_sha" -- "${release_assets[@]}" \
     | tar -x -C "$bundle"
 
-for version in {1..8}; do
+for version in {1..9}; do
     migration_path="$(git -C "$LM_RELEASE_DIR" ls-tree -r --name-only "$backend_sha" -- \
         src/main/resources/db/migration \
         | grep -E "/V${version}__[^/]+[.]sql$")"

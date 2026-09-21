@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.MediaType;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -47,11 +48,15 @@ public class RagController {
 
     @Operation(summary = "以安全阶段事件流返回权限感知的项目知识回答")
     @PostMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter askStream(@Valid @RequestBody RagAskRequest request) {
+    public SseEmitter askStream(@Valid @RequestBody RagAskRequest request,
+                                HttpServletResponse response) {
         if (streamingService == null) {
             throw new BusinessException(com.spt.learningmanage.exception.ErrorCode.RAG_DEPENDENCY_UNAVAILABLE,
                     "RAG 流式服务未装配");
         }
+        // Keep each SSE event observable immediately through reverse proxies.
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache");
         return streamingService.start(request, UserHolder.get());
     }
 

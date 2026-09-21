@@ -71,7 +71,7 @@ summary="$(docker exec -e "MYSQL_PWD=$root_password" "$container" \
       SELECT COUNT(*) FROM learning_manage.project;
       SELECT COUNT(*) FROM learning_manage.task;")"
 [[ "$(sed -n '1p' <<<"$summary")" -gt 0 ]] || lm_die "restored database has no business tables"
-[[ "$(sed -n '2p' <<<"$summary")" == 8 ]] || lm_die "restored Flyway history is incomplete"
+[[ "$(sed -n '2p' <<<"$summary")" == 9 ]] || lm_die "restored Flyway history is incomplete"
 expected_user_count="$(lm_env_value "$metadata_file" user_count)"
 expected_project_count="$(lm_env_value "$metadata_file" project_count)"
 expected_task_count="$(lm_env_value "$metadata_file" task_count)"

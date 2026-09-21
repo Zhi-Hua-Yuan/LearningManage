@@ -39,7 +39,7 @@ env:
   #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
   # 938 baseline + 11 Phase 1 PR2 adapter/config/streaming/parity contract tests.
   # Keep aligned with backend-ci.yml: 938 baseline + 21 net Phase 1 PR2 tests.
-  CI_EXPECTED_TEST_COUNT: '959'
+  CI_EXPECTED_TEST_COUNT: '960'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -274,7 +274,7 @@ jobs:
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh
           bash scripts/ci/verify-empty-database.sh
-      - name: Run non-MySQL Maven verification on V8
+      - name: Run non-MySQL Maven verification on V9
         run: ./mvnw -B -ntp '-Dtest=**/*Test,!**/*MySqlTest' verify
       - name: Prepare V7 historical integration-test schema
         env:
@@ -582,7 +582,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.release-gate.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-release-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18080/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '8'
+      CI_EXPECTED_HISTORY_TOTAL: '9'
       CI_FRONTEND_ARTIFACT_DIR: frontend-artifacts
       CI_FRONTEND_DIST_DIR: ${{ github.workspace }}/frontend-artifacts/dist
       CI_API_CONTRACT_OUTPUT_DIR: ci-artifacts/api-contract
@@ -725,7 +725,7 @@ jobs:
           history_total="$(docker compose --project-name "$CI_COMPOSE_PROJECT_NAME" --file "$CI_COMPOSE_FILE" \
             exec -T mysql mysql -N -B -uroot -p"$CI_MYSQL_ADMIN_PASSWORD" "$CI_PRODUCTION_MIGRATION_DB" \
             --execute='SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1;')"
-          test "$history_total" = 8
+          test "$history_total" = 9
       - name: Run full production Compose default-enabled gate
         shell: bash
         env:
@@ -1072,7 +1072,7 @@ jobs:
           verify_bound_hash schemaSha256 "$schema"
           (cd "$(dirname "$manifest")" && sha256sum --check "$(basename "$manifest").sha256")
           production_manifest='${{ runner.temp }}/release-manifest/production-release-manifest.json'
-          jq -e '.schemaVersion == 1 and .status == "PASS" and (.migrations | keys | length) == 8 and (.externalImages | keys | length) == 8' "$production_manifest" >/dev/null
+          jq -e '.schemaVersion == 1 and .status == "PASS" and (.migrations | keys | length) == 9 and (.externalImages | keys | length) == 8' "$production_manifest" >/dev/null
           (cd "$(dirname "$production_manifest")" && sha256sum --check "$(basename "$production_manifest").sha256")
       - name: Upload release candidate manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

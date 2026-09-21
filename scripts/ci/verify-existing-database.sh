@@ -225,6 +225,11 @@ grep -Fq 'migrate.success=true' <<<"$v8_migrate_output" || ci_fail "legacy_v8_mi
 grep -Fq 'migrate.migrationsExecuted=1' <<<"$v8_migrate_output" \
     || ci_fail "legacy_v8_migrate_count_unexpected"
 
+v9_migrate_output="$(FLYWAY_TARGET_VERSION=9 run_flyway migrate)"
+grep -Fq 'migrate.success=true' <<<"$v9_migrate_output" || ci_fail "legacy_v9_migrate_failed"
+grep -Fq 'migrate.migrationsExecuted=1' <<<"$v9_migrate_output" \
+    || ci_fail "legacy_v9_migrate_count_unexpected"
+
 business_tables_after="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name <> 'flyway_schema_history';")"
 all_tables_after="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';")"
 history_total="$(ci_mysql_migrator --database="${DB_NAME}" --execute='SELECT COUNT(*) FROM flyway_schema_history;')"
@@ -237,6 +242,7 @@ sql_v5_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT
 sql_v6_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='6' AND type='SQL' AND success=1;")"
 sql_v7_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='7' AND type='SQL' AND success=1;")"
 sql_v8_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='8' AND type='SQL' AND success=1;")"
+sql_v9_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='9' AND type='SQL' AND success=1;")"
 business_rows_after="$(ci_business_row_total "${DB_NAME}")"
 task_assignment_log_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM task_assignment_log;")"
 weekly_review_task_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM weekly_review_task;")"
@@ -244,7 +250,7 @@ canonical_user_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELE
 
 ci_assert_equals "38" "$business_tables_after" "legacy_business_table_count_unexpected"
 ci_assert_equals "39" "$all_tables_after" "legacy_total_table_count_unexpected"
-ci_assert_equals "8" "$history_total" "legacy_history_row_count_unexpected"
+ci_assert_equals "9" "$history_total" "legacy_history_row_count_unexpected"
 ci_assert_equals "1" "$baseline_rows" "legacy_baseline_history_missing"
 ci_assert_equals "0" "$sql_v1_rows" "legacy_v1_sql_unexpectedly_executed"
 ci_assert_equals "1" "$sql_v2_rows" "legacy_v2_sql_history_missing"
@@ -254,6 +260,7 @@ ci_assert_equals "1" "$sql_v5_rows" "legacy_v5_sql_history_missing"
 ci_assert_equals "1" "$sql_v6_rows" "legacy_v6_sql_history_missing"
 ci_assert_equals "1" "$sql_v7_rows" "legacy_v7_sql_history_missing"
 ci_assert_equals "1" "$sql_v8_rows" "legacy_v8_sql_history_missing"
+ci_assert_equals "1" "$sql_v9_rows" "legacy_v9_sql_history_missing"
 ci_assert_equals "5" "$task_assignment_log_rows" "legacy_assignment_log_count_unexpected"
 ci_assert_equals "0" "$weekly_review_task_rows" "legacy_review_task_count_unexpected"
 ci_assert_equals "5" "$canonical_user_rows" "legacy_canonical_user_role_count_unexpected"

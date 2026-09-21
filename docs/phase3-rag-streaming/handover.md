@@ -33,4 +33,6 @@ AI_RAG_ENABLED=false
 2. 若 RAG 依赖异常，设置 `AI_RAG_ENABLED=false`。
 3. 同步 RAG 接口和核心项目/任务/团队业务继续运行。
 
+数据库迁移：V9 仅扩展 `ai_rag_query_log.status` 的允许值，生产发布前由受控 migrator 执行；已发布的 V1-V8 不修改。
+
 真实模型状态必须单独记录模型、时间、provider request ID、预算和结果；未运行项不得标记为通过。

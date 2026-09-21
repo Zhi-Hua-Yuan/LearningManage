@@ -98,14 +98,14 @@ class RagServiceImplTest {
                 .thenReturn(RagSourceValidationStatus.VALID);
         PersistedRagResult persisted = persisted();
         when(persistence.save(anyString(), anyLong(), anyLong(), anyString(), any(),
-                any(), any(), any(), anyLong())).thenReturn(persisted);
+                any(), any(), any(), anyLong(), any(Runnable.class))).thenReturn(persisted);
         when(views.toVO(persisted)).thenReturn(new RagAnswerVO());
 
         service.ask(request());
 
         verify(answerService, never()).generate(anyLong(), any(), anyString());
         verify(persistence).save(anyString(), anyLong(), anyLong(), anyString(), any(),
-                any(), any(), any(), anyLong());
+                any(), any(), any(), anyLong(), any(Runnable.class));
     }
 
     @Test
@@ -125,7 +125,7 @@ class RagServiceImplTest {
                 .thenReturn(RagSourceValidationStatus.STALE, RagSourceValidationStatus.VALID);
         PersistedRagResult persisted = persisted();
         when(persistence.save(anyString(), anyLong(), anyLong(), anyString(), any(),
-                any(), any(), any(), anyLong())).thenReturn(persisted);
+                any(), any(), any(), anyLong(), any(Runnable.class))).thenReturn(persisted);
         when(views.toVO(persisted)).thenReturn(new RagAnswerVO());
 
         service.ask(request());
@@ -133,7 +133,7 @@ class RagServiceImplTest {
         verify(retrieval, times(2)).retrieve(anyLong(), any(), anyString(), anyString());
         verify(answerService, times(2)).generate(anyLong(), any(), anyString());
         verify(persistence, times(1)).save(anyString(), anyLong(), anyLong(), anyString(),
-                any(), any(), any(), any(), anyLong());
+                any(), any(), any(), any(), anyLong(), any(Runnable.class));
     }
 
     private RagAskRequest request() {

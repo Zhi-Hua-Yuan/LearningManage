@@ -46,7 +46,7 @@
     "migrations": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8"],
+      "required": ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9"],
       "properties": {
         "V1": { "$ref": "#/$defs/sha256" },
         "V2": { "$ref": "#/$defs/sha256" },
@@ -55,7 +55,8 @@
         "V5": { "$ref": "#/$defs/sha256" },
         "V6": { "$ref": "#/$defs/sha256" },
         "V7": { "$ref": "#/$defs/sha256" },
-        "V8": { "$ref": "#/$defs/sha256" }
+        "V8": { "$ref": "#/$defs/sha256" },
+        "V9": { "$ref": "#/$defs/sha256" }
       }
     }
   },
