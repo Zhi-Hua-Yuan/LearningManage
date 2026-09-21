@@ -1,6 +1,5 @@
 package com.spt.learningmanage.agent;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.config.AgentProperties;
 import com.spt.learningmanage.constant.AgentSceneEnum;
@@ -11,7 +10,6 @@ import com.spt.learningmanage.model.dto.ai.chat.AiFunctionDefinition;
 import com.spt.learningmanage.model.dto.ai.chat.AiToolDefinition;
 import com.spt.learningmanage.model.entity.AiAgentRun;
 import com.spt.learningmanage.service.agent.AgentRunQueueService;
-import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashSet;
@@ -63,7 +61,8 @@ public class LearningManageToolCallingManager {
         return registry.toolsFor(scene).stream()
                 .filter(tool -> available.contains(tool.name()))
                 .map(tool -> AiToolDefinition.function(new AiFunctionDefinition(
-                        tool.name(), tool.description(), schema(tool.argumentType()))))
+                        tool.name(), tool.description(),
+                        AgentToolSchemaGenerator.generate(objectMapper, tool.argumentType()))))
                 .toList();
     }
 
@@ -121,14 +120,6 @@ public class LearningManageToolCallingManager {
         }
         if (!queueService.heartbeat(run)) {
             throw new BusinessException(ErrorCode.AGENT_WORKER_LOST);
-        }
-    }
-
-    private JsonNode schema(Class<?> argumentType) {
-        try {
-            return objectMapper.readTree(JsonSchemaGenerator.generateForType(argumentType));
-        } catch (Exception exception) {
-            throw new IllegalStateException("无法为 Agent Tool 生成参数 Schema: " + argumentType.getName(), exception);
         }
     }
 

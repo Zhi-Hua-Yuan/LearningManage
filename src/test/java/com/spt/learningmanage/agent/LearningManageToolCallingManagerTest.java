@@ -42,6 +42,10 @@ class LearningManageToolCallingManagerTest {
         JsonNode schema = enabled.get(0).function().parameters();
         assertEquals("object", schema.path("type").asText());
         assertFalse(schema.toString().contains("projectId"));
+        JsonNode historySchema = enabled.stream()
+                .filter(value -> value.function().name().equals("retrieveProjectHistory"))
+                .findFirst().orElseThrow().function().parameters();
+        assertEquals(200, historySchema.at("/properties/query/maxLength").asInt());
 
         var disabled = manager.definitionsFor(AgentSceneEnum.PROJECT_RISK, false);
         assertEquals(List.of("queryTaskStats"),

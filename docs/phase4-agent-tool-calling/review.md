@@ -3,9 +3,11 @@
 ## 已落地边界
 
 - Tool 定义由注册表中的 AgentTool 元数据生成，编排器不再手写项目风险 Tool Schema。
+- Provider-neutral Schema 由 Agent 层生成，并保留参数约束（例如历史检索 query 的 `maxLength: 200`）。
 - Spring AI Callback 是请求级定义载体；其 `call()` fail-closed，业务执行只允许进入应用级 Manager。
 - Manager 统一调用 `AgentToolPolicy`、`AgentToolExecutor` 和 `AgentRunQueueService`，因此权限、超时、审计、进度和 execution token 仍在原安全内核内。
 - 团队负载仍是固定工作流，未扩大为模型自主 Tool Calling。
+- Spring AI 依赖继续限定在 Adapter/配置边界内，Agent 业务层不直接依赖 Spring AI。
 
 ## 待验证风险
 
