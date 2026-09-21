@@ -1,0 +1,45 @@
+{
+  "phase": "phase5-ai-eval",
+  "status": "IMPLEMENTATION_IN_PROGRESS_PROTECTED_VALIDATION_PENDING",
+  "migrationHead": "V9",
+  "adapterModes": ["legacy", "spring-ai"],
+  "defaultAdapter": "spring-ai",
+  "core": {
+    "scenes": 5,
+    "promptCodes": 6,
+    "qualityCases": 170,
+    "failureInjectionCases": 40,
+    "developmentRounds": 1,
+    "regressionRounds": 3,
+    "holdoutRounds": 3
+  },
+  "rag": {
+    "positiveCases": 50,
+    "regressionCases": 30,
+    "holdoutCases": 20,
+    "negativeCases": 12,
+    "recallAt5Minimum": 0.8,
+    "permissionLeaksMaximum": 0,
+    "staleResultsMaximum": 0
+  },
+  "agent": {
+    "existingCases": 100,
+    "writeToolInjectionCases": 10,
+    "maximumToolCalls": 4,
+    "directBusinessWritesMaximum": 0
+  },
+  "humanReview": {
+    "sampleRate": 0.2,
+    "agreementMinimum": 0.8
+  },
+  "productionObservationDays": 7,
+  "productionObservationThresholds": {
+    "failureRateRegressionMaximum": 0.05,
+    "p95LatencyMultiplierMaximum": 1.2,
+    "averageCostMultiplierMaximum": 1.2,
+    "safetyIncidentsMaximum": 0,
+    "permissionLeaksMaximum": 0,
+    "formalBusinessWritesMaximum": 0
+  },
+  "phase4Evidence": "PENDING_PROTECTED_ENVIRONMENT"
+}

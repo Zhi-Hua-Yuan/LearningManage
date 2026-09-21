@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "datasetSources": {
+    "core": "../stage3/dataset-manifest.json",
+    "rag": "../stage5/tests/generated.json",
+    "agent": "../stage6/tests/generated.json",
+    "ragNegative": "rag-negative-cases.json",
+    "agentWriteTool": "agent-write-tool-cases.json"
+  },
+  "core": {
+    "scenes": 5,
+    "promptCodes": 6,
+    "qualityCases": 170,
+    "failureInjectionCases": 40,
+    "developmentRounds": 1,
+    "regressionRounds": 3,
+    "holdoutRounds": 3
+  },
+  "rag": {
+    "positiveCases": 50,
+    "regressionCases": 30,
+    "holdoutCases": 20,
+    "negativeCases": 12,
+    "recallAt5Minimum": 0.8
+  },
+  "agent": {
+    "existingCases": 100,
+    "writeToolInjectionCases": 10,
+    "maximumToolCalls": 4
+  },
+  "adapters": ["legacy", "spring-ai"],
+  "defaultAdapter": "spring-ai",
+  "featureFlags": {
+    "rag": true,
+    "knowledgeWorker": true,
+    "agent": true,
+    "agentWorker": true,
+    "toolCalling": true,
+    "cleanupWorker": false
+  }
+}

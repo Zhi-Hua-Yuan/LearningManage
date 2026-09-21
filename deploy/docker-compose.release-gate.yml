@@ -57,7 +57,7 @@ services:
       AI_BREAKDOWN_MODEL: ci-ai-stub
       AI_POLISH_MODEL: ci-ai-stub
       AI_FALLBACK_MODEL: ci-ai-stub
-      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-legacy}
+      AI_CHAT_ADAPTER: ${AI_CHAT_ADAPTER:-spring-ai}
       # This API compatibility gate intentionally omits Qdrant and Redis.
       # The Stage 7 and production gates exercise the default-enabled AI path.
       AI_KNOWLEDGE_WORKER_ENABLED: "false"

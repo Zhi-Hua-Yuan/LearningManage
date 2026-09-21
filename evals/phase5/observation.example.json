@@ -1,0 +1,20 @@
+{
+  "candidateTag": "stage9-spring-ai-cutover-rc1",
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "smokePass": true,
+      "safetyIncidents": 0,
+      "formalBusinessWrites": 0,
+      "permissionLeaks": 0,
+      "successfulCalls": 30,
+      "missingTelemetry": 0,
+      "failureRate": 0.01,
+      "baselineFailureRate": 0.01,
+      "p95LatencyMs": 1000,
+      "baselineP95LatencyMs": 1000,
+      "averageCost": 0.01,
+      "baselineAverageCost": 0.01
+    }
+  ]
+}

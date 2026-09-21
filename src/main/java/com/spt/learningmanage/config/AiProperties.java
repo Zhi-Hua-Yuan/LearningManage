@@ -60,10 +60,10 @@ public class AiProperties {
          * chat 传输层适配器。{@code legacy} = 既有 Hutool HTTP 直连实现；
          * {@code spring-ai} = Spring AI 的 ChatModel 实现。
          *
-         * <p>默认必须是 {@code legacy}：引入 Spring AI 不得改变既有行为面，
-         * 切换只能由运维显式改配置完成，且可随时回滚。</p>
+         * <p>Phase 5 默认使用 {@code spring-ai}。在 Legacy 删除前，
+         * 运维仍可通过 {@code AI_CHAT_ADAPTER=legacy} 回滚。</p>
          */
-        private String adapter = "legacy";
+        private String adapter = "spring-ai";
     }
 
     @Data

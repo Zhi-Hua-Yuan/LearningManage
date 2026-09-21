@@ -30,8 +30,8 @@ env:
   #   OpenApiConfigTest                     3（@NotBlank 派生 minLength 兼容）
   #   TraceContextTest                      9（应用 trace id 不被遥测 MDC 覆盖）
   #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
-  # Published CI baseline after the develop merge, Phase 3, and Phase 4 additions: 970 tests.
-  CI_EXPECTED_TEST_COUNT: '970'
+  # Published CI baseline after the develop merge, Phase 3, Phase 4, and Phase 5 default cutover contract: 971 tests.
+  CI_EXPECTED_TEST_COUNT: '971'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -97,6 +97,7 @@ jobs:
           bash scripts/ci/verify-stage4-acceptance.sh
           bash scripts/ci/verify-production-deployment.sh
           bash scripts/ci/verify-ai-invocation-boundary.sh
+          bash scripts/ci/verify-phase5-acceptance.sh
           bash scripts/ci/verify-published-migrations.sh
           git diff --check
 

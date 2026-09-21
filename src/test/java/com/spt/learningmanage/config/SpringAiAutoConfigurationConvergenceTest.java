@@ -32,8 +32,31 @@ class SpringAiAutoConfigurationConvergenceTest {
             .withUserConfiguration(TestConfiguration.class);
 
     @Test
-    void legacyIsTheDefaultAndDoesNotCreateSpringAiBeans() {
-        contextRunner.run(context -> {
+    void springAiIsTheDefaultTransportAndCreatesOnlyGovernedChatBeans() {
+        assertThat(new AiProperties().getChat().getAdapter()).isEqualTo("spring-ai");
+        contextRunner.withPropertyValues(
+                        "ai.chat.adapter=spring-ai",
+                        "ai.api-key=test-key",
+                        "ai.base-url=http://127.0.0.1:18080/compatible-mode/v1",
+                        "ai.model=qwen-plus")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(SpringAiChatAdapter.class);
+                    assertThat(context).hasSingleBean(SpringAiStreamingModelClient.class);
+                    assertThat(context).hasSingleBean(AiStreamingModelClient.class);
+                    assertThat(context).hasSingleBean(AiChatAdapter.class);
+                    assertThat(context).hasSingleBean(ChatModel.class);
+                    assertThat(context).hasSingleBean(ChatClient.class);
+                    assertThat(context).hasSingleBean(OpenAiApi.class);
+                    assertThat(context).doesNotHaveBean(LegacyAiChatAdapter.class);
+                    assertThat(context).doesNotHaveBean(EmbeddingModel.class);
+                    assertThat(context).doesNotHaveBean(ChatMemoryRepository.class);
+                    assertThat(context).doesNotHaveBean(ToolCallingManager.class);
+                });
+    }
+
+    @Test
+    void legacySelectorRemainsAvailableForEmergencyRollback() {
+        contextRunner.withPropertyValues("ai.chat.adapter=legacy").run(context -> {
             assertThat(context).hasSingleBean(LegacyAiChatAdapter.class);
             assertThat(context).hasSingleBean(AiChatAdapter.class);
             assertThat(context).doesNotHaveBean(SpringAiChatAdapter.class);
