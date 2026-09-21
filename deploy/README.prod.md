@@ -1,7 +1,7 @@
 # LearningManage production deployment assets
 
 These files implement the low-resource, single-node production topology. They
-do not change the public API, DTOs, or the V1-V8 database schema.
+do not change the public API, DTOs, or the published V1-V9 database schema.
 
 For routine application fixes after the first production deployment, follow
 the checked-in [production bug-fix release guide](BUGFIX_RELEASE_GUIDE.md).
@@ -170,7 +170,7 @@ scripts/prod/restore-drill.sh \
 ```
 
 The drill creates an isolated, unpublished MySQL container and exact temporary
-volume, runs `mysqlcheck`, validates the table set and V1-V8 history, then
+volume, runs `mysqlcheck`, validates the table set and V1-V9 history, then
 removes only those temporary resources.
 
 ## Rollback

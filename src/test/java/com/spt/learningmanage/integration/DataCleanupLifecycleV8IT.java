@@ -59,7 +59,7 @@ class DataCleanupLifecycleV8IT {
 
     @BeforeEach
     void setUp() {
-        assertEquals(8, jdbcTemplate.queryForObject(
+        assertEquals(9, jdbcTemplate.queryForObject(
                 "SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1",
                 Integer.class));
         cleanup();

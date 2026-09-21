@@ -61,7 +61,7 @@ history_total="$(lm_compose exec -T mysql sh -eu -c '
     export MYSQL_PWD
     mysql -N -B -uroot --protocol=socket "${MYSQL_DATABASE}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1;"
 ')"
-[[ "$history_total" == 8 ]] || lm_die "Flyway V1-V8 are not fully applied"
+[[ "$history_total" == 9 ]] || lm_die "Flyway V1-V9 are not fully applied"
 
 lm_compose up -d backend frontend
 lm_wait_for_url http://127.0.0.1:18080/api/health '"code":0' 45

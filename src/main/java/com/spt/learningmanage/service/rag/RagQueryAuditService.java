@@ -86,6 +86,15 @@ public class RagQueryAuditService {
                 .set(AiRagQueryLog::getDurationMs, durationMs));
     }
 
+    public void cancel(Long id, String failureType, long durationMs) {
+        mapper.update(null, new LambdaUpdateWrapper<AiRagQueryLog>()
+                .eq(AiRagQueryLog::getId, id)
+                .eq(AiRagQueryLog::getStatus, RagQueryStatusEnum.RUNNING.name())
+                .set(AiRagQueryLog::getStatus, RagQueryStatusEnum.CANCELED.name())
+                .set(AiRagQueryLog::getFailureType, safeFailureType(failureType))
+                .set(AiRagQueryLog::getDurationMs, durationMs));
+    }
+
     private String safeFailureType(String value) {
         if (value == null || value.isBlank()) {
             return "INTERNAL";

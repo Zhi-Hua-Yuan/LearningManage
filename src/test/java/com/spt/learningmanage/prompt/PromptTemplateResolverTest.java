@@ -28,7 +28,7 @@ class PromptTemplateResolverTest {
         databaseTemplate.setId(101L);
         databaseTemplate.setTemplateCode(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT.getCode());
         databaseTemplate.setScene(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT.getScene().getCode());
-        databaseTemplate.setVersion(2);
+        databaseTemplate.setVersion(3);
         databaseTemplate.setEnabled(1);
         databaseTemplate.setTemplateContent("数据库模板内容");
         when(promptTemplateMapper.selectList(any())).thenReturn(List.of(databaseTemplate));
@@ -36,7 +36,7 @@ class PromptTemplateResolverTest {
         AiPromptTemplate result = resolver.resolve(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT);
 
         Assertions.assertEquals(101L, result.templateId());
-        Assertions.assertEquals(2, result.version());
+        Assertions.assertEquals(3, result.version());
         Assertions.assertEquals(AiPromptSourceEnum.DATABASE, result.source());
         Assertions.assertEquals("数据库模板内容", result.systemPrompt());
     }
@@ -48,7 +48,7 @@ class PromptTemplateResolverTest {
         AiPromptTemplate result = resolver.resolve(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT);
 
         Assertions.assertNull(result.templateId());
-        Assertions.assertEquals(1, result.version());
+        Assertions.assertEquals(2, result.version());
         Assertions.assertEquals(AiPromptSourceEnum.BUILTIN, result.source());
         Assertions.assertFalse(result.systemPrompt().isBlank());
     }
@@ -67,7 +67,7 @@ class PromptTemplateResolverTest {
         AiPromptTemplate result = resolver.resolve(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED);
 
         Assertions.assertNull(result.templateId());
-        Assertions.assertEquals(2, result.version());
+        Assertions.assertEquals(3, result.version());
         Assertions.assertEquals(AiPromptSourceEnum.BUILTIN, result.source());
         Assertions.assertTrue(result.systemPrompt().contains("必须恰好输出 3 个"));
         Assertions.assertTrue(result.systemPrompt().contains("每个里程碑必须恰好输出 4 个任务"));

@@ -214,7 +214,7 @@ class FlywayCiScriptStaticTest {
     }
 
     @Test
-    void earlierGatesRemainWiredAfterV8BecomesCurrentHead() throws IOException {
+    void earlierGatesRemainWiredAfterV9BecomesCurrentHead() throws IOException {
         String backendWorkflow = read(".github/workflows/backend-ci.yml");
         String releaseWorkflow = read(".github/workflows/release-gate.yml");
         String provision = read("scripts/ci/provision-ci-databases.sh");
@@ -229,10 +229,10 @@ class FlywayCiScriptStaticTest {
             assertTrue(workflow.contains("verify-stage2-acceptance.sh"));
             assertTrue(workflow.contains("verify-ai-invocation-boundary.sh"));
             assertTrue(workflow.contains("verify-stage2-wp2-protocol-stub.sh"));
-            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '8'"));
+            assertTrue(workflow.contains("CI_EXPECTED_HISTORY_TOTAL: '9'"));
             // 这个字面量与 backend-ci.yml / release-gate.yml 里的 CI_EXPECTED_TEST_COUNT
-            // 保持一致：新增用例时三处必须同时更新（当前 959 = 938 基线 + 21 条 PR2 净新增用例）。
-            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '959'"));
+            // 保持一致：新增用例时三处必须同时更新（当前 965 = 合并 develop 后的测试基线）。
+            assertTrue(workflow.contains("CI_EXPECTED_TEST_COUNT: '965'"));
             assertTrue(workflow.contains("-Dtest=**/*Test,!**/*MySqlTest"));
             assertTrue(workflow.contains("-Dtest=**/*MySqlTest"));
         }

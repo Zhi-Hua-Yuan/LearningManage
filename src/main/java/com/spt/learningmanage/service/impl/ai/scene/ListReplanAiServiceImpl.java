@@ -2,7 +2,6 @@ package com.spt.learningmanage.service.impl.ai.scene;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -22,6 +21,8 @@ import com.spt.learningmanage.model.entity.AiReplanItem;
 import com.spt.learningmanage.model.entity.AiReplanOperation;
 import com.spt.learningmanage.model.entity.Project;
 import com.spt.learningmanage.model.entity.Task;
+import com.spt.learningmanage.model.dto.ai.structured.ListReplanStructuredItem;
+import com.spt.learningmanage.model.dto.ai.structured.ListReplanStructuredResponse;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewItemVO;
 import com.spt.learningmanage.model.vo.ai.AiListReplanPreviewVO;
@@ -151,12 +152,13 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
 
         LocalDate today = LocalDate.now();
         String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
-        List<ListTaskReplanItem> replanItems = aiInvocationPipeline.execute(
+        List<ListTaskReplanItem> replanItems = aiInvocationPipeline.executeStructured(
                 new AiExecutionCommand(
                         currentUserId, modelSelector.breakdownModel(),
                         AiPromptCodeEnum.LIST_REPLAN_PREVIEW, userPrompt, "AI 清单重排结果格式异常"
                 ),
-                rawContent -> parseAndValidateListReplanItems(rawContent, pendingTasks, today),
+                ListReplanStructuredResponse.class,
+                response -> parseAndValidateListReplanItems(response, pendingTasks, today),
                 failure -> {
                     log.warn("AI 清单重排失败，回退为不变更策略。userId={}, listId={}, type={}",
                             currentUserId, listId, failure.failureType(), failure.cause());
@@ -214,12 +216,13 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         } else {
             String userPrompt = buildListReplanUserPrompt(project, completedTasks, pendingTasks, today);
             String modelName = modelSelector.breakdownModel();
-            var execution = aiInvocationPipeline.execute(
+            var execution = aiInvocationPipeline.executeStructured(
                     new AiExecutionCommand(
                             currentUserId, modelName, AiPromptCodeEnum.LIST_REPLAN_PREVIEW,
                             userPrompt, "AI 清单重排结果格式异常"
                     ),
-                    rawContent -> parseAndValidateListReplanItems(rawContent, pendingTasks, today),
+                    ListReplanStructuredResponse.class,
+                    response -> parseAndValidateListReplanItems(response, pendingTasks, today),
                     failure -> {
                         log.warn("AI 清单重排预览失败，回退为不变更策略。userId={}, listId={}, type={}",
                                 currentUserId, listId, failure.failureType(), failure.cause());
@@ -367,12 +370,13 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
                 + "\n仅返回未完成任务（pending taskIds）的重排结果。";
     }
 
-    private List<ListTaskReplanItem> parseAndValidateListReplanItems(String aiRawContent,
-                                                                      List<Task> pendingTasks,
-                                                                      LocalDate today) {
-        String cleanedText = jsonSanitizer.sanitizeObject(aiRawContent);
-        JSONObject resultObj = JSONUtil.parseObj(cleanedText);
-        JSONArray items = resultObj.getJSONArray("items");
+    private List<ListTaskReplanItem> parseAndValidateListReplanItems(ListReplanStructuredResponse response,
+                                                                       List<Task> pendingTasks,
+                                                                       LocalDate today) {
+        if (response == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 清单重排结果为空");
+        }
+        List<ListReplanStructuredItem> items = response.items();
         if (items == null || items.isEmpty()) {
             return List.of();
         }
@@ -383,25 +387,25 @@ public class ListReplanAiServiceImpl extends AiSceneSupport implements ListRepla
         List<ListTaskReplanItem> result = new ArrayList<>();
 
         for (int i = 0; i < items.size(); i++) {
-            JSONObject item = items.getJSONObject(i);
+            ListReplanStructuredItem item = items.get(i);
             if (item == null) {
                 continue;
             }
 
-            Long taskId = item.getLong("taskId");
+            Long taskId = item.taskId();
             if (taskId == null || !pendingTaskMap.containsKey(taskId) || !seenTaskIds.add(taskId)) {
                 continue;
             }
 
             Task sourceTask = pendingTaskMap.get(taskId);
             String oldTitle = safeTrim(sourceTask.getTitle());
-            String newTitle = normalizeReplanTitle(item.getStr("newTitle"), oldTitle);
+            String newTitle = normalizeReplanTitle(item.newTitle(), oldTitle);
             int oldPriority = sourceTask.getPriority() == null ? 0 : sourceTask.getPriority();
-            int newPriority = normalizeReplanPriority(item.getInt("newPriority"), oldPriority);
+            int newPriority = normalizeReplanPriority(item.newPriority(), oldPriority);
             LocalDate oldDueDate = sourceTask.getDueDate();
-            LocalDate newDueDate = normalizeReplanDueDate(item.get("newDueDate"), oldDueDate);
-            int confidence = clamp(item.getInt("confidence") == null ? 75 : item.getInt("confidence"), 0, 100);
-            String reason = normalizeReplanReason(item.getStr("reason"));
+            LocalDate newDueDate = normalizeReplanDueDate(item.newDueDate(), oldDueDate);
+            int confidence = clamp(item.confidence() == null ? 75 : item.confidence(), 0, 100);
+            String reason = normalizeReplanReason(item.reason());
 
             boolean likelyStarted = oldDueDate != null && !oldDueDate.isAfter(today);
             if (likelyStarted && confidence < LIST_REPLAN_TITLE_CONFIDENCE_THRESHOLD) {

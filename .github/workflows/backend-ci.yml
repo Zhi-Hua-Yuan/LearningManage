@@ -30,8 +30,8 @@ env:
   #   OpenApiConfigTest                     3（@NotBlank 派生 minLength 兼容）
   #   TraceContextTest                      9（应用 trace id 不被遥测 MDC 覆盖）
   #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
-  # 938 baseline + 22 Phase 1 PR2 adapter/config/streaming/parity contract tests - 1 removed test.
-  CI_EXPECTED_TEST_COUNT: '959'
+  # Published CI baseline after the develop merge and Phase 3 additions: 965 tests.
+  CI_EXPECTED_TEST_COUNT: '965'
   DB_HOST: 127.0.0.1
   DB_PORT: '13306'
   CI_DB_GATE_AUTHORIZED: 'true'
@@ -158,7 +158,7 @@ jobs:
           bash scripts/ci/wait-for-mysql.sh
           bash scripts/ci/provision-ci-databases.sh
           bash scripts/ci/verify-empty-database.sh
-      - name: Run non-MySQL Maven verification on V8
+      - name: Run non-MySQL Maven verification on V9
         run: ./mvnw -B -ntp '-Dtest=**/*Test,!**/*MySqlTest' verify
       - name: Prepare V7 historical integration-test schema
         env:
@@ -315,7 +315,7 @@ jobs:
       CI_COMPOSE_FILE: deploy/docker-compose.ci.yml
       CI_COMPOSE_PROJECT_NAME: learningmanage-ci-${{ github.run_id }}-${{ github.run_attempt }}
       CI_HEALTH_URL: http://127.0.0.1:18123/api/health
-      CI_EXPECTED_HISTORY_TOTAL: '8'
+      CI_EXPECTED_HISTORY_TOTAL: '9'
       CI_EMPTY_DB_NAME: learning_manage_ci_empty
       CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
     steps:

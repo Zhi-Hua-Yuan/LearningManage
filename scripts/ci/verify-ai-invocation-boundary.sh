@@ -60,14 +60,15 @@ done
   || ci_fail "ai_http_transport_reference_outside_boundary"
 
 # 框架不得渗入业务层：org.springframework.ai 只允许出现在 Spring AI
-# transport adapters 与它的配置类里。这条把「换协议不影响治理」变成可证伪的约束。
+# chat/embedding/structured-output adapters 与它们的配置类里。这条把
+# 「换协议不影响治理」变成可证伪的约束。
 mapfile -t spring_ai_imports < <(
   grep -RIn --include='*.java' 'import org\.springframework\.ai\.' "$main_source" || true
 )
 unexpected_spring_ai_imports=()
 for import_line in "${spring_ai_imports[@]}"; do
   case "$import_line" in
-    */client/ai/adapter/SpringAiChatAdapter.java:*|*/client/ai/adapter/SpringAiStreamingModelClient.java:*|*/config/SpringAiChatConfiguration.java:*) ;;
+    */client/ai/adapter/SpringAiChatAdapter.java:*|*/client/ai/adapter/SpringAiStreamingModelClient.java:*|*/client/knowledge/SpringAiEmbeddingModel.java:*|*/service/impl/SpringAiEmbeddingClient.java:*|*/ai/pipeline/AiStructuredOutputDecoder.java:*|*/config/SpringAiChatConfiguration.java:*) ;;
     *) unexpected_spring_ai_imports+=("$import_line") ;;
   esac
 done

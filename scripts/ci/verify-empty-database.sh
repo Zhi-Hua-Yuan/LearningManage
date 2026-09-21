@@ -47,17 +47,19 @@ grep -Fq 'info.migration=7|stage6 agent and analysis report|PENDING' <<<"$info_b
     || ci_fail "empty_v7_not_pending"
 grep -Fq 'info.migration=8|stage7 observability and data lifecycle|PENDING' <<<"$info_before" \
     || ci_fail "empty_v8_not_pending"
+grep -Fq 'info.migration=9|stage3 rag canceled query status|PENDING' <<<"$info_before" \
+    || ci_fail "empty_v9_not_pending"
 
 migrate_first="$(run_flyway migrate)"
 grep -Fq 'migrate.success=true' <<<"$migrate_first" || ci_fail "empty_first_migrate_failed"
-grep -Fq 'migrate.migrationsExecuted=8' <<<"$migrate_first" \
+grep -Fq 'migrate.migrationsExecuted=9' <<<"$migrate_first" \
     || ci_fail "empty_first_migrate_count_unexpected"
 
 validate_output="$(run_flyway validate)"
 grep -Fq 'validate.success=true' <<<"$validate_output" || ci_fail "empty_validate_failed"
 
 info_after="$(run_flyway info)"
-grep -Fq 'info.current=8' <<<"$info_after" || ci_fail "empty_info_current_after_unexpected"
+grep -Fq 'info.current=9' <<<"$info_after" || ci_fail "empty_info_current_after_unexpected"
 grep -Fq 'info.migration=1|baseline schema|SUCCESS' <<<"$info_after" \
     || ci_fail "empty_v1_not_successful"
 grep -Fq 'info.migration=2|stage1 business semantics and permissions|SUCCESS' <<<"$info_after" \
@@ -74,6 +76,8 @@ grep -Fq 'info.migration=7|stage6 agent and analysis report|SUCCESS' <<<"$info_a
     || ci_fail "empty_v7_not_successful"
 grep -Fq 'info.migration=8|stage7 observability and data lifecycle|SUCCESS' <<<"$info_after" \
     || ci_fail "empty_v8_not_successful"
+grep -Fq 'info.migration=9|stage3 rag canceled query status|SUCCESS' <<<"$info_after" \
+    || ci_fail "empty_v9_not_successful"
 
 post_verify_sql="${project_root}/sql/flyway/stage1/02_post_verify_v2.sql"
 [[ -f "$post_verify_sql" ]] || ci_fail "empty_post_verify_missing"
@@ -132,6 +136,7 @@ v5_history_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT C
 v6_history_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='6' AND success=1;")"
 v7_history_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='7' AND success=1;")"
 v8_history_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='8' AND success=1;")"
+v9_history_rows="$(ci_mysql_migrator --database="${DB_NAME}" --execute="SELECT COUNT(*) FROM flyway_schema_history WHERE version='9' AND success=1;")"
 history_total="$(ci_mysql_migrator --database="${DB_NAME}" --execute='SELECT COUNT(*) FROM flyway_schema_history;')"
 business_rows="$(ci_business_row_total "${DB_NAME}")"
 assignee_column="$(ci_mysql_migrator --execute="SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='task' AND column_name='assignee_id';")"
@@ -151,7 +156,8 @@ ci_assert_equals "1" "$v5_history_rows" "empty_v5_history_missing"
 ci_assert_equals "1" "$v6_history_rows" "empty_v6_history_missing"
 ci_assert_equals "1" "$v7_history_rows" "empty_v7_history_missing"
 ci_assert_equals "1" "$v8_history_rows" "empty_v8_history_missing"
-ci_assert_equals "8" "$history_total" "empty_history_row_count_unexpected"
+ci_assert_equals "1" "$v9_history_rows" "empty_v9_history_missing"
+ci_assert_equals "9" "$history_total" "empty_history_row_count_unexpected"
 ci_assert_equals "2" "$business_rows" "empty_business_rows_unexpected"
 ci_assert_equals "0" "$assignee_column" "empty_legacy_assignee_column_present"
 ci_assert_equals "1" "$assignee_user_column" "empty_assignee_user_column_missing"
@@ -172,4 +178,5 @@ ci_emit "empty.v4_post_verify_checks" "4"
 ci_emit "empty.v5_post_verify_checks" "6"
 ci_emit "empty.v6_post_verify_checks" "1"
 ci_emit "empty.v7_post_verify_checks" "8"
+ci_emit "empty.v9_migration_applied" "1"
 ci_emit "empty.second_migrations_executed" "0"

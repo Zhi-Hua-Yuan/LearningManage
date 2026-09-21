@@ -18,17 +18,18 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
 
     private static final String POST_METHOD = "POST";
 
-    private static final Map<String, String> AI_RATE_LIMIT_SCENE_MAP = Map.of(
-            "/ai/breakdown", "task-breakdown",
-            "/ai/breakdown/preview", "task-breakdown",
-            "/ai/polish", "weekly-polish",
-            "/ai/polish/preview", "weekly-polish",
-            "/ai/today-order/recommend", "today-order",
-            "/ai/daily-review/suggest-rename", "daily-review-rename",
-            "/ai/list/replan/preview", "list-replan",
-            "/ai/rag/ask", "rag-project-ask",
-            "/ai/agent/project-risk", "project-risk-report",
-            "/ai/agent/team-workload", "team-workload-report"
+    private static final Map<String, String> AI_RATE_LIMIT_SCENE_MAP = Map.ofEntries(
+            Map.entry("/ai/breakdown", "task-breakdown"),
+            Map.entry("/ai/breakdown/preview", "task-breakdown"),
+            Map.entry("/ai/polish", "weekly-polish"),
+            Map.entry("/ai/polish/preview", "weekly-polish"),
+            Map.entry("/ai/today-order/recommend", "today-order"),
+            Map.entry("/ai/daily-review/suggest-rename", "daily-review-rename"),
+            Map.entry("/ai/list/replan/preview", "list-replan"),
+            Map.entry("/ai/rag/ask", "rag-project-ask"),
+            Map.entry("/ai/rag/ask/stream", "rag-project-ask"),
+            Map.entry("/ai/agent/project-risk", "project-risk-report"),
+            Map.entry("/ai/agent/team-workload", "team-workload-report")
     );
 
     @Resource

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "ai.embedding")
 public class EmbeddingProperties {
 
+    private String adapter = "spring-ai";
     private String baseUrl;
     private String queryBaseUrl;
     private String apiKey;

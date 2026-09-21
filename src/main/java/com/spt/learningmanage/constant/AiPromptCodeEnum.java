@@ -11,12 +11,12 @@ import lombok.Getter;
 @Getter
 public enum AiPromptCodeEnum {
 
-    TASK_BREAKDOWN_DEFAULT("task-breakdown.default", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-普通模式", 2),
-    TASK_BREAKDOWN_DETAILED("task-breakdown.detailed", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-详细模式", 2),
-    WEEKLY_POLISH_DEFAULT("weekly-polish.default", AiSceneEnum.WEEKLY_POLISH, "周总结润色"),
-    TODAY_ORDER_DEFAULT("today-order.default", AiSceneEnum.TODAY_ORDER, "今日任务排序"),
-    DAILY_REVIEW_RENAME_DEFAULT("daily-review-rename.default", AiSceneEnum.DAILY_REVIEW_RENAME, "日报任务改名"),
-    LIST_REPLAN_PREVIEW("list-replan.preview", AiSceneEnum.LIST_REPLAN, "清单智能重排预览"),
+    TASK_BREAKDOWN_DEFAULT("task-breakdown.default", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-普通模式", 3),
+    TASK_BREAKDOWN_DETAILED("task-breakdown.detailed", AiSceneEnum.TASK_BREAKDOWN, "任务拆解-详细模式", 3),
+    WEEKLY_POLISH_DEFAULT("weekly-polish.default", AiSceneEnum.WEEKLY_POLISH, "周总结润色", 2),
+    TODAY_ORDER_DEFAULT("today-order.default", AiSceneEnum.TODAY_ORDER, "今日任务排序", 2),
+    DAILY_REVIEW_RENAME_DEFAULT("daily-review-rename.default", AiSceneEnum.DAILY_REVIEW_RENAME, "日报任务改名", 2),
+    LIST_REPLAN_PREVIEW("list-replan.preview", AiSceneEnum.LIST_REPLAN, "清单智能重排预览", 2),
     RAG_PROJECT_ANSWER("rag-project-answer", AiSceneEnum.RAG_PROJECT_ASK, "项目知识问答"),
     AGENT_PROJECT_RISK("agent.project-risk.v1", AiSceneEnum.AGENT_PROJECT_RISK, "项目风险分析"),
     AGENT_TEAM_WORKLOAD_MANAGER("agent.team-workload.manager.v1", AiSceneEnum.AGENT_TEAM_WORKLOAD, "团队负载管理摘要"),

@@ -84,7 +84,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - name: Provision isolated V8 database
+      - name: Provision isolated V9 database
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes default-mysql-client

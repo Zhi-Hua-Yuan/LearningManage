@@ -28,7 +28,7 @@ jq -e '
     (.candidateManifestSha256 | test("^[0-9A-F]{64}$")) and
     ((.externalImages | keys) == ["grafana", "mysql", "nginx", "prometheus", "qdrant", "redis", "runtime", "tempo"]) and
     (all(.externalImages[]; test("@sha256:[0-9a-f]{64}$"))) and
-    ((.migrations | keys) == ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8"]) and
+    ((.migrations | keys) == ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9"]) and
     (all(.migrations[]; test("^[0-9A-F]{64}$")))
 ' "$production_manifest" >/dev/null \
     || lm_die "production manifest did not pass schema identity checks"
@@ -84,7 +84,7 @@ for expression in \
     [[ "$matched" == true ]] || lm_die "release evidence is missing hash $expected_hash"
 done
 
-for version in {1..8}; do
+for version in {1..9}; do
     migration="$(find "${LM_RELEASE_DIR}/migrations" -maxdepth 1 -type f -name "V${version}__*.sql" -print)"
     [[ -n "$migration" && "$(wc -l <<<"$migration")" -eq 1 ]] \
         || lm_die "expected exactly one bundled V${version} migration"

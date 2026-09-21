@@ -22,7 +22,7 @@ public class DefaultAiPromptTemplateProvider {
     private final Map<AiPromptCodeEnum, AiPromptTemplate> templates = new EnumMap<>(AiPromptCodeEnum.class);
 
     public DefaultAiPromptTemplateProvider() {
-        register(AiPromptCodeEnum.LIST_REPLAN_PREVIEW, "你是一个任务智能重排助手。"
+        register(AiPromptCodeEnum.LIST_REPLAN_PREVIEW, 2, "你是一个任务智能重排助手。"
                 + "请基于清单内全部任务进行分析，尤其要结合已完成任务历史来推断用户执行力。"
                 + "只允许重排未完成任务（status=0）。"
                 + "你必须只输出合法 JSON 对象，不要输出 Markdown 或解释文字。"
@@ -31,7 +31,7 @@ public class DefaultAiPromptTemplateProvider {
                 + "约束：newPriority 必须是 0-3 的整数；newDueDate 必须是 yyyy-MM-dd 或 null；"
                 + "newTitle 必须简洁且长度不超过 60 个字符。");
 
-        register(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT, "你是一名任务命名优化助手。"
+        register(AiPromptCodeEnum.DAILY_REVIEW_RENAME_DEFAULT, 2, "你是一名任务命名优化助手。"
                 + "请基于当天任务完成情况，仅对未完成任务给出更清晰、可执行的任务标题。"
                 + "只输出合法 JSON 对象，不要输出 Markdown，不要输出解释文本。"
                 + "严格输出结构为："
@@ -44,17 +44,17 @@ public class DefaultAiPromptTemplateProvider {
                 + "5）confidence 必须是 0-100 的整数；"
                 + "6）如果不需要改名，返回 {\"items\":[]}。");
 
-        register(AiPromptCodeEnum.TODAY_ORDER_DEFAULT, "你是任务调度助手。"
+        register(AiPromptCodeEnum.TODAY_ORDER_DEFAULT, 2, "你是任务调度助手。"
                 + "请基于任务难度、成本、效益、优先级与当前时间，给出今天任务的推荐完成顺序。"
                 + "只输出合法JSON对象，不要Markdown，不要解释文字。"
                 + "输出结构严格为："
                 + "{\"strategy\":\"balanced\",\"items\":[{\"taskId\":1,\"difficulty\":3,\"cost\":2,\"benefit\":5,\"estimatedMinutes\":30,\"reason\":\"...\"}]}。"
                 + "要求：difficulty/cost/benefit 必须是1-5整数；estimatedMinutes为10-240整数；items必须覆盖所有输入taskId且不重复。");
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, 2, """
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT, 3, """
                 你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成紧凑、可执行且严格落在周期内的普通计划。
                 硬性要求：
-                1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
+                1）只输出纯 JSON 对象，不要 Markdown、代码块或解释文字；
                 2）必须恰好输出 3 个按阶段递进的里程碑；
                 3）每个里程碑必须恰好输出 3 个任务；
                 4）每个任务对象必须且仅包含 name、priority、dueDate；
@@ -63,13 +63,13 @@ public class DefaultAiPromptTemplateProvider {
                 7）任务名称应包含动作和可检查产出，保持简洁、不重复且不超过 60 个字符；
                 8）周期较短时将目标拆成轻量步骤，保证总工作量可在周期内完成；
                 9）输出前在内部检查里程碑数、任务数、字段、日期范围和重复项；若不符合先修正，再只输出最终 JSON。
-                严格结构：[{"name":"阶段名称","tasks":[{"name":"动作与产出","priority":2,"dueDate":"yyyy-MM-dd"}]}]
+                结构语义：返回对象，包含 milestones 数组；每个里程碑包含 name 和 tasks，任务包含 name、priority、dueDate。具体 JSON Schema 由运行时结构化输出契约提供。
                 """);
 
-        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, 2, """
+        register(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED, 3, """
                 你是一名资深项目经理与学习规划顾问。输入会明确给出目标、原始周期、今天日期和最晚截止日期。请生成细颗粒度、可落地且严格落在周期内的详细计划。
                 硬性要求：
-                1）只输出纯 JSON 数组，不要 Markdown、代码块或解释文字；
+                1）只输出纯 JSON 对象，不要 Markdown、代码块或解释文字；
                 2）必须恰好输出 3 个按阶段递进的里程碑；
                 3）每个里程碑必须恰好输出 4 个任务；
                 4）每个任务对象必须且仅包含 name、priority、dueDate；
@@ -79,10 +79,10 @@ public class DefaultAiPromptTemplateProvider {
                 8）周期为一周等短周期时，每项任务应是约 15-90 分钟可完成的轻量步骤，不得把长期目标原样塞入短周期；
                 9）优先安排有产出物的任务，避免空泛描述；
                 10）输出前在内部检查 3 个里程碑、每组 4 个任务、字段、日期范围、可行性和重复项；若不符合先修正，再只输出最终 JSON。
-                严格结构：[{"name":"阶段名称","tasks":[{"name":"动作与产出","priority":3,"dueDate":"yyyy-MM-dd"}]}]
+                结构语义：返回对象，包含 milestones 数组；每个里程碑包含 name 和 tasks，任务包含 name、priority、dueDate。具体 JSON Schema 由运行时结构化输出契约提供。
                 """);
 
-        register(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT, "你是一个专业的职场与学业规划 AI 助手，擅长周复盘总结。"
+        register(AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT, 2, "你是一个专业的职场与学业规划 AI 助手，擅长周复盘总结。"
                 + "请基于用户的任务上下文与主观反思，生成高质量本周复盘。"
                 + "硬性要求："
                 + "1) 只输出合法 JSON 字符串；"

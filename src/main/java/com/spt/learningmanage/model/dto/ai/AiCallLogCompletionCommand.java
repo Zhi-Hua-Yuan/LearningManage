@@ -76,6 +76,7 @@ public record AiCallLogCompletionCommand(
         if (status == AiCallLogStatusEnum.PARSE_FAILED
                 && failureType != AiCallFailureTypeEnum.PROTOCOL
                 && failureType != AiCallFailureTypeEnum.RESPONSE_PARSE
+                && failureType != AiCallFailureTypeEnum.RESPONSE_SCHEMA
                 && failureType != AiCallFailureTypeEnum.BUSINESS_VALIDATION) {
             throw new IllegalArgumentException("解析失败终态的失败类型不合法");
         }
@@ -110,6 +111,7 @@ public record AiCallLogCompletionCommand(
     private static boolean isParseFailure(AiCallFailureTypeEnum failureType) {
         return failureType == AiCallFailureTypeEnum.PROTOCOL
                 || failureType == AiCallFailureTypeEnum.RESPONSE_PARSE
+                || failureType == AiCallFailureTypeEnum.RESPONSE_SCHEMA
                 || failureType == AiCallFailureTypeEnum.BUSINESS_VALIDATION;
     }
 }

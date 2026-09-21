@@ -102,7 +102,7 @@ def breakdown_content(text, detailed=False):
                 "dueDate": (start + timedelta(days=max(1, total_days * (milestone_index * task_count + task_index + 1) // total_tasks))).isoformat(),
             })
         milestones.append({"name": f"阶段{milestone_index + 1}：计划与交付", "tasks": tasks})
-    return compact_json(milestones)
+    return compact_json({"milestones": milestones})
 
 
 def valid_stage3_content(scene, text):

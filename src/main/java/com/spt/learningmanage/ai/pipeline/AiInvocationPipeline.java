@@ -1,6 +1,7 @@
 package com.spt.learningmanage.ai.pipeline;
 
 import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spt.learningmanage.constant.AiCallFailureTypeEnum;
 import com.spt.learningmanage.constant.AiCallLogStatusEnum;
 import com.spt.learningmanage.constant.AiFailureTypeEnum;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 统一编排 Prompt、Chat 模型调用、响应处理、规则降级和调用日志终态。
@@ -38,13 +40,25 @@ public class AiInvocationPipeline {
     private final PromptTemplateResolver promptTemplateResolver;
     private final AiModelClient aiModelClient;
     private final AiCallLogService aiCallLogService;
+    private final AiStructuredOutputDecoder structuredOutputDecoder;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AiInvocationPipeline(PromptTemplateResolver promptTemplateResolver,
                                 AiModelClient aiModelClient,
-                                AiCallLogService aiCallLogService) {
+                                AiCallLogService aiCallLogService,
+                                AiStructuredOutputDecoder structuredOutputDecoder) {
         this.promptTemplateResolver = promptTemplateResolver;
         this.aiModelClient = aiModelClient;
         this.aiCallLogService = aiCallLogService;
+        this.structuredOutputDecoder = structuredOutputDecoder;
+    }
+
+    /** Compatibility constructor retained for focused unit tests and internal harnesses. */
+    public AiInvocationPipeline(PromptTemplateResolver promptTemplateResolver,
+                                AiModelClient aiModelClient,
+                                AiCallLogService aiCallLogService) {
+        this(promptTemplateResolver, aiModelClient, aiCallLogService,
+                new AiStructuredOutputDecoder(new ObjectMapper()));
     }
 
     public <T> AiExecutionResult<T> execute(AiExecutionCommand command,
@@ -65,6 +79,30 @@ public class AiInvocationPipeline {
                 template.systemPrompt(), command.userPrompt(), command.parseFailureMessage(), command.traceId(),
                 command.contentLoggingPolicy(), command.requestLogSummary(), null, null
         ), responseProcessor, fallback);
+    }
+
+    /** Execute a typed response while retaining the governed model client and Adapter boundary. */
+    public <S, T> AiExecutionResult<T> executeStructured(AiExecutionCommand command,
+                                                          Class<S> structuredType,
+                                                          Function<S, T> responseProcessor,
+                                                          AiFallback<T> fallback) {
+        if (command == null) {
+            throw new IllegalArgumentException("AI 执行命令不能为空");
+        }
+        if (structuredType == null || responseProcessor == null) {
+            throw new IllegalArgumentException("结构化输出类型和处理器不能为空");
+        }
+        AiPromptTemplate template = promptTemplateResolver.resolve(command.promptCode());
+        String systemPrompt = template.systemPrompt() + "\n\n" + structuredOutputDecoder.format(structuredType);
+        ResolvedExecution execution = new ResolvedExecution(
+                command.userId(), command.modelName(), template.scene(), template.code(),
+                template.templateId(), template.version(), template.source().getCode(),
+                systemPrompt, command.userPrompt(), command.parseFailureMessage(), command.traceId(),
+                command.contentLoggingPolicy(), command.requestLogSummary(), null, null
+        );
+        return executeResolved(execution,
+                rawContent -> responseProcessor.apply(structuredOutputDecoder.decode(rawContent, structuredType)),
+                fallback);
     }
 
     /**
@@ -413,6 +451,7 @@ public class AiInvocationPipeline {
         }
         if (type == AiCallFailureTypeEnum.PROTOCOL
                 || type == AiCallFailureTypeEnum.RESPONSE_PARSE
+                || type == AiCallFailureTypeEnum.RESPONSE_SCHEMA
                 || type == AiCallFailureTypeEnum.BUSINESS_VALIDATION) {
             return AiCallLogStatusEnum.PARSE_FAILED;
         }

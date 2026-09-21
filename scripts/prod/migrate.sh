@@ -41,10 +41,10 @@ history_summary="$(lm_compose exec -T mysql sh -eu -c '
     mysql -N -B -uroot --protocol=socket "${MYSQL_DATABASE}" --execute="
         SELECT COUNT(*),
                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END),
-               SUM(CASE WHEN version REGEXP '\''^[1-8]$'\'' AND type = '\''SQL'\'' AND success = 1 THEN 1 ELSE 0 END)
+               SUM(CASE WHEN version REGEXP '\''^[1-9]$'\'' AND type = '\''SQL'\'' AND success = 1 THEN 1 ELSE 0 END)
         FROM flyway_schema_history;"
 ')"
-[[ "$history_summary" == $'8\t8\t8' ]] || lm_die "unexpected Flyway history summary: $history_summary"
+[[ "$history_summary" == $'9\t9\t9' ]] || lm_die "unexpected Flyway history summary: $history_summary"
 
 app_user="$(lm_env_value "$LM_ENV_FILE" DB_USERNAME)"
 app_password="$(lm_env_value "$LM_ENV_FILE" DB_PASSWORD)"
@@ -63,4 +63,4 @@ if lm_compose exec -T -e "MYSQL_PWD=$app_password" mysql \
     lm_die "application account unexpectedly has DDL permission"
 fi
 
-lm_log "Flyway V1-V8 migration and application privilege checks passed"
+lm_log "Flyway V1-V9 migration and application privilege checks passed"

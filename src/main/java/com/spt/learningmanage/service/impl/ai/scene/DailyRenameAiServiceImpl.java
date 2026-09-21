@@ -2,7 +2,6 @@ package com.spt.learningmanage.service.impl.ai.scene;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
@@ -14,6 +13,8 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.mapper.TaskTitleRenameLogMapper;
 import com.spt.learningmanage.model.dto.ai.DailyReviewSuggestRenameRequest;
+import com.spt.learningmanage.model.dto.ai.structured.DailyRenameStructuredItem;
+import com.spt.learningmanage.model.dto.ai.structured.DailyRenameStructuredResponse;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.entity.TaskTitleRenameLog;
 import com.spt.learningmanage.model.vo.ai.DailyReviewSuggestRenameVO;
@@ -106,9 +107,10 @@ public class DailyRenameAiServiceImpl extends AiSceneSupport implements DailyRen
                 userPrompt,
                 "AI 日报回顾改名结果格式异常"
         );
-        List<TitleRenameSuggestionItemVO> suggestions = aiInvocationPipeline.execute(
+        List<TitleRenameSuggestionItemVO> suggestions = aiInvocationPipeline.executeStructured(
                 command,
-                rawContent -> parseAndValidateRenameSuggestions(rawContent, pendingTasks, maxEdits),
+                DailyRenameStructuredResponse.class,
+                response -> parseAndValidateRenameSuggestions(response, pendingTasks, maxEdits),
                 failure -> {
                     log.warn("AI 日报回顾改名失败，回退规则生成。userId={}, reviewDate={}, type={}",
                             currentUserId, reviewDate, failure.failureType(), failure.cause());
@@ -206,9 +208,11 @@ public class DailyRenameAiServiceImpl extends AiSceneSupport implements DailyRen
     }
 
     private List<TitleRenameSuggestionItemVO> parseAndValidateRenameSuggestions(
-            String aiRawContent, List<Task> pendingTasks, int maxEdits) {
-        JSONObject resultObj = JSONUtil.parseObj(jsonSanitizer.sanitizeObject(aiRawContent));
-        JSONArray items = resultObj.getJSONArray("items");
+            DailyRenameStructuredResponse response, List<Task> pendingTasks, int maxEdits) {
+        if (response == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 改名结果为空");
+        }
+        List<DailyRenameStructuredItem> items = response.items();
         if (items == null || items.isEmpty()) {
             return List.of();
         }
@@ -220,27 +224,27 @@ public class DailyRenameAiServiceImpl extends AiSceneSupport implements DailyRen
             if (suggestions.size() >= maxEdits) {
                 break;
             }
-            JSONObject item = items.getJSONObject(i);
+            DailyRenameStructuredItem item = items.get(i);
             if (item == null) {
                 continue;
             }
-            Long taskId = item.getLong("taskId");
+            Long taskId = item.taskId();
             if (taskId == null || !pendingTaskMap.containsKey(taskId) || !seenTaskIds.add(taskId)) {
                 continue;
             }
             Task sourceTask = pendingTaskMap.get(taskId);
             String oldTitle = safeTrim(sourceTask.getTitle());
-            String newTitle = normalizeSuggestedTitle(item.getStr("newTitle"));
+            String newTitle = normalizeSuggestedTitle(item.newTitle());
             if (StrUtil.isBlank(oldTitle) || StrUtil.isBlank(newTitle) || StrUtil.equals(oldTitle, newTitle)) {
                 continue;
             }
-            String reason = safeTrim(item.getStr("reason"));
+            String reason = safeTrim(item.reason());
             if (StrUtil.isBlank(reason)) {
                 reason = "提升标题清晰度与可执行性";
             } else if (reason.length() > DAILY_RENAME_REASON_MAX_LEN) {
                 reason = reason.substring(0, DAILY_RENAME_REASON_MAX_LEN);
             }
-            Integer confidence = clamp(item.getInt("confidence") == null ? 75 : item.getInt("confidence"), 0, 100);
+            Integer confidence = clamp(item.confidence() == null ? 75 : item.confidence(), 0, 100);
             TitleRenameSuggestionItemVO suggestion = new TitleRenameSuggestionItemVO();
             suggestion.setTaskId(taskId);
             suggestion.setOldTitle(oldTitle);

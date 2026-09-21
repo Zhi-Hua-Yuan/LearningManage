@@ -2,7 +2,6 @@ package com.spt.learningmanage.service.impl.ai.scene;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
@@ -13,6 +12,8 @@ import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.ai.AiTodayOrderRequest;
+import com.spt.learningmanage.model.dto.ai.structured.TodayOrderStructuredItem;
+import com.spt.learningmanage.model.dto.ai.structured.TodayOrderStructuredResponse;
 import com.spt.learningmanage.model.entity.Task;
 import com.spt.learningmanage.model.vo.ai.AiTaskOrderItemVO;
 import com.spt.learningmanage.model.vo.ai.AiTodayOrderVO;
@@ -98,9 +99,10 @@ public class TodayOrderAiServiceImpl extends AiSceneSupport implements TodayOrde
                 userPrompt,
                 "AI 今日任务排序结果格式异常"
         );
-        AiExecutionResult<AiTodayOrderVO> execution = aiInvocationPipeline.execute(
+        AiExecutionResult<AiTodayOrderVO> execution = aiInvocationPipeline.executeStructured(
                 command,
-                rawContent -> parseAndValidateTodayOrderResult(rawContent, tasks, strategy, now),
+                TodayOrderStructuredResponse.class,
+                response -> parseAndValidateTodayOrderResult(response, tasks, strategy, now),
                 failure -> {
                     log.warn("AI今日任务排序失败，回退规则排序: userId={}, today={}, strategy={}, type={}",
                             currentUserId, today, strategy, failure.failureType(), failure.cause());
@@ -211,10 +213,13 @@ public class TodayOrderAiServiceImpl extends AiSceneSupport implements TodayOrde
                 + "\n任务列表(JSON)：" + taskContext;
     }
 
-    private AiTodayOrderVO parseAndValidateTodayOrderResult(String aiRawContent, List<Task> sourceTasks,
+    private AiTodayOrderVO parseAndValidateTodayOrderResult(TodayOrderStructuredResponse response,
+                                                            List<Task> sourceTasks,
                                                             String strategy, LocalDateTime now) {
-        JSONObject resultObj = JSONUtil.parseObj(jsonSanitizer.sanitizeObject(aiRawContent));
-        JSONArray items = resultObj.getJSONArray("items");
+        if (response == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果为空");
+        }
+        List<TodayOrderStructuredItem> items = response.items();
         if (items == null || items.isEmpty()) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果缺少 items");
         }
@@ -225,28 +230,28 @@ public class TodayOrderAiServiceImpl extends AiSceneSupport implements TodayOrde
         Set<Long> seenTaskIds = new HashSet<>();
         List<AiTaskOrderItemVO> orderItems = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            JSONObject item = items.getJSONObject(i);
+            TodayOrderStructuredItem item = items.get(i);
             if (item == null) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果存在空任务项");
             }
-            Long taskId = item.getLong("taskId");
+            Long taskId = item.taskId();
             if (taskId == null || !taskMap.containsKey(taskId)) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果包含无效 taskId");
             }
             if (!seenTaskIds.add(taskId)) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果包含重复 taskId");
             }
-            Integer difficulty = item.getInt("difficulty");
-            Integer cost = item.getInt("cost");
-            Integer benefit = item.getInt("benefit");
-            Integer estimatedMinutes = item.getInt("estimatedMinutes");
+            Integer difficulty = item.difficulty();
+            Integer cost = item.cost();
+            Integer benefit = item.benefit();
+            Integer estimatedMinutes = item.estimatedMinutes();
             if (!inRange(difficulty, 1, 5) || !inRange(cost, 1, 5) || !inRange(benefit, 1, 5)) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果 difficulty/cost/benefit 超出范围");
             }
             if (!inRange(estimatedMinutes, 10, 240)) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果 estimatedMinutes 超出范围");
             }
-            String reason = safeTrim(item.getStr("reason"));
+            String reason = safeTrim(item.reason());
             if (StrUtil.isBlank(reason)) {
                 reason = "AI建议优先处理";
             }
@@ -257,7 +262,7 @@ public class TodayOrderAiServiceImpl extends AiSceneSupport implements TodayOrde
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 排序结果未覆盖全部任务");
         }
         AiTodayOrderVO result = new AiTodayOrderVO();
-        result.setStrategy(normalizeStrategy(resultObj.getStr("strategy", strategy)));
+        result.setStrategy(normalizeStrategy(StrUtil.blankToDefault(response.strategy(), strategy)));
         result.setItems(orderItems);
         return result;
     }

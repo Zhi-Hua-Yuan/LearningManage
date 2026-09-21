@@ -1,7 +1,6 @@
 package com.spt.learningmanage.service.impl.ai.scene;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.spt.learningmanage.ai.pipeline.AiExecutionCommand;
@@ -16,6 +15,9 @@ import com.spt.learningmanage.model.dto.ai.AiBreakdownRequest;
 import com.spt.learningmanage.model.dto.ai.draft.AiDraftConfirmationCommand;
 import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
 import com.spt.learningmanage.model.dto.ai.draft.TaskBreakdownConfirmationContext;
+import com.spt.learningmanage.model.dto.ai.structured.TaskBreakdownStructuredMilestone;
+import com.spt.learningmanage.model.dto.ai.structured.TaskBreakdownStructuredResponse;
+import com.spt.learningmanage.model.dto.ai.structured.TaskBreakdownStructuredTask;
 import com.spt.learningmanage.model.entity.AiDraft;
 import com.spt.learningmanage.model.vo.ai.AiBreakdownPreviewVO;
 import com.spt.learningmanage.model.vo.ai.AiDraftConfirmVO;
@@ -103,12 +105,16 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                 ? AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED
                 : AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT;
         try {
-            return aiInvocationPipeline.execute(new AiExecutionCommand(
+            return aiInvocationPipeline.executeStructured(new AiExecutionCommand(
                     userId, modelSelector.breakdownModel(), promptCode, userPrompt,
                     "AI 任务拆解结果格式异常", traceId
-            ), aiRawContent -> {
-                JSONArray jsonArray = JSONUtil.parseArray(jsonSanitizer.sanitizeArray(aiRawContent));
-                List<MilestoneDraftVO> result = JSONUtil.toList(jsonArray, MilestoneDraftVO.class);
+            ), TaskBreakdownStructuredResponse.class, response -> {
+                if (response == null || response.milestones() == null) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "AI 未生成有效里程碑，请重试");
+                }
+                List<MilestoneDraftVO> result = response.milestones().stream()
+                        .map(this::toMilestoneDraft)
+                        .toList();
                 normalizeAndValidateDrafts(result, today, planningEndDate, detailed);
                 logDraftLengthRisk(result, normalizedTarget, detailed);
                 if (result == null || result.isEmpty()) {
@@ -116,7 +122,7 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
                             "AI 未生成可用草稿，请调整描述后重试（避免与名称长度约束冲突）");
                 }
                 return result;
-            }).data();
+            }, null).data();
         } catch (AiInvocationException exception) {
             log.warn("AI 任务拆解调用失败: type={}, model={}",
                     exception.getFailureType(), exception.getModelName(), exception);
@@ -125,6 +131,30 @@ public class TaskBreakdownAiServiceImpl extends AiSceneSupport implements TaskBr
             log.warn("AI 任务拆解结果处理失败: type={}", exception.getFailureType(), exception);
             throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 任务拆解结果格式异常，请重试");
         }
+    }
+
+    private MilestoneDraftVO toMilestoneDraft(TaskBreakdownStructuredMilestone source) {
+        if (source == null) {
+            return null;
+        }
+        MilestoneDraftVO milestone = new MilestoneDraftVO();
+        milestone.setName(source.name());
+        List<TaskDraftVO> tasks = source.tasks() == null ? null : source.tasks().stream()
+                .map(this::toTaskDraft)
+                .toList();
+        milestone.setTasks(tasks);
+        return milestone;
+    }
+
+    private TaskDraftVO toTaskDraft(TaskBreakdownStructuredTask source) {
+        if (source == null) {
+            return null;
+        }
+        TaskDraftVO task = new TaskDraftVO();
+        task.setName(source.name());
+        task.setPriority(source.priority());
+        task.setDueDate(source.dueDate());
+        return task;
     }
 
     @Override
