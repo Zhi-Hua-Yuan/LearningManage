@@ -1,0 +1,98 @@
+name: Phase 5 AI evaluation contract
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22.13.1'
+  AI_CHAT_ADAPTER: spring-ai
+  AI_RAG_ENABLED: 'true'
+  AI_KNOWLEDGE_WORKER_ENABLED: 'true'
+  AI_AGENT_ENABLED: 'true'
+  AI_AGENT_WORKER_ENABLED: 'true'
+  AI_AGENT_TOOL_CALLING_ENABLED: 'true'
+  AI_CLEANUP_ENABLED: 'false'
+  AI_CLEANUP_SCHEDULE_ENABLED: 'false'
+
+jobs:
+  contract:
+    name: Phase 5 matrix and safety contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate immutable Phase 5 matrix
+        run: node evals/phase5/scripts/validate-matrix.mjs
+      - name: Run Phase 5 acceptance guard
+        shell: bash
+        run: bash scripts/ci/verify-phase5-acceptance.sh
+      - name: Run shell syntax and AI boundary guards
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          bash scripts/ci/verify-ai-invocation-boundary.sh
+
+  spring-ai-unit:
+    name: Spring AI governed transport and safety tests
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Run Spring AI and Agent/RAG safety tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./mvnw -B -ntp \
+            -Dtest=SpringAiAutoConfigurationConvergenceTest,SpringAiChatAdapterContractTest,AiChatAdapterParityTest,AgentSafetyArchitectureTest,RagCitationValidatorTest \
+            test
+
+  default-enabled-static:
+    name: Default-enabled configuration assertions
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify default feature flags and matrix
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node evals/phase5/scripts/validate-matrix.mjs >/dev/null
+          grep -Fq 'AI_CHAT_ADAPTER=spring-ai' .env.example
+          grep -Fq 'AI_RAG_ENABLED=true' .env.example
+          grep -Fq 'AI_KNOWLEDGE_WORKER_ENABLED=true' .env.example
+          grep -Fq 'AI_AGENT_ENABLED=true' .env.example
+          grep -Fq 'AI_AGENT_WORKER_ENABLED=true' .env.example
+          grep -Fq 'AI_AGENT_TOOL_CALLING_ENABLED=true' .env.example
+          grep -Fq 'AI_CLEANUP_ENABLED=false' .env.example

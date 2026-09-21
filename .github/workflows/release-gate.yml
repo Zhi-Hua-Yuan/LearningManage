@@ -37,9 +37,9 @@ env:
   #   OpenApiConfigTest                     3（@NotBlank 派生 minLength 兼容）
   #   TraceContextTest                      9（应用 trace id 不被遥测 MDC 覆盖）
   #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
-  # Published CI baseline after the develop merge, Phase 3, and Phase 4 additions: 970 tests.
+  # Published CI baseline after the develop merge, Phase 3, Phase 4, and Phase 5 default cutover contract: 971 tests.
   # Keep aligned with backend-ci.yml.
-  CI_EXPECTED_TEST_COUNT: '970'
+  CI_EXPECTED_TEST_COUNT: '971'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
@@ -175,6 +175,7 @@ jobs:
           bash scripts/ci/verify-stage2-acceptance.sh
           bash scripts/ci/verify-production-deployment.sh
           bash scripts/ci/verify-ai-invocation-boundary.sh
+          bash scripts/ci/verify-phase5-acceptance.sh
           bash scripts/ci/verify-published-migrations.sh
           bash scripts/ci/verify-stage2-wp2-protocol-stub.sh
           forbidden_event='pull_request_'target

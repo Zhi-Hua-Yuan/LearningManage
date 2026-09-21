@@ -567,3 +567,15 @@ test('real evaluation preserves failed round evidence and defers semantic gating
   assert.match(workflow, /promptManifestSha256:\$promptManifestHash/);
   assert.match(workflow, /eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0/);
 });
+
+test('phase5 protected evaluation preserves failed round evidence before returning', () => {
+  const workflow = fs.readFileSync(path.resolve(root, '..', '..', '.github', 'workflows', 'phase5-real-eval.yml'), 'utf8');
+  assert.match(workflow, /local eval_status=1 report_status=1 gate_status=1/);
+  assert.match(workflow, /eval_status=\$\?/);
+  assert.match(workflow, /report_status=\$\?/);
+  assert.match(workflow, /if \(\( eval_status != 0 \|\| report_status != 0 \|\| gate_status != 0 \)\)/);
+  assert.match(workflow, /phase5\.round\.failure=split:%s,round:%s,eval:%s,report:%s,gate:%s/);
+  assert.match(workflow, /if \[\[ -s output\.json \]\]; then\s+mv output\.json/);
+  assert.match(workflow, /if \[\[ -s summary\.json \]\]; then\s+mv summary\.json/);
+  assert.match(workflow, /if \[\[ -s report\.md \]\]; then\s+mv report\.md/);
+});

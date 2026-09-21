@@ -61,6 +61,7 @@ jobs:
       AI_MODEL: ${{ inputs.chat_model }}
       AI_FALLBACK_MODEL: ''
       AI_CHAT_ENABLED: 'true'
+      AI_CHAT_ADAPTER: spring-ai
       AI_AGENT_ENABLED: 'true'
       AI_AGENT_WORKER_ENABLED: 'false'
       AI_AGENT_TOOL_CALLING_ENABLED: 'true'

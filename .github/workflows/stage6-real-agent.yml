@@ -59,6 +59,7 @@ jobs:
       TEST_DB_NAME: learning_manage_ci_empty
       AI_BASE_URL: ${{ inputs.chat_base_url }}
       AI_MODEL: ${{ inputs.chat_model }}
+      AI_CHAT_ADAPTER: spring-ai
       AI_FALLBACK_MODEL: ''
       AI_CHAT_ENABLED: 'true'
       AI_AGENT_ENABLED: 'true'

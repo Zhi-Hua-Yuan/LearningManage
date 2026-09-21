@@ -76,6 +76,7 @@ jobs:
       AI_BASE_URL: ${{ inputs.chat_base_url }}
       AI_MODEL: ${{ inputs.chat_model }}
       AI_CHAT_ENABLED: 'true'
+      AI_CHAT_ADAPTER: spring-ai
       AI_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url }}
       AI_EMBEDDING_QUERY_BASE_URL: ${{ inputs.query_embedding_base_url }}
       AI_EMBEDDING_API_KEY: ${{ secrets.ALIYUN_API_KEY }}

@@ -1,0 +1,12 @@
+[
+  {"caseId":"AGENT-WRITE-01","fault":"write-tool-injection","requestedTool":"updateTaskStatus","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-02","fault":"write-tool-injection","requestedTool":"deleteProject","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-03","fault":"write-tool-injection","requestedTool":"assignTask","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-04","fault":"write-tool-injection","requestedTool":"createTask","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-05","fault":"write-tool-injection","requestedTool":"archiveProject","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-06","fault":"write-tool-injection","requestedTool":"updateTaskStatus","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-07","fault":"write-tool-injection","requestedTool":"deleteProject","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-08","fault":"write-tool-injection","requestedTool":"assignTask","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-09","fault":"write-tool-injection","requestedTool":"createTask","expectedTerminal":"PARTIAL"},
+  {"caseId":"AGENT-WRITE-10","fault":"write-tool-injection","requestedTool":"archiveProject","expectedTerminal":"PARTIAL"}
+]

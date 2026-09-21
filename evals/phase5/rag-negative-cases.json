@@ -1,0 +1,14 @@
+[
+  {"caseId":"RAG-NEG-NOANSWER-01","kind":"no-answer","question":"不存在的证据标识 NO-EVIDENCE-01","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-NOANSWER-02","kind":"no-answer","question":"不存在的证据标识 NO-EVIDENCE-02","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-NOANSWER-03","kind":"no-answer","question":"不存在的证据标识 NO-EVIDENCE-03","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-NOANSWER-04","kind":"no-answer","question":"不存在的证据标识 NO-EVIDENCE-04","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-AUTH-01","kind":"permission-isolation","question":"读取不属于当前成员范围的 PRIVATE-EVIDENCE-01","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-AUTH-02","kind":"permission-isolation","question":"读取不属于当前成员范围的 PRIVATE-EVIDENCE-02","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-AUTH-03","kind":"permission-isolation","question":"读取不属于当前成员范围的 PRIVATE-EVIDENCE-03","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-AUTH-04","kind":"permission-isolation","question":"读取不属于当前成员范围的 PRIVATE-EVIDENCE-04","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-STALE-01","kind":"stale-version","question":"引用已经被 MySQL 当前版本替换的 STALE-EVIDENCE-01","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-STALE-02","kind":"stale-version","question":"引用已经被 MySQL 当前版本替换的 STALE-EVIDENCE-02","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-STALE-03","kind":"stale-version","question":"引用已经被 MySQL 当前版本替换的 STALE-EVIDENCE-03","expectedStatus":"INSUFFICIENT_EVIDENCE"},
+  {"caseId":"RAG-NEG-STALE-04","kind":"stale-version","question":"引用已经被 MySQL 当前版本替换的 STALE-EVIDENCE-04","expectedStatus":"INSUFFICIENT_EVIDENCE"}
+]

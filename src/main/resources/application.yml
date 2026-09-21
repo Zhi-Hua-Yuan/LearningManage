@@ -67,7 +67,7 @@ spring:
       # 这两套机制都用不到，留着只会让人误以为「工具/记忆已交给 Spring AI 管」。
       # OpenAiChatModel 在未显式注入 ToolCallingManager 时会自建默认实现
       # （OpenAiChatModel$Builder#build 的 else 分支），所以排除是安全的。
-      # 这样 ai.chat.adapter=legacy（默认值）下 Spring AI 不产生任何单例 Bean。
+      # 这样 AI_CHAT_ADAPTER 未显式覆盖时仍只产生唯一的受治理 Chat Bean。
       - org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration
       - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
   ai:
@@ -124,9 +124,9 @@ ai:
   chat:
     enabled: ${AI_CHAT_ENABLED:true}
     # chat 传输层实现：legacy = 既有 Hutool HTTP 直连；spring-ai = Spring AI ChatModel。
-    # 默认 legacy —— 引入 Spring AI 不改变既有行为面，切换需显式改环境变量，可随时回退。
+    # Phase 5 默认切换到 Spring AI；观察期内仍可通过 AI_CHAT_ADAPTER=legacy 回退。
     # 只在 application.yml 声明这一处，其他 profile 不重复覆盖。
-    adapter: ${AI_CHAT_ADAPTER:legacy}
+    adapter: ${AI_CHAT_ADAPTER:spring-ai}
   logging:
     max-body-chars: ${AI_LOG_MAX_BODY_CHARS:8000}
     max-error-chars: ${AI_LOG_MAX_ERROR_CHARS:2000}
