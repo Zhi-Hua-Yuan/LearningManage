@@ -4,5 +4,6 @@ public enum RagQueryStatusEnum {
     RUNNING,
     SUCCEEDED,
     INSUFFICIENT,
-    FAILED
+    FAILED,
+    CANCELED
 }

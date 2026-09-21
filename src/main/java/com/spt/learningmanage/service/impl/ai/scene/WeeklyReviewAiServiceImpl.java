@@ -16,6 +16,7 @@ import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.ProjectMapper;
 import com.spt.learningmanage.mapper.TaskMapper;
 import com.spt.learningmanage.model.dto.ai.AiPolishRequest;
+import com.spt.learningmanage.model.dto.ai.structured.WeeklyPolishStructuredResponse;
 import com.spt.learningmanage.model.dto.ai.draft.AiDraftConfirmationCommand;
 import com.spt.learningmanage.model.dto.ai.draft.AiDraftCreateCommand;
 import com.spt.learningmanage.model.dto.ai.draft.WeeklyReviewPolishConfirmationContext;
@@ -149,17 +150,16 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
                 + "\n缺失任务ID（仅供参考）：" + missingIds
                 + "\n用户主观反思：" + reflectionText;
         try {
-            return aiInvocationPipeline.execute(new AiExecutionCommand(
+            return aiInvocationPipeline.executeStructured(new AiExecutionCommand(
                     currentUserId, modelSelector.polishModel(), AiPromptCodeEnum.WEEKLY_POLISH_DEFAULT,
                     userPrompt, "AI 周总结润色结果格式异常", traceId
-            ), aiRawContent -> {
-                JSONObject resultObj = JSONUtil.parseObj(jsonSanitizer.sanitizeObject(aiRawContent));
-                String review = resultObj.getStr("review");
+            ), WeeklyPolishStructuredResponse.class, response -> {
+                String review = response == null ? null : response.review();
                 if (StrUtil.isBlank(review)) {
                     throw new BusinessException(ErrorCode.OPERATION_ERROR, "周总结润色结果缺少 review 字段，请重试");
                 }
                 return JSONUtil.createObj().set("review", review).toString();
-            }).data();
+            }, null).data();
         } catch (AiInvocationException exception) {
             log.warn("AI 周总结润色调用失败: type={}, model={}",
                     exception.getFailureType(), exception.getModelName(), exception);
@@ -202,8 +202,7 @@ public class WeeklyReviewAiServiceImpl extends AiSceneSupport implements WeeklyR
             return "";
         }
         try {
-            JSONObject obj = JSONUtil.parseObj(jsonSanitizer.sanitizeObject(polished));
-            return safeTrim(obj.getStr("review"));
+            return safeTrim(JSONUtil.parseObj(polished).getStr("review"));
         } catch (Exception exception) {
             return safeTrim(polished);
         }

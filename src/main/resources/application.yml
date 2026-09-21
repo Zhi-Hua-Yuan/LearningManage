@@ -163,6 +163,7 @@ ai:
     circuit-failure-rate-threshold: ${AI_KNOWLEDGE_CB_FAILURE_RATE:50}
     circuit-open-wait-ms: ${AI_KNOWLEDGE_CB_OPEN_WAIT_MS:30000}
   embedding:
+    adapter: ${AI_EMBEDDING_ADAPTER:spring-ai}
     base-url: ${AI_EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
     query-base-url: ${AI_EMBEDDING_QUERY_BASE_URL:https://dashscope.aliyuncs.com/api/v1}
     api-key: ${AI_EMBEDDING_API_KEY:${ALIYUN_API_KEY:}}
@@ -189,6 +190,9 @@ ai:
     question-hmac-secret: ${AI_RAG_QUESTION_HMAC_SECRET:}
     status-refresh-ms: ${AI_RAG_STATUS_REFRESH_MS:600000}
     status-refresh-batch-size: ${AI_RAG_STATUS_REFRESH_BATCH_SIZE:100}
+    stream-timeout-ms: ${AI_RAG_STREAM_TIMEOUT_MS:120000}
+    stream-worker-concurrency: ${AI_RAG_STREAM_WORKER_CONCURRENCY:4}
+    stream-queue-capacity: ${AI_RAG_STREAM_QUEUE_CAPACITY:16}
   agent:
     enabled: ${AI_AGENT_ENABLED:true}
     worker-enabled: ${AI_AGENT_WORKER_ENABLED:true}

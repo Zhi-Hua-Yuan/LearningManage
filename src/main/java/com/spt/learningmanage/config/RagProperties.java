@@ -25,4 +25,7 @@ public class RagProperties {
     private String questionHmacSecret = "";
     private int statusRefreshMs = 600000;
     private int statusRefreshBatchSize = 100;
+    private int streamTimeoutMs = 120000;
+    private int streamWorkerConcurrency = 4;
+    private int streamQueueCapacity = 16;
 }

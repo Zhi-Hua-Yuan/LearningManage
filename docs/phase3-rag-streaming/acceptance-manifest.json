@@ -1,0 +1,35 @@
+{
+  "phase": "phase3",
+  "deliverable": "rag-adapter-and-secure-streaming",
+  "pullRequests": 2,
+  "embedding": {
+    "defaultAdapter": "spring-ai",
+    "rollbackAdapter": "legacy",
+    "documentProtocol": "openai-compatible",
+    "queryProtocol": "qwen-text_type-query",
+    "qdrantMigration": false,
+    "frameworkRetryMaxAttempts": 1
+  },
+  "streaming": {
+    "path": "/api/ai/rag/ask/stream",
+    "contentType": "text/event-stream",
+    "events": ["accepted", "stage", "complete", "error"],
+    "stageValues": ["RETRIEVING", "RERANKING", "GENERATING", "VERIFYING"],
+    "rawTokenDelta": false,
+    "partialPersistence": false,
+    "legacyChatBehavior": "stage-stream-with-sync-generation",
+    "springAiCancellation": "internal-seam"
+  },
+  "compatibility": {
+    "syncRagApiChanged": false,
+    "ragAnswerVoChanged": false,
+    "flywayChanged": false,
+    "frontendFallbackOnlyBeforeAccepted": true
+  },
+  "verification": {
+    "realEmbedding": "WAIVED_NOT_RUN",
+    "realQwenStreaming": "WAIVED_NOT_RUN",
+    "mysql": "PENDING_ENVIRONMENT",
+    "frontendE2E": "PENDING"
+  }
+}

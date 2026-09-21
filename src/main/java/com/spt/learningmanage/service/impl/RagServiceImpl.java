@@ -21,6 +21,7 @@ import com.spt.learningmanage.service.PermissionService;
 import com.spt.learningmanage.service.RagService;
 import com.spt.learningmanage.service.rag.RagAnswerService;
 import com.spt.learningmanage.service.rag.RagContextAssembler;
+import com.spt.learningmanage.service.rag.RagExecutionObserver;
 import com.spt.learningmanage.service.rag.RagQueryAuditService;
 import com.spt.learningmanage.service.rag.RagQuestionHasher;
 import com.spt.learningmanage.service.rag.RagReadinessService;
@@ -28,6 +29,7 @@ import com.spt.learningmanage.service.rag.RagResultPersistenceService;
 import com.spt.learningmanage.service.rag.RagResultViewService;
 import com.spt.learningmanage.service.rag.RagRetrievalService;
 import com.spt.learningmanage.service.rag.RagSourceVerifier;
+import com.spt.learningmanage.service.rag.RagStreamCancelledException;
 import com.spt.learningmanage.trace.TraceContext;
 import com.spt.learningmanage.utils.UserHolder;
 import org.springframework.stereotype.Service;
@@ -89,13 +91,30 @@ public class RagServiceImpl implements RagService {
 
     @Override
     public RagAnswerVO ask(RagAskRequest request) {
-        Long actorUserId = currentUserId();
+        return ask(request, currentUserId(), RagExecutionObserver.NOOP);
+    }
+
+    @Override
+    public RagAnswerVO ask(RagAskRequest request, Long actorUserId, RagExecutionObserver observer) {
+        return ask(request, actorUserId, observer, null);
+    }
+
+    @Override
+    public RagAnswerVO ask(RagAskRequest request,
+                           Long actorUserId,
+                           RagExecutionObserver observer,
+                           String suppliedRequestId) {
+        if (actorUserId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        RagExecutionObserver progress = observer == null ? RagExecutionObserver.NOOP : observer;
         validateRequest(request);
         readinessService.requireReady();
         ProjectAccessScope initialScope = permissionService.requireProjectView(
                 actorUserId, request.getProjectId());
         String question = sanitizeQuestion(request.getQuestion());
-        String requestId = UUID.randomUUID().toString();
+        String requestId = suppliedRequestId == null || suppliedRequestId.isBlank()
+                ? UUID.randomUUID().toString() : suppliedRequestId;
         String traceId = TraceContext.currentOrCreate();
         long startedAt = System.currentTimeMillis();
         AiRagQueryLog queryLog = auditService.start(requestId, actorUserId,
@@ -103,12 +122,23 @@ public class RagServiceImpl implements RagService {
         try {
             ProjectAccessScope scope = initialScope;
             for (int attempt = 0; attempt < 2; attempt++) {
-                RagRetrievalOutcome retrieval = retrievalService.retrieve(
-                        actorUserId, scope, question, traceId);
+                int attemptNumber = attempt + 1;
+                progress.onStage("RETRIEVING", attemptNumber);
+                progress.checkCancelled();
+                RagRetrievalOutcome retrieval = progress == RagExecutionObserver.NOOP
+                        ? retrievalService.retrieve(actorUserId, scope, question, traceId)
+                        : retrievalService.retrieve(actorUserId, scope, question, traceId, progress, attemptNumber);
                 RagContext context = contextAssembler.assemble(question, retrieval.candidates());
+                progress.checkCancelled();
+                if (!retrieval.candidates().isEmpty()) {
+                    progress.onStage("GENERATING", attemptNumber);
+                    progress.checkCancelled();
+                }
                 RagGeneratedAnswer generated = retrieval.candidates().isEmpty()
                         ? insufficientAnswer()
                         : answerService.generate(actorUserId, context, traceId);
+                progress.onStage("VERIFYING", attemptNumber);
+                progress.checkCancelled();
                 List<RagCandidate> cited = generated.content().citations().stream()
                         .map(context.evidence()::get)
                         .toList();
@@ -117,6 +147,9 @@ public class RagServiceImpl implements RagService {
                 RagSourceValidationStatus validation = sourceVerifier.verifyCandidates(
                         actorUserId, scope, cited);
                 if (validation == RagSourceValidationStatus.VALID) {
+                    // A client disconnect can race with source verification. Do not
+                    // persist a result after the stream has been cancelled.
+                    progress.checkCancelled();
                     PersistedRagResult persisted = persistenceService.save(
                             requestId, actorUserId, request.getProjectId(), traceId,
                             queryLog, retrieval, context, generated, elapsed(startedAt));
@@ -136,6 +169,13 @@ public class RagServiceImpl implements RagService {
                 }
             }
             throw new BusinessException(ErrorCode.RAG_SOURCE_CHANGED);
+        } catch (RagStreamCancelledException exception) {
+            try {
+                auditService.cancel(queryLog.getId(), "CLIENT_DISCONNECTED", elapsed(startedAt));
+            } catch (RuntimeException auditFailure) {
+                exception.addSuppressed(auditFailure);
+            }
+            throw exception;
         } catch (RuntimeException exception) {
             if (metricsRecorder != null) {
                 metricsRecorder.recordRag("FAILED", false, false,

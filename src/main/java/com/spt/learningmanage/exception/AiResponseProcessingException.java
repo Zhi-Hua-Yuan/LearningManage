@@ -19,6 +19,7 @@ public class AiResponseProcessingException extends RuntimeException {
                                          Throwable cause) {
         super(buildInternalMessage(safeMessage), cause);
         if (failureType != AiCallFailureTypeEnum.RESPONSE_PARSE
+                && failureType != AiCallFailureTypeEnum.RESPONSE_SCHEMA
                 && failureType != AiCallFailureTypeEnum.BUSINESS_VALIDATION) {
             throw new IllegalArgumentException("响应处理失败类型不合法");
         }
@@ -40,6 +41,10 @@ public class AiResponseProcessingException extends RuntimeException {
 
     public static AiResponseProcessingException businessValidation(String safeMessage, Throwable cause) {
         return new AiResponseProcessingException(AiCallFailureTypeEnum.BUSINESS_VALIDATION, safeMessage, cause);
+    }
+
+    public static AiResponseProcessingException schema(String safeMessage, Throwable cause) {
+        return new AiResponseProcessingException(AiCallFailureTypeEnum.RESPONSE_SCHEMA, safeMessage, cause);
     }
 
     private static String buildInternalMessage(String safeMessage) {

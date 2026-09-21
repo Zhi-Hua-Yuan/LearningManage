@@ -30,8 +30,8 @@ class DefaultAiPromptTemplateProviderTest {
         AiPromptTemplate defaultTemplate = provider.getRequired(AiPromptCodeEnum.TASK_BREAKDOWN_DEFAULT);
         AiPromptTemplate detailedTemplate = provider.getRequired(AiPromptCodeEnum.TASK_BREAKDOWN_DETAILED);
 
-        Assertions.assertEquals(readCandidate("task-breakdown-default-v2.txt"), defaultTemplate.systemPrompt().strip());
-        Assertions.assertEquals(readCandidate("task-breakdown-detailed-v2.txt"), detailedTemplate.systemPrompt().strip());
+        Assertions.assertEquals(readCandidate("task-breakdown-default-v3.txt"), defaultTemplate.systemPrompt().strip());
+        Assertions.assertEquals(readCandidate("task-breakdown-detailed-v3.txt"), detailedTemplate.systemPrompt().strip());
         Assertions.assertTrue(defaultTemplate.systemPrompt().contains("每个里程碑必须恰好输出 3 个任务"));
         Assertions.assertTrue(detailedTemplate.systemPrompt().contains("每个里程碑必须恰好输出 4 个任务"));
     }

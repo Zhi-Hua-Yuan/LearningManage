@@ -48,6 +48,17 @@ public class AiMetricsRecorder {
         }
     }
 
+    /**
+     * Records business outcomes that happen outside the model invocation itself.
+     * The outcome vocabulary is deliberately small so request details and IDs
+     * never become metric labels.
+     */
+    public void recordSceneOutcome(String scene, String outcome) {
+        Counter.builder("learning.ai.scene.outcomes")
+                .tags("scene", tag(scene), "outcome", tag(outcome))
+                .register(registry).increment();
+    }
+
     public void recordRag(String status, boolean degraded, boolean insufficient,
                           long durationMs, int candidates) {
         Counter.builder("learning.rag.queries")
@@ -64,6 +75,17 @@ public class AiMetricsRecorder {
             Counter.builder("learning.rag.insufficient")
                     .tags("status", tag(status)).register(registry).increment();
         }
+    }
+
+    public void recordRagStream(String outcome, long durationMs) {
+        Counter.builder("learning.rag.stream.requests")
+                .tags("outcome", tag(outcome))
+                .register(registry).increment();
+        Timer.builder("learning.rag.stream.duration")
+                .tags("outcome", tag(outcome))
+                .publishPercentileHistogram()
+                .register(registry)
+                .record(Duration.ofMillis(Math.max(durationMs, 0L)));
     }
 
     public void recordAgentRun(String scene, String status, String mode, long durationMs) {

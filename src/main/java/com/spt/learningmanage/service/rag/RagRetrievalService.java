@@ -57,6 +57,25 @@ public class RagRetrievalService {
                                         ProjectAccessScope scope,
                                         String question,
                                         String traceId) {
+        return retrieve(actorUserId, scope, question, traceId, RagExecutionObserver.NOOP);
+    }
+
+    public RagRetrievalOutcome retrieve(Long actorUserId,
+                                        ProjectAccessScope scope,
+                                        String question,
+                                        String traceId,
+                                        RagExecutionObserver observer) {
+        return retrieve(actorUserId, scope, question, traceId, observer, 1);
+    }
+
+    public RagRetrievalOutcome retrieve(Long actorUserId,
+                                        ProjectAccessScope scope,
+                                        String question,
+                                        String traceId,
+                                        RagExecutionObserver observer,
+                                        int attempt) {
+        RagExecutionObserver progress = observer == null ? RagExecutionObserver.NOOP : observer;
+        progress.checkCancelled();
         try {
             EmbeddingBatchResult embedding = embeddingClient.embedQuery(question,
                     new EmbeddingCallContext(actorUserId, traceId,
@@ -73,6 +92,8 @@ public class RagRetrievalService {
             List<RagCandidate> hydrated = hydrator.hydrate(actorUserId, scope, hits);
             List<RagCandidate> beforeRerank = limitPerSource(hydrated,
                     properties.getMaxChunksPerSourceBeforeRerank(), properties.getInitialTopK());
+            progress.onStage("RERANKING", attempt);
+            progress.checkCancelled();
             if (beforeRerank.isEmpty()) {
                 return new RagRetrievalOutcome(List.of(), hits.size(), 0,
                         false, null, embedding.actualModel(), null);

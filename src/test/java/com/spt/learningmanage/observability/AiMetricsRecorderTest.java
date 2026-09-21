@@ -46,17 +46,34 @@ class AiMetricsRecorderTest {
         recorder.recordInvocation("project-risk-report", command,
                 new AiCostEstimate("price-v1", "CNY", new BigDecimal("0.001")));
         recorder.recordRag("SUCCESS", false, false, 80, 5);
+        recorder.recordRagStream("COMPLETED", 90);
         recorder.recordAgentRun("project-risk", "SUCCEEDED", "TOOL_CALLING", 200);
         recorder.recordTool("queryProjectTasks", "SUCCEEDED", 20);
         recorder.recordKnowledgeEvent("task", "SUCCESS", "none", 30);
         recorder.recordCleanup("SUCCEEDED", 40, 10);
+        recorder.recordSceneOutcome("today-order", "AUTHORIZATION");
+        recorder.recordSceneOutcome("today-order", "RESOURCE_STATE_CONFLICT");
 
         Set<String> allowed = Set.of(
                 "scene", "model", "status", "failure_type", "degraded",
                 "orchestration_mode", "tool_name", "source_type",
-                "currency", "price_version");
+                "currency", "price_version", "outcome");
         registry.getMeters().forEach(meter -> meter.getId().getTags().forEach(tag ->
                 assertTrue(allowed.contains(tag.getKey()),
                         () -> "metric tag is not allow-listed: " + tag.getKey())));
+    }
+
+    @Test
+    void recordsSceneOutcomesWithStableLowCardinalityTags() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        AiMetricsRecorder recorder = new AiMetricsRecorder(registry);
+
+        recorder.recordSceneOutcome("today-order", "AUTHORIZATION");
+        recorder.recordSceneOutcome("today-order", "AUTHORIZATION");
+
+        assertEquals(2D, registry.get("learning.ai.scene.outcomes").counter().count());
+        assertEquals(2D, registry.get("learning.ai.scene.outcomes")
+                .tag("scene", "today-order").tag("outcome", "authorization")
+                .counter().count());
     }
 }

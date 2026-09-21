@@ -222,7 +222,7 @@ class TaskBreakdownAiServiceImplTest {
     }
 
     private String responseWithShape(int priority, int milestoneCount, int tasksPerMilestone) {
-        StringBuilder response = new StringBuilder("```json\n[");
+        StringBuilder response = new StringBuilder("```json\n{\"milestones\":[");
         for (int milestone = 1; milestone <= milestoneCount; milestone++) {
             if (milestone > 1) {
                 response.append(',');
@@ -238,6 +238,6 @@ class TaskBreakdownAiServiceImplTest {
             }
             response.append("]}");
         }
-        return response.append("]\n```").toString();
+        return response.append("]}\n```").toString();
     }
 }

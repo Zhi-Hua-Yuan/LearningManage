@@ -5,6 +5,7 @@ import com.spt.learningmanage.common.ResultUtils;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.ConstraintViolationException;
+import com.spt.learningmanage.observability.AiMetricsRecorder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -17,10 +18,19 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private AiMetricsRecorder aiMetricsRecorder;
+
+    @Autowired(required = false)
+    public void setAiMetricsRecorder(AiMetricsRecorder aiMetricsRecorder) {
+        this.aiMetricsRecorder = aiMetricsRecorder;
+    }
 
     @ExceptionHandler(BusinessException.class)
     @ApiResponses({
@@ -33,10 +43,61 @@ public class GlobalExceptionHandler {
             @ApiResponse(responseCode = "500", description = "服务端操作失败"),
             @ApiResponse(responseCode = "503", description = "依赖或功能暂不可用")
     })
-    public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException ex) {
-        log.warn("业务异常: {}", ex.getMessage());
+    public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException ex,
+                                                                        HttpServletRequest request) {
+        String outcome = classifyAiOutcome(ex.getErrorCode());
+        if (outcome != null && aiMetricsRecorder != null && isAiRequest(request)) {
+            aiMetricsRecorder.recordSceneOutcome(sceneFromRequest(request), outcome);
+        }
+        log.warn("业务异常 code={} outcome={} message={}", ex.getErrorCode(), outcome, ex.getMessage());
         return ResponseEntity.status(ex.getErrorCode().getHttpStatus())
                 .body(ResultUtils.error(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    /** Compatibility overload used by unit callers that do not have a servlet request. */
+    public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException ex) {
+        return handleBusinessException(ex, null);
+    }
+
+    private boolean isAiRequest(HttpServletRequest request) {
+        return request != null && request.getRequestURI() != null
+                && request.getRequestURI().contains("/ai/");
+    }
+
+    private String sceneFromRequest(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri.contains("today-order")) {
+            return "today-order";
+        }
+        if (uri.contains("daily-review")) {
+            return "daily-review-rename";
+        }
+        if (uri.contains("list/replan")) {
+            return "list-replan";
+        }
+        if (uri.contains("polish")) {
+            return "weekly-polish";
+        }
+        if (uri.contains("breakdown")) {
+            return "task-breakdown";
+        }
+        return "ai-other";
+    }
+
+    private String classifyAiOutcome(ErrorCode errorCode) {
+        if (errorCode == null) {
+            return null;
+        }
+        return switch (errorCode) {
+            case NOT_LOGIN_ERROR, NO_AUTH_ERROR, FORBIDDEN_ERROR, REPORT_NO_ACCESS,
+                    TOOL_NOT_ALLOWED -> "AUTHORIZATION";
+            case RESOURCE_STATE_CONFLICT, AI_DRAFT_NOT_CONFIRMABLE, AI_DRAFT_EXPIRED,
+                    AI_DRAFT_CONFLICT, RAG_RESULT_INVALIDATED, RAG_RESULT_EXPIRED,
+                    RAG_SOURCE_CHANGED, AGENT_RUN_NOT_FINISHED, AGENT_RUN_ALREADY_FINISHED,
+                    AGENT_CANCELED, AGENT_DATA_CHANGED, AGENT_REPORT_STALE,
+                    REPORT_ALREADY_DELETED -> "RESOURCE_STATE_CONFLICT";
+            default -> null;
+        };
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

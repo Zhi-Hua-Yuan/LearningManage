@@ -17,6 +17,7 @@ import com.spt.learningmanage.service.EmbeddingClient;
 import com.spt.learningmanage.service.knowledge.KnowledgeDependencyType;
 import com.spt.learningmanage.service.knowledge.KnowledgeResilientCallExecutor;
 import org.springframework.http.HttpMethod;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @Service
+@ConditionalOnProperty(name = "ai.embedding.adapter", havingValue = "legacy")
 public class AliyunEmbeddingClient implements EmbeddingClient {
 
     private final EmbeddingProperties properties;

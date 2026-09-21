@@ -1,0 +1,39 @@
+{
+  "phase": "phase2",
+  "deliverable": "structured-output-standardization",
+  "scenes": [
+    "today-order",
+    "daily-review-rename",
+    "weekly-polish",
+    "list-replan",
+    "task-breakdown"
+  ],
+  "structuredOutput": {
+    "decoder": "spring-ai-bean-output-converter",
+    "strictUnknownFields": true,
+    "strictMissingRequiredFields": true,
+    "automaticRetry": false,
+    "providerNativeQwen": "WAIVED_NOT_RUN"
+  },
+  "promptVersions": {
+    "today-order": 2,
+    "daily-review-rename": 2,
+    "weekly-polish": 2,
+    "list-replan": 2,
+    "task-breakdown": 3
+  },
+  "apiAndSchemaChanges": false,
+  "draftPayloadChanges": false,
+  "observability": {
+    "parseFailure": "learning.ai.invocations.failure_type=RESPONSE_PARSE",
+    "schemaFailure": "learning.ai.invocations.failure_type=RESPONSE_SCHEMA",
+    "businessValidationFailure": "learning.ai.invocations.failure_type=BUSINESS_VALIDATION",
+    "authorizationFailure": "learning.ai.scene.outcomes.outcome=authorization",
+    "resourceStateConflict": "learning.ai.scene.outcomes.outcome=resource_state_conflict"
+  },
+  "realQwen": {
+    "status": "WAIVED_NOT_RUN",
+    "mustNotBeReportedAs": "passed",
+    "followUpRequired": true
+  }
+}
