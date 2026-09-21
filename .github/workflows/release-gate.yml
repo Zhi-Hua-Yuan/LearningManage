@@ -37,9 +37,9 @@ env:
   #   OpenApiConfigTest                     3（@NotBlank 派生 minLength 兼容）
   #   TraceContextTest                      9（应用 trace id 不被遥测 MDC 覆盖）
   #   TraceIdFilterTest                    +2（请求中途 MDC 被覆盖的回归守卫）
-  # 938 baseline + 11 Phase 1 PR2 adapter/config/streaming/parity contract tests.
-  # Keep aligned with backend-ci.yml: 938 baseline + 21 net Phase 1 PR2 tests.
-  CI_EXPECTED_TEST_COUNT: '960'
+  # Published CI baseline after the develop merge and Phase 3 additions: 965 tests.
+  # Keep aligned with backend-ci.yml.
+  CI_EXPECTED_TEST_COUNT: '965'
   CI_MYSQL_IMAGE: mysql:8.0.41@sha256:bf577825b52ab281d6281fb281eabbfdc73507eda8f2c2745790251533ef0306
   CI_EMPTY_DB_NAME: learning_manage_ci_empty
   CI_LEGACY_DB_NAME: learning_manage_ci_legacy
