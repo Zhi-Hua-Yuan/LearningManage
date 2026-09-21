@@ -202,6 +202,7 @@ curl http://localhost:8123/api/health
 - [Stage 5 权限感知 RAG](docs/stage5/README.md)
 - [Stage 6 受控异步 Agent](docs/stage6/README.md)
 - [Stage 7 生产治理与数据生命周期](docs/stage7/README.md)
+- [Phase 4 Agent / Tool Calling](docs/phase4-agent-tool-calling/requirements.md)
 - [Sprint 3 AI 草稿联调验收记录](docs/sprint/Sprint3_AI草稿联调验收记录.md)
 
 如需完整接口定义，优先以 Swagger UI 文档页面和上述 API 文档为准：`/api/swagger-ui/index.html`。

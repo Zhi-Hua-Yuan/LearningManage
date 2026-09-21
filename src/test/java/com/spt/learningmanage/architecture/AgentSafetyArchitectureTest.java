@@ -36,6 +36,23 @@ class AgentSafetyArchitectureTest {
         }
     }
 
+    @Test
+    void springAdapterKeepsToolCallbacksRequestScopedAndFrameworkExecutionDisabled() throws Exception {
+        Path adapter = ROOT.resolve("src/main/java/com/spt/learningmanage/client/ai/adapter/SpringAiChatAdapter.java");
+        String source = Files.readString(adapter, StandardCharsets.UTF_8);
+        assertTrue(source.contains("toolCallbacks(toToolCallbacks(command.tools()))"));
+        assertTrue(source.contains("internalToolExecutionEnabled(false)"));
+        assertFalse(source.contains("@Tool"), "business Tools must not become component/global annotations");
+    }
+
+    @Test
+    void applicationManagerDoesNotRegisterSpringGlobalToolManager() throws Exception {
+        Path manager = ROOT.resolve("src/main/java/com/spt/learningmanage/agent/LearningManageToolCallingManager.java");
+        String source = Files.readString(manager, StandardCharsets.UTF_8);
+        assertFalse(source.contains("implements ToolCallingManager"));
+        assertFalse(source.contains("@Bean"));
+    }
+
     private java.util.List<Path> agentKernelFiles() throws Exception {
         Path root = ROOT.resolve("src/main/java/com/spt/learningmanage/agent");
         try (var files = Files.walk(root)) {

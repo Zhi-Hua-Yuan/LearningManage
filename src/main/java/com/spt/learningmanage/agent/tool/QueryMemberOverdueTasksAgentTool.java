@@ -31,6 +31,7 @@ public class QueryMemberOverdueTasksAgentTool implements AgentTool<EmptyToolArgu
     }
 
     @Override public String name() { return "queryMemberOverdueTasks"; }
+    @Override public String description() { return "查询团队成员逾期任务（只读）"; }
     @Override public Set<AgentSceneEnum> allowedScenes() { return Set.of(AgentSceneEnum.TEAM_WORKLOAD); }
     @Override public Class<EmptyToolArguments> argumentType() { return EmptyToolArguments.class; }
 

@@ -16,7 +16,6 @@ import com.spt.learningmanage.agent.model.TeamWorkloadToolResult;
 import com.spt.learningmanage.ai.pipeline.AiChatRoundExecutionCommand;
 import com.spt.learningmanage.ai.pipeline.AiExecutionResult;
 import com.spt.learningmanage.ai.pipeline.AiInvocationPipeline;
-import com.spt.learningmanage.config.AgentProperties;
 import com.spt.learningmanage.config.AiProperties;
 import com.spt.learningmanage.config.RagProperties;
 import com.spt.learningmanage.constant.AgentOrchestrationModeEnum;
@@ -25,17 +24,14 @@ import com.spt.learningmanage.constant.AiPromptCodeEnum;
 import com.spt.learningmanage.exception.BusinessException;
 import com.spt.learningmanage.exception.ErrorCode;
 import com.spt.learningmanage.mapper.AgentReadMapper;
-import com.spt.learningmanage.mapper.AiAgentToolLogMapper;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatMessage;
 import com.spt.learningmanage.model.dto.ai.chat.AiChatResult;
-import com.spt.learningmanage.model.dto.ai.chat.AiFunctionDefinition;
 import com.spt.learningmanage.model.dto.ai.chat.AiToolChoice;
 import com.spt.learningmanage.model.dto.ai.chat.AiToolDefinition;
 import com.spt.learningmanage.model.entity.AiAgentRun;
 import com.spt.learningmanage.model.permission.ProjectAccessScope;
 import com.spt.learningmanage.service.BusinessDataVersionService;
 import com.spt.learningmanage.service.PermissionService;
-import com.spt.learningmanage.service.agent.AgentRunQueueService;
 import com.spt.learningmanage.service.ai.support.AiJsonResponseSanitizer;
 import org.springframework.stereotype.Component;
 
@@ -57,46 +53,34 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
     private static final Set<String> RISK_CATEGORIES = Set.of(
             "SCHEDULE", "OVERDUE", "WORKLOAD", "UNASSIGNED", "HISTORY", "DATA_GAP");
 
-    private final AgentProperties properties;
     private final AiProperties aiProperties;
     private final RagProperties ragProperties;
     private final PermissionService permissionService;
     private final BusinessDataVersionService versionService;
-    private final AgentToolExecutor toolExecutor;
-    private final AgentRunQueueService queueService;
+    private final LearningManageToolCallingManager toolCallingManager;
     private final AiInvocationPipeline pipeline;
     private final AgentReadMapper readMapper;
-    private final AiAgentToolLogMapper toolLogMapper;
     private final ObjectMapper objectMapper;
     private final AiJsonResponseSanitizer responseSanitizer;
-    private final AgentToolPolicy toolPolicy;
 
-    public DefaultAgentOrchestrator(AgentProperties properties,
-                                    AiProperties aiProperties,
+    public DefaultAgentOrchestrator(AiProperties aiProperties,
                                     RagProperties ragProperties,
                                     PermissionService permissionService,
                                     BusinessDataVersionService versionService,
-                                    AgentToolExecutor toolExecutor,
-                                    AgentRunQueueService queueService,
+                                    LearningManageToolCallingManager toolCallingManager,
                                     AiInvocationPipeline pipeline,
                                     AgentReadMapper readMapper,
-                                    AiAgentToolLogMapper toolLogMapper,
                                     ObjectMapper objectMapper,
-                                    AiJsonResponseSanitizer responseSanitizer,
-                                    AgentToolPolicy toolPolicy) {
-        this.properties = properties;
+                                    AiJsonResponseSanitizer responseSanitizer) {
         this.aiProperties = aiProperties;
         this.ragProperties = ragProperties;
         this.permissionService = permissionService;
         this.versionService = versionService;
-        this.toolExecutor = toolExecutor;
-        this.queueService = queueService;
+        this.toolCallingManager = toolCallingManager;
         this.pipeline = pipeline;
         this.readMapper = readMapper;
-        this.toolLogMapper = toolLogMapper;
         this.objectMapper = objectMapper;
         this.responseSanitizer = responseSanitizer;
-        this.toolPolicy = toolPolicy;
     }
 
     @Override
@@ -152,11 +136,12 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                     + "不得把任务 localId 当作可持久化引用。";
         }
         messages.add(AiChatMessage.user(task));
-        List<AiToolDefinition> definitions = projectToolDefinitions();
+        List<AiToolDefinition> definitions = toolCallingManager.definitionsFor(
+                AgentSceneEnum.PROJECT_RISK, ragProperties.isEnabled());
         boolean corrected = false;
         int round = 1;
         while (round <= 6) {
-            checkCanceled(run);
+            toolCallingManager.checkCanceled(run);
             AiExecutionResult<AiChatResult> execution = pipeline.executeChatRound(new AiChatRoundExecutionCommand(
                     run.getUserId(), aiProperties.getModel(), AiPromptCodeEnum.AGENT_PROJECT_RISK,
                     messages, definitions, AiToolChoice.auto(), 0.0, 2000, run.getTraceId(),
@@ -167,8 +152,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                 messages.add(AiChatMessage.assistant(response.content(), response.toolCalls()));
                 for (var call : response.toolCalls()) {
                     String name = call.function().name();
-                    toolPolicy.requireCallAllowed(AgentSceneEnum.PROJECT_RISK, outputs.keySet(), name);
-                    AgentToolExecution tool = runTool(run, context, outputs.size() + 1,
+                    AgentToolExecution tool = runTool(run, context, outputs,
                             call.id(), name, call.function().arguments());
                     outputs.put(name, tool);
                     messages.add(AiChatMessage.tool(call.id(), untrusted(tool.resultJson())));
@@ -176,7 +160,7 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                 round++;
                 continue;
             }
-            if (!toolPolicy.hasRequired(AgentSceneEnum.PROJECT_RISK, outputs.keySet())) {
+            if (!toolCallingManager.hasRequired(AgentSceneEnum.PROJECT_RISK, outputs.keySet())) {
                 if (corrected) {
                     throw new BusinessException(ErrorCode.TOOL_EXECUTION_FAILED, "模型未调用必需 Tool");
                 }
@@ -299,27 +283,19 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         if (existing != null) {
             return existing;
         }
-        AgentToolExecution value = runTool(run, context, outputs.size() + 1, null, name, arguments);
+        AgentToolExecution value = runTool(run, context, outputs, null, name, arguments);
         outputs.put(name, value);
         return value;
     }
 
     private AgentToolExecution runTool(AiAgentRun run,
                                        ToolExecutionContext context,
-                                       int sequence,
+                                       Map<String, AgentToolExecution> outputs,
                                        String toolCallId,
                                        String name,
                                        String arguments) {
-        checkCanceled(run);
-        int persistedSequence = toolLogMapper.selectMaxSequence(run.getRunId(), run.getAttemptCount());
-        int nextSequence = Math.max(sequence, persistedSequence + 1);
-        if (nextSequence > properties.getMaxToolCalls()) {
-            throw new BusinessException(ErrorCode.TOOL_CALL_LIMIT_EXCEEDED);
-        }
-        queueService.updateProgress(run, "TOOL:" + name, nextSequence - 1, context.dataVersion());
-        AgentToolExecution value = toolExecutor.execute(run, context, nextSequence, toolCallId, name, arguments);
-        queueService.updateProgress(run, "TOOL_COMPLETED:" + name, nextSequence, context.dataVersion());
-        return value;
+        return toolCallingManager.execute(run, context, outputs.keySet(), toolCallId, name,
+                arguments, ragProperties.isEnabled());
     }
 
     private ToolExecutionContext context(AiAgentRun run,
@@ -329,15 +305,6 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
         return new ToolExecutionContext(run.getUserId(), run.getRunId(), scene,
                 run.getProjectId(), run.getTeamId(), scope, run.getTraceId(),
                 run.getAttemptCount(), run.getExecutionToken(), dataVersion);
-    }
-
-    private void checkCanceled(AiAgentRun run) {
-        if (queueService.cancellationRequested(run.getRunId(), run.getExecutionToken())) {
-            throw new BusinessException(ErrorCode.AGENT_CANCELED);
-        }
-        if (!queueService.heartbeat(run)) {
-            throw new BusinessException(ErrorCode.AGENT_WORKER_LOST);
-        }
     }
 
     private ProjectTaskStats stats(Map<String, AgentToolExecution> outputs) {
@@ -483,26 +450,6 @@ public class DefaultAgentOrchestrator implements AgentOrchestrator {
                     metric.onTimeCompletionRate(), metric.workloadRisk(), metric.ruleVersion()));
         }
         return List.copyOf(snapshots);
-    }
-
-    private List<AiToolDefinition> projectToolDefinitions() {
-        JsonNode empty = objectMapper.createObjectNode().put("type", "object")
-                .set("properties", objectMapper.createObjectNode());
-        JsonNode history = objectMapper.createObjectNode().put("type", "object")
-                .set("properties", objectMapper.createObjectNode().set("query",
-                        objectMapper.createObjectNode().put("type", "string").put("maxLength", 200)));
-        List<AiToolDefinition> definitions = new ArrayList<>(List.of(
-                tool("queryProjectTasks", "查询当前项目任务摘要", empty),
-                tool("queryOverdueTasks", "查询当前项目逾期任务", empty),
-                tool("queryTaskStats", "查询当前项目任务统计", empty)));
-        if (ragProperties.isEnabled()) {
-            definitions.add(tool("retrieveProjectHistory", "检索当前项目历史证据", history));
-        }
-        return List.copyOf(definitions);
-    }
-
-    private AiToolDefinition tool(String name, String description, JsonNode parameters) {
-        return AiToolDefinition.function(new AiFunctionDefinition(name, description, parameters));
     }
 
     private String untrusted(String value) {

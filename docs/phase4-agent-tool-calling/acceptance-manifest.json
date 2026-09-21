@@ -1,0 +1,17 @@
+{
+  "phase": "phase4-agent-tool-calling",
+  "publicApiChanged": false,
+  "databaseMigrationAdded": false,
+  "globalToolRegistration": false,
+  "springAiInternalToolExecution": false,
+  "tools": [
+    "queryProjectTasks",
+    "queryOverdueTasks",
+    "queryTaskStats",
+    "retrieveProjectHistory",
+    "queryTeamMemberWorkload",
+    "queryMemberOverdueTasks"
+  ],
+  "fallback": "fixed-read-only-workflow",
+  "realProviderValidation": "pending"
+}

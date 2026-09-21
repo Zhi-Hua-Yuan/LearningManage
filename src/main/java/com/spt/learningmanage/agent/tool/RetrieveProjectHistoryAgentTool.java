@@ -33,6 +33,7 @@ public class RetrieveProjectHistoryAgentTool implements AgentTool<ProjectHistory
     }
 
     @Override public String name() { return "retrieveProjectHistory"; }
+    @Override public String description() { return "检索当前项目可授权的历史证据（只读）"; }
     @Override public Set<AgentSceneEnum> allowedScenes() { return Set.of(AgentSceneEnum.PROJECT_RISK); }
     @Override public Class<ProjectHistoryArguments> argumentType() { return ProjectHistoryArguments.class; }
 
