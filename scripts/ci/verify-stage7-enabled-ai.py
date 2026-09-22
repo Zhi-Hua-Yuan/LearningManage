@@ -87,6 +87,7 @@ def verify_metric_tags():
         "status",
         "failure_type",
         "degraded",
+        "outcome",
         "orchestration_mode",
         "tool_name",
         "source_type",
